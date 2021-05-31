@@ -1,0 +1,31 @@
+# sucomp ignores
+
+#extensions
+*.pdb
+*.recipe
+*.obj
+*.idb
+*.o
+*.exe
+*.cppcheck
+*.4coder
+*.spv
+*.cap
+*.rdbg
+.tlog
+
+#folders
+.vs/
+build/
+deshicheck-cppcheck-build-dir/
+docs/doxygen/
+x64/
+Debug/
+
+
+#specific files
+TODOs.txt
+misc/4coder.bat
+misc/shell.bat
+misc/deshi.vcxproj.user
+
