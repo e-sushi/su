@@ -1,27 +1,36 @@
 #pragma once
 #include "string.h"
+#include "Tracy.hpp"
 
 string::string(const char c) {
+	ZoneScoped;
 	size = 1;
 	str = new char[1 + 1];
+	TracyAlloc(str, 1 + 1);
 	str[0] = c;
 	str[1] = '\0';
 }
 
 string::string(const char* s) {
+	ZoneScoped;
 	size = strlen(s);
 	str = new char[size + 1];
+	TracyAlloc(str, size + 1);
 	strcpy(str, s);
 }
 
 string::string(const string& s) {
+	ZoneScoped;
 	size = s.size;
 	str = new char[size + 1];
+	TracyAlloc(str, size + 1);
 	strcpy(str, s.str);
 }
 
 string::~string() {
+	ZoneScoped;
 	if (str) free(str);
+	TracyFree(str);
 	str = nullptr;
 	size = 0;
 }
@@ -31,21 +40,30 @@ char& string::operator[](int i) {
 	return *(str + i * sizeof(char));
 }
 
+void string::operator = (string s) {
+	ZoneScoped;
+	size = s.size;
+	str = new char[size + 1];
+	memcpy(str, s.str, size + 1);
+	memset(str + size, '\0', 1);
+}
+
 void string::operator = (const char* s) {
+	ZoneScoped;
 	size = sizeof(s);
 	str = new char[size + 1];
-	//TracyAlloc(str, size + 1);
-
 	strcpy(str, s);
 }
 
 bool string::operator == (string& s) {
+	ZoneScoped;
 	if (s.size != size || hash() != s.hash()) return false;
 	return true;
 }
 
 //these could probably be better
 void string::operator += (char& c) {
+	ZoneScoped;
 	int newsize = size + 1;
 	char* old = new char[size];
 	memcpy(old, str, size);
@@ -59,6 +77,7 @@ void string::operator += (char& c) {
 
 //these could probably be better
 void string::operator += (string& s) {
+	ZoneScoped;
 	if (s.size == 0) return;
 	int newsize = size + s.size;
 	char* old = new char[size];
@@ -72,6 +91,7 @@ void string::operator += (string& s) {
 }
 
 void string::clear() {
+	ZoneScoped;
 	memset(str, 0, size + 1);
 	str = (char*)realloc(str, 1);
 	str[0] = '\0';
@@ -80,6 +100,7 @@ void string::clear() {
 
 //https://cp-algorithms.com/string/string-hashing.html
 long long string::hash() {
+	ZoneScoped;
 	const int p = 31;
 	const int m = 1e9 + 9;
 	long long hash_value = 0;
@@ -90,4 +111,3 @@ long long string::hash() {
 	}
 	return hash_value;
 }
-

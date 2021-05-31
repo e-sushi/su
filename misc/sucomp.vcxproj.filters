@@ -13,11 +13,9 @@
     <ClCompile Include="..\utils\string.cpp">
       <Filter>utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\tracy\TracyClient.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\util\array.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\utils\array.h">
       <Filter>utils</Filter>
     </ClInclude>

@@ -1,16 +1,12 @@
 #pragma once
 #include <initializer_list>
+#include "Tracy.hpp"
 
 template<class T>
 struct array {
 	T* items;
 	int size = 0;
 	int itemsize = 0;
-
-	//array(std::initializer_list<T> l);
-	//~array();
-	//
-	//T& operator[](int i);
 
 	//small helper thing
 	int roundUp(int numToRound, int multiple) {
@@ -23,16 +19,20 @@ struct array {
 	}
 
 	array(int size) {
+		ZoneScoped;
 		itemsize = sizeof(T);
 		items = (T*)calloc(size, sizeof(T));
+		TracyAlloc(items, sizeof(roundUp(size * itemsize, 4)));
 		this->size = size;
 	}
 
 	array(std::initializer_list<T> l) {
 
+		ZoneScoped;
 		itemsize = sizeof(T);
 		for (auto& v : l) size++;
 		items = (T*)calloc(size, sizeof(T));
+		TracyAlloc(items, sizeof(roundUp(size * itemsize, 4)));
 
 
 		int index = 0;
@@ -44,9 +44,11 @@ struct array {
 	}
 
 	~array() {
+		ZoneScoped;
 		for (int i = 0; i < size; i++) {
 			items[i].~T();
 		}
+		TracyFree(items);
 		free(items);
 	}
 

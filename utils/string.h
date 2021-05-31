@@ -16,6 +16,7 @@ struct string {
 	~string();
 
 	char& operator[](int i);
+	void operator = (string s);
 	void operator = (const char* s);
 	bool operator == (string& s);
 	void operator += (string& s);
@@ -24,9 +25,6 @@ struct string {
 	void clear();
 
 	long long hash();
-
-	//void* operator new(size_t size, void* place);
-	//void operator delete(void* ptr) noexcept;
 
 };
 
