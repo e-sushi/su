@@ -4,15 +4,24 @@
     <Filter Include="utils">
       <UniqueIdentifier>{2d19a8a4-6b1e-47df-8613-db4904833b2a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{aeb5efab-8bc3-43f2-a4d3-6b1cf900da1c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\main.su" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\su-comp.cpp" />
     <ClCompile Include="..\utils\string.cpp">
       <Filter>utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\su-lexer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-parser.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\su-main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\util\array.h">
@@ -22,6 +31,15 @@
       <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="..\utils\string.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-lexer.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-parser.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\misc.h">
       <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>
