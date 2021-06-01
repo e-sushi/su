@@ -11,9 +11,6 @@
 
 #define arraysize(array) (sizeof(array)/sizeof(array[0]))
 
-#include <vector>
-
-
 char stopping_chars[NUMSTOPCHAR] = {
 	';', ' ', '{',  '}', '\(', '\)', ','
 };
@@ -55,16 +52,9 @@ token* begin_parse() {
 }
 
 int main() {
-	string test1 = "wow ";
-	string test2 = "bro!";
-
-	test1 += test2;
-
-	std::cout << test1 << std::endl;
-
 	FILE* file = fopen("main.su", "r");
 	if (!file) {
-		std::cout << "ERROR: could not find file specified." << std::endl;
+		std::cout << "ERROR: file not found." << std::endl;
 		return 0;
 	}
 	string buff = "";
@@ -72,9 +62,8 @@ int main() {
 
 	array<token> tokens(MAXTOK);
 
-	int i = 0;
 	int tokcount = 0;
-	while (i + 1 < MAXBUFF) {
+	while (buff.size + 1 < MAXBUFF) {
 		currChar = fgetc(file);
 		//check that our current character isn't any 'stopping' characters
 		if (is_in(currChar, stopping_chars)) {
@@ -96,7 +85,6 @@ int main() {
 			}
 			//memset(buff, 0, sizeof(buff));
 			buff.clear();
-			i = 0;
 
 		}
 		else if (currChar == EOF) {
@@ -115,9 +103,9 @@ int main() {
 
 	token_type currtype;
 
-	int iter = 0;
-	while (tokens[iter].token[0]) {
-		printf("%s|", tokens[iter].token);
-		iter++;
-	}
+	//int iter = 0;
+	//while (tokens[iter].token[0]) {
+	//	printf("%s|", tokens[iter].token);
+	//	iter++;
+	//}
 }

@@ -28,14 +28,19 @@ string::~string() {
 
 char& string::operator[](int i) {
 	//assert that index is less than str size
-	return *(str + i * sizeof(char));
+	return str[i];
+}
+
+void string::operator = (string s) {
+	size = s.size;
+	str = new char[size + 1];
+	memcpy(str, s.str, size + 1);
+	memset(str + size, '\0', 1);
 }
 
 void string::operator = (const char* s) {
 	size = sizeof(s);
 	str = new char[size + 1];
-	//TracyAlloc(str, size + 1);
-
 	strcpy(str, s);
 }
 
@@ -90,4 +95,3 @@ long long string::hash() {
 	}
 	return hash_value;
 }
-
