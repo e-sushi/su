@@ -16,6 +16,7 @@ struct string {
 	~string();
 
 	char& operator[](int i);
+	void operator = (char c);
 	void operator = (string s);
 	void operator = (const char* s);
 	bool operator == (string& s);

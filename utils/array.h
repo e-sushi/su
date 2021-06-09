@@ -2,17 +2,19 @@
 #include <initializer_list>
 #include "misc.h"
 
-//TODO make this work like vector
 template<class T>
 struct array {
 	T* items;
-	int size = 0;
-	int allocated_size = 0;
+	//int size = 0; //num items in array
+	int space = 0; //total space array has allocated
 	int itemsize = 0;
 
-	void* first = nullptr;
-	void* last  = nullptr;
-	void* max   = nullptr;
+	typedef T* iterator;
+	typedef const T* const_iterator;
+
+	T* first = nullptr;
+	T* last  = nullptr;
+	T* max   = nullptr;
 
 	//small helper thing
 	int roundUp(int numToRound, int multiple) {
@@ -25,17 +27,22 @@ struct array {
 	}
 
 	array(int size) {
+		space = size;
 		itemsize = sizeof(T);
 		items = (T*)calloc(size, itemsize);
-		this->size = size;
+		first = items;
+		last = items - 1; //could break things but it makes add work 
+		max = items + size - 1;
 	}
 
 	array(std::initializer_list<T> l) {
+		int size = 0;
 
 		itemsize = sizeof(T);
 		for (auto& v : l) size++;
 		items = (T*)calloc(size, itemsize);
 		
+		first = items;
 
 		int index = 0;
 		for (auto& v : l) {
@@ -43,6 +50,9 @@ struct array {
 			T* nu = new(items + index) T(v);
 			index++;
 		}
+
+		last = &items[size - 1];
+		max = last;
 	}
 
 	//TODO this can probably be much better
@@ -50,37 +60,64 @@ struct array {
 	//so we have to make sure everything in the array gets recreated
 	array(const array<T>& array) {
 		itemsize = array.itemsize;
-		size = array.size;
-		items = (T*)calloc(size, itemsize);
+		space = array.space;
+		items = (T*)calloc(array.space, itemsize);
 
-		for (int i = 0; i < array.size; i++) {
-			new(items + i) T(array.items[i]);
+		first = items;
+		last = items + array.size();
+		max = items + space - 1;
+
+		int i = 0;
+		for (T item : array) {
+			new(items + i) T(item);
+			i++;
 		}
-		//memcpy(items, array.items, itemsize * size);
+
 	}
 
 	~array() {
-		for (int i = 0; i < size; i++) {
+		for (int i = 0; i < size(); i++) {
 			items[i].~T();
 		}
 		free(items);
 	}
 
+	int size() const {
+		return (int)(last - first);
+	}
+
 	void operator = (array<T>& array) {
 
 	}
-
 	
 	void add(T t) {
+		//if array is full, realloc the memory and extend it to accomodate the new item
 		if (max - last == 0) {
-			realloc(items, size * itemsize + itemsize);
+			space = roundUp(size() * itemsize + itemsize, itemsize);
+			realloc(items, space);
+			max = items + space;
+			//for (T* i = last + 1; i < max; i++) {
+			//	memset(i, 0, itemsize);
+			//}
 			first = items;
+			last = items + size() + 1;
+			new(last) T(t);
 		}
+		else {
+			last++;
+			new(last) T(t);
+		}
+	}
 
-
-
-
-
+	void remove(int i) {
+		assert(size() > 0); "can't remove element from empty vector";
+		assert(i < size()); "index is out of bounds";
+		memset(items + i, 0, itemsize);
+		for (int o = i; o < size(); o++) {
+			items[o] = items[o + 1];
+		}
+		memset(last, 0, itemsize);
+		last--;
 	}
 
 	//allows for dynamic growth
@@ -96,4 +133,12 @@ struct array {
 	T& operator[](int i) {
 		return items[i];
 	}
+
+	//begin/end functions for for each loops
+	iterator begin() { return &items[0]; }
+	iterator end()   { return &items[size()]; }
+	const_iterator begin() const { return &items[0]; }
+	const_iterator end()   const { return &items[size()]; }
+
+
 };

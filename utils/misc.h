@@ -2,20 +2,7 @@
 #ifndef SU_MISC_H
 #define SU_MISC_H
 
-//assert
-#ifndef NDEBUG
-#define ASSERT(condition, message) \
-do { \
-if (! (condition)) { \
-std::string file = __FILENAME__; \
-std::cout << "Assertion '" #condition "' failed in " + file + " line " + std::to_string(__LINE__) + ": \n" #message << std::endl;  \
-std::terminate(); \
-} \
-} while (false)
-#else
-#   define ASSERT(condition, message) condition;
-#endif
-
+#include <assert.h>
 
 //NOTE: I'm not sure if i want this in a namespace yet
 

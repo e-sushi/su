@@ -31,6 +31,13 @@ char& string::operator[](int i) {
 	return str[i];
 }
 
+void string::operator = (char c) {
+	size = 1;
+	str = new char[size + 1];
+	memset(str, c, 2);
+	memset(str + 1, '\0', 1);
+}
+
 void string::operator = (string s) {
 	size = s.size;
 	str = new char[size + 1];

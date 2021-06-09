@@ -21,7 +21,9 @@
     <ClCompile Include="..\src\su-parser.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\su-main.cpp" />
+    <ClCompile Include="..\src\su-main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\util\array.h">

@@ -23,15 +23,22 @@ array<token> suLexer::lex(FILE* file) {
 			//store both the stopping character and previous buffer as tokens
 			//also decide what type of token it is
 			if (buff[0]) {
-				tokens[tokcount].str = buff;
+				token t;
+				t.str = buff;
+
+				//tokens[tokcount].str = buff;
 
 				if (is_in(buff, keywords))
-					tokens[tokcount].type = tok_Keyword;
+					t.type = tok_IntegerLiteral;
+
+				tokens.add(t);
 
 				tokcount++;
 			}
 			if (currChar != ' ') {
-				tokens[tokcount++].str = string(currChar);
+				token t;
+				t.str = currChar;
+				tokens.add(t);
 			}
 			buff.clear();
 		}

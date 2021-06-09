@@ -143,8 +143,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\su-lexer.cpp" />
+    <ClCompile Include="..\src\su-main.cpp" />
     <ClCompile Include="..\src\su-parser.cpp" />
-    <ClCompile Include="..\su-main.cpp" />
     <ClCompile Include="..\utils\string.cpp" />
   </ItemGroup>
   <ItemGroup>

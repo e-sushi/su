@@ -9,9 +9,6 @@ token* begin_parse() {
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
 int main() {
 
-
-	
-
 	FILE* file = fopen("main.su", "r");
 	if (!file) {
 		std::cout << "ERROR: file not found." << std::endl;
@@ -20,8 +17,8 @@ int main() {
 
 	array<token> tokens = suLexer::lex(file);
 
-	for (int i = 0; i < tokens.size; i++) {
-		std::cout << tokens[i].str << std::endl;
+	for (token t : tokens) {
+		std::cout << t.str << std::endl;
 	}
 
 
