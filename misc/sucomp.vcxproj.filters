@@ -12,9 +12,6 @@
     <None Include="..\main.su" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\utils\string.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\su-lexer.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -24,24 +21,33 @@
     <ClCompile Include="..\src\su-main.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\utils\array.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\string.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\utility.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\util\array.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\utils\array.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\utils\string.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\su-lexer.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\su-parser.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\utils\misc.h">
+    <ClInclude Include="..\src\utils\array.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\misc.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\string.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\utility.h">
       <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>

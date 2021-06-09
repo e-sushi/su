@@ -1,12 +1,12 @@
 #include "su-lexer.h"
-#include "../utils/misc.h"
+#include "utils/misc.h"
 
-char stopping_chars[NUMSTOPCHAR] = {
+array<char> stopping_chars{
 	';', ' ', '{',  '}', '\(', '\)', ','
 };
 
-string keywords[NUMKEYWORDS] = {
-	"int"
+array<string> keywords{
+	"int", "return"
 };
 
 array<token> suLexer::lex(FILE* file) {
@@ -38,6 +38,15 @@ array<token> suLexer::lex(FILE* file) {
 			if (currChar != ' ') {
 				token t;
 				t.str = currChar;
+				switch (currChar) {
+					case ';':  t.type = tok_Semicolon; break;
+					case '{':  t.type = tok_OpenBrace; break;
+					case '}':  t.type = tok_CloseBrace; break;
+					case '\(': t.type = tok_OpenParen; break;
+					case '\)': t.type = tok_CloseParen; break;
+					case ',':  t.type = tok_Comma; break;
+
+				}
 				tokens.add(t);
 			}
 			buff.clear();

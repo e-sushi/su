@@ -145,15 +145,17 @@
     <ClCompile Include="..\src\su-lexer.cpp" />
     <ClCompile Include="..\src\su-main.cpp" />
     <ClCompile Include="..\src\su-parser.cpp" />
-    <ClCompile Include="..\utils\string.cpp" />
+    <ClCompile Include="..\src\utils\array.cpp" />
+    <ClCompile Include="..\src\utils\string.cpp" />
+    <ClCompile Include="..\src\utils\utility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\su-lexer.h" />
     <ClInclude Include="..\src\su-parser.h" />
-    <ClInclude Include="..\utils\array.h" />
-    <ClInclude Include="..\utils\misc.h" />
-    <ClInclude Include="..\utils\string.h" />
-    <ClInclude Include="..\util\array.h" />
+    <ClInclude Include="..\src\utils\array.h" />
+    <ClInclude Include="..\src\utils\misc.h" />
+    <ClInclude Include="..\src\utils\string.h" />
+    <ClInclude Include="..\src\utils\utility.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
