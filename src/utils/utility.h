@@ -26,8 +26,10 @@ static int is_in(T& c, array<T>& array) {
 	return 0;
 }
 
-static void RaiseError() {
-
+static int stoi(string s) {
+	int x;
+	sscanf(s.str, "%d", &x);
+	return x;
 }
 
 

@@ -21,9 +21,7 @@ array<AST*> parse_expressions(array<token>&tokens) {
 
 	token_next; //expect integer literal
 	EXPECT(tok_IntegerLiteral) {
-		AST* integer = new AST();
-		integer->type = AST_Constant;
-		integer->tokens.add(curt);
+		AST* integer = new Expression(curt.str, Expression_IntegerLiteral);
 		expressions.add(integer);
 
 	} else PARSE_FAIL("expected integer literal");
@@ -36,9 +34,7 @@ array<AST*> parse_statements(array<token>& tokens) {
 	token_next; //expect return
 	EXPECT(tok_Return) {
 
-		AST* retstate = new AST();
-		retstate->type = AST_Statement;
-		retstate->tokens.add(curt);
+		AST* retstate = new Statement(Statement_Return);
 
 		//expect statments so gather them 
 		array<AST*> expressions = parse_expressions(tokens);
@@ -48,7 +44,7 @@ array<AST*> parse_statements(array<token>& tokens) {
 		
 		token_next; //expect semicolon
 		EXPECT(tok_Semicolon) {
-
+			return statements;
 		} else PARSE_FAIL("expected ;"); 
 		
 	} else PARSE_FAIL("expected return statement");
@@ -57,8 +53,7 @@ array<AST*> parse_statements(array<token>& tokens) {
 }
 
 AST* parse_function(array<token>& tokens) {
-	AST* function = new AST();
-	function->type = AST_Function;
+	Function* function = new Function();
 
 	//experimental method for parsing, will definitly change later
 	//need to come up with a nice sceme that doesn't nest expeections, probably just failing
@@ -71,6 +66,7 @@ AST* parse_function(array<token>& tokens) {
 	EXPECT(tok_Keyword) {
 		token_next; //expect function identifier
 		EXPECT(tok_Identifier) {
+			function->identifier = curt.str;
 			token_next; // expect (
 			EXPECT(tok_OpenParen) {
 				token_next; //expect )

@@ -142,6 +142,7 @@
     <None Include="..\main.su" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\su-assembler.cpp" />
     <ClCompile Include="..\src\su-lexer.cpp" />
     <ClCompile Include="..\src\su-main.cpp" />
     <ClCompile Include="..\src\su-parser.cpp" />
@@ -150,6 +151,7 @@
     <ClCompile Include="..\src\utils\utility.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\su-assembler.h" />
     <ClInclude Include="..\src\su-lexer.h" />
     <ClInclude Include="..\src\su-parser.h" />
     <ClInclude Include="..\src\utils\array.h" />

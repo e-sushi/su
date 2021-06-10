@@ -2,6 +2,8 @@
 
 #include "su-lexer.h"
 #include "su-parser.h"
+#include "su-assembler.h"
+
 
 token* begin_parse() {
 	return nullptr;
@@ -28,6 +30,10 @@ int main() {
 
 
 	AST ast = suParser::parse(tokens);
+
+	string assembly = suAssembler::assemble(ast);
+
+	std::cout << assembly << std::endl;
 
 	int test = 0;
 

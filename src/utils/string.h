@@ -19,6 +19,7 @@ struct string {
 	void operator = (const char* s);
 	bool operator == (string& s);
 	bool operator == (const char* c);
+	void operator += (const char* c);
 	void operator += (string& s);
 	void operator += (char& c);
 

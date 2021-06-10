@@ -10,20 +10,17 @@
     <Filter Include="misc">
       <UniqueIdentifier>{ad642779-4ec2-4ac8-b5d1-bb106d0c6a23}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\h">
+      <UniqueIdentifier>{d48c46bb-22f6-49f4-9de7-da8ab90461f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\cpp">
+      <UniqueIdentifier>{ffe86110-42b9-4f28-b021-e1f9abccb705}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\main.su" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\su-lexer.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\su-parser.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\su-main.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\utils\array.cpp">
       <Filter>utils</Filter>
     </ClCompile>
@@ -33,14 +30,20 @@
     <ClCompile Include="..\src\utils\utility.cpp">
       <Filter>utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\su-lexer.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-main.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-parser.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-assembler.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\su-lexer.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\su-parser.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\utils\array.h">
       <Filter>utils</Filter>
     </ClInclude>
@@ -52,6 +55,15 @@
     </ClInclude>
     <ClInclude Include="..\src\utils\utility.h">
       <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-parser.h">
+      <Filter>src\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-lexer.h">
+      <Filter>src\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-assembler.h">
+      <Filter>src\h</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

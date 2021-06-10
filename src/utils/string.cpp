@@ -91,6 +91,21 @@ void string::operator += (string& s) {
 	delete old;
 }
 
+//these could probably be better
+void string::operator += (const char* ss) {
+	string s(ss); //being lazy
+	if (s.size == 0) return;
+	int newsize = size + s.size;
+	char* old = new char[size];
+	memcpy(old, str, size);
+	str = new char[newsize + 1];
+	memcpy(str, old, size);
+	memcpy(str + size, s.str, s.size);
+	size = newsize;
+	memset(str + size, '\0', 1);
+	delete old;
+}
+
 void string::clear() {
 	memset(str, 0, size + 1);
 	str = (char*)realloc(str, 1);
