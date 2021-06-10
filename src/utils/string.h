@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <iostream>
 
-//TODO this will probably break somewhere and could use some functionality
-//it also needs to store the characters on it somehow, but im not sure how yet, if its even possible
 struct string {
 	char* str;
 	int size = 0;
@@ -20,6 +18,7 @@ struct string {
 	void operator = (string s);
 	void operator = (const char* s);
 	bool operator == (string& s);
+	bool operator == (const char* c);
 	void operator += (string& s);
 	void operator += (char& c);
 

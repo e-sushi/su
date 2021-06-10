@@ -157,6 +157,9 @@
     <ClInclude Include="..\src\utils\string.h" />
     <ClInclude Include="..\src\utils\utility.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="customvis.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

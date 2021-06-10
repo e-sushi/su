@@ -46,14 +46,22 @@ void string::operator = (string s) {
 }
 
 void string::operator = (const char* s) {
-	size = sizeof(s);
+	size = strlen(s);
 	str = new char[size + 1];
+	//memcpy(str, s, size)
 	strcpy(str, s);
 }
 
 bool string::operator == (string& s) {
-	if (s.size != size || hash() != s.hash()) return false;
-	return true;
+	return !strcmp(str, s.str);
+	//if (s.size != size || hash() != s.hash()) return false;
+	//return true;
+}
+
+bool string::operator == (const char* s) {
+	return !strcmp(str, s);
+	//string st = string(s);
+	//return this->operator==(st);
 }
 
 //these could probably be better

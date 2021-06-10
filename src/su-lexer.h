@@ -7,37 +7,38 @@
 
 #include "utils/utility.h"
 
-#define NUMSTOPCHAR 7
-#define NUMKEYWORDS 1
-
-#define MAXBUFF 255
-#define MAXTOK 500
-
-
 
 enum token_type {
-	tok_EOF,
-	tok_Keyword,
-	tok_Identifier,
-	tok_OpenParen,
-	tok_CloseParen,
-	tok_OpenBrace,
-	tok_CloseBrace,
-	tok_Comma,
-	tok_Semicolon,
-	tok_Return,
-	tok_IntegerLiteral
+	tok_ERROR,			// when something doesnt make sense during lexing
+	tok_EOF,			// end of file
+	tok_Keyword,		// int, float, etc.
+	tok_Identifier,		// function/variable names
+	tok_OpenParen,		// (
+	tok_CloseParen,		// )
+	tok_OpenBrace,		// {
+	tok_CloseBrace,		// }
+	tok_Comma,			// ,
+	tok_Semicolon,		// ;
+	tok_Return,			// return
+	tok_IntegerLiteral,	// 1
+	tok_Assignment,     // =
+	tok_Plus,           // +
+	tok_Minus,			// -
+	tok_OpenAngle,		// <
+	tok_CloseAngle      // >
+};
+
+static const char* tokenStrings[] = {
+	"ERROR", "EOF", "Keyword", "Identifier", "Open Parentheses", "Close Parentheses",
+	"Open Brace", "Close Brace", "Comma", "Semicolon", "Return", "Integer Literal",
+	"Assignment", "Plus", "Minus", "Open Angle Bracket", "Close Angle Bracket"
 };
 
 struct token {
-	string str;
+	string str = "";
 	token_type type;
-
-	//token(const token& t) {
-	//	str = string(str);
-	//	type = t.type;
-	//}
-
+	u32 line = 0;
+	string filename = "";
 };
 
 namespace suLexer {

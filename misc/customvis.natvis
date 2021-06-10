@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  
+  <Type Name="array&lt;*&gt;">
+    <Intrinsic Name="size"
+           Expression="(last == 0) ? 0 :(last - first) + 1" />
+    <DisplayString Condition="last == 0">{{ empty }}</DisplayString>
+    <DisplayString>{{ size={size()} }}</DisplayString>
+    <Expand>
+      <Item Name="[space]" ExcludeView="simple">space</Item>
+      <Item Name="[first]" ExcludeView="simple">first</Item>
+      <Item Name="[last]" ExcludeView="simple">last</Item>
+      <Item Name="[max]" ExcludeView="simple">max</Item>
+      <Item Name="[iter]" ExcludeView="simple">iter</Item>
+      <ArrayItems>
+        <Size>size()</Size>
+        <ValuePointer>first</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="string">
+    <Intrinsic Name="size" Expression="size" />
+    <Intrinsic Name="data" Expression="str" />
+    <DisplayString>{str,[size]}</DisplayString>
+  </Type>
+  
+</AutoVisualizer>

@@ -7,6 +7,9 @@
     <Filter Include="src">
       <UniqueIdentifier>{aeb5efab-8bc3-43f2-a4d3-6b1cf900da1c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="misc">
+      <UniqueIdentifier>{ad642779-4ec2-4ac8-b5d1-bb106d0c6a23}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\main.su" />
@@ -50,5 +53,10 @@
     <ClInclude Include="..\src\utils\utility.h">
       <Filter>utils</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="customvis.natvis">
+      <Filter>misc</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>

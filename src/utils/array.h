@@ -16,6 +16,8 @@ struct array {
 	T* last  = nullptr;
 	T* max   = nullptr;
 
+	T* iter = nullptr;
+
 	//small helper thing
 	int roundUp(int numToRound, int multiple) {
 		if (multiple == 0) return numToRound;
@@ -26,12 +28,23 @@ struct array {
 		return numToRound + multiple - remainder;
 	}
 
+	array() {
+		space = 1;
+		itemsize = sizeof(T);
+		items = (T*)calloc(1, itemsize);
+		first = items;
+		iter = first;
+		last = 0;
+		max = items;
+	}
+
 	array(int size) {
 		space = size;
 		itemsize = sizeof(T);
 		items = (T*)calloc(size, itemsize);
 		first = items;
-		last = items - 1; //could break things but it makes add work 
+		iter = first;
+		last = 0; //could break things but it makes add work 
 		max = items + size - 1;
 	}
 
@@ -43,6 +56,7 @@ struct array {
 		items = (T*)calloc(size, itemsize);
 		
 		first = items;
+		iter = first;
 
 		int index = 0;
 		for (auto& v : l) {
@@ -64,49 +78,65 @@ struct array {
 		items = (T*)calloc(array.space, itemsize);
 
 		first = items;
-		last = items + array.size();
+		iter = first;
+
+		last = items + array.size() - 1;
 		max = items + space - 1;
 
-		int i = 0;
-		for (T item : array) {
-			new(items + i) T(item);
-			i++;
+		//if last is 0 then the array is empty
+		if (array.last != 0) {
+			int i = 0;
+			for (T item : array) {
+				new(items + i) T(item);
+				i++;
+			}
 		}
-
 	}
 
 	~array() {
-		for (int i = 0; i < size(); i++) {
-			items[i].~T();
+		if (last != 0) {
+			for (T* i = first; i <= last; i++) {
+				i->~T();
+			}
 		}
 		free(items);
 	}
 
 	int size() const {
-		return (int)(last - first);
+		if (last == 0) return 0;
+		return (int)(last - first) + 1;
 	}
 
 	void operator = (array<T>& array) {
 
 	}
 	
-	void add(T t) {
+	void add(T& t) {
 		//if array is full, realloc the memory and extend it to accomodate the new item
 		if (max - last == 0) {
+			int osize = size();
 			space = roundUp(size() * itemsize + itemsize, itemsize);
-			realloc(items, space);
+			items = (T*)realloc(items, space * itemsize);
+			assert(items); "realloc failed and returned nullptr. maybe we ran out of memory?";
 			max = items + space;
 			//for (T* i = last + 1; i < max; i++) {
 			//	memset(i, 0, itemsize);
 			//}
 			first = items;
-			last = items + size() + 1;
+			last = items + osize;
 			new(last) T(t);
 		}
 		else {
-			last++;
-			new(last) T(t);
+			if (last == 0) {
+				new(items) T(t);
+				last = items;
+			}
+			else {
+				last++;
+				new(last) T(t);
+			}
 		}
+		return;
 	}
 
 	void remove(int i) {
@@ -120,9 +150,14 @@ struct array {
 		last--;
 	}
 
-	//allows for dynamic growth
-	void append(T t) {
+	//returns the value of iter and increments it by one.
+	T& next() {
+		return *iter++;
+	}
 
+	//returns the value of iter and decrements it by one.
+	T& previous() {
+		return *iter--;
 	}
 
 	//this is really only necessary for the copy constructor as far as i know
