@@ -4,23 +4,16 @@
 #include "su-parser.h"
 #include "su-assembler.h"
 
-
-token* begin_parse() {
-	return nullptr;
-}
-
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
 int main() {
 
-	array<int> wow;
-
-	FILE* file = fopen("main.su", "r");
-	if (!file) {
+	FILE* in = fopen("main.su", "r");
+	if (!in) {
 		std::cout << "ERROR: file not found." << std::endl;
 		return 0;
 	}
 
-	array<token> tokens = suLexer::lex(file);
+	array<token> tokens = suLexer::lex(in);
 
 
 	for (token& t : tokens) {
@@ -29,12 +22,14 @@ int main() {
 	std::cout << std::endl;
 
 
-	AST ast = suParser::parse(tokens);
+	Program program = suParser::parse(tokens);
 
-	string assembly = suAssembler::assemble(ast);
+	string assembly = suAssembler::assemble(program);
 
-	std::cout << assembly << std::endl;
+	//std::cout << assembly << std::endl;
 
-	int test = 0;
-
+	FILE* out = fopen("out.s", "w");
+	fputs(assembly.str, out);
+	fclose(in);
+	fclose(out);
 }

@@ -4,7 +4,7 @@
 #define MAXBUFF 255
 
 array<char> stopping_chars{
-	';', ' ', '{',  '}', '\(', '\)', ',', '+', '-', '<', '>', '=', '\n'
+	';', ' ', '{',  '}', '\(', '\)', ',', '+', '*', '/', '-', '<', '>', '=', '!', '~', '\n'
 };
 
 array<string> keywords{
@@ -58,17 +58,21 @@ array<token> suLexer::lex(FILE* file) {
 				token t;
 				t.str = currChar;
 				switch (currChar) {
-					case ';':  t.type = tok_Semicolon; break;
-					case '{':  t.type = tok_OpenBrace; break;
-					case '}':  t.type = tok_CloseBrace; break;
-					case '\(': t.type = tok_OpenParen; break;
-					case '\)': t.type = tok_CloseParen; break;
-					case ',':  t.type = tok_Comma; break;
-					case '+':  t.type = tok_Plus; break;
-					case '-':  t.type = tok_Minus; break;
-					case '<':  t.type = tok_OpenAngle; break;
-					case '>':  t.type = tok_CloseAngle; break;
-					case '=':  t.type = tok_Assignment; break;
+					case ';':  t.type = tok_Semicolon;         break;
+					case '{':  t.type = tok_OpenBrace;         break;
+					case '}':  t.type = tok_CloseBrace;        break;
+					case '\(': t.type = tok_OpenParen;         break;
+					case '\)': t.type = tok_CloseParen;        break;
+					case ',':  t.type = tok_Comma;             break;
+					case '+':  t.type = tok_Plus;              break;
+					case '-':  t.type = tok_Negation;          break;
+					case '*':  t.type = tok_Multiplication;    break;
+					case '/':  t.type = tok_Division;          break;
+					case '<':  t.type = tok_OpenAngle;         break;
+					case '>':  t.type = tok_CloseAngle;        break;
+					case '=':  t.type = tok_Assignment;        break;
+					case '!':  t.type = tok_LogicalNOT;        break;
+					case '~':  t.type = tok_BitwiseComplement; break;
 				}
 				t.line = lines;
 				tokens.add(t);

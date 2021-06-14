@@ -16,29 +16,88 @@ if (token.type != expected) {PARSE_FAIL(token, error);}
 #define EXPECT(tok_type)\
 if(curt.type == tok_type)
 
-array<AST*> parse_expressions(array<token>&tokens) {
-	array<AST*> expressions;
+//collection of flags/counters to help with error checking throughout the parsing process
+struct {
+	bool unaryf = 0;    //true if a unary op has been found
+ 	bool integerf = 0;  //true if an integer has been found
+ 	u32 expected_close_parens = 0; //inc when we find a ( and dec when we find a ), error if this isn't 0 in some cases
+} syntax;
 
-	token_next; //expect integer literal
-	EXPECT(tok_IntegerLiteral) {
-		AST* integer = new Expression(curt.str, Expression_IntegerLiteral);
-		expressions.add(integer);
+array<Expression> parse_expressions(array<token>& tokens) {
+	array<Expression> expressions;
 
-	} else PARSE_FAIL("expected integer literal");
+	token_next; //expect expression or semicolon
+	EXPECT(tok_Semicolon) {
+		if (syntax.unaryf) {
+			//if this flag is set we didn't find an integer before ending the expressions
+			PARSE_FAIL("expected an integer literal before end of statement");
+		}
+		token_last; //backup token since parse_statements checks for semicolons
+		return expressions;
+	}
+	else EXPECT(tok_IntegerLiteral) {
+		Expression e(curt.str, Expression_IntegerLiteral);
+		syntax.unaryf = 0; //integer literal was found
+		syntax.integerf = 1;
+		e.expressions.add(parse_expressions(tokens));
+		expressions.add(e);
+		return expressions;
+	} 
+	else EXPECT(tok_BitwiseComplement) {
+		if(syntax.integerf){ //early out if unary op is found after an integer
+			PARSE_FAIL("unexpected unary operator following integer literal");
+			return expressions;
+		}
+		Expression e(curt.str, Expression_UnaryOpBitComp);
+		syntax.unaryf = 1; //set unary_flag to indicate that we are expecting an integer literal
+		e.expressions.add(parse_expressions(tokens));
+		expressions.add(e);
+		return expressions;
+	}
+	else EXPECT(tok_LogicalNOT) {
+		if(syntax.integerf){ //early out if unary op is found after an integer
+			PARSE_FAIL("unexpected unary operator following integer literal");
+			return expressions;
+		}
+		Expression e(curt.str, Expression_UnaryOpLogiNOT);
+		syntax.unaryf = 1; //set unary_flag to indicate that we are expecting an integer literal
+		e.expressions.add(parse_expressions(tokens));
+		expressions.add(e);
+		return expressions;
+	}
+	else EXPECT(tok_Negation) {
+		if(syntax.integerf){ //early out if unary op is found after an integer
+			PARSE_FAIL("unexpected unary operator following integer literal");
+			return expressions;
+		}
+		Expression e(curt.str, Expression_UnaryOpNegate);
+		syntax.unaryf = 1; //set unary_flag to indicate that we are expecting an integer literal
+		e.expressions.add(parse_expressions(tokens));
+		expressions.add(e);
+		return expressions;
+	}
+	else if (syntax.unaryf) {
+		//if we've reached this point and the unary_flag is set then there is no ; and no integer literal
+		PARSE_FAIL("expected integer literal followed by ;");
+	}
+	else PARSE_FAIL("expected an expression or semicolon");
 
 	return expressions;
 }
 
-array<AST*> parse_statements(array<token>& tokens) {
-	array<AST*> statements;
+array<Statement> parse_statements(array<token>& tokens) {
+	array<Statement> statements;
 	token_next; //expect return
 	EXPECT(tok_Return) {
 
-		AST* retstate = new Statement(Statement_Return);
+		Statement retstate(Statement_Return);
 
-		//expect statments so gather them 
-		array<AST*> expressions = parse_expressions(tokens);
-		for (AST* e : expressions) retstate->children.add(e);
+		//expect expressions so gather them
+		for (Expression e : parse_expressions(tokens)) 
+			retstate.expressions.add(e);
+
+		//reset syntax vars
+		syntax = { 0, 0, 0 };
 
 		statements.add(retstate);
 		
@@ -52,21 +111,23 @@ array<AST*> parse_statements(array<token>& tokens) {
 	return statements;
 }
 
-AST* parse_function(array<token>& tokens) {
-	Function* function = new Function();
+Function parse_function(array<token>& tokens) {
+	Function function;
 
 	//experimental method for parsing, will definitly change later
 	//need to come up with a nice sceme that doesn't nest expeections, probably just failing
 	//when expect comes up false? 
 	//https://norasandler.com/2017/11/29/Write-a-Compiler.html
 	//some pseudo code here looks nice, but ill wait till later to try it 
+	// 
+	// 
 	//EXPECT asks if the next tokens type matches a certain criteria and if it doesnt
 	//we throw a parse fail
 	token_next; //expect keyword
 	EXPECT(tok_Keyword) {
 		token_next; //expect function identifier
 		EXPECT(tok_Identifier) {
-			function->identifier = curt.str;
+			function.identifier = curt.str;
 			token_next; // expect (
 			EXPECT(tok_OpenParen) {
 				token_next; //expect )
@@ -74,8 +135,8 @@ AST* parse_function(array<token>& tokens) {
 					token_next; //expect {
 					EXPECT(tok_OpenBrace) {
 						//parse statements then add them to the function node
-						array<AST*> statements = parse_statements(tokens);
-						for (AST* statement : statements) function->children.add(statement);
+						array<Statement> statements = parse_statements(tokens);
+						for (Statement statement : statements) function.statements.add(statement);
 						token_next;
 						EXPECT(tok_CloseBrace) {
 
@@ -89,15 +150,11 @@ AST* parse_function(array<token>& tokens) {
 	return function;
 }
 
-AST suParser::parse(array<token>& tokens) {
-	AST tree;
-	tree.type = AST_Program;
+Program suParser::parse(array<token>& tokens) {
+	Program mother;
 
-	AST* function = parse_function(tokens);
-	tree.children.add(function);
+	Function function = parse_function(tokens);
+	mother.functions.add(function);
 
-	
-	
-
-	return tree;
+	return mother;
 }

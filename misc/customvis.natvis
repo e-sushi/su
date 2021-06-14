@@ -7,11 +7,23 @@
     <DisplayString Condition="last == 0">{{ empty }}</DisplayString>
     <DisplayString>{{ size={size()} }}</DisplayString>
     <Expand>
-      <Item Name="[space]" ExcludeView="simple">space</Item>
-      <Item Name="[first]" ExcludeView="simple">first</Item>
-      <Item Name="[last]" ExcludeView="simple">last</Item>
-      <Item Name="[max]" ExcludeView="simple">max</Item>
-      <Item Name="[iter]" ExcludeView="simple">iter</Item>
+      <Synthetic Name="info">
+        <DisplayString>space = { space }, itemsize = {itemsize}</DisplayString>
+        <Expand>
+          <Item Name="itemsize" ExcludeView="simple">itemsize</Item>
+          <Item Name="space" ExcludeView="simple">space</Item>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="ptrs">
+        <DisplayString>first, last, max, and iteration pointers</DisplayString>
+        <Expand>
+          <Item Name="items" ExcludeView="simple">items</Item>
+          <Item Name="first" ExcludeView="simple">first</Item>
+          <Item Name="last" ExcludeView="simple">last</Item>
+          <Item Name="max" ExcludeView="simple">max</Item>
+          <Item Name="iter" ExcludeView="simple">iter</Item>
+        </Expand>
+      </Synthetic>
       <ArrayItems>
         <Size>size()</Size>
         <ValuePointer>first</ValuePointer>

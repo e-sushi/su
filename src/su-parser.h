@@ -12,25 +12,62 @@ enum ASTType : u32 {
 	AST_Expression
 };
 
+
+	//////////////////////////////////////
+	//// Abstract Syntax Tree Structs ////
+	//////////////////////////////////////
+
+
+
+enum ExpressionType : u32 {
+	Expression_IntegerLiteral,
+	Expression_UnaryOpBitComp,
+	Expression_UnaryOpLogiNOT,
+	Expression_UnaryOpNegate
+};
+
+struct Expression {
+	string expstr;
+	ExpressionType expression_type;
+	ASTType type = AST_Expression;
+
+	array<Expression> expressions;
+
+	Expression(string expstr, ExpressionType expression_type) {
+		this->expression_type = expression_type;
+		this->expstr = expstr;
+	}
+};
+
+//im not sure if i want all these different type enums yet
+enum StatementType : u32 {
+	Statement_Return
+};
+
+struct Statement {
+	StatementType statement_type;
+	ASTType type = AST_Statement;
+
+	array<Expression> expressions;
+
+	Statement(StatementType st) {
+		statement_type = st;
+	}
+};
+
 enum FuncType : u32 {
 	INT,
 	FLOAT,
 	DOUBLE
 };
 
-//abstract syntax tree
-//this could probably just be Program and hold a vector of functions that holds a vector of statement, etc.
-struct AST {
-	ASTType type;
-
-	//tokens relevant to the AST node, dunno if this is necessary yet
-	array<token> tokens;
-	array<AST*> children;
-};
-
-struct Function : public AST {
+struct Function {
 	string identifier = "";
 	FuncType func_type;
+
+	ASTType type = AST_Function;
+
+	array<Statement> statements;
 
 	Function() {
 		type = AST_Function;
@@ -43,37 +80,19 @@ struct Function : public AST {
 
 };
 
-//im not sure if i want all these different type enums yet
-enum StatementType : u32 {
-	Statement_Return
+//abstract syntax tree
+//this could probably just be Program and hold a vector of functions that holds a vector of statement, etc.
+struct Program {
+	ASTType type = AST_Program;
+
+	array<Function> functions;
 };
 
-struct Statement : public AST {
-	StatementType statement_type;
 
-	Statement(StatementType st) {
-		type = AST_Statement;
-		statement_type = st;
-	}
-};
 
-enum ExpressionType : u32 {
-	Expression_IntegerLiteral
-};
-
-struct Expression : public AST {
-	string expstr;
-	ExpressionType expression_type;
-	
-	Expression(string expstr, ExpressionType expression_type) {
-		type = AST_Expression;
-		this->expression_type = expression_type;
-		this->expstr = expstr;
-	}
-};
 
 namespace suParser {
-	AST parse(array<token>& tokens);
+	Program parse(array<token>& tokens);
 }
 
 

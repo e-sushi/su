@@ -54,7 +54,8 @@ struct array {
 		itemsize = sizeof(T);
 		for (auto& v : l) size++;
 		items = (T*)calloc(size, itemsize);
-		
+		space = size;
+
 		first = items;
 		iter = first;
 
@@ -80,7 +81,7 @@ struct array {
 		first = items;
 		iter = first;
 
-		last = items + array.size() - 1;
+		last = (array.last == 0) ? 0 : items + array.size() - 1;
 		max = items + space - 1;
 
 		//if last is 0 then the array is empty
@@ -111,19 +112,22 @@ struct array {
 
 	}
 	
-	void add(T& t) {
+	void add(T t) {
 		//if array is full, realloc the memory and extend it to accomodate the new item
 		if (max - last == 0) {
+			int iteroffset = iter - first;
 			int osize = size();
-			space = roundUp(size() * itemsize + itemsize, itemsize);
-			items = (T*)realloc(items, space * itemsize);
+			space += 8;
+			items = (T*)realloc(items, (space) * itemsize);
 			assert(items); "realloc failed and returned nullptr. maybe we ran out of memory?";
-			max = items + space;
-			//for (T* i = last + 1; i < max; i++) {
-			//	memset(i, 0, itemsize);
-			//}
+			max = items + space - 1;
+			
 			first = items;
-			last = items + osize;
+			iter = first + iteroffset;
+			last = first + osize;
+			for (T* i = last + 1; i <= max; i++) {
+				memset(i, 'A', itemsize);
+			}
 			new(last) T(t);
 		}
 		else {
@@ -139,6 +143,12 @@ struct array {
 		return;
 	}
 
+	void add(array<T> t) {
+		for (T item : t) {
+			this->add(item);
+		}
+	}
+
 	void remove(int i) {
 		assert(size() > 0); "can't remove element from empty vector";
 		assert(i < size()); "index is out of bounds";
@@ -148,6 +158,19 @@ struct array {
 		}
 		memset(last, 0, itemsize);
 		last--;
+	}
+
+	void reserve(int nuspace) {
+		if (nuspace > space) {
+			space = nuspace;
+			int osize = size() - 1;
+			int iteroffset = iter - first;
+			items = (T*)realloc(items, space * itemsize);
+			first = items;
+			iter = first + iteroffset;
+			last = items + osize;
+			max = items + space;
+		}
 	}
 
 	//returns the value of iter and increments it by one.

@@ -140,6 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\main.su" />
+    <None Include="..\out.s" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\su-assembler.cpp" />

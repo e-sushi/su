@@ -5,7 +5,7 @@
 #include "su-parser.h"
 
 namespace suAssembler {
-	string assemble(AST& tree);
+	string assemble(Program& program);
 }
 
 

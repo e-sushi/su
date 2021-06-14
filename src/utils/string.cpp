@@ -10,14 +10,26 @@ string::string(const char c) {
 
 string::string(const char* s) {
 	size = strlen(s);
-	str = new char[size + 1];
-	strcpy(str, s);
+	if (size != 0) {
+		str = new char[size + 1];
+		strcpy(str, s);
+	}
+	else {
+		str = new char[1];
+		memset(str, '\0', 1);
+	}
 }
 
 string::string(const string& s) {
 	size = s.size;
-	str = new char[size + 1];
-	strcpy(str, s.str);
+	if (size != 0) {
+		str = new char[size + 1];
+		strcpy(str, s.str);
+	}
+	else {
+		str = new char[1];
+		memset(str, '\0', 1);
+	}
 }
 
 string::~string() {
@@ -78,7 +90,7 @@ void string::operator += (char& c) {
 }
 
 //these could probably be better
-void string::operator += (string& s) {
+void string::operator += (string s) {
 	if (s.size == 0) return;
 	int newsize = size + s.size;
 	char* old = new char[size];
@@ -106,6 +118,35 @@ void string::operator += (const char* ss) {
 	delete old;
 }
 
+string string::operator + (string& s) {
+	if (s.size == 0) return *this;
+	int newsize = size + s.size;
+	char* old = new char[size];
+	memcpy(old, str, size);
+	string nustr; 
+	nustr.str = new char[newsize + 1];
+	memcpy(nustr.str, old, size);
+	memcpy(nustr.str + size, s.str, s.size);
+	nustr.size = newsize;
+	memset(nustr.str + nustr.size, '\0', 1);
+	delete old;
+	return nustr;
+}
+
+string string::operator + (const char* c) {
+	string s(c);
+	return this->operator+(s);
+}
+
+string operator + (const char* c, string& s) {
+	if (s.size == 0) {
+		string why_do_i_have_to_do_this(c);
+		return why_do_i_have_to_do_this;
+	}
+	string st(c);
+	return st + s;
+}
+
 void string::clear() {
 	memset(str, 0, size + 1);
 	str = (char*)realloc(str, 1);
@@ -125,3 +166,5 @@ long long string::hash() {
 	}
 	return hash_value;
 }
+
+
