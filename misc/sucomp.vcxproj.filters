@@ -66,6 +66,9 @@
     <ClInclude Include="..\src\su-assembler.h">
       <Filter>src\h</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\utils\tuple.h">
+      <Filter>utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="customvis.natvis">

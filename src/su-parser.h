@@ -21,9 +21,34 @@ enum ASTType : u32 {
 
 enum ExpressionType : u32 {
 	Expression_IntegerLiteral,
+
 	Expression_UnaryOpBitComp,
 	Expression_UnaryOpLogiNOT,
-	Expression_UnaryOpNegate
+	Expression_UnaryOpNegate,
+
+	Expression_BinaryOpPlus,
+	Expression_BinaryOpMinus,
+	Expression_BinaryOpMultiply,
+	Expression_BinaryOpDivision,
+
+	Expression_Factor,
+	Expression_Term
+};
+
+static const char* ExTypeStrings[] = {
+	"IntegerLiteral",
+
+	"~",
+	"!",
+	"-",
+
+	"+",
+	"-",
+	"*",
+	"/",
+
+	"Factor",
+	"Term"
 };
 
 struct Expression {

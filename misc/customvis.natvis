@@ -36,5 +36,26 @@
     <Intrinsic Name="data" Expression="str" />
     <DisplayString>{str,[size]}</DisplayString>
   </Type>
+
+  <Type Name="Expression">
+    <DisplayString>{expression_type} with {expressions.size()} child expressions</DisplayString>
+    <Expand>
+      <Item Name="children">expressions</Item>
+    </Expand>
+  </Type>
+
+  
+  <Type Name="array&lt;Expression&gt;">
+    <Intrinsic Name="size"
+           Expression="(last == 0) ? 0 :(last - first) + 1" />
+    <DisplayString Condition="last == 0">{{ empty }}</DisplayString>
+    <DisplayString>{{ size={size()} }}</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>size()</Size>
+        <ValuePointer>first</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
   
 </AutoVisualizer>

@@ -173,14 +173,26 @@ struct array {
 		}
 	}
 
+	//TODO add out of bounds checking for these functions
+
 	//returns the value of iter and increments it by one.
 	T& next() {
 		return *iter++;
 	}
 
+	//returns the value of iter + some value and doesn't increment it 
+	//TODO come up with a better name for this and the corresponding previous overload
+	T& next(int i) {
+		return *(iter + i);
+	}
+
 	//returns the value of iter and decrements it by one.
 	T& previous() {
 		return *iter--;
+	}
+
+	T& previous(int i) {
+		return *(iter - i);
 	}
 
 	//this is really only necessary for the copy constructor as far as i know
