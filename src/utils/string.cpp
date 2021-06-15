@@ -1,7 +1,9 @@
 #pragma once
 #include "string.h"
+#include "Tracy.hpp"
 
 string::string(const char c) {
+	ZoneScoped;
 	size = 1;
 	str = new char[1 + 1];
 	str[0] = c;
@@ -9,6 +11,7 @@ string::string(const char c) {
 }
 
 string::string(const char* s) {
+	ZoneScoped;
 	size = strlen(s);
 	if (size != 0) {
 		str = new char[size + 1];
@@ -21,6 +24,7 @@ string::string(const char* s) {
 }
 
 string::string(const string& s) {
+	ZoneScoped;
 	size = s.size;
 	if (size != 0) {
 		str = new char[size + 1];
@@ -33,17 +37,20 @@ string::string(const string& s) {
 }
 
 string::~string() {
+	ZoneScoped;
 	if (str) free(str);
 	str = nullptr;
 	size = 0;
 }
 
 char& string::operator[](int i) {
+	ZoneScoped;
 	//assert that index is less than str size
 	return str[i];
 }
 
 void string::operator = (char c) {
+	ZoneScoped;
 	size = 1;
 	str = new char[size + 1];
 	memset(str, c, 2);
@@ -51,6 +58,7 @@ void string::operator = (char c) {
 }
 
 void string::operator = (string s) {
+	ZoneScoped;
 	size = s.size;
 	str = new char[size + 1];
 	memcpy(str, s.str, size + 1);
@@ -58,6 +66,7 @@ void string::operator = (string s) {
 }
 
 void string::operator = (const char* s) {
+	ZoneScoped;
 	size = strlen(s);
 	str = new char[size + 1];
 	//memcpy(str, s, size)
@@ -65,12 +74,14 @@ void string::operator = (const char* s) {
 }
 
 bool string::operator == (string& s) {
+	ZoneScoped;
 	return !strcmp(str, s.str);
 	//if (s.size != size || hash() != s.hash()) return false;
 	//return true;
 }
 
 bool string::operator == (const char* s) {
+	ZoneScoped;
 	return !strcmp(str, s);
 	//string st = string(s);
 	//return this->operator==(st);
@@ -78,6 +89,7 @@ bool string::operator == (const char* s) {
 
 //these could probably be better
 void string::operator += (char& c) {
+	ZoneScoped;
 	int newsize = size + 1;
 	char* old = new char[size];
 	memcpy(old, str, size);
@@ -91,6 +103,7 @@ void string::operator += (char& c) {
 
 //these could probably be better
 void string::operator += (string s) {
+	ZoneScoped;
 	if (s.size == 0) return;
 	int newsize = size + s.size;
 	char* old = new char[size];
@@ -105,6 +118,7 @@ void string::operator += (string s) {
 
 //these could probably be better
 void string::operator += (const char* ss) {
+	ZoneScoped;
 	string s(ss); //being lazy
 	if (s.size == 0) return;
 	int newsize = size + s.size;
@@ -119,11 +133,12 @@ void string::operator += (const char* ss) {
 }
 
 string string::operator + (string& s) {
+	ZoneScoped;
 	if (s.size == 0) return *this;
 	int newsize = size + s.size;
 	char* old = new char[size];
 	memcpy(old, str, size);
-	string nustr; 
+	string nustr;
 	nustr.str = new char[newsize + 1];
 	memcpy(nustr.str, old, size);
 	memcpy(nustr.str + size, s.str, s.size);
@@ -134,11 +149,13 @@ string string::operator + (string& s) {
 }
 
 string string::operator + (const char* c) {
+	ZoneScoped;
 	string s(c);
 	return this->operator+(s);
 }
 
 string operator + (const char* c, string& s) {
+	ZoneScoped;
 	if (s.size == 0) {
 		string why_do_i_have_to_do_this(c);
 		return why_do_i_have_to_do_this;
@@ -148,6 +165,7 @@ string operator + (const char* c, string& s) {
 }
 
 void string::clear() {
+	ZoneScoped;
 	memset(str, 0, size + 1);
 	str = (char*)realloc(str, 1);
 	str[0] = '\0';
@@ -156,6 +174,7 @@ void string::clear() {
 
 //https://cp-algorithms.com/string/string-hashing.html
 long long string::hash() {
+	ZoneScoped;
 	const int p = 31;
 	const int m = 1e9 + 9;
 	long long hash_value = 0;

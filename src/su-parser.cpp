@@ -1,7 +1,7 @@
 #include "su-parser.h"
+#include "Tracy.hpp"
 
-
-bool master_logger = true;
+bool master_logger = false;
 
 bool flipper = 0;
 #define PARSEOUT(message)\
@@ -63,6 +63,7 @@ array<Expression> parse_expressions(array<token>& tokens);
 
 // <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
 array<Expression> parse_factor(array<token>& tokens) {
+	ZoneScoped;
 	layer++;
 	array<Expression> expressions;
 	
@@ -111,6 +112,7 @@ array<Expression> parse_factor(array<token>& tokens) {
 
 // <term> ::= <factor> { ("*" | "/") <factor> }
 array<Expression> parse_term(array<token>& tokens) {
+	ZoneScoped;
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("term:");
@@ -137,6 +139,7 @@ array<Expression> parse_term(array<token>& tokens) {
 
 // <exp> ::= <term> { ("+" | "-") <term> }
 array<Expression> parse_expressions(array<token>& tokens) {
+	ZoneScoped;
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("expression:");
@@ -161,6 +164,7 @@ array<Expression> parse_expressions(array<token>& tokens) {
 
 // <statement> ::= "return" <exp> ";"
 array<Statement> parse_statements(array<token>& tokens) {
+	ZoneScoped;
 	layer++;
 	array<Statement> statements;
 	token_next; //expect return
@@ -169,7 +173,8 @@ array<Statement> parse_statements(array<token>& tokens) {
 		Statement retstate(Statement_Return);
 
 		//expect expressions so gather them
-		for (Expression e : parse_expressions(tokens)) 
+		array<Expression> exps = parse_expressions(tokens);
+		for (Expression e : exps) 
 			retstate.expressions.add(e);
 
 		//reset syntax vars
@@ -190,6 +195,7 @@ array<Statement> parse_statements(array<token>& tokens) {
 
 // <function> ::= "int" <id> "(" ")" "{" <statement> "}"
 Function parse_function(array<token>& tokens) {
+	ZoneScoped;
 	layer++;
 	Function function;
 
@@ -233,6 +239,7 @@ Function parse_function(array<token>& tokens) {
 
 // <program> ::= <function>
 Program suParser::parse(array<token>& tokens) {
+	ZoneScoped;
 	Program mother;
 
 	PARSEOUT("Parse begin");

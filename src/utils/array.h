@@ -1,6 +1,7 @@
 #pragma once
 #include <initializer_list>
 #include "misc.h"
+#include "Tracy.hpp"
 
 template<class T>
 struct array {
@@ -20,6 +21,7 @@ struct array {
 
 	//small helper thing
 	int roundUp(int numToRound, int multiple) {
+		ZoneScoped;
 		if (multiple == 0) return numToRound;
 
 		int remainder = numToRound % multiple;
@@ -29,6 +31,7 @@ struct array {
 	}
 
 	array() {
+		ZoneScoped;
 		space = 1;
 		itemsize = sizeof(T);
 		items = (T*)calloc(1, itemsize);
@@ -39,6 +42,7 @@ struct array {
 	}
 
 	array(int size) {
+		ZoneScoped;
 		space = size;
 		itemsize = sizeof(T);
 		items = (T*)calloc(size, itemsize);
@@ -49,6 +53,7 @@ struct array {
 	}
 
 	array(std::initializer_list<T> l) {
+		ZoneScoped;
 		int size = 0;
 
 		itemsize = sizeof(T);
@@ -74,6 +79,7 @@ struct array {
 	//its necessary so when we return objs the entire array copies properly
 	//so we have to make sure everything in the array gets recreated
 	array(const array<T>& array) {
+		ZoneScoped;
 		itemsize = array.itemsize;
 		space = array.space;
 		items = (T*)calloc(array.space, itemsize);
@@ -95,6 +101,7 @@ struct array {
 	}
 
 	~array() {
+		ZoneScoped;
 		if (last != 0) {
 			for (T* i = first; i <= last; i++) {
 				i->~T();
@@ -104,6 +111,7 @@ struct array {
 	}
 
 	int size() const {
+		ZoneScoped;
 		if (last == 0) return 0;
 		return (int)(last - first) + 1;
 	}
@@ -113,6 +121,7 @@ struct array {
 	}
 	
 	void add(T t) {
+		ZoneScoped;
 		//if array is full, realloc the memory and extend it to accomodate the new item
 		if (max - last == 0) {
 			int iteroffset = iter - first;
@@ -144,12 +153,14 @@ struct array {
 	}
 
 	void add(array<T> t) {
+		ZoneScoped;
 		for (T item : t) {
 			this->add(item);
 		}
 	}
 
 	void remove(int i) {
+		ZoneScoped;
 		assert(size() > 0); "can't remove element from empty vector";
 		assert(i < size()); "index is out of bounds";
 		memset(items + i, 0, itemsize);
@@ -161,6 +172,7 @@ struct array {
 	}
 
 	void reserve(int nuspace) {
+		ZoneScoped;
 		if (nuspace > space) {
 			space = nuspace;
 			int osize = size() - 1;
@@ -177,30 +189,36 @@ struct array {
 
 	//returns the value of iter and increments it by one.
 	T& next() {
+		ZoneScoped;
 		return *iter++;
 	}
 
 	//returns the value of iter + some value and doesn't increment it 
 	//TODO come up with a better name for this and the corresponding previous overload
 	T& next(int i) {
+		ZoneScoped;
 		return *(iter + i);
 	}
 
 	//returns the value of iter and decrements it by one.
 	T& previous() {
+		ZoneScoped;
 		return *iter--;
 	}
 
 	T& previous(int i) {
+		ZoneScoped;
 		return *(iter - i);
 	}
 
 	//this is really only necessary for the copy constructor as far as i know
 	T& at(int i) {
+		ZoneScoped;
 		return items[i];
 	}
 
 	T& operator[](int i) {
+		ZoneScoped;
 		return items[i];
 	}
 

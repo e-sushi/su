@@ -2,6 +2,6 @@
 main:
 pushq %rbp
 movq %rsp, %rbp
-mov $4, %rax
+mov $2, %rax
 popq %rbp
 ret

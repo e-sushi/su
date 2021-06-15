@@ -5,6 +5,7 @@
 #include "string.h"
 #include "array.h"
 #include "tuple.h"
+#include "Tracy.hpp"
 
 
 

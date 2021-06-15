@@ -43,6 +43,9 @@
     <ClCompile Include="..\src\su-assembler.cpp">
       <Filter>src\cpp</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\tracy\TracyClient.cpp">
+      <Filter>misc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\utils\array.h">

@@ -12,6 +12,7 @@ array<string> keywords{
 };
 
 array<token> suLexer::lex(FILE* file) {
+	ZoneScoped;
 	array<token> tokens;
 	char currChar = 0;
 	string buff = "";
