@@ -4,23 +4,75 @@
     <Filter Include="utils">
       <UniqueIdentifier>{2d19a8a4-6b1e-47df-8613-db4904833b2a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{aeb5efab-8bc3-43f2-a4d3-6b1cf900da1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="misc">
+      <UniqueIdentifier>{ad642779-4ec2-4ac8-b5d1-bb106d0c6a23}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\h">
+      <UniqueIdentifier>{d48c46bb-22f6-49f4-9de7-da8ab90461f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\cpp">
+      <UniqueIdentifier>{ffe86110-42b9-4f28-b021-e1f9abccb705}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\main.su" />
+    <None Include="..\out.s" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\su-comp.cpp" />
-    <ClCompile Include="..\utils\string.cpp">
+    <ClCompile Include="..\src\utils\array.cpp">
       <Filter>utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tracy\TracyClient.cpp" />
+    <ClCompile Include="..\src\utils\string.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\utils\utility.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-lexer.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-main.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-parser.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-assembler.cpp">
+      <Filter>src\cpp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\utils\array.h">
+    <ClInclude Include="..\src\utils\array.h">
       <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\utils\string.h">
+    <ClInclude Include="..\src\utils\misc.h">
       <Filter>utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\utils\string.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\utility.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-parser.h">
+      <Filter>src\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-lexer.h">
+      <Filter>src\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\su-assembler.h">
+      <Filter>src\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\tuple.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="customvis.natvis">
+      <Filter>misc</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>
