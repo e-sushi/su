@@ -76,6 +76,11 @@ bool string::operator == (const char* s) {
 	//return this->operator==(st);
 }
 
+bool string::operator == (char c) {
+	if (*str == c) return true;
+}
+
+
 //these could probably be better
 void string::operator += (char& c) {
 	int newsize = size + 1;

@@ -20,19 +20,35 @@ enum ASTType : u32 {
 
 
 enum ExpressionType : u32 {
+	//Types
 	Expression_IntegerLiteral,
 
+	//Unary Operators
 	Expression_UnaryOpBitComp,
 	Expression_UnaryOpLogiNOT,
 	Expression_UnaryOpNegate,
 
+	//Binary Operators
 	Expression_BinaryOpPlus,
 	Expression_BinaryOpMinus,
 	Expression_BinaryOpMultiply,
 	Expression_BinaryOpDivision,
+	Expression_BinaryOpAND,
+	Expression_BinaryOpOR,
+	Expression_BinaryOpLessThan,
+	Expression_BinaryOpGreaterThan,
+	Expression_BinaryOpLessThanOrEqual,
+	Expression_BinaryOpGreaterThanOrEqual,
+	Expression_BinaryOpEqual,
+	Expression_BinaryOpNotEqual,
 
-	Expression_Factor,
-	Expression_Term
+	//Expression Guards
+	ExpressionGuard_Additive,
+	ExpressionGuard_Relational,
+	ExpressionGuard_Equality,
+	ExpressionGuard_LogicalAND,
+	ExpressionGuard_Factor,
+	ExpressionGuard_Term
 };
 
 static const char* ExTypeStrings[] = {
@@ -46,6 +62,14 @@ static const char* ExTypeStrings[] = {
 	"-",
 	"*",
 	"/",
+	"&&",
+	"||",
+	"<",
+	">",
+	"<=",
+	">=",
+	"==",
+	"!=",
 
 	"Factor",
 	"Term"

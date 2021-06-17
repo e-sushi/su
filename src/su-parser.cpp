@@ -1,7 +1,27 @@
 #include "su-parser.h"
 
+//TODO remove returning arrays of expressions and pass them by reference and modify instead
+//     or just use global arrays like we use a global string in assembling
+//TODO optimize the tree by bypassing nodes for expressions
+//	   like, if an expression goes straight to being an int, we don't need several layers of 
+//     nodes determining that
 
-bool master_logger = false;
+
+// full backus naur stuff
+// <program>            :: = <function>
+// <function>           :: = "int" < id > "(" ")" "{" < statement > "}"
+// <statement>          :: = "return" < exp > ";"
+// <exp>                :: = <logical - and -exp>{ "||" < logical - and -exp > }
+// <logical - and -exp> :: = <equality - exp>{ "&&" < equality - exp > }
+// <equality - exp>     :: = <relational - exp>{ ("!=" | "==") < relational - exp > }
+// <relational - exp>   :: = <additive - exp>{ ("<" | ">" | "<=" | ">=") < additive - exp > }
+// <additive - exp>     :: = <term>{ ("+" | "-") < term > }
+// <term>               :: = <factor>{ ("*" | "/") < factor > }
+// <factor>             :: = "(" < exp > ")" | <unary_op> <factor> | <int>
+// <unary_op>           :: = "!" | "~" | "-"
+
+
+bool master_logger = true;
 
 #define PARSEOUT(message)\
 if(master_logger){ for(int i = 0; i < layer; i++)\
@@ -10,7 +30,6 @@ else std::cout << "!   ";\
 std::cout << message << std::endl;}
 
 u32 layer = 0; //inc when we go into anything, dec when we come out
-
 
 //master token
 //should probably redo this at some point I think, but i want to try doing it this way to see how it works
@@ -42,10 +61,18 @@ struct {
 //operator "maps" until i make an actual map struct
 #define PTE pair<token_type, ExpressionType>
 array<PTE> binaryOps{
-	PTE(tok_Multiplication, Expression_BinaryOpMultiply),
-	PTE(tok_Division,       Expression_BinaryOpDivision),
-	PTE(tok_Negation,       Expression_BinaryOpMinus),
-	PTE(tok_Plus,           Expression_BinaryOpPlus)
+	PTE(tok_Multiplication,     Expression_BinaryOpMultiply),
+	PTE(tok_Division,           Expression_BinaryOpDivision),
+	PTE(tok_Negation,           Expression_BinaryOpMinus),
+	PTE(tok_Plus,               Expression_BinaryOpPlus),
+	PTE(tok_AND,                Expression_BinaryOpAND),
+	PTE(tok_OR,                 Expression_BinaryOpOR),
+	PTE(tok_LessThan,           Expression_BinaryOpLessThan),
+	PTE(tok_GreaterThan,        Expression_BinaryOpGreaterThan),
+	PTE(tok_LessThanOrEqual,    Expression_BinaryOpLessThanOrEqual),
+	PTE(tok_GreaterThanOrEqual, Expression_BinaryOpGreaterThanOrEqual),
+	PTE(tok_Equal,              Expression_BinaryOpEqual),
+	PTE(tok_NotEqual,           Expression_BinaryOpNotEqual)
 };
 
 
@@ -81,7 +108,7 @@ array<Expression> parse_factor(array<token>& tokens) {
 
 		case tok_OpenParen: {
 			PARSEOUT("( OPEN");
-			Expression e(curt.str, Expression_Factor);
+			Expression e(curt.str, ExpressionGuard_Factor);
 			e.expressions.add(parse_expressions(tokens));
 			expressions.add(e);
 			token_next;
@@ -112,18 +139,18 @@ array<Expression> parse_factor(array<token>& tokens) {
 array<Expression> parse_term(array<token>& tokens) {
 	layer++;
 	array<Expression> expressions;
-	PARSEOUT("term:");
+	PARSEOUT("<term>:");
 	//all terms become factors
-	Expression e(curt.str, Expression_Factor);
+	Expression e(curt.str, ExpressionGuard_Factor);
 	e.expressions.add(parse_factor(tokens));
 	expressions.add(e);
 
 	while (token_peek.type == tok_Multiplication || token_peek.type == tok_Division) {
 		token_next;
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("term:");
+		PARSEOUT("<term>:");
 		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
-		Expression e(curt.str, Expression_Factor);
+		Expression e(curt.str, ExpressionGuard_Factor);
 		e.expressions.add(parse_factor(tokens));
 		expressions.add(e);
 	}
@@ -132,25 +159,149 @@ array<Expression> parse_term(array<token>& tokens) {
 	return expressions;
 }
 
-
-
-// <exp> ::= <term> { ("+" | "-") <term> }
-array<Expression> parse_expressions(array<token>& tokens) {
+// <additive-exp> ::= <term> { ("+" | "-") <term> }
+array<Expression> parse_additive(array<token>& tokens) {
 	layer++;
 	array<Expression> expressions;
-	PARSEOUT("expression:");
-	//all expressions turn into terms
-	Expression e(curt.str, Expression_Term);
+	PARSEOUT("<additive>:");
+
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_Term);
 	e.expressions.add(parse_term(tokens));
 	expressions.add(e);
 
-	while (token_peek.type == tok_Plus || token_peek.type == tok_Negation) {
+	while (token_peek.type == tok_Plus || token_peek.type == tok_Negation){
 		token_next;
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("expression:");
+		PARSEOUT("<additive>:");
+
+		//add operator expression
 		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
-		Expression e(curt.str, Expression_Term);
+
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_Term);
 		e.expressions.add(parse_term(tokens));
+		expressions.add(e);
+	}
+
+	layer--;
+	return expressions;
+}
+
+// <relational-exp> ::= <additive-exp> { ("<" | ">" | "<=" | ">=") <additive-exp> }
+array<Expression> parse_relational(array<token>& tokens) {
+	layer++;
+	array<Expression> expressions;
+	PARSEOUT("<relational>:");
+
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_Additive);
+	e.expressions.add(parse_additive(tokens));
+	expressions.add(e);
+
+	while (
+		token_peek.type == tok_LessThan ||
+		token_peek.type == tok_GreaterThan ||
+		token_peek.type == tok_LessThanOrEqual ||
+		token_peek.type == tok_GreaterThanOrEqual) {
+
+		token_next;
+		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
+		PARSEOUT("<relational>:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
+
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_Additive);
+		e.expressions.add(parse_additive(tokens));
+		expressions.add(e);
+	}
+
+	layer--;
+	return expressions;
+}
+
+// <equality-exp> ::= <relational-exp> { ("!=" | "==") <relational-exp> }
+array<Expression> parse_equality(array<token>& tokens) {
+	layer++;
+	array<Expression> expressions;
+	PARSEOUT("<equality>:");
+
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_Relational);
+	e.expressions.add(parse_relational(tokens));
+	expressions.add(e);
+
+	while (token_peek.type == tok_NotEqual || token_peek.type == tok_Equal) {
+		token_next;
+		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
+		PARSEOUT("<equality>:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
+		
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_Relational);
+		e.expressions.add(parse_relational(tokens));
+		expressions.add(e);
+	}
+
+	layer--;
+	return expressions;
+}
+
+// <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> }
+array<Expression> parse_logical_and(array<token>& tokens) {
+	layer++;
+	array<Expression> expressions;
+	PARSEOUT("<logi AND>:");
+	
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_Equality);
+	e.expressions.add(parse_equality(tokens));
+	expressions.add(e);
+
+	while (token_peek.type == tok_AND) {
+		token_next;
+		PARSEOUT("binary op &&");
+		PARSEOUT("<logi AND>:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, Expression_BinaryOpAND));
+		
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_Equality);
+		e.expressions.add(parse_equality(tokens));
+		expressions.add(e);
+	}
+
+	layer--;
+	return expressions;
+}
+
+// <exp> ::= <logical-and-exp> { "||" <logical-and-exp> }
+array<Expression> parse_expressions(array<token>& tokens) {
+	layer++;
+	array<Expression> expressions;
+	PARSEOUT("<exp>:");
+	
+	//decend into expression guard hell
+	Expression e(curt.str, ExpressionGuard_LogicalAND);
+	e.expressions.add(parse_logical_and(tokens));
+	expressions.add(e);
+
+	while (token_peek.type == tok_OR) {
+		token_next;
+		PARSEOUT("binary op ||");
+		PARSEOUT("<exp>:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, Expression_BinaryOpOR));
+		
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_LogicalAND);
+		e.expressions.add(parse_logical_and(tokens));
 		expressions.add(e);
 	}
 

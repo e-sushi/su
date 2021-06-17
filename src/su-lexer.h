@@ -42,8 +42,9 @@ enum token_type {
 static const char* tokenStrings[] = {
 	"ERROR", "EOF", "Keyword", "Identifier", "Open Parentheses", "Close Parentheses",
 	"Open Brace", "Close Brace", "Comma", "Semicolon", "Return", "Integer Literal",
-	"Assignment", "Plus", "Negation", "Multiplication", "Division", "Open Angle Bracket", 
-	"Close Angle Bracket", "Logical NOT", "Bitwise Compliment"
+	"Assignment", "Plus", "Negation", "Multiplication", "Division", "Logical NOT", 
+	"Bitwise Compliment", "Less Than", "Greater Than", "Less Than Or Equal To",
+	"Greater Than Or Equal To", "AND", "OR", "Equal", "Not Equal"
 };
 
 struct token {

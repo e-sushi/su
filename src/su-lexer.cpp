@@ -69,10 +69,70 @@ array<token> suLexer::lex(FILE* file) {
 					case '*':  t.type = tok_Multiplication;    break;
 					case '/':  t.type = tok_Division;          break;
 					case '~':  t.type = tok_BitwiseComplement; break;
-					case '!':  t.type = tok_LogicalNOT;        break;
-					case '=':  t.type = tok_Assignment;        break;
-					case '>':  t.type = tok_GreaterThan;       break;
-					case '<':  t.type = tok_LessThan;          break;
+					
+					case '&': {
+						if (fgetc(file) == '&') {
+							t.type = tok_AND;
+							t.str += '&';
+						}
+						else {
+							std::cout << "lex failed in &, & is not implemented yet" << std::endl;
+						}
+					}break;
+
+					case '|': {
+						if (fgetc(file) == '|') {
+							t.type = tok_OR;
+							t.str += '|';
+						}
+						else {
+							std::cout << "lex failed in |, | is not implemented yet" << std::endl;
+						}
+					}break;
+
+					case '!': {
+						if (fgetc(file) == '=') {
+							t.type = tok_NotEqual;
+							t.str += '=';
+						}
+						else {
+							fseek(file, -1, SEEK_CUR);
+							t.type = tok_LogicalNOT;
+						}
+					}break;
+
+					case '=': {
+						if (fgetc(file) == '=') {
+							t.type = tok_Equal;
+							t.str += '=';
+						}
+						else {
+							fseek(file, -1, SEEK_CUR);
+							t.type = tok_Assignment;
+						}
+					}break;
+
+					case '>': {
+						if (fgetc(file) == '=') {
+							t.type = tok_GreaterThanOrEqual; 
+							t.str += '=';
+						}
+						else {
+							fseek(file, -1, SEEK_CUR);
+							t.type = tok_GreaterThan;
+						}
+					}break;
+
+					case '<': {
+						if (fgetc(file) == '=') {
+							t.type = tok_LessThanOrEqual;
+							t.str += '=';
+						}
+						else {
+							fseek(file, -1, SEEK_CUR);
+							t.type = tok_LessThan;
+						}
+					}break;
 				}
 				t.line = lines;
 				tokens.add(t);
