@@ -1,14 +1,13 @@
 #include "su-parser.h"
 
 
-bool master_logger = true;
+bool master_logger = false;
 
-bool flipper = 0;
 #define PARSEOUT(message)\
 if(master_logger){ for(int i = 0; i < layer; i++)\
 if(i % 2 == 0) std::cout << "|   ";\
 else std::cout << "!   ";\
-std::cout << message << std::endl; flipper = !flipper;}
+std::cout << message << std::endl;}
 
 u32 layer = 0; //inc when we go into anything, dec when we come out
 
@@ -46,14 +45,14 @@ array<PTE> binaryOps{
 	PTE(tok_Multiplication, Expression_BinaryOpMultiply),
 	PTE(tok_Division,       Expression_BinaryOpDivision),
 	PTE(tok_Negation,       Expression_BinaryOpMinus),
-	PTE(tok_Plus,           Expression_BinaryOpMinus)
+	PTE(tok_Plus,           Expression_BinaryOpPlus)
 };
 
 
 array<PTE> unaryOps{
-	PTE(tok_BitwiseComplement, Expression_BinaryOpDivision),
-	PTE(tok_LogicalNOT,        Expression_BinaryOpMultiply),
-	PTE(tok_Negation,          Expression_BinaryOpMinus),
+	PTE(tok_BitwiseComplement, Expression_UnaryOpBitComp),
+	PTE(tok_LogicalNOT,        Expression_UnaryOpLogiNOT),
+	PTE(tok_Negation,          Expression_UnaryOpNegate),
 };
 
 
@@ -232,13 +231,13 @@ Function parse_function(array<token>& tokens) {
 }
 
 // <program> ::= <function>
-Program suParser::parse(array<token>& tokens) {
-	Program mother;
+void suParser::parse(array<token>& tokens, Program& mother) {
+	//Program mother;
 
 	PARSEOUT("Parse begin");
 
 	Function function = parse_function(tokens);
 	mother.functions.add(function);
 
-	return mother;
+	//return mother;
 }

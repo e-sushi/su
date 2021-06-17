@@ -4,7 +4,7 @@
 #define MAXBUFF 255
 
 array<char> stopping_chars{
-	';', ' ', '{',  '}', '\(', '\)', ',', '+', '*', '/', '-', '<', '>', '=', '!', '~', '\n'
+	';', ' ', '{',  '}', '\(', '\)', ',', '+', '*', '/', '-', '<', '>', '=', '!', '~', '\n', '&', '|'
 };
 
 array<string> keywords{
@@ -68,11 +68,11 @@ array<token> suLexer::lex(FILE* file) {
 					case '-':  t.type = tok_Negation;          break;
 					case '*':  t.type = tok_Multiplication;    break;
 					case '/':  t.type = tok_Division;          break;
-					case '<':  t.type = tok_OpenAngle;         break;
-					case '>':  t.type = tok_CloseAngle;        break;
-					case '=':  t.type = tok_Assignment;        break;
-					case '!':  t.type = tok_LogicalNOT;        break;
 					case '~':  t.type = tok_BitwiseComplement; break;
+					case '!':  t.type = tok_LogicalNOT;        break;
+					case '=':  t.type = tok_Assignment;        break;
+					case '>':  t.type = tok_GreaterThan;       break;
+					case '<':  t.type = tok_LessThan;          break;
 				}
 				t.line = lines;
 				tokens.add(t);

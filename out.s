@@ -1,7 +1,29 @@
+
 .global main
 main:
-pushq %rbp
-movq %rsp, %rbp
-mov $4, %rax
-popq %rbp
+mov  $1, %rax
+push %rax
+mov  $1, %rax
+pop  %rcx
+add  %rcx, %rax
+push %rax
+mov  $1, %rax
+pop  %rcx
+add  %rcx, %rax
+push %rax
+mov  $1, %rax
+pop  %rcx
+add  %rcx, %rax
+push %rax
+mov  $1, %rax
+pop  %rcx
+add  %rcx, %rax
+push %rax
+mov  $1, %rax
+pop  %rcx
+add  %rcx, %rax
+push %rax
+mov  $1, %rax
+pop  %rcx
+add  %rcx, %rax
 ret

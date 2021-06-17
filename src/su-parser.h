@@ -117,7 +117,7 @@ struct Program {
 
 
 namespace suParser {
-	Program parse(array<token>& tokens);
+	void parse(array<token>& tokens, Program& mother);
 }
 
 

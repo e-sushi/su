@@ -21,6 +21,7 @@ deshicheck-cppcheck-build-dir/
 docs/doxygen/
 x64/
 Debug/
+docs/
 
 
 #specific files

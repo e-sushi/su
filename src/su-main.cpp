@@ -21,8 +21,9 @@ int main() {
 	//}
 	//std::cout << std::endl;
 
+	Program program;
 
-	Program program = suParser::parse(tokens);
+	suParser::parse(tokens, program);
 
 	string assembly = suAssembler::assemble(program);
 

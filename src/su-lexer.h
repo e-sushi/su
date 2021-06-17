@@ -9,27 +9,34 @@
 
 
 enum token_type {
-	tok_ERROR,			  // when something doesnt make sense during lexing
-	tok_EOF,			  // end of file
-	tok_Keyword,		  // int, float, etc.
-	tok_Identifier,		  // function/variable names
-	tok_OpenParen,		  // (
-	tok_CloseParen,		  // )
-	tok_OpenBrace,		  // {
-	tok_CloseBrace,		  // }
-	tok_Comma,			  // ,
-	tok_Semicolon,		  // ;
-	tok_Return,			  // return
-	tok_IntegerLiteral,	  // 1
-	tok_Assignment,       // =
-	tok_Plus,             // +
-	tok_Negation,		  // -
-	tok_Multiplication,   // *
-	tok_Division,         // /
-	tok_OpenAngle,		  // <
-	tok_CloseAngle,       // >
-	tok_LogicalNOT,       // !
-	tok_BitwiseComplement // ~
+	tok_ERROR,			    // when something doesnt make sense during lexing
+	tok_EOF,			    // end of file
+	tok_Keyword,		    // int, float, etc.
+	tok_Identifier,		    // function/variable names
+	tok_OpenParen,		    // (
+	tok_CloseParen,		    // )
+	tok_OpenBrace,		    // {
+	tok_CloseBrace,		    // }
+	tok_Comma,			    // ,
+	tok_Semicolon,		    // ;
+	tok_Return,			    // return
+	tok_IntegerLiteral,	    // 1
+	tok_Assignment,         // =
+	tok_Plus,               // +
+	tok_Negation,		    // -
+	tok_Multiplication,     // *
+	tok_Division,           // /
+	tok_LogicalNOT,         // !
+	tok_BitwiseComplement,  // ~
+	tok_LessThan,		    // <
+	tok_GreaterThan,        // >
+	tok_LessThanOrEqual,	// <=
+	tok_GreaterThanOrEqual, // >=
+	tok_AND,                // &&
+	tok_OR,                 // ||
+	tok_Equal,              // ==
+	tok_NotEqual,           // !=
+
 };
 
 static const char* tokenStrings[] = {
