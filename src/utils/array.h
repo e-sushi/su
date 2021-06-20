@@ -182,16 +182,16 @@ struct array {
 
 	//returns the value of iter + some value and doesn't increment it 
 	//TODO come up with a better name for this and the corresponding previous overload
-	T& next(int i) {
+	T& peek(int i = 1) {
 		return *(iter + i);
 	}
 
 	//returns the value of iter and decrements it by one.
-	T& previous() {
+	T& prev() {
 		return *iter--;
 	}
 
-	T& previous(int i) {
+	T& lookback(int i = 1) {
 		return *(iter - i);
 	}
 

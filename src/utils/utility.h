@@ -52,6 +52,16 @@ static int stoi(string s) {
 	return x;
 }
 
+//lifted from https://stackoverflow.com/questions/190229/where-is-the-itoa-function-in-linux
+static string itos(long n) {
+	int len = n == 0 ? 1 : floor(log10l(labs(n))) + 1;
+	if (n < 0) len++; // room for negative sign '-'
+
+	char* buf = (char*)calloc(sizeof(char), len + 1); // +1 for null
+	snprintf(buf, len + 1, "%ld", n);
+	
+	return string(buf);
+}
 
 
 

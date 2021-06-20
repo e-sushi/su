@@ -51,6 +51,7 @@
     <DisplayString Condition="last == 0">{{ empty }}</DisplayString>
     <DisplayString>{{ size={size()} }}</DisplayString>
     <Expand>
+      <Item Name="iter">iter</Item>
       <ArrayItems>
         <Size>size()</Size>
         <ValuePointer>first</ValuePointer>

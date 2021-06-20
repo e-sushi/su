@@ -33,9 +33,15 @@ enum token_type {
 	tok_LessThanOrEqual,	// <=
 	tok_GreaterThanOrEqual, // >=
 	tok_AND,                // &&
+	tok_BitAND,             // &
 	tok_OR,                 // ||
+	tok_BitOR,              // |
 	tok_Equal,              // ==
 	tok_NotEqual,           // !=
+	tok_BitXOR,				// ^
+	tok_BitShiftLeft,		// <<
+	tok_BitShiftRight,		// >>
+	tok_Modulo              // %
 
 };
 
@@ -44,7 +50,8 @@ static const char* tokenStrings[] = {
 	"Open Brace", "Close Brace", "Comma", "Semicolon", "Return", "Integer Literal",
 	"Assignment", "Plus", "Negation", "Multiplication", "Division", "Logical NOT", 
 	"Bitwise Compliment", "Less Than", "Greater Than", "Less Than Or Equal To",
-	"Greater Than Or Equal To", "AND", "OR", "Equal", "Not Equal"
+	"Greater Than Or Equal To", "AND", "BitAND", "OR", "BitOR", "Equal", "Not Equal",
+	"XOR", "Bit Shift Left", "Bit Shift Right", "Modulo"
 };
 
 struct token {

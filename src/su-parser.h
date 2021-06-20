@@ -34,21 +34,31 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpMultiply,
 	Expression_BinaryOpDivision,
 	Expression_BinaryOpAND,
+	Expression_BinaryOpBitAND,
 	Expression_BinaryOpOR,
+	Expression_BinaryOpBitOR,
 	Expression_BinaryOpLessThan,
 	Expression_BinaryOpGreaterThan,
 	Expression_BinaryOpLessThanOrEqual,
 	Expression_BinaryOpGreaterThanOrEqual,
 	Expression_BinaryOpEqual,
 	Expression_BinaryOpNotEqual,
+	Expression_BinaryOpModulo,
+	Expression_BinaryOpXOR,
+	Expression_BinaryOpBitShiftLeft,
+	Expression_BinaryOpBitShiftRight,
 
 	//Expression Guards
-	ExpressionGuard_Additive,
-	ExpressionGuard_Relational,
-	ExpressionGuard_Equality,
 	ExpressionGuard_LogicalAND,
+	ExpressionGuard_BitOR,
+	ExpressionGuard_BitXOR,
+	ExpressionGuard_BitAND,
+	ExpressionGuard_Equality,
+	ExpressionGuard_Relational,
+	ExpressionGuard_BitShift,
+	ExpressionGuard_Additive,
+	ExpressionGuard_Term,
 	ExpressionGuard_Factor,
-	ExpressionGuard_Term
 };
 
 static const char* ExTypeStrings[] = {
@@ -63,16 +73,30 @@ static const char* ExTypeStrings[] = {
 	"*",
 	"/",
 	"&&",
+	"&",
 	"||",
+	"|",
 	"<",
 	">",
 	"<=",
 	">=",
 	"==",
 	"!=",
+	"%",
+	"^",
+	"<<",
+	">>",
 
-	"Factor",
-	"Term"
+	"logical and"
+	"bit or",
+	"bit xor",
+	"bit and",
+	"equality",
+	"relational",
+	"bit shift",
+	"additive",
+	"term"
+	"factor",
 };
 
 struct Expression {

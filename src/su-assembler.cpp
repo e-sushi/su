@@ -4,7 +4,7 @@ string ASMBuff = "";
 bool allow_comments = true;
 bool print_as_we_go = true;
 
-//this may not be necessary and could just be a state enum, there only ever seems to be one flag set
+//this may not be necessary and could just be a state enum, there only ever seems to be one flag set for each layer
 struct Flags {
 	b32 add  = 0;
 	b32 sub  = 0;
@@ -28,12 +28,21 @@ struct Flags {
 	b32 term_eval   = 0;
 };
 
+//increment when a label is made so we can generate unique names
+u32 label_count = 0;
 
 inline void addASMLine(string asmLine, string comment = "") {
 	
 
 	if (print_as_we_go) {
-		string out = "\n" + asmLine;
+		string out = "";
+
+		if (asmLine[asmLine.size - 1] != ':' && asmLine[0] != '.') {
+			out += "\n    " + asmLine;
+		}
+		else {
+			out += "\n\n" + asmLine;
+		}
 
 		if (allow_comments && comment.size > 0) {
 			for (int i = 0; i < 18 - asmLine.size; i++) out += " ";
@@ -44,7 +53,13 @@ inline void addASMLine(string asmLine, string comment = "") {
 		ASMBuff += out;
 	}
 	else {
-		ASMBuff += "\n" + asmLine;
+		//check if we're adding an instruction and tab if we are
+		if (asmLine[asmLine.size - 1] != ':' && asmLine[0] != '.') {
+			ASMBuff += "\n    " + asmLine;
+		}
+		else {
+			ASMBuff += "\n\n" + asmLine;
+		}
 
 		if (allow_comments && comment.size > 0) {
 			for (int i = 0; i < 16 - asmLine.size; i++) ASMBuff += " ";
@@ -58,6 +73,8 @@ void assemble_expressions(array<Expression>& expressions) {
 	assert(expressions.size() != 0); "assemble_expression was passed an empty array";
 	Flags flags;
 
+	u32 label_num_on_enter = label_count;
+
 	for (Expression& exp : expressions) {
 		switch (exp.expression_type) {
 
@@ -70,6 +87,107 @@ void assemble_expressions(array<Expression>& expressions) {
 			////////////////////////
 
 
+
+			case ExpressionGuard_LogicalAND: {
+				assemble_expressions(exp.expressions);
+				//peek to see if there's an OR ahead
+				if (expressions.peek().expression_type == Expression_BinaryOpOR) {
+					//if there is we must check if the last result was true
+					string label_num = itos(label_count);
+					string end_label_num = itos(label_num_on_enter);
+					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
+					addASMLine("je    _ORLabel" + label_num);
+					addASMLine("mov   $1,   %rax", "we didn't jump so last result was true");
+					addASMLine("jmp   _ORend" + end_label_num);
+					addASMLine("_ORLabel" + label_num + ":");
+					label_count++;
+				}
+				else if(expressions.lookback().expression_type == Expression_BinaryOpOR) {
+					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
+					string label_num = itos(label_count);
+					string end_label_num = itos(label_num_on_enter);
+					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
+					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was true");
+					addASMLine("setne %al");
+					addASMLine("_ORend" + end_label_num + ":");
+				}
+			}break;
+
+			case ExpressionGuard_Equality: {
+				assemble_expressions(exp.expressions);
+				//peek to see if there's an AND ahead
+
+				if (expressions.peek().expression_type == Expression_BinaryOpAND) {
+					//if there is we must check if the last result was true
+					string label_num = itos(label_count);
+					string end_label_num = itos(label_num_on_enter);
+					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
+					addASMLine("jne   _ANDLabel" + label_num);
+					addASMLine("jmp   _ANDend" + end_label_num);
+					addASMLine("_ANDLabel" + label_num + ":");
+					label_count++;
+				}
+				else if (expressions.lookback().expression_type == Expression_BinaryOpAND) {
+					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
+					string label_num = itos(label_count);
+					string end_label_num = itos(label_num_on_enter);
+					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
+					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was false");
+					addASMLine("setne %al");
+					addASMLine("_ANDend" + end_label_num + ":");
+				}
+				
+			}break;
+
+			case ExpressionGuard_Relational: {
+				assemble_expressions(exp.expressions);
+				if (flags.equal) {
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("cmp   %rax, %rcx", "perform equality check");
+					addASMLine("mov   $0,   %rax");
+					addASMLine("sete  %al");
+					flags.equal = 0;
+				}
+				else if(flags.not_equal) {
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("cmp   %rax, %rcx", "perform equality check");
+					addASMLine("mov   $0,   %rax");
+					addASMLine("setne %al");
+					flags.not_equal = 0;
+				}
+			}break;
+
+			case ExpressionGuard_Additive: {
+				assemble_expressions(exp.expressions);
+				if (flags.less) {
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("cmp   %rax, %rcx", "perform less than check");
+					addASMLine("mov   $0,   %rax");
+					addASMLine("setl  %al");
+					flags.less = 0;
+				}
+				else if (flags.less_eq) {
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("cmp   %rax, %rcx", "perform less than eq check");
+					addASMLine("mov   $0,   %eax");
+					addASMLine("setle %al");
+					flags.less_eq = 0;
+				}
+				else if (flags.greater) {
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("cmp   %rax, %rcx", "perform greater than check");
+					addASMLine("mov   $0,   %eax");
+					addASMLine("setg  %al");
+					flags.greater = 0;
+				}
+				else if (flags.greater_eq) {
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("cmp   %rax, %rcx", "perform greater than eq check");
+					addASMLine("mov   $0,   %rax");
+					addASMLine("setge %al");
+					flags.greater_eq = 0;
+				}
+			}break;
 
 			case ExpressionGuard_Term: {
 				assemble_expressions(exp.expressions);
@@ -104,65 +222,6 @@ void assemble_expressions(array<Expression>& expressions) {
 				}
 			}break;
 
-			case ExpressionGuard_LogicalAND: {
-				assemble_expressions(exp.expressions);
-			}break;
-
-			case ExpressionGuard_Equality: {
-				assemble_expressions(exp.expressions);
-				
-			}break;
-
-			case ExpressionGuard_Relational: {
-				assemble_expressions(exp.expressions);
-				if (flags.equal) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
-					addASMLine("cmp   %eax, %ecx", "perform equality check");
-					addASMLine("mov   $0, %eax");
-					addASMLine("sete  %al");
-					flags.equal = 0;
-				}
-				else if(flags.not_equal) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
-					addASMLine("cmp   %eax, %ecx", "perform equality check");
-					addASMLine("mov   $0, %eax");
-					addASMLine("setne %al");
-					flags.not_equal = 0;
-				}
-			}break;
-
-			case ExpressionGuard_Additive: {
-				assemble_expressions(exp.expressions);
-				if (flags.less) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
-					addASMLine("cmp   %eax, %ecx", "perform less than check");
-					addASMLine("mov   $0, %eax");
-					addASMLine("setl  %al");
-					flags.less = 0;
-				}
-				else if (flags.less_eq) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
-					addASMLine("cmp   %eax, %ecx", "perform less than eq check");
-					addASMLine("mov   $0, %eax");
-					addASMLine("setle %al");
-					flags.less_eq = 0;
-				}
-				else if (flags.greater) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
-					addASMLine("cmp   %eax, %ecx", "perform greater than check");
-					addASMLine("mov   $0, %eax");
-					addASMLine("setg  %al");
-					flags.greater = 0;
-				}
-				else if (flags.greater_eq) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
-					addASMLine("cmp   %eax, %ecx", "perform greater than eq check");
-					addASMLine("mov   $0, %eax");
-					addASMLine("setge %al");
-					flags.greater_eq = 0;
-				}
-			}break;
-
 
 
 			////////////////////////
@@ -194,12 +253,12 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case Expression_BinaryOpAND: {
-				addASMLine("push  %rax", "store %rax for AND");
+				flags.AND = 1;
 
 			}break;
 
 			case Expression_BinaryOpOR: {
-				addASMLine("push  %rax", "store %rax for equal check");
+				flags.OR= 1;
 
 			}break;
 
@@ -251,8 +310,8 @@ void assemble_expressions(array<Expression>& expressions) {
 
 			case Expression_UnaryOpLogiNOT: {
 				assemble_expressions(exp.expressions);
-				addASMLine("cmp   $0, %rax", "perform logical not");
-				addASMLine("mov   $0, %rax");
+				addASMLine("cmp   $0,   %rax", "perform logical not");
+				addASMLine("mov   $0,   %rax");
 				addASMLine("sete  %al");
 			}break;
 
@@ -261,10 +320,18 @@ void assemble_expressions(array<Expression>& expressions) {
 				addASMLine("neg   %rax", "perform negation");
 			}break;
 
+
+			////////////////////////
+			////				////
+			////    Literals    ////
+			////				////
+			////////////////////////
+
 			case Expression_IntegerLiteral: {
-				addASMLine("mov   $" + exp.expstr + ", %rax", "move integer literal into %rax");
+				addASMLine("mov   $" + exp.expstr + ",%rax", "move integer literal into %rax");
 			}break;
 		}
+		expressions.next();
 	}
 }
 

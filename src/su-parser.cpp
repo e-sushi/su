@@ -12,9 +12,13 @@
 // <function>           :: = "int" < id > "(" ")" "{" < statement > "}"
 // <statement>          :: = "return" < exp > ";"
 // <exp>                :: = <logical - and -exp>{ "||" < logical - and -exp > }
-// <logical - and -exp> :: = <equality - exp>{ "&&" < equality - exp > }
-// <equality - exp>     :: = <relational - exp>{ ("!=" | "==") < relational - exp > }
-// <relational - exp>   :: = <additive - exp>{ ("<" | ">" | "<=" | ">=") < additive - exp > }
+// <logical - and -exp> :: = <bitwise or> { "&&" <bitwise or> } 
+// <bitwise or>         :: = <bitwise xor> { "|" <bitwise xor> }
+// <bitwise xor>        :: = <bitwise and> { "^" <bitwise and> }
+// <bitwise and>        :: = <equality> { "&" <equality> }
+// <equality - exp>     :: = <relational - exp> { ("!=" | "==") < relational - exp > }
+// <relational - exp>   :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
+// <bitwise shift>      :: = <additive - exp> { ("<<" | ">>" ) <additive - exp> }
 // <additive - exp>     :: = <term>{ ("+" | "-") < term > }
 // <term>               :: = <factor>{ ("*" | "/") < factor > }
 // <factor>             :: = "(" < exp > ")" | <unary_op> <factor> | <int>
@@ -35,12 +39,14 @@ u32 layer = 0; //inc when we go into anything, dec when we come out
 //should probably redo this at some point I think, but i want to try doing it this way to see how it works
 token curt;
 
+array<token> tokens;
+
 //These defines are mostly for conveinence and clarity as to what im doing
 #define token_next curt = tokens.next()
-#define token_last curt = tokens.previous()
+#define token_last curt = tokens.prev()
 
-#define token_peek tokens.next(0)
-#define token_look_back(i) tokens.previous(i)
+#define token_peek tokens.peek(0)
+#define token_look_back(i) tokens.lookback(i)
 
 #define PARSE_FAIL(error)\
 std::cout << "Error: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl;
@@ -72,7 +78,9 @@ array<PTE> binaryOps{
 	PTE(tok_LessThanOrEqual,    Expression_BinaryOpLessThanOrEqual),
 	PTE(tok_GreaterThanOrEqual, Expression_BinaryOpGreaterThanOrEqual),
 	PTE(tok_Equal,              Expression_BinaryOpEqual),
-	PTE(tok_NotEqual,           Expression_BinaryOpNotEqual)
+	PTE(tok_NotEqual,           Expression_BinaryOpNotEqual),
+	PTE(tok_BitAND,             Expression_BinaryOpBitAND),
+
 };
 
 
@@ -84,11 +92,11 @@ array<PTE> unaryOps{
 
 
 
-array<Expression> parse_term(array<token>& tokens);
-array<Expression> parse_expressions(array<token>& tokens);
+array<Expression> parse_term(array<Expression>& expressions);
+array<Expression> parse_expressions(array<Expression>& expressions);
 
 // <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
-array<Expression> parse_factor(array<token>& tokens) {
+array<Expression> parse_factor(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	
@@ -136,7 +144,7 @@ array<Expression> parse_factor(array<token>& tokens) {
 }
 
 // <term> ::= <factor> { ("*" | "/") <factor> }
-array<Expression> parse_term(array<token>& tokens) {
+array<Expression> parse_term(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("<term>:");
@@ -160,7 +168,7 @@ array<Expression> parse_term(array<token>& tokens) {
 }
 
 // <additive-exp> ::= <term> { ("+" | "-") <term> }
-array<Expression> parse_additive(array<token>& tokens) {
+array<Expression> parse_additive(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("<additive>:");
@@ -189,7 +197,7 @@ array<Expression> parse_additive(array<token>& tokens) {
 }
 
 // <relational-exp> ::= <additive-exp> { ("<" | ">" | "<=" | ">=") <additive-exp> }
-array<Expression> parse_relational(array<token>& tokens) {
+array<Expression> parse_relational(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("<relational>:");
@@ -223,7 +231,7 @@ array<Expression> parse_relational(array<token>& tokens) {
 }
 
 // <equality-exp> ::= <relational-exp> { ("!=" | "==") <relational-exp> }
-array<Expression> parse_equality(array<token>& tokens) {
+array<Expression> parse_equality(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("<equality>:");
@@ -251,8 +259,39 @@ array<Expression> parse_equality(array<token>& tokens) {
 	return expressions;
 }
 
+// <bitwise or> :: = <bitwise xor> { "|" <bitwise xor> }
+//array<Expression> parse_equality(array<Expression>& expressions) {
+//	layer++;
+//	string name = ExTypeStrings[curt.type];
+//	array<Expression> expressions;
+//	PARSEOUT("<" << name << ">:");
+//
+//	//decend down expression guards
+//	Expression e(curt.str, ExpressionGuard_Relational);
+//	e.expressions.add(parse_relational(tokens));
+//	expressions.add(e);
+//
+//	while (token_peek.type == tok_NotEqual || token_peek.type == tok_Equal) {
+//		token_next;
+//		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
+//		PARSEOUT("<" << name << ">:");
+//
+//
+//		//add operator expression
+//		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
+//
+//		//decend down expression guards
+//		Expression e(curt.str, ExpressionGuard_Relational);
+//		e.expressions.add(parse_relational(tokens));
+//		expressions.add(e);
+//	}
+//
+//	layer--;
+//	return expressions;
+//}
+
 // <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> }
-array<Expression> parse_logical_and(array<token>& tokens) {
+array<Expression> parse_logical_and(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("<logi AND>:");
@@ -281,7 +320,7 @@ array<Expression> parse_logical_and(array<token>& tokens) {
 }
 
 // <exp> ::= <logical-and-exp> { "||" <logical-and-exp> }
-array<Expression> parse_expressions(array<token>& tokens) {
+array<Expression> parse_expressions(array<Expression>& expressions) {
 	layer++;
 	array<Expression> expressions;
 	PARSEOUT("<exp>:");
@@ -310,7 +349,7 @@ array<Expression> parse_expressions(array<token>& tokens) {
 }
 
 // <statement> ::= "return" <exp> ";"
-array<Statement> parse_statements(array<token>& tokens) {
+array<Statement> parse_statements(array<Expression>& expressions) {
 	layer++;
 	array<Statement> statements;
 	token_next; //expect return
@@ -339,7 +378,7 @@ array<Statement> parse_statements(array<token>& tokens) {
 }
 
 // <function> ::= "int" <id> "(" ")" "{" <statement> "}"
-Function parse_function(array<token>& tokens) {
+Function parse_function(array<Expression>& expressions) {
 	layer++;
 	Function function;
 
@@ -382,8 +421,10 @@ Function parse_function(array<token>& tokens) {
 }
 
 // <program> ::= <function>
-void suParser::parse(array<token>& tokens, Program& mother) {
+void suParser::parse(array<token>& token_in, Program& mother) {
 	//Program mother;
+
+	tokens = tokens_in;
 
 	PARSEOUT("Parse begin");
 

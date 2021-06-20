@@ -4,7 +4,10 @@
 #define MAXBUFF 255
 
 array<char> stopping_chars{
-	';', ' ', '{',  '}', '\(', '\)', ',', '+', '*', '/', '-', '<', '>', '=', '!', '~', '\n', '&', '|'
+	';', ' ', '{',  '}', '\(', '\)', 
+	',', '+', '*', '/', '-', '<', '>', 
+	'=', '!', '~', '\n', '&', '|', '^',
+	'%'
 };
 
 array<string> keywords{
@@ -69,6 +72,8 @@ array<token> suLexer::lex(FILE* file) {
 					case '*':  t.type = tok_Multiplication;    break;
 					case '/':  t.type = tok_Division;          break;
 					case '~':  t.type = tok_BitwiseComplement; break;
+					case '%':  t.type = tok_Modulo;            break;
+					case '^':  t.type = tok_BitXOR;            break;
 					
 					case '&': {
 						if (fgetc(file) == '&') {
@@ -76,7 +81,8 @@ array<token> suLexer::lex(FILE* file) {
 							t.str += '&';
 						}
 						else {
-							std::cout << "lex failed in &, & is not implemented yet" << std::endl;
+							fseek(file, -1, SEEK_CUR);
+							t.type = tok_BitAND;
 						}
 					}break;
 
@@ -86,7 +92,8 @@ array<token> suLexer::lex(FILE* file) {
 							t.str += '|';
 						}
 						else {
-							std::cout << "lex failed in |, | is not implemented yet" << std::endl;
+							fseek(file, -1, SEEK_CUR);
+							t.type = tok_BitOR;
 						}
 					}break;
 
@@ -113,9 +120,14 @@ array<token> suLexer::lex(FILE* file) {
 					}break;
 
 					case '>': {
-						if (fgetc(file) == '=') {
+						char c = fgetc(file);
+						if (c == '=') {
 							t.type = tok_GreaterThanOrEqual; 
 							t.str += '=';
+						}
+						else if (c == '>') {
+							t.type = tok_BitShiftRight;
+							t.str += '>';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
@@ -124,9 +136,14 @@ array<token> suLexer::lex(FILE* file) {
 					}break;
 
 					case '<': {
-						if (fgetc(file) == '=') {
+						char c = fgetc(file);
+						if (c == '=') {
 							t.type = tok_LessThanOrEqual;
 							t.str += '=';
+						}
+						else if (c == '<') {
+							t.type = tok_BitShiftLeft;
+							t.str += '<';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);

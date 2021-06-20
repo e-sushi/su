@@ -4,6 +4,18 @@
 #include "su-parser.h"
 #include "su-assembler.h"
 
+
+/*
+General TODOs
+
+convert the assembler to take in instruction and register enums and then decide what instruction to put
+based on what architecture we're compiling for
+
+
+
+*/
+
+
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
 int main() {
 
@@ -33,4 +45,5 @@ int main() {
 	fputs(assembly.str, out);
 	fclose(in);
 	fclose(out);
+
 }
