@@ -8,22 +8,21 @@
 
 
 // full backus naur stuff
-// <program>            :: = <function>
-// <function>           :: = "int" < id > "(" ")" "{" < statement > "}"
-// <statement>          :: = "return" < exp > ";"
-// <exp>                :: = <logical - and -exp>{ "||" < logical - and -exp > }
-// <logical - and -exp> :: = <bitwise or> { "&&" <bitwise or> } 
-// <bitwise or>         :: = <bitwise xor> { "|" <bitwise xor> }
-// <bitwise xor>        :: = <bitwise and> { "^" <bitwise and> }
-// <bitwise and>        :: = <equality> { "&" <equality> }
-// <equality - exp>     :: = <relational - exp> { ("!=" | "==") < relational - exp > }
-// <relational - exp>   :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
-// <bitwise shift>      :: = <additive - exp> { ("<<" | ">>" ) <additive - exp> }
-// <additive - exp>     :: = <term>{ ("+" | "-") < term > }
-// <term>               :: = <factor>{ ("*" | "/") < factor > }
-// <factor>             :: = "(" < exp > ")" | <unary_op> <factor> | <int>
-// <unary_op>           :: = "!" | "~" | "-"
-
+// <program>       :: = <function>
+// <function>      :: = "int" <id> "(" ")" "{" <statement> "}"
+// <statement>     :: = "return" <exp> ";"
+// <exp>           :: = <logical and> { "||" <logical and> }
+// <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
+// <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
+// <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
+// <bitwise and>   :: = <equality> { "&" <equality> }
+// <equality>      :: = <relational> { ("!=" | "==") <relational> }
+// <relational>    :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
+// <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
+// <additive>      :: = <term> { ("+" | "-") <term> }
+// <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
+// <factor>        :: = "(" <exp> ")" | <unary> <factor> | <int>
+// <unary>         :: = "!" | "~" | "-"
 
 bool master_logger = true;
 
@@ -80,7 +79,11 @@ array<PTE> binaryOps{
 	PTE(tok_Equal,              Expression_BinaryOpEqual),
 	PTE(tok_NotEqual,           Expression_BinaryOpNotEqual),
 	PTE(tok_BitAND,             Expression_BinaryOpBitAND),
-
+	PTE(tok_BitOR,              Expression_BinaryOpBitOR),
+	PTE(tok_BitXOR,		        ExpressionGuard_BitXOR),
+	PTE(tok_BitShiftLeft,       Expression_BinaryOpBitShiftLeft),
+	PTE(tok_BitShiftRight,      Expression_BinaryOpBitShiftRight),
+	PTE(tok_Modulo,             Expression_BinaryOpModulo),
 };
 
 
@@ -92,16 +95,14 @@ array<PTE> unaryOps{
 
 
 
-array<Expression> parse_term(array<Expression>& expressions);
-array<Expression> parse_expressions(array<Expression>& expressions);
+void parse_term(array<Expression>& expressions);
+void parse_expressions(array<Expression>& expressions);
 
-// <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
-array<Expression> parse_factor(array<Expression>& expressions) {
+// <factor> ::= "(" <exp> ")" | <unary> <factor> | <int>
+void parse_factor(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	
-	PARSEOUT("factor:");
-
+	string name = "factor";
+	PARSEOUT("<" << name << ">:");
 
 	token_next;
 	switch (curt.type) {
@@ -111,19 +112,19 @@ array<Expression> parse_factor(array<Expression>& expressions) {
 			syntax.integerf = 1;
 			expressions.add(Expression(curt.str, Expression_IntegerLiteral));
 			layer--;
-			return expressions;
+			return;
 		}break;
 
 		case tok_OpenParen: {
 			PARSEOUT("( OPEN");
 			Expression e(curt.str, ExpressionGuard_Factor);
-			e.expressions.add(parse_expressions(tokens));
+			parse_expressions(e.expressions);
 			expressions.add(e);
 			token_next;
 			EXPECT(tok_CloseParen) {
 				PARSEOUT(") CLOSE");
 				layer--;
-				return expressions;
+				return;
 			} else PARSE_FAIL("expected a closing parentheses");
 		}break;
 
@@ -131,80 +132,113 @@ array<Expression> parse_factor(array<Expression>& expressions) {
 			EXPECT_ONE_OF(unaryOps) {
 				PARSEOUT("unary op " << ExTypeStrings[vfk(curt.type, unaryOps)]);
 				Expression e(curt.str, vfk(curt.type, unaryOps));
-				e.expressions.add(parse_factor(tokens));
+				parse_factor(e.expressions);
 				expressions.add(e);
 				layer--;
-				return expressions;
+				return;
 			} else PARSE_FAIL("unexpected token found in factor");
 		}
 	}
 
 	layer--;
-	return expressions;
 }
 
-// <term> ::= <factor> { ("*" | "/") <factor> }
-array<Expression> parse_term(array<Expression>& expressions) {
+// <term> :: = <factor> { ("*" | "/" | "%") <factor> }
+void parse_term(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	PARSEOUT("<term>:");
+	string name = "term";
+	PARSEOUT("<" << name << ">:");
+
 	//all terms become factors
 	Expression e(curt.str, ExpressionGuard_Factor);
-	e.expressions.add(parse_factor(tokens));
+	parse_factor(e.expressions);
 	expressions.add(e);
 
-	while (token_peek.type == tok_Multiplication || token_peek.type == tok_Division) {
+	while (
+		token_peek.type == tok_Multiplication || token_peek.type == tok_Division ||
+		token_peek.type == tok_Modulo) {
+		
 		token_next;
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("<term>:");
+		PARSEOUT("<" << name << ">:");
+
+		//add operator expression
 		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
+
 		Expression e(curt.str, ExpressionGuard_Factor);
-		e.expressions.add(parse_factor(tokens));
+		parse_factor(e.expressions);
 		expressions.add(e);
 	}
 
 	layer--;
-	return expressions;
 }
 
 // <additive-exp> ::= <term> { ("+" | "-") <term> }
-array<Expression> parse_additive(array<Expression>& expressions) {
+void parse_additive(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	PARSEOUT("<additive>:");
+	string name = "additive";
+	PARSEOUT("<" << name << ">:");
 
 	//decend down expression guards
 	Expression e(curt.str, ExpressionGuard_Term);
-	e.expressions.add(parse_term(tokens));
+	parse_term(e.expressions);
 	expressions.add(e);
 
 	while (token_peek.type == tok_Plus || token_peek.type == tok_Negation){
 		token_next;
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("<additive>:");
+		PARSEOUT("<" << name << ">:");
 
 		//add operator expression
 		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
 
 		//decend down expression guards
 		Expression e(curt.str, ExpressionGuard_Term);
-		e.expressions.add(parse_term(tokens));
+		parse_term(e.expressions);
 		expressions.add(e);
 	}
 
 	layer--;
-	return expressions;
 }
 
-// <relational-exp> ::= <additive-exp> { ("<" | ">" | "<=" | ">=") <additive-exp> }
-array<Expression> parse_relational(array<Expression>& expressions) {
+// <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
+void parse_bitshift(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	PARSEOUT("<relational>:");
+	string name = "bitshift";
+	PARSEOUT("<" << name << ">:");
 
 	//decend down expression guards
 	Expression e(curt.str, ExpressionGuard_Additive);
-	e.expressions.add(parse_additive(tokens));
+	parse_additive(e.expressions);
+	expressions.add(e);
+
+	while (token_peek.type == tok_BitShiftRight || token_peek.type == tok_BitShiftLeft) {
+
+		token_next;
+		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
+		PARSEOUT("<" << name << ">:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
+
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_Additive);
+		parse_additive(e.expressions);
+		expressions.add(e);
+	}
+
+	layer--;
+}
+
+// <relational> :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
+void parse_relational(array<Expression>& expressions) {
+	layer++;
+	string name = "relational";
+	PARSEOUT("<" << name << ">:");
+
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_BitShift);
+	parse_bitshift(e.expressions);
 	expressions.add(e);
 
 	while (
@@ -215,151 +249,199 @@ array<Expression> parse_relational(array<Expression>& expressions) {
 
 		token_next;
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("<relational>:");
+		PARSEOUT("<" << name << ">:");
 
 		//add operator expression
 		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
 
 		//decend down expression guards
-		Expression e(curt.str, ExpressionGuard_Additive);
-		e.expressions.add(parse_additive(tokens));
+		Expression e(curt.str, ExpressionGuard_BitShift);
+		parse_bitshift(e.expressions);
 		expressions.add(e);
 	}
 
 	layer--;
-	return expressions;
 }
 
-// <equality-exp> ::= <relational-exp> { ("!=" | "==") <relational-exp> }
-array<Expression> parse_equality(array<Expression>& expressions) {
+// <equality> ::= <relational> { ("!=" | "==") <relational> }
+void parse_equality(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	PARSEOUT("<equality>:");
+	string name = "equality";
+	PARSEOUT("<" << name << ">:");
 
 	//decend down expression guards
 	Expression e(curt.str, ExpressionGuard_Relational);
-	e.expressions.add(parse_relational(tokens));
+	parse_relational(e.expressions);
 	expressions.add(e);
 
 	while (token_peek.type == tok_NotEqual || token_peek.type == tok_Equal) {
 		token_next;
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("<equality>:");
+		PARSEOUT("<" << name << ">:");
 
 		//add operator expression
 		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
 		
 		//decend down expression guards
 		Expression e(curt.str, ExpressionGuard_Relational);
-		e.expressions.add(parse_relational(tokens));
+		parse_relational(e.expressions);
 		expressions.add(e);
 	}
 
 	layer--;
-	return expressions;
 }
 
-// <bitwise or> :: = <bitwise xor> { "|" <bitwise xor> }
-//array<Expression> parse_equality(array<Expression>& expressions) {
-//	layer++;
-//	string name = ExTypeStrings[curt.type];
-//	array<Expression> expressions;
-//	PARSEOUT("<" << name << ">:");
-//
-//	//decend down expression guards
-//	Expression e(curt.str, ExpressionGuard_Relational);
-//	e.expressions.add(parse_relational(tokens));
-//	expressions.add(e);
-//
-//	while (token_peek.type == tok_NotEqual || token_peek.type == tok_Equal) {
-//		token_next;
-//		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-//		PARSEOUT("<" << name << ">:");
-//
-//
-//		//add operator expression
-//		expressions.add(Expression(curt.str, vfk(curt.type, binaryOps)));
-//
-//		//decend down expression guards
-//		Expression e(curt.str, ExpressionGuard_Relational);
-//		e.expressions.add(parse_relational(tokens));
-//		expressions.add(e);
-//	}
-//
-//	layer--;
-//	return expressions;
-//}
-
-// <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> }
-array<Expression> parse_logical_and(array<Expression>& expressions) {
+// <bitwise and> :: = <equality> { "&" <equality> }
+void parse_bitwise_and(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	PARSEOUT("<logi AND>:");
-	
+	string name = "bit AND";
+	PARSEOUT("<" << name << ">:");
+
 	//decend down expression guards
 	Expression e(curt.str, ExpressionGuard_Equality);
-	e.expressions.add(parse_equality(tokens));
+	parse_equality(e.expressions);
+	expressions.add(e);
+
+	while (token_peek.type == tok_BitAND) {
+		token_next;
+		PARSEOUT("binary op &");
+		PARSEOUT("<" << name << ">:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, Expression_BinaryOpBitAND));
+
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_Equality);
+		parse_equality(e.expressions);
+		expressions.add(e);
+	}
+
+	layer--;
+}
+
+// <bitwise xor> :: = <bitwise and> { "^" <bitwise and> }
+void parse_bitwise_xor(array<Expression>& expressions) {
+	layer++;
+	string name = "bit XOR";
+	PARSEOUT("<" << name << ">:");
+
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_BitAND);
+	parse_bitwise_and(e.expressions);
+	expressions.add(e);
+
+	while (token_peek.type == tok_BitXOR) {
+		token_next;
+		PARSEOUT("binary op ^");
+		PARSEOUT("<" << name << ">:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, Expression_BinaryOpXOR));
+
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_BitAND);
+		parse_bitwise_and(e.expressions);
+		expressions.add(e);
+	}
+
+	layer--;
+}
+
+//<bitwise or> :: = <bitwise xor> { "|" <bitwise xor> }
+void parse_bitwise_or(array<Expression>& expressions) {
+	layer++;
+	string name = "bit OR";
+	PARSEOUT("<" << name << ">:");
+
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_BitXOR);
+	parse_bitwise_xor(e.expressions);
+	expressions.add(e);
+
+	while (token_peek.type == tok_BitOR) {
+		token_next;
+		PARSEOUT("binary op |");
+		PARSEOUT("<" << name << ">:");
+
+		//add operator expression
+		expressions.add(Expression(curt.str, Expression_BinaryOpBitOR));
+
+		//decend down expression guards
+		Expression e(curt.str, ExpressionGuard_BitXOR);
+		parse_bitwise_xor(e.expressions);
+		expressions.add(e);
+	}
+
+	layer--;
+}
+
+// <logical and> :: = <bitwise or> { "&&" <bitwise or> } 
+void parse_logical_and(array<Expression>& expressions) {
+	layer++;
+	string name = "logi AND";
+	PARSEOUT("<" << name << ">:");
+	
+	//decend down expression guards
+	Expression e(curt.str, ExpressionGuard_BitOR);
+	parse_bitwise_or(e.expressions);
 	expressions.add(e);
 
 	while (token_peek.type == tok_AND) {
 		token_next;
 		PARSEOUT("binary op &&");
-		PARSEOUT("<logi AND>:");
+		PARSEOUT("<" << name << ">:");
 
 		//add operator expression
 		expressions.add(Expression(curt.str, Expression_BinaryOpAND));
 		
 		//decend down expression guards
-		Expression e(curt.str, ExpressionGuard_Equality);
-		e.expressions.add(parse_equality(tokens));
+		Expression e(curt.str, ExpressionGuard_BitOR);
+		parse_bitwise_or(e.expressions);
 		expressions.add(e);
 	}
 
 	layer--;
-	return expressions;
 }
 
 // <exp> ::= <logical-and-exp> { "||" <logical-and-exp> }
-array<Expression> parse_expressions(array<Expression>& expressions) {
+void parse_expressions(array<Expression>& expressions) {
 	layer++;
-	array<Expression> expressions;
-	PARSEOUT("<exp>:");
+	string name = "exp";
+	PARSEOUT("<" << name << ">:");
 	
 	//decend into expression guard hell
 	Expression e(curt.str, ExpressionGuard_LogicalAND);
-	e.expressions.add(parse_logical_and(tokens));
+	parse_logical_and(e.expressions);
 	expressions.add(e);
 
 	while (token_peek.type == tok_OR) {
 		token_next;
 		PARSEOUT("binary op ||");
-		PARSEOUT("<exp>:");
+		PARSEOUT("<" << name << ">:");
 
 		//add operator expression
 		expressions.add(Expression(curt.str, Expression_BinaryOpOR));
 		
 		//decend down expression guards
 		Expression e(curt.str, ExpressionGuard_LogicalAND);
-		e.expressions.add(parse_logical_and(tokens));
+		parse_logical_and(e.expressions);
 		expressions.add(e);
 	}
 
 	layer--;
-	return expressions;
 }
 
 // <statement> ::= "return" <exp> ";"
-array<Statement> parse_statements(array<Expression>& expressions) {
+void parse_statements(array<Statement>& statements) {
 	layer++;
-	array<Statement> statements;
+
 	token_next; //expect return
 	EXPECT(tok_Return) {
 		PARSEOUT("return statement:");
 		Statement retstate(Statement_Return);
 
 		//expect expressions so gather them
-		for (Expression e : parse_expressions(tokens)) 
-			retstate.expressions.add(e);
+		parse_expressions(retstate.expressions);
 
 		//reset syntax vars
 		syntax = { 0, 0, 0 };
@@ -368,17 +450,16 @@ array<Statement> parse_statements(array<Expression>& expressions) {
 		
 		token_next; //expect semicolon
 		EXPECT(tok_Semicolon) {
-			return statements;
+
 		} else PARSE_FAIL("expected ;"); 
 		
 	} else PARSE_FAIL("expected return statement");
 
 	layer--;
-	return statements;
 }
 
 // <function> ::= "int" <id> "(" ")" "{" <statement> "}"
-Function parse_function(array<Expression>& expressions) {
+void parse_function(array<Function>& functions) {
 	layer++;
 	Function function;
 
@@ -403,12 +484,10 @@ Function parse_function(array<Expression>& expressions) {
 				EXPECT(tok_CloseParen) {
 					token_next; //expect {
 					EXPECT(tok_OpenBrace) {
-						//parse statements then add them to the function node
-						array<Statement> statements = parse_statements(tokens);
-						for (Statement statement : statements) function.statements.add(statement);
+						parse_statements(function.statements);
 						token_next;
 						EXPECT(tok_CloseBrace) {
-
+							functions.add(function);
 						} else PARSE_FAIL("expected }");
 					} else PARSE_FAIL("expected {");
 				} else PARSE_FAIL("expected )");
@@ -417,19 +496,17 @@ Function parse_function(array<Expression>& expressions) {
 	} else PARSE_FAIL("expected a keyword (int, float, etc..) as first token");
 
 	layer--;
-	return function;
 }
 
 // <program> ::= <function>
-void suParser::parse(array<token>& token_in, Program& mother) {
+void suParser::parse(array<token>& tokens_in, Program& mother) {
 	//Program mother;
 
 	tokens = tokens_in;
 
 	PARSEOUT("Parse begin");
 
-	Function function = parse_function(tokens);
-	mother.functions.add(function);
+	parse_function(mother.functions);
 
 	//return mother;
 }

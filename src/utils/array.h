@@ -109,7 +109,24 @@ struct array {
 	}
 
 	void operator = (array<T>& array) {
+		itemsize = array.itemsize;
+		space = array.space;
+		items = (T*)calloc(array.space, itemsize);
 
+		first = items;
+		iter = first;
+
+		last = (array.last == 0) ? 0 : items + array.size() - 1;
+		max = items + space - 1;
+
+		//if last is 0 then the array is empty
+		if (array.last != 0) {
+			int i = 0;
+			for (T item : array) {
+				new(items + i) T(item);
+				i++;
+			}
+		}
 	}
 	
 	void add(T t) {

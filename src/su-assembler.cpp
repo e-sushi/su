@@ -11,18 +11,25 @@ struct Flags {
 	b32 mult = 0;
 	b32 divi = 0;
 
-	b32 AND = 0;
-	b32 OR = 0;
-	b32 less = 0;
-	b32 greater = 0;
-	b32 less_eq = 0;
-	b32 greater_eq = 0;
-	b32 equal = 0;
-	b32 not_equal = 0;
+	b32 AND            = 0;
+	b32 bitAND         = 0;
+	b32 OR             = 0;
+	b32 bitOR          = 0;
+	b32 less           = 0;
+	b32 greater        = 0;
+	b32 less_eq        = 0;
+	b32 greater_eq     = 0;
+	b32 equal          = 0;
+	b32 not_equal      = 0;
+	b32 modulo         = 0;
+	b32 bitXOR         = 0;
+	b32 bitshift_left  = 0;
+	b32 bitshift_right = 0;
+
 
 	b32 logi_not = 0;
 	b32 bit_comp = 0;
-	b32 negate = 0;
+	b32 negate   = 0;
 
 	b32 factor_eval = 0;
 	b32 term_eval   = 0;
@@ -45,8 +52,13 @@ inline void addASMLine(string asmLine, string comment = "") {
 		}
 
 		if (allow_comments && comment.size > 0) {
-			for (int i = 0; i < 18 - asmLine.size; i++) out += " ";
-			out += "# " + comment;
+			if (asmLine.size > 18) {
+				out += " # " + comment;
+			}
+			else {
+				for (int i = 0; i < 18 - asmLine.size; i++) out += " ";
+				out += "# " + comment;
+			}
 		}
 
 		std::cout << out;
@@ -113,10 +125,10 @@ void assemble_expressions(array<Expression>& expressions) {
 				}
 			}break;
 
-			case ExpressionGuard_Equality: {
+			case ExpressionGuard_BitOR: {
 				assemble_expressions(exp.expressions);
+				
 				//peek to see if there's an AND ahead
-
 				if (expressions.peek().expression_type == Expression_BinaryOpAND) {
 					//if there is we must check if the last result was true
 					string label_num = itos(label_count);
@@ -136,7 +148,37 @@ void assemble_expressions(array<Expression>& expressions) {
 					addASMLine("setne %al");
 					addASMLine("_ANDend" + end_label_num + ":");
 				}
-				
+			}break;
+
+			case ExpressionGuard_BitXOR: {
+				assemble_expressions(exp.expressions);
+				if (flags.bitOR) {
+					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise OR");
+					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("or    %rcx, %rax", "bitwise and %rax with %rcx");
+					flags.bitOR = 0;
+				}
+
+			}break;
+
+			case ExpressionGuard_BitAND: {
+				assemble_expressions(exp.expressions);
+				if (flags.bitXOR) {
+					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise XOR");
+					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("xor   %rcx, %rax", "bitwise and %rax with %rcx");
+					flags.bitXOR = 0;
+				}
+			}break;
+
+			case ExpressionGuard_Equality: {
+				assemble_expressions(exp.expressions);
+				if (flags.bitAND) {
+					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise and");
+					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("and   %rcx, %rax", "bitwise and %rax with %rcx");
+					flags.bitAND = 0;
+				}
 			}break;
 
 			case ExpressionGuard_Relational: {
@@ -157,7 +199,7 @@ void assemble_expressions(array<Expression>& expressions) {
 				}
 			}break;
 
-			case ExpressionGuard_Additive: {
+			case ExpressionGuard_BitShift: {
 				assemble_expressions(exp.expressions);
 				if (flags.less) {
 					addASMLine("pop   %rcx",       "retrieve stored from stack");
@@ -166,7 +208,7 @@ void assemble_expressions(array<Expression>& expressions) {
 					addASMLine("setl  %al");
 					flags.less = 0;
 				}
-				else if (flags.less_eq) {
+				else if (flags.less_eq) { 
 					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform less than eq check");
 					addASMLine("mov   $0,   %eax");
@@ -189,17 +231,33 @@ void assemble_expressions(array<Expression>& expressions) {
 				}
 			}break;
 
+			case ExpressionGuard_Additive: {
+				assemble_expressions(exp.expressions);
+				if (flags.bitshift_left) {
+					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for left bitshift");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
+					addASMLine("shl   %cl, %rax", "left bitshift %rax by %rcx");
+					flags.bitshift_left = 0;
+				}
+				else if (flags.bitshift_right) {
+					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for left bitshift");
+					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("shr   %cl, %rax", "left bitshift %rax by %rcx");
+					flags.bitshift_right = 0;
+				}
+				
+			}break;
+
 			case ExpressionGuard_Term: {
 				assemble_expressions(exp.expressions);
-				//when the term exits we can then do addition/subtraction stuff
 				if (flags.add) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("pop   %rcx", "retrieve stored from stack");
 					addASMLine("add   %rcx, %rax", "add, store result in %rax");
 					flags.add = 0;
 				}
 				else if (flags.sub) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for subtraction");
-					addASMLine("pop   %rax",       "retrieve stored from stack");
+					addASMLine("pop   %rax", "retrieve stored from stack");
 					addASMLine("sub   %rcx, %rax", "sub, store result in %rax");
 					flags.sub = 0;
 				}
@@ -207,18 +265,25 @@ void assemble_expressions(array<Expression>& expressions) {
 
 			case ExpressionGuard_Factor: {
 				assemble_expressions(exp.expressions);
-				//when the factor exits we can then do multiplication/division stuff
 				if (flags.mult) {
-					addASMLine("pop   %rcx",       "retrieve stored from stack");
+					addASMLine("pop   %rcx", "retrieve stored from stack");
 					addASMLine("imul  %rcx, %rax", "signed multiply, store result in %rax");
 					flags.mult = 0;
 				}
 				else if (flags.divi) {
 					addASMLine("mov   %rax, %rcx", "swap %rax and %rcx for division");
-					addASMLine("pop   %rax",       "retrieve stored from stack");
-					addASMLine("cqto",             "convert quad in %rax to octo in %rdx:%rax");
-					addASMLine("idiv  %rcx",       "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("cqto", "convert quad in %rax to octo in %rdx:%rax");
+					addASMLine("idiv  %rcx", "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 					flags.divi = 0;
+				}
+				else if (flags.modulo) {
+					addASMLine("mov   %rax, %rcx", "swap %rax and %rcx for division");
+					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("cqto", "convert quad in %rax to octo in %rdx:%rax");
+					addASMLine("idiv  %rcx", "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+					addASMLine("mov   %rdx, %rax", "move remainder into %rax");
+					flags.modulo = 0;
 				}
 			}break;
 
@@ -257,9 +322,19 @@ void assemble_expressions(array<Expression>& expressions) {
 
 			}break;
 
+			case Expression_BinaryOpBitAND: {
+				addASMLine("push  %rax", "store %rax for bit and");
+				flags.bitAND = 1;
+			}break;
+
 			case Expression_BinaryOpOR: {
 				flags.OR= 1;
 
+			}break;
+
+			case Expression_BinaryOpBitOR: {
+				addASMLine("push  %rax", "store %rax for bit or");
+				flags.bitOR = 1;
 			}break;
 
 			case Expression_BinaryOpLessThan: {
@@ -291,6 +366,26 @@ void assemble_expressions(array<Expression>& expressions) {
 			case Expression_BinaryOpNotEqual: {
 				addASMLine("push  %rax", "store %rax for not equal check");
 				flags.not_equal = 1;
+			}break;
+
+			case Expression_BinaryOpModulo: {
+				addASMLine("push  %rax", "store %rax for modulo");
+				flags.modulo = 1;
+			}break;
+
+			case Expression_BinaryOpXOR: {
+				addASMLine("push  %rax", "store %rax for xor");
+				flags.bitXOR = 1;
+			}break;
+
+			case Expression_BinaryOpBitShiftLeft: {
+				addASMLine("push  %rax", "store %rax for left bitshift");
+				flags.bitshift_left = 1;
+			}break;
+
+			case Expression_BinaryOpBitShiftRight: {
+				addASMLine("push  %rax", "store %rax for right bitshift");
+				flags.bitshift_right = 1;
 			}break;
 
 
