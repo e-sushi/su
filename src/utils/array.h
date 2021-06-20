@@ -128,8 +128,39 @@ struct array {
 			}
 		}
 	}
+
+	void add_anon(T t) {
+		//if array is full, realloc the memory and extend it to accomodate the new item
+		if (max - last == 0) {
+			int iteroffset = iter - first;
+			int osize = size();
+			space += 8;
+			items = (T*)realloc(items, (space)*itemsize);
+			assert(items); "realloc failed and returned nullptr. maybe we ran out of memory?";
+			max = items + space - 1;
+
+			first = items;
+			iter = first + iteroffset;
+			last = first + osize;
+			for (T* i = last + 1; i <= max; i++) {
+				memset(i, 'A', itemsize);
+			}
+			new(last) T(t);
+		}
+		else {
+			if (last == 0) {
+				new(items) T(t);
+				last = items;
+			}
+			else {
+				last++;
+				new(last) T(t);
+			}
+		}
+		return;
+	}
 	
-	void add(T t) {
+	void add(T& t) {
 		//if array is full, realloc the memory and extend it to accomodate the new item
 		if (max - last == 0) {
 			int iteroffset = iter - first;
@@ -194,22 +225,46 @@ struct array {
 
 	//returns the value of iter and increments it by one.
 	T& next() {
-		return *iter++;
+		if (last - iter + 1 >= 0) return *iter++;
 	}
 
 	//returns the value of iter + some value and doesn't increment it 
 	//TODO come up with a better name for this and the corresponding previous overload
 	T& peek(int i = 1) {
-		return *(iter + i);
+		if (last - iter + 1 >= 0) return *(iter + i);
 	}
 
 	//returns the value of iter and decrements it by one.
 	T& prev() {
-		return *iter--;
+		if(first - iter + 1 >= 0) return *iter--;
 	}
 
 	T& lookback(int i = 1) {
-		return *(iter - i);
+		if (first - iter + 1 >= 0) return *(iter - i);
+	}
+
+	//iterator functions that return pointers if the object isnt already one
+	T* nextptr() {
+		if (iter + 1 - last >= 0) return iter++;
+		else return nullptr;
+	}
+
+	//returns the value of iter + some value and doesn't increment it 
+	//TODO come up with a better name for this and the corresponding previous overload
+	T* peekptr(int i = 1) {
+		if (iter + 1 - last >= 0) return iter + i;
+		else return nullptr;
+	}
+
+	//returns the value of iter and decrements it by one.
+	T* prevptr() {
+		if (iter - 1 - first >= 0) return iter--;
+		else return nullptr;
+	}
+
+	T* lookbackptr(int i = 1) {
+		if (iter - 1 - first >= 0) return iter - i;
+		else return nullptr;
 	}
 
 	//this is really only necessary for the copy constructor as far as i know

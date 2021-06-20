@@ -104,7 +104,7 @@ struct Expression {
 	ExpressionType expression_type;
 	ASTType type = AST_Expression;
 
-	array<Expression> expressions;
+	array<Expression*> expressions;
 
 	Expression(string expstr, ExpressionType expression_type) {
 		this->expression_type = expression_type;
@@ -121,7 +121,7 @@ struct Statement {
 	StatementType statement_type;
 	ASTType type = AST_Statement;
 
-	array<Expression> expressions;
+	array<Expression*> expressions;
 
 	Statement(StatementType st) {
 		statement_type = st;
@@ -140,7 +140,7 @@ struct Function {
 
 	ASTType type = AST_Function;
 
-	array<Statement> statements;
+	array<Statement*> statements;
 
 	Function() {
 		type = AST_Function;
@@ -158,7 +158,7 @@ struct Function {
 struct Program {
 	ASTType type = AST_Program;
 
-	array<Function> functions;
+	array<Function*> functions;
 };
 
 

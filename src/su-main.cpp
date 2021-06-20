@@ -37,6 +37,8 @@ int main() {
 
 	suParser::parse(tokens, program);
 
+	std::cout << "Parse finished" << std::endl;
+
 	string assembly = suAssembler::assemble(program);
 
 	//std::cout << assembly << std::endl;

@@ -81,14 +81,16 @@ inline void addASMLine(string asmLine, string comment = "") {
 	
 }
 
-void assemble_expressions(array<Expression>& expressions) {
+
+void assemble_expressions(array<Expression*>& expressions) {
 	assert(expressions.size() != 0); "assemble_expression was passed an empty array";
 	Flags flags;
 
 	u32 label_num_on_enter = label_count;
 
-	for (Expression& exp : expressions) {
-		switch (exp.expression_type) {
+	for (int i = 0; i < expressions.size(); i++) {
+		Expression* exp = expressions[i];
+		switch (exp->expression_type) {
 
 
 
@@ -101,9 +103,9 @@ void assemble_expressions(array<Expression>& expressions) {
 
 
 			case ExpressionGuard_LogicalAND: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				//peek to see if there's an OR ahead
-				if (expressions.peek().expression_type == Expression_BinaryOpOR) {
+				if (i < expressions.size() - 1 && expressions[i + 1]->expression_type == Expression_BinaryOpOR) {
 					//if there is we must check if the last result was true
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -114,7 +116,7 @@ void assemble_expressions(array<Expression>& expressions) {
 					addASMLine("_ORLabel" + label_num + ":");
 					label_count++;
 				}
-				else if(expressions.lookback().expression_type == Expression_BinaryOpOR) {
+				else if(i > expressions.size() + 1 && expressions[i - 1]->expression_type == Expression_BinaryOpOR) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -126,10 +128,9 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_BitOR: {
-				assemble_expressions(exp.expressions);
-				
+				assemble_expressions(exp->expressions);
 				//peek to see if there's an AND ahead
-				if (expressions.peek().expression_type == Expression_BinaryOpAND) {
+				if (i < expressions.size() - 1 && expressions[i + 1]->expression_type == Expression_BinaryOpAND) {
 					//if there is we must check if the last result was true
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -139,7 +140,7 @@ void assemble_expressions(array<Expression>& expressions) {
 					addASMLine("_ANDLabel" + label_num + ":");
 					label_count++;
 				}
-				else if (expressions.lookback().expression_type == Expression_BinaryOpAND) {
+				else if (i > expressions.size() + 1 && expressions[i - 1]->expression_type == Expression_BinaryOpAND) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -151,7 +152,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_BitXOR: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.bitOR) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise OR");
 					addASMLine("pop   %rax", "retrieve stored from stack");
@@ -162,7 +163,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_BitAND: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.bitXOR) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise XOR");
 					addASMLine("pop   %rax", "retrieve stored from stack");
@@ -172,7 +173,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_Equality: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.bitAND) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise and");
 					addASMLine("pop   %rax", "retrieve stored from stack");
@@ -182,7 +183,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_Relational: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.equal) {
 					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform equality check");
@@ -200,7 +201,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_BitShift: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.less) {
 					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform less than check");
@@ -232,7 +233,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_Additive: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.bitshift_left) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for left bitshift");
 					addASMLine("pop   %rax",       "retrieve stored from stack");
@@ -249,7 +250,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_Term: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.add) {
 					addASMLine("pop   %rcx", "retrieve stored from stack");
 					addASMLine("add   %rcx, %rax", "add, store result in %rax");
@@ -264,7 +265,7 @@ void assemble_expressions(array<Expression>& expressions) {
 			}break;
 
 			case ExpressionGuard_Factor: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				if (flags.mult) {
 					addASMLine("pop   %rcx", "retrieve stored from stack");
 					addASMLine("imul  %rcx, %rax", "signed multiply, store result in %rax");
@@ -399,19 +400,19 @@ void assemble_expressions(array<Expression>& expressions) {
 
 
 			case Expression_UnaryOpBitComp: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				addASMLine("not  %rax", "perform bitwise complement");
 			}break;
 
 			case Expression_UnaryOpLogiNOT: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				addASMLine("cmp   $0,   %rax", "perform logical not");
 				addASMLine("mov   $0,   %rax");
 				addASMLine("sete  %al");
 			}break;
 
 			case Expression_UnaryOpNegate: {
-				assemble_expressions(exp.expressions);
+				assemble_expressions(exp->expressions);
 				addASMLine("neg   %rax", "perform negation");
 			}break;
 
@@ -423,36 +424,36 @@ void assemble_expressions(array<Expression>& expressions) {
 			////////////////////////
 
 			case Expression_IntegerLiteral: {
-				addASMLine("mov   $" + exp.expstr + ",%rax", "move integer literal into %rax");
+				addASMLine("mov   $" + exp->expstr + ",%rax", "move integer literal into %rax");
 			}break;
 		}
-		expressions.next();
+		//expressions.next();
 	}
 }
 
-void assemble_statement(Statement& statement) {
-	switch (statement.statement_type) {
+void assemble_statement(Statement* statement) {
+	switch (statement->statement_type) {
 		case Statement_Return: {
-			assemble_expressions(statement.expressions);
+			assemble_expressions(statement->expressions);
 			addASMLine("ret");
 		}break;
 	}
 }
 
-void assemble_function(Function& func) {
+void assemble_function(Function* func) {
 	//construct function label in asm
-	addASMLine(".global " + func.identifier);
-	addASMLine(func.identifier + ":");
+	addASMLine(".global " + func->identifier);
+	addASMLine(func->identifier + ":");
 
 	//construct function body
-	for (Statement& statement : func.statements) {
+	for (Statement* statement : func->statements) {
 		assemble_statement(statement);
 	}
 
 }
 
 string suAssembler::assemble(Program& program) {
-	for (Function& func : program.functions) {
+	for (Function* func : program.functions) {
 		assemble_function(func);
 	}
 
