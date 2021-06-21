@@ -25,21 +25,25 @@ int main() {
 		return 0;
 	}
 
+
+	std::cout << "lexing" << std::endl;
 	array<token> tokens = suLexer::lex(in);
+	std::cout << "lexing finished" << std::endl;
 
-
-	for (token& t : tokens) {
-		std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
-	}
-	std::cout << std::endl;
+	//for (token& t : tokens) {
+	//	std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
+	//}
+	//std::cout << std::endl;
 
 	Program program;
 
+	std::cout << "parsing" << std::endl;
 	suParser::parse(tokens, program);
+	std::cout << "parsing finished" << std::endl;
 
-	std::cout << "Parse finished" << std::endl;
-
+	std::cout << "assembling" << std::endl;
 	string assembly = suAssembler::assemble(program);
+	std::cout << "assembling finished" << std::endl;
 
 	//std::cout << assembly << std::endl;
 

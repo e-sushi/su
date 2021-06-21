@@ -1,8 +1,8 @@
 ﻿#include "su-assembler.h"
 
 string ASMBuff = "";
-bool allow_comments = true;
-bool print_as_we_go = true;
+bool allow_comments = 0;
+bool print_as_we_go = 0;
 
 //this may not be necessary and could just be a state enum, there only ever seems to be one flag set for each layer
 struct Flags {
@@ -33,10 +33,20 @@ struct Flags {
 
 	b32 factor_eval = 0;
 	b32 term_eval   = 0;
+
+	string var_offset = "";
+	b32 var_assignment = 1;
 };
 
 //increment when a label is made so we can generate unique names
 u32 label_count = 0;
+
+//variable map for keeping track of variable names and their position on the stack
+#define PairStrU32 pair<string, u32>
+array<pair<string, u32>> var_map;
+
+#define EXPFAIL(error)\
+std::cout << "\n\nError: " << error << "\n caused by expression '" << exp->expstr << "'" << std::endl;
 
 inline void addASMLine(string asmLine, string comment = "") {
 	
@@ -52,11 +62,11 @@ inline void addASMLine(string asmLine, string comment = "") {
 		}
 
 		if (allow_comments && comment.size > 0) {
-			if (asmLine.size > 18) {
+			if (asmLine.size > 25) {
 				out += " # " + comment;
 			}
 			else {
-				for (int i = 0; i < 18 - asmLine.size; i++) out += " ";
+				for (int i = 0; i < 25 - asmLine.size; i++) out += " ";
 				out += "# " + comment;
 			}
 		}
@@ -81,7 +91,8 @@ inline void addASMLine(string asmLine, string comment = "") {
 	
 }
 
-
+//current statement
+Statement* smt;
 void assemble_expressions(array<Expression*>& expressions) {
 	assert(expressions.size() != 0); "assemble_expression was passed an empty array";
 	Flags flags;
@@ -93,6 +104,9 @@ void assemble_expressions(array<Expression*>& expressions) {
 		switch (exp->expression_type) {
 
 
+			
+
+
 
 			////////////////////////
 			////				////
@@ -101,6 +115,36 @@ void assemble_expressions(array<Expression*>& expressions) {
 			////////////////////////
 
 
+
+			case ExpressionGuard_Assignment: {
+				//TODO this needs to look prettier later
+				if (smt->statement_type == Statement_Declaration) {
+					try { vfk(smt->var_identifier, var_map);  EXPFAIL("attempt to redeclare a variable"); }
+					catch(...){
+						if (exp->expressions.size() != 0) {
+							assemble_expressions(exp->expressions);
+							var_map.add_anon(PairStrU32(smt->var_identifier, (var_map.size() + 1) * 8));
+							addASMLine("push  %rax", "save value of variable '" + smt->var_identifier + "' on the stack");
+						}
+						else {
+							//case where we declare a variable but dont assign an expression to it
+							//default to 0
+							var_map.add_anon(PairStrU32(smt->var_identifier, (var_map.size() + 1) * 8));
+							addASMLine("mov   $0,  %rax", "default var value to 0");
+							addASMLine("push  %rax", "save value of variable '" + smt->var_identifier + "' on the stack");
+						}
+					}
+				}
+				else{
+					assemble_expressions(exp->expressions);
+					addASMLine("mov   %rax, -" + flags.var_offset + "(%rbp)", "store result into specified variable");
+				}
+				
+			}break;
+
+			case ExpressionGuard_LogicalOR: {
+				assemble_expressions(exp->expressions);
+			}break;
 
 			case ExpressionGuard_LogicalAND: {
 				assemble_expressions(exp->expressions);
@@ -389,6 +433,10 @@ void assemble_expressions(array<Expression*>& expressions) {
 				flags.bitshift_right = 1;
 			}break;
 
+			case Expression_BinaryOpAssignment: {
+				flags.var_assignment = 1;
+			}break;
+
 
 
 			////////////////////////
@@ -417,24 +465,68 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 
 
+
 			////////////////////////
 			////				////
 			////    Literals    ////
 			////				////
 			////////////////////////
 
+
+
 			case Expression_IntegerLiteral: {
 				addASMLine("mov   $" + exp->expstr + ",%rax", "move integer literal into %rax");
+			}break;
+
+
+
+			////////////////////////
+			////				////
+			////   Identifier   ////
+			////				////
+			////////////////////////
+
+
+
+			case Expression_IdentifierRHS: {
+				try {
+					flags.var_offset = itos(vfk(exp->expstr, var_map));
+					addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable '" + exp->expstr + "' value into %rax for use in an expression");
+				}
+				catch (...) { EXPFAIL("attempt to reference an undeclared variable"); }
+			}break;
+
+			case Expression_IdentifierLHS: {
+				try {
+					flags.var_offset = itos(vfk(exp->expstr, var_map));
+					//addASMLine("mov   " + flags.var_offset + "(%rbp), %rax", "store variable's value into %rax for use in an expression");
+				}
+				catch (...) { EXPFAIL("attempt to reference an undeclared variable"); }
 			}break;
 		}
 		//expressions.next();
 	}
 }
 
+bool returned = false;
 void assemble_statement(Statement* statement) {
+	smt = statement;
+
 	switch (statement->statement_type) {
+		case Statement_Declaration: {
+			assemble_expressions(statement->expressions);
+		}break;
+
+		case Statement_Expression: {
+			assemble_expressions(statement->expressions);
+		}break;
+
 		case Statement_Return: {
 			assemble_expressions(statement->expressions);
+			returned = true;
+			//I might want this to just be in assemble_function, but i saw a suggestion to do it here so we'll see
+			addASMLine("mov   %rbp, %rsp", "restore %rsp of caller");
+			addASMLine("pop   %rbp",       "retore old %rbp");
 			addASMLine("ret");
 		}break;
 	}
@@ -445,10 +537,20 @@ void assemble_function(Function* func) {
 	addASMLine(".global " + func->identifier);
 	addASMLine(func->identifier + ":");
 
+
 	//construct function body
+	addASMLine("push  %rbp",       "save old stack frame base");
+	addASMLine("mov   %rsp, %rbp", "current top of stack is now bottom of new stack frame");
 	for (Statement* statement : func->statements) {
 		assemble_statement(statement);
 	}
+	if (!returned) {
+		addASMLine("mov   $0, %rax",   "no return statement was found so return 0 by default");
+		addASMLine("mov   %rbp, %rsp", "restore %rsp of caller");
+		addASMLine("pop   %rbp",       "retore old %rbp");
+		addASMLine("ret");
+	}
+	
 
 }
 

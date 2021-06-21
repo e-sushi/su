@@ -20,6 +20,9 @@ enum ASTType : u32 {
 
 
 enum ExpressionType : u32 {
+	Expression_IdentifierLHS,
+	Expression_IdentifierRHS,
+
 	//Types
 	Expression_IntegerLiteral,
 
@@ -47,8 +50,11 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpXOR,
 	Expression_BinaryOpBitShiftLeft,
 	Expression_BinaryOpBitShiftRight,
+	Expression_BinaryOpAssignment,
 
 	//Expression Guards
+	ExpressionGuard_Assignment,
+	ExpressionGuard_LogicalOR,
 	ExpressionGuard_LogicalAND,
 	ExpressionGuard_BitOR,
 	ExpressionGuard_BitXOR,
@@ -62,6 +68,8 @@ enum ExpressionType : u32 {
 };
 
 static const char* ExTypeStrings[] = {
+	"Identifier",
+
 	"IntegerLiteral",
 
 	"~",
@@ -86,8 +94,11 @@ static const char* ExTypeStrings[] = {
 	"^",
 	"<<",
 	">>",
+	"=",
 
-	"logical and"
+	"assignment",
+	"logical and",
+	"logical or",
 	"bit or",
 	"bit xor",
 	"bit and",
@@ -95,7 +106,7 @@ static const char* ExTypeStrings[] = {
 	"relational",
 	"bit shift",
 	"additive",
-	"term"
+	"term",
 	"factor",
 };
 
@@ -112,19 +123,28 @@ struct Expression {
 	}
 };
 
-//im not sure if i want all these different type enums yet
 enum StatementType : u32 {
-	Statement_Return
+	Statement_Return,
+	Statement_Expression,
+	Statement_Declaration,
 };
 
 struct Statement {
 	StatementType statement_type;
 	ASTType type = AST_Statement;
 
+	string var_identifier = "";
+
+
 	array<Expression*> expressions;
 
 	Statement(StatementType st) {
 		statement_type = st;
+	}
+
+	Statement(string vid, StatementType st) {
+		statement_type = st;
+		var_identifier = vid;
 	}
 };
 

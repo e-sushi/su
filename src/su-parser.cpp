@@ -11,7 +11,8 @@
 // <program>       :: = <function>
 // <function>      :: = "int" <id> "(" ")" "{" <statement> "}"
 // <statement>     :: = "return" <exp> ";"
-// <exp>           :: = <logical and> { "||" <logical and> }
+// <exp>           :: = <id> "=" <exp> | <logical or>
+// <logical or>    :: = <logical and> { "||" <logical and> } 
 // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
 // <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
 // <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
@@ -62,6 +63,8 @@ struct {
 	bool unaryf = 0;    //true if a unary op has been found
 	bool binaryf = 0;   //true if a binary op has been found
  	bool integerf = 0;  //true if an integer has been found
+
+	bool keyword_type = 0; //true if a type specifier keyword has been found
 } syntax;
 
 //operator "maps" until i make an actual map struct
@@ -127,6 +130,13 @@ void parse_factor(array<Expression*>* expressions) {
 				layer--;
 				return;
 			} else PARSE_FAIL("expected a closing parentheses");
+		}break;
+
+		case tok_Identifier: {
+			PARSEOUT("identifier: " << curt.str);
+			expressions->add_anon(new Expression(curt.str, Expression_IdentifierRHS));
+			layer--;
+			return;
 		}break;
 
 		default: {
@@ -404,12 +414,12 @@ void parse_logical_and(array<Expression*>* expressions) {
 	layer--;
 }
 
-// <exp> ::= <logical-and-exp> { "||" <logical-and-exp> }
-void parse_expressions(array<Expression*>* expressions) {
+// <exp> ::= <logical and> { "||" <logical and> }
+void parse_logical_or(array<Expression*>* expressions) {
 	layer++;
-	string name = "exp";
+	string name = "logical or";
 	PARSEOUT("<" << name << ">:");
-	
+
 	//decend into expression guard hell
 	Expression* e = new Expression(curt.str, ExpressionGuard_LogicalAND);
 	parse_logical_and(&e->expressions);
@@ -422,7 +432,7 @@ void parse_expressions(array<Expression*>* expressions) {
 
 		//add operator expression
 		expressions->add_anon(new Expression(curt.str, Expression_BinaryOpOR));
-		
+
 		//decend down expression guards
 		Expression* e = new Expression(curt.str, ExpressionGuard_LogicalAND);
 		parse_logical_and(&e->expressions);
@@ -432,35 +442,102 @@ void parse_expressions(array<Expression*>* expressions) {
 	layer--;
 }
 
+// <exp> ::= <id> "=" <exp> | <logical or>
+void parse_expressions(array<Expression*>* expressions) {
+	layer++;
+	string name = "exp";
+	
+	switch (curt.type) {
+		case tok_Identifier: {
+			PARSEOUT("<id " << curt.str << " exp>:");
+			expressions->add_anon(new Expression(curt.str, Expression_IdentifierLHS));
+			token_next;
+			EXPECT(tok_Assignment) {
+				layer++;
+				PARSEOUT("<var assignment>:");
+				expressions->add_anon(new Expression(curt.str, Expression_BinaryOpAssignment));
+				Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
+				parse_expressions(&e->expressions);
+				expressions->add(e);
+				layer--;
+			} else PARSE_FAIL("expected = after identifier");
+		}break;
+
+		//I think if it's anything else it should be parsed normally
+		default: {
+			PARSEOUT("<exp>:");
+			Expression* e = new Expression(curt.str, ExpressionGuard_LogicalOR);
+			parse_logical_or(&e->expressions);
+			expressions->add(e);
+		}break;
+	}
+	layer--;
+}
+
 // <statement> ::= "return" <exp> ";"
-void parse_statements(array<Statement*>& statements) {
+void parse_statements(array<Statement*>* statements) {
 	layer++;
 
 	token_next; //expect return
-	EXPECT(tok_Return) {
-		PARSEOUT("return statement:");
-		Statement* retstate = new Statement(Statement_Return);
+	switch (curt.type) {
 
-		//expect expressions so gather them
-		parse_expressions(&retstate->expressions);
+		case tok_Keyword: {
+			token_next;
+			EXPECT(tok_Identifier) {
+				PARSEOUT("variable declaration statement:");
+				Statement* decl = new Statement(curt.str, Statement_Declaration);
+				token_next;
+				EXPECT(tok_Assignment) {
+					layer++;
+					PARSEOUT("variable assignment:");
+					Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
+					parse_expressions(&e->expressions);
+					decl->expressions.add(e);
+					layer--;
+					token_next;
+					EXPECT(tok_Semicolon){
+						statements->add(decl);
+					} else PARSE_FAIL("expected a ;");
+				}
+				else EXPECT(tok_Semicolon) {
+					//add expression guard for assignment regardless if there is one so we can default to 0 in assembly 
+					Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
+					decl->expressions.add(e);
 
-		//reset syntax vars
-		syntax = { 0, 0, 0 };
+					statements->add(decl);
+				} else PARSE_FAIL("expected a ;");
 
-		statements.add(retstate);
-		
-		token_next; //expect semicolon
-		EXPECT(tok_Semicolon) {
+			} else PARSE_FAIL("expected an identifier after type keyword");
+			
+		}break;
 
-		} else PARSE_FAIL("expected ;"); 
-		
-	} else PARSE_FAIL("expected return statement");
+		case tok_Return: {
+			PARSEOUT("return statement:");
+			Statement* smt = new Statement(Statement_Return);
+			parse_expressions(&smt->expressions);
+			token_next;
+			EXPECT(tok_Semicolon) {
+				statements->add(smt);
+			} else PARSE_FAIL("expected a ;");
+		}break;
 
+		case tok_IntegerLiteral:
+		case tok_Identifier: {
+			PARSEOUT("exp statement:")
+			Statement* smt = new Statement(Statement_Expression);
+			parse_expressions(&smt->expressions);
+			token_next;
+			EXPECT(tok_Semicolon) {
+				statements->add(smt);
+			} else PARSE_FAIL("expected a ;");
+		}break;
+
+	}
 	layer--;
 }
 
 // <function> ::= "int" <id> "(" ")" "{" <statement> "}"
-void parse_function(array<Function*>& functions) {
+void parse_function(array<Function*>* functions) {
 	layer++;
 	Function* function = new Function();
 
@@ -485,10 +562,12 @@ void parse_function(array<Function*>& functions) {
 				EXPECT(tok_CloseParen) {
 					token_next; //expect {
 					EXPECT(tok_OpenBrace) {
-						parse_statements(function->statements);
+						while (token_peek.type != tok_CloseBrace) {
+							parse_statements(&function->statements);
+						}
 						token_next;
 						EXPECT(tok_CloseBrace) {
-							functions.add(function);
+							functions->add(function);
 						} else PARSE_FAIL("expected }");
 					} else PARSE_FAIL("expected {");
 				} else PARSE_FAIL("expected )");
@@ -507,7 +586,7 @@ void suParser::parse(array<token>& tokens_in, Program& mother) {
 
 	PARSEOUT("Parse begin");
 
-	parse_function(mother.functions);
+	parse_function(&mother.functions);
 
 	//return mother;
 }
