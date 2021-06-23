@@ -1,20 +1,17 @@
 int main() {
-    int a;
-    int b;
-    int c;
-    int d;
-    int e;
-    int f;
-    int g;
-    int h;
-    int i;
-    int j;
-    int k;
-    int l;
-    int m;
-    int n;
-    int o;
-    int p;
+    int a = 2;
+    int b = 2;
+    int c = 3;
 
-    return p;
+    if (c < b && b > a)
+        b = 0;
+    else if(b < a)
+        a = 1;
+    else
+        a = 3;
+
+    if (b == a)
+        a = 4;
+
+    return a;
 }

@@ -5,13 +5,6 @@
 #include "utils/utility.h"
 #include "su-lexer.h"
 
-enum ASTType : u32 {
-	AST_Program,
-	AST_Function,
-	AST_Statement,
-	AST_Expression
-};
-
 
 	//////////////////////////////////////
 	//// Abstract Syntax Tree Structs ////
@@ -54,6 +47,7 @@ enum ExpressionType : u32 {
 
 	//Expression Guards
 	ExpressionGuard_Assignment,
+	ExpressionGuard_Conditional,
 	ExpressionGuard_LogicalOR,
 	ExpressionGuard_LogicalAND,
 	ExpressionGuard_BitOR,
@@ -68,7 +62,8 @@ enum ExpressionType : u32 {
 };
 
 static const char* ExTypeStrings[] = {
-	"Identifier",
+	"IdentifierLHS",
+	"IdentifierRHS",
 
 	"IntegerLiteral",
 
@@ -112,13 +107,12 @@ static const char* ExTypeStrings[] = {
 
 struct Expression {
 	string expstr;
-	ExpressionType expression_type;
-	ASTType type = AST_Expression;
+	ExpressionType type;
 
 	array<Expression*> expressions;
 
-	Expression(string expstr, ExpressionType expression_type) {
-		this->expression_type = expression_type;
+	Expression(string expstr, ExpressionType type) {
+		this->type = type;
 		this->expstr = expstr;
 	}
 };
@@ -127,25 +121,51 @@ enum StatementType : u32 {
 	Statement_Return,
 	Statement_Expression,
 	Statement_Declaration,
+	Statement_IfConditional,
+	Statement_ElseConditional,
+	Statement_ConditionalStatement,
+
 };
 
 struct Statement {
-	StatementType statement_type;
-	ASTType type = AST_Statement;
-
-	string var_identifier = "";
+	StatementType type;
 
 
 	array<Expression*> expressions;
+	array<Statement*> statements;
+
+	Statement() {};
 
 	Statement(StatementType st) {
-		statement_type = st;
+		type = st;
 	}
 
 	Statement(string vid, StatementType st) {
-		statement_type = st;
-		var_identifier = vid;
+		type = st;
 	}
+};
+
+
+
+enum DeclType : u32 {
+	Decl_Int,
+	Decl_Float,
+	Decl_Double,
+	Decl_User_Defined
+};
+
+struct Declaration {
+	DeclType type;
+	string identifier = "";
+	b32 initialized = false;
+	array<Expression*> expressions;
+};
+
+struct BlockItem {
+	b32 is_declaration = 0;
+
+	Declaration* declaration;
+	Statement* statement;
 };
 
 enum FuncType : u32 {
@@ -155,19 +175,14 @@ enum FuncType : u32 {
 };
 
 struct Function {
+	FuncType type;
 	string identifier = "";
-	FuncType func_type;
 
-	ASTType type = AST_Function;
+	array<BlockItem*> blockitems;
 
-	array<Statement*> statements;
-
-	Function() {
-		type = AST_Function;
-	}
+	Function() {}
 
 	Function(string identifier) {
-		type = AST_Function;
 		this->identifier = identifier;
 	}
 
@@ -176,7 +191,6 @@ struct Function {
 //abstract syntax tree
 //this could probably just be Program and hold a vector of functions that holds a vector of statement, etc.
 struct Program {
-	ASTType type = AST_Program;
 
 	array<Function*> functions;
 };

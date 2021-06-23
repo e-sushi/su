@@ -7,11 +7,11 @@ array<char> stopping_chars{
 	';', ' ', '{',  '}', '\(', '\)', 
 	',', '+', '*', '/', '-', '<', '>', 
 	'=', '!', '~', '\n', '&', '|', '^',
-	'%'
+	'%', ':', '?'
 };
 
 array<string> keywords{
-	"int", "return"
+	"int", "return", "if", "else"
 };
 
 array<token> suLexer::lex(FILE* file) {
@@ -33,8 +33,10 @@ array<token> suLexer::lex(FILE* file) {
 				t.str = buff;
 				//check if token is a keyword
 				if (is_in(buff, keywords)) {
-					if (buff == "return")   t.type = tok_Return;
-					else if (buff == "int") t.type = tok_Keyword;
+					if      (buff == "return") t.type = tok_Return;
+					else if (buff == "int")    t.type = tok_Keyword;
+					else if (buff == "if")     t.type = tok_If;
+					else if (buff == "else")   t.type = tok_Else;
 				}
 				//if its not then it could be a number of other things
 				else {
@@ -57,6 +59,8 @@ array<token> suLexer::lex(FILE* file) {
 				t.line = lines;
 				tokens.add(t);
 			}
+
+			//check what our stopping character is 
 			if (currChar != ' ' && currChar != '\n') {
 				token t;
 				t.str = currChar;
@@ -74,6 +78,8 @@ array<token> suLexer::lex(FILE* file) {
 					case '~':  t.type = tok_BitwiseComplement; break;
 					case '%':  t.type = tok_Modulo;            break;
 					case '^':  t.type = tok_BitXOR;            break;
+					case '?':  t.type = tok_QuestionMark;      break;
+					case ':':  t.type = tok_Colon;             break;
 					
 					case '&': {
 						if (fgetc(file) == '&') {

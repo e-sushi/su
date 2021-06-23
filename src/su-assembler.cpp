@@ -1,8 +1,8 @@
 ﻿#include "su-assembler.h"
 
 string ASMBuff = "";
-bool allow_comments = 0;
-bool print_as_we_go = 0;
+bool allow_comments = 1;
+bool print_as_we_go = 1;
 
 //this may not be necessary and could just be a state enum, there only ever seems to be one flag set for each layer
 struct Flags {
@@ -40,6 +40,8 @@ struct Flags {
 
 //increment when a label is made so we can generate unique names
 u32 label_count = 0;
+u32 if_label_count = 0;
+u32 else_label_count = 0;
 
 //variable map for keeping track of variable names and their position on the stack
 #define PairStrU32 pair<string, u32>
@@ -93,6 +95,8 @@ inline void addASMLine(string asmLine, string comment = "") {
 
 //current statement
 Statement* smt;
+//current declaration
+Declaration* decl;
 void assemble_expressions(array<Expression*>& expressions) {
 	assert(expressions.size() != 0); "assemble_expression was passed an empty array";
 	Flags flags;
@@ -101,37 +105,34 @@ void assemble_expressions(array<Expression*>& expressions) {
 
 	for (int i = 0; i < expressions.size(); i++) {
 		Expression* exp = expressions[i];
-		switch (exp->expression_type) {
+		switch (exp->type) {
 
 
-			
-
-
-
+	
 			////////////////////////
 			////				////
 			////     Guards     ////
 			////				////
 			////////////////////////
-
-
-
+	
+	
+	
 			case ExpressionGuard_Assignment: {
 				//TODO this needs to look prettier later
-				if (smt->statement_type == Statement_Declaration) {
-					try { vfk(smt->var_identifier, var_map);  EXPFAIL("attempt to redeclare a variable"); }
+				if (decl) {
+					try { vfk(decl->identifier, var_map);  EXPFAIL("attempt to redeclare a variable"); }
 					catch(...){
 						if (exp->expressions.size() != 0) {
 							assemble_expressions(exp->expressions);
-							var_map.add_anon(PairStrU32(smt->var_identifier, (var_map.size() + 1) * 8));
-							addASMLine("push  %rax", "save value of variable '" + smt->var_identifier + "' on the stack");
+							var_map.add_anon(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
+							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
 						else {
 							//case where we declare a variable but dont assign an expression to it
 							//default to 0
-							var_map.add_anon(PairStrU32(smt->var_identifier, (var_map.size() + 1) * 8));
+							var_map.add_anon(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
 							addASMLine("mov   $0,  %rax", "default var value to 0");
-							addASMLine("push  %rax", "save value of variable '" + smt->var_identifier + "' on the stack");
+							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
 					}
 				}
@@ -142,14 +143,25 @@ void assemble_expressions(array<Expression*>& expressions) {
 				
 			}break;
 
+			case ExpressionGuard_Conditional: {
+				assemble_expressions(exp->expressions);
+				//if (smt && smt->type == Statement_Conditional) {
+				//	string label_num = itos(label_count);
+				//	string end_label_num = itos(label_num_on_enter);
+				//	
+				//	
+				//}
+
+			}break;
+	
 			case ExpressionGuard_LogicalOR: {
 				assemble_expressions(exp->expressions);
 			}break;
-
+	
 			case ExpressionGuard_LogicalAND: {
 				assemble_expressions(exp->expressions);
 				//peek to see if there's an OR ahead
-				if (i < expressions.size() - 1 && expressions[i + 1]->expression_type == Expression_BinaryOpOR) {
+				if (i < expressions.size() - 1 && expressions[i + 1]->type == Expression_BinaryOpOR) {
 					//if there is we must check if the last result was true
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -160,7 +172,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					addASMLine("_ORLabel" + label_num + ":");
 					label_count++;
 				}
-				else if(i > expressions.size() + 1 && expressions[i - 1]->expression_type == Expression_BinaryOpOR) {
+				else if(i > expressions.size() + 1 && expressions[i - 1]->type == Expression_BinaryOpOR) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -170,11 +182,11 @@ void assemble_expressions(array<Expression*>& expressions) {
 					addASMLine("_ORend" + end_label_num + ":");
 				}
 			}break;
-
+	
 			case ExpressionGuard_BitOR: {
 				assemble_expressions(exp->expressions);
 				//peek to see if there's an AND ahead
-				if (i < expressions.size() - 1 && expressions[i + 1]->expression_type == Expression_BinaryOpAND) {
+				if (i < expressions.size() - 1 && expressions[i + 1]->type == Expression_BinaryOpAND) {
 					//if there is we must check if the last result was true
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -182,9 +194,10 @@ void assemble_expressions(array<Expression*>& expressions) {
 					addASMLine("jne   _ANDLabel" + label_num);
 					addASMLine("jmp   _ANDend" + end_label_num);
 					addASMLine("_ANDLabel" + label_num + ":");
+					flags.AND = true;
 					label_count++;
 				}
-				else if (i > expressions.size() + 1 && expressions[i - 1]->expression_type == Expression_BinaryOpAND) {
+				else if (flags.AND){//(i > expressions.size() + 1 && expressions[i - 1]->type == Expression_BinaryOpAND) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					string label_num = itos(label_count);
 					string end_label_num = itos(label_num_on_enter);
@@ -194,7 +207,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					addASMLine("_ANDend" + end_label_num + ":");
 				}
 			}break;
-
+	
 			case ExpressionGuard_BitXOR: {
 				assemble_expressions(exp->expressions);
 				if (flags.bitOR) {
@@ -203,9 +216,9 @@ void assemble_expressions(array<Expression*>& expressions) {
 					addASMLine("or    %rcx, %rax", "bitwise and %rax with %rcx");
 					flags.bitOR = 0;
 				}
-
+	
 			}break;
-
+	
 			case ExpressionGuard_BitAND: {
 				assemble_expressions(exp->expressions);
 				if (flags.bitXOR) {
@@ -215,7 +228,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					flags.bitXOR = 0;
 				}
 			}break;
-
+	
 			case ExpressionGuard_Equality: {
 				assemble_expressions(exp->expressions);
 				if (flags.bitAND) {
@@ -225,7 +238,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					flags.bitAND = 0;
 				}
 			}break;
-
+	
 			case ExpressionGuard_Relational: {
 				assemble_expressions(exp->expressions);
 				if (flags.equal) {
@@ -243,7 +256,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					flags.not_equal = 0;
 				}
 			}break;
-
+	
 			case ExpressionGuard_BitShift: {
 				assemble_expressions(exp->expressions);
 				if (flags.less) {
@@ -275,7 +288,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					flags.greater_eq = 0;
 				}
 			}break;
-
+	
 			case ExpressionGuard_Additive: {
 				assemble_expressions(exp->expressions);
 				if (flags.bitshift_left) {
@@ -292,7 +305,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 				}
 				
 			}break;
-
+	
 			case ExpressionGuard_Term: {
 				assemble_expressions(exp->expressions);
 				if (flags.add) {
@@ -307,7 +320,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 					flags.sub = 0;
 				}
 			}break;
-
+	
 			case ExpressionGuard_Factor: {
 				assemble_expressions(exp->expressions);
 				if (flags.mult) {
@@ -331,163 +344,163 @@ void assemble_expressions(array<Expression*>& expressions) {
 					flags.modulo = 0;
 				}
 			}break;
-
-
-
+	
+	
+	
 			////////////////////////
 			////				////
 			////   Binary Ops   ////
 			////				////
 			////////////////////////
-
-
-
+	
+	
+	
 			case Expression_BinaryOpPlus: {
 				addASMLine("push  %rax", "store %rax for addition");
 				flags.add = 1;
 			}break;
-
+	
 			case Expression_BinaryOpMinus: {
 				addASMLine("push  %rax", "store %rax for subtraction");
 				flags.sub = 1;
 			}break;
-
+	
 			case Expression_BinaryOpMultiply: {
 				addASMLine("push  %rax", "store %rax for multiplication");
 				flags.mult = 1;
 			}break;
-
+	
 			case Expression_BinaryOpDivision: {
 				addASMLine("push  %rax", "store %rax for division");
 				flags.divi = 1;
 			}break;
-
+	
 			case Expression_BinaryOpAND: {
 				flags.AND = 1;
-
+	
 			}break;
-
+	
 			case Expression_BinaryOpBitAND: {
 				addASMLine("push  %rax", "store %rax for bit and");
 				flags.bitAND = 1;
 			}break;
-
+	
 			case Expression_BinaryOpOR: {
 				flags.OR= 1;
-
+	
 			}break;
-
+	
 			case Expression_BinaryOpBitOR: {
 				addASMLine("push  %rax", "store %rax for bit or");
 				flags.bitOR = 1;
 			}break;
-
+	
 			case Expression_BinaryOpLessThan: {
 				addASMLine("push  %rax", "store %rax for < check");
 				flags.less = 1;
 			}break;
-
+	
 			case Expression_BinaryOpGreaterThan: {
 				addASMLine("push  %rax", "store %rax for > check");
 				flags.greater = 1;
 			}break;
-
+	
 			case Expression_BinaryOpLessThanOrEqual: {
 				addASMLine("push  %rax", "store %rax for <= check");
 				flags.less_eq = 1;
 			}break;
-
+	
 			case Expression_BinaryOpGreaterThanOrEqual: {
 				addASMLine("push  %rax", "store %rax for >= check");
 				flags.greater_eq = 1;
-
+	
 			}break;
-
+	
 			case Expression_BinaryOpEqual: {
 				addASMLine("push  %rax", "store %rax for equal check");
 				flags.equal = 1;
 			}break;
-
+	
 			case Expression_BinaryOpNotEqual: {
 				addASMLine("push  %rax", "store %rax for not equal check");
 				flags.not_equal = 1;
 			}break;
-
+	
 			case Expression_BinaryOpModulo: {
 				addASMLine("push  %rax", "store %rax for modulo");
 				flags.modulo = 1;
 			}break;
-
+	
 			case Expression_BinaryOpXOR: {
 				addASMLine("push  %rax", "store %rax for xor");
 				flags.bitXOR = 1;
 			}break;
-
+	
 			case Expression_BinaryOpBitShiftLeft: {
 				addASMLine("push  %rax", "store %rax for left bitshift");
 				flags.bitshift_left = 1;
 			}break;
-
+	
 			case Expression_BinaryOpBitShiftRight: {
 				addASMLine("push  %rax", "store %rax for right bitshift");
 				flags.bitshift_right = 1;
 			}break;
-
+	
 			case Expression_BinaryOpAssignment: {
 				flags.var_assignment = 1;
 			}break;
-
-
-
+	
+	
+	
 			////////////////////////
 			////				////
 			////   Unary  Ops   ////
 			////				////
 			////////////////////////
-
-
-
+	
+	
+	
 			case Expression_UnaryOpBitComp: {
 				assemble_expressions(exp->expressions);
 				addASMLine("not  %rax", "perform bitwise complement");
 			}break;
-
+	
 			case Expression_UnaryOpLogiNOT: {
 				assemble_expressions(exp->expressions);
 				addASMLine("cmp   $0,   %rax", "perform logical not");
 				addASMLine("mov   $0,   %rax");
 				addASMLine("sete  %al");
 			}break;
-
+	
 			case Expression_UnaryOpNegate: {
 				assemble_expressions(exp->expressions);
 				addASMLine("neg   %rax", "perform negation");
 			}break;
-
-
-
+	
+	
+	
 			////////////////////////
 			////				////
 			////    Literals    ////
 			////				////
 			////////////////////////
-
-
-
+	
+	
+	
 			case Expression_IntegerLiteral: {
 				addASMLine("mov   $" + exp->expstr + ",%rax", "move integer literal into %rax");
 			}break;
-
-
-
+	
+	
+	
 			////////////////////////
 			////				////
 			////   Identifier   ////
 			////				////
 			////////////////////////
-
-
-
+	
+	
+	
 			case Expression_IdentifierRHS: {
 				try {
 					flags.var_offset = itos(vfk(exp->expstr, var_map));
@@ -495,11 +508,14 @@ void assemble_expressions(array<Expression*>& expressions) {
 				}
 				catch (...) { EXPFAIL("attempt to reference an undeclared variable"); }
 			}break;
-
+	
 			case Expression_IdentifierLHS: {
 				try {
 					flags.var_offset = itos(vfk(exp->expstr, var_map));
-					//addASMLine("mov   " + flags.var_offset + "(%rbp), %rax", "store variable's value into %rax for use in an expression");
+					if (smt->type == Statement_Return) {
+					   // addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable's value into %rax for use in an expression");
+					}
+					
 				}
 				catch (...) { EXPFAIL("attempt to reference an undeclared variable"); }
 			}break;
@@ -508,14 +524,66 @@ void assemble_expressions(array<Expression*>& expressions) {
 	}
 }
 
+//TODO clean up how if/else labels are kept track of here
 bool returned = false;
+b32 master_if = false; // this is really scuffed
+string if_end_label_num = "";
 void assemble_statement(Statement* statement) {
 	smt = statement;
+	u32 label_num_on_enter = label_count;
 
-	switch (statement->statement_type) {
-		case Statement_Declaration: {
-			assemble_expressions(statement->expressions);
+	b32 should_i_place_if_end_label = false;
+
+	if (!master_if) {
+		should_i_place_if_end_label = true;
+		if_end_label_num = itos(label_num_on_enter);
+		master_if = true;
+	}
+
+	switch (statement->type) {
+
+		case Statement_IfConditional: {
+			string end_label_num = itos(label_num_on_enter);
+			string label_num = itos(label_count);
+
+			
+			if (statement->statements.size() == 1) {
+				assemble_expressions(statement->expressions);
+				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
+				addASMLine("je    _IfEndLabel" + end_label_num);
+				assemble_statement(statement->statements[0]);
+				addASMLine("_IfEndLabel" + end_label_num + ":");
+			}
+			else {
+				assemble_expressions(statement->expressions);
+				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
+				addASMLine("je    _ElseLabel" + label_num);
+				for (int i = 0; i < statement->statements.size(); i++) {
+					label_num = itos(else_label_count);
+					assemble_statement(statement->statements[i]);
+					if (i != statement->statements.size() - 1) {
+						addASMLine("jmp   _IfEndLabel" + if_end_label_num);
+						addASMLine("_ElseLabel" + label_num + ":");
+					}
+					else_label_count++;
+				}
+				if (should_i_place_if_end_label) {
+					addASMLine("_IfEndLabel" + if_end_label_num + ":");
+					master_if = false;
+				}
+			}
+			
+			
+			label_count++;
 		}break;
+
+		case Statement_ElseConditional: {
+			int i = 0;
+		}break;
+
+		case Statement_ConditionalStatement: {
+			assemble_expressions(statement->expressions);
+		}
 
 		case Statement_Expression: {
 			assemble_expressions(statement->expressions);
@@ -527,9 +595,19 @@ void assemble_statement(Statement* statement) {
 			//I might want this to just be in assemble_function, but i saw a suggestion to do it here so we'll see
 			addASMLine("mov   %rbp, %rsp", "restore %rsp of caller");
 			addASMLine("pop   %rbp",       "retore old %rbp");
-			addASMLine("ret");
+			addASMLine("ret\n");
 		}break;
 	}
+
+	smt = nullptr;
+}
+
+void assemble_declaration(Declaration* declaration) {
+	decl = declaration;
+	if (declaration->expressions.size() != 0) {
+		assemble_expressions(declaration->expressions);
+	}
+	decl = nullptr;
 }
 
 void assemble_function(Function* func) {
@@ -541,8 +619,13 @@ void assemble_function(Function* func) {
 	//construct function body
 	addASMLine("push  %rbp",       "save old stack frame base");
 	addASMLine("mov   %rsp, %rbp", "current top of stack is now bottom of new stack frame");
-	for (Statement* statement : func->statements) {
-		assemble_statement(statement);
+	for (BlockItem* block_item : func->blockitems) {
+		if (block_item->is_declaration) {
+			assemble_declaration(block_item->declaration);
+		}
+		else {
+			assemble_statement(block_item->statement);
+		}
 	}
 	if (!returned) {
 		addASMLine("mov   $0, %rax",   "no return statement was found so return 0 by default");

@@ -41,7 +41,11 @@ enum token_type {
 	tok_BitXOR,				// ^
 	tok_BitShiftLeft,		// <<
 	tok_BitShiftRight,		// >>
-	tok_Modulo              // %
+	tok_Modulo,             // %
+	tok_QuestionMark,       // ?
+	tok_Colon,				// :
+	tok_If,					// if
+	tok_Else,				// else
 
 };
 
@@ -51,7 +55,8 @@ static const char* tokenStrings[] = {
 	"Assignment", "Plus", "Negation", "Multiplication", "Division", "Logical NOT", 
 	"Bitwise Compliment", "Less Than", "Greater Than", "Less Than Or Equal To",
 	"Greater Than Or Equal To", "AND", "BitAND", "OR", "BitOR", "Equal", "Not Equal",
-	"XOR", "Bit Shift Left", "Bit Shift Right", "Modulo"
+	"XOR", "Bit Shift Left", "Bit Shift Right", "Modulo", "Question Mark", "Colon",
+	"if Statement", "else Statement"
 };
 
 struct token {

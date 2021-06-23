@@ -12,6 +12,8 @@ convert the assembler to take in instruction and register enums and then decide 
 based on what architecture we're compiling for
 
 
+add the bonus operators in https://norasandler.com/2018/01/08/Write-a-Compiler-5.html
+
 
 */
 
@@ -25,15 +27,14 @@ int main() {
 		return 0;
 	}
 
-
 	std::cout << "lexing" << std::endl;
 	array<token> tokens = suLexer::lex(in);
 	std::cout << "lexing finished" << std::endl;
 
-	//for (token& t : tokens) {
-	//	std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
-	//}
-	//std::cout << std::endl;
+	for (token& t : tokens) {
+		std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
+	}
+	std::cout << std::endl;
 
 	Program program;
 
