@@ -123,7 +123,7 @@ void string::operator += (const char* ss) {
 	delete old;
 }
 
-string string::operator + (string& s) {
+string string::operator + (string s) {
 	if (s.size == 0) return *this;
 	int newsize = size + s.size;
 	char* old = new char[size];
@@ -143,7 +143,7 @@ string string::operator + (const char* c) {
 	return this->operator+(s);
 }
 
-string operator + (const char* c, string& s) {
+string operator + (const char* c, string s) {
 	if (s.size == 0) {
 		string why_do_i_have_to_do_this(c);
 		return why_do_i_have_to_do_this;

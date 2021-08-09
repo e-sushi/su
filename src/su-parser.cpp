@@ -123,7 +123,7 @@ void parse_factor(array<Expression*>* expressions) {
 		case tok_IntegerLiteral: {
 			PARSEOUT("int literal:  " << curt.str);
 			syntax.integerf = 1;
-			expressions->add_anon(new Expression(curt.str, Expression_IntegerLiteral));
+			expressions->add(new Expression(curt.str, Expression_IntegerLiteral));
 			layer--;
 			return;
 		}break;
@@ -144,7 +144,7 @@ void parse_factor(array<Expression*>* expressions) {
 
 		case tok_Identifier: {
 			PARSEOUT("identifier: " << curt.str);
-			expressions->add_anon(new Expression(curt.str, Expression_IdentifierRHS));
+			expressions->add(new Expression(curt.str, Expression_IdentifierRHS));
 			layer--;
 			return;
 		}break;
@@ -185,7 +185,7 @@ void parse_term(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
 
 		token_next;
 		Expression* e = new Expression(curt.str, ExpressionGuard_Factor);
@@ -212,7 +212,7 @@ void parse_additive(array<Expression*>* expressions) {
 		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
 		PARSEOUT("~" << name << ":");
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
 
 		//decend down expression guards
 		token_next;
@@ -242,7 +242,7 @@ void parse_bitshift(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
 
 		token_next;
 		//decend down expression guards
@@ -276,7 +276,7 @@ void parse_relational(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
 		token_next;
 		//decend down expression guards
 		Expression* e = new Expression(curt.str, ExpressionGuard_BitShift);
@@ -304,7 +304,7 @@ void parse_equality(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
 		
 		token_next;
 		//decend down expression guards
@@ -333,7 +333,7 @@ void parse_bitwise_and(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, Expression_BinaryOpBitAND));
+		expressions->add(new Expression(curt.str, Expression_BinaryOpBitAND));
 
 		token_next;
 		//decend down expression guards
@@ -362,7 +362,7 @@ void parse_bitwise_xor(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, Expression_BinaryOpXOR));
+		expressions->add(new Expression(curt.str, Expression_BinaryOpXOR));
 
 		token_next;
 		//decend down expression guards
@@ -391,7 +391,7 @@ void parse_bitwise_or(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, Expression_BinaryOpBitOR));
+		expressions->add(new Expression(curt.str, Expression_BinaryOpBitOR));
 		
 		token_next;
 		//decend down expression guards
@@ -420,7 +420,7 @@ void parse_logical_and(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, Expression_BinaryOpAND));
+		expressions->add(new Expression(curt.str, Expression_BinaryOpAND));
 		
 		token_next;
 		//decend down expression guards
@@ -449,7 +449,7 @@ void parse_logical_or(array<Expression*>* expressions) {
 		PARSEOUT("~" << name << ":");
 
 		//add operator expression
-		expressions->add_anon(new Expression(curt.str, Expression_BinaryOpOR));
+		expressions->add(new Expression(curt.str, Expression_BinaryOpOR));
 
 		token_next;
 		//decend down expression guards
@@ -498,12 +498,12 @@ void parse_expressions(array<Expression*>* expressions) {
 	switch (curt.type) {
 		case tok_Identifier: {
 			PARSEOUT("~id " << curt.str << " exp:");
-			expressions->add_anon(new Expression(curt.str, Expression_IdentifierLHS));
+			expressions->add(new Expression(curt.str, Expression_IdentifierLHS));
 			if(token_peek.type == tok_Assignment) {
 				token_next; token_next;
 				layer++;
 				PARSEOUT("~var assignment:");
-				expressions->add_anon(new Expression(curt.str, Expression_BinaryOpAssignment));
+				expressions->add(new Expression(curt.str, Expression_BinaryOpAssignment));
 				Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
 				parse_expressions(&e->expressions);
 				expressions->add(e);
@@ -580,7 +580,8 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 		case tok_If: {
 			PARSEOUT("~if statement:");
 			//Statement* smt = new Statement(Statement_Conditional);
-			statement->type = Statement_IfConditional;
+			if(statement->type == Statement_Unknown)
+				statement->type = Statement_IfConditional;
 			token_next;
 			EXPECT(tok_OpenParen) {
 				token_next;
@@ -618,7 +619,8 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 		case tok_Identifier: {
 			PARSEOUT("exp statement:");
 			//Statement* smt = new Statement(Statement_Expression);
-			statement->type = Statement_Expression;
+			if (statement->type == Statement_Unknown)
+				statement->type = Statement_Expression;
 			parse_expressions(&statement->expressions);
 			token_next;
 			EXPECT(tok_Semicolon) {
@@ -629,7 +631,8 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 		case tok_Return: {
 			PARSEOUT("return statement:");
 			//Statement* smt = new Statement(Statement_Return);
-			statement->type = Statement_Return;
+			if (statement->type == Statement_Unknown)
+				statement->type = Statement_Return;
 			token_next;
 			parse_expressions(&statement->expressions);
 			token_next;

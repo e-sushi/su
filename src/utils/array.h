@@ -129,7 +129,7 @@ struct array {
 		}
 	}
 
-	void add_anon(T t) {
+	void add(T t) {
 		//if array is full, realloc the memory and extend it to accomodate the new item
 		if (max - last == 0) {
 			int iteroffset = iter - first;
@@ -142,9 +142,9 @@ struct array {
 			first = items;
 			iter = first + iteroffset;
 			last = first + osize;
-			for (T* i = last + 1; i <= max; i++) {
-				memset(i, 'A', itemsize);
-			}
+			//for (T* i = last + 1; i <= max; i++) {
+			//	memset(i, 'A', itemsize);
+			//}
 			new(last) T(t);
 		}
 		else {
@@ -160,36 +160,7 @@ struct array {
 		return;
 	}
 	
-	void add(T& t) {
-		//if array is full, realloc the memory and extend it to accomodate the new item
-		if (max - last == 0) {
-			int iteroffset = iter - first;
-			int osize = size();
-			space += 8;
-			items = (T*)realloc(items, (space) * itemsize);
-			assert(items); "realloc failed and returned nullptr. maybe we ran out of memory?";
-			max = items + space - 1;
-			
-			first = items;
-			iter = first + iteroffset;
-			last = first + osize;
-			for (T* i = last + 1; i <= max; i++) {
-				memset(i, 'A', itemsize);
-			}
-			new(last) T(t);
-		}
-		else {
-			if (last == 0) {
-				new(items) T(t);
-				last = items;
-			}
-			else {
-				last++;
-				new(last) T(t);
-			}
-		}
-		return;
-	}
+	
 
 	void add(array<T> t) {
 		for (T item : t) {

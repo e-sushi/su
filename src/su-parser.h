@@ -118,6 +118,7 @@ struct Expression {
 };
 
 enum StatementType : u32 {
+	Statement_Unknown,
 	Statement_Return,
 	Statement_Expression,
 	Statement_Declaration,
@@ -128,7 +129,7 @@ enum StatementType : u32 {
 };
 
 struct Statement {
-	StatementType type;
+	StatementType type = Statement_Unknown;
 
 
 	array<Expression*> expressions;

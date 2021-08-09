@@ -23,9 +23,9 @@ struct string {
 	void operator += (const char* c);
 	void operator += (string s);
 	void operator += (char& c);
-	string operator + (string& s);
+	string operator + (string s);
 	string operator + (const char* c);
-	friend string operator + (const char* c, string& s);
+	friend string operator + (const char* c, string s);
 	void clear();
 
 	long long hash();

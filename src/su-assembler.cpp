@@ -39,9 +39,18 @@ struct Flags {
 };
 
 //increment when a label is made so we can generate unique names
-u32 label_count = 0;
-u32 if_label_count = 0;
-u32 else_label_count = 0;
+struct {
+	u32 OR_labels     = 0;
+	u32 OR_end_labels = 0;
+
+	u32 AND_labels     = 0;
+	u32 AND_end_labels = 0;
+
+	u32 if_labels     = 0;
+	u32 if_end_labels = 0;
+	u32 else_labels   = 0;
+}labels;
+
 
 //variable map for keeping track of variable names and their position on the stack
 #define PairStrU32 pair<string, u32>
@@ -60,7 +69,7 @@ inline void addASMLine(string asmLine, string comment = "") {
 			out += "\n    " + asmLine;
 		}
 		else {
-			out += "\n\n" + asmLine;
+			out += "\n" + asmLine;
 		}
 
 		if (allow_comments && comment.size > 0) {
@@ -101,7 +110,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 	assert(expressions.size() != 0); "assemble_expression was passed an empty array";
 	Flags flags;
 
-	u32 label_num_on_enter = label_count;
+	//u32 label_num_on_enter = label_count;
 
 	for (int i = 0; i < expressions.size(); i++) {
 		Expression* exp = expressions[i];
@@ -124,13 +133,13 @@ void assemble_expressions(array<Expression*>& expressions) {
 					catch(...){
 						if (exp->expressions.size() != 0) {
 							assemble_expressions(exp->expressions);
-							var_map.add_anon(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
+							var_map.add(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
 						else {
 							//case where we declare a variable but dont assign an expression to it
 							//default to 0
-							var_map.add_anon(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
+							var_map.add(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
 							addASMLine("mov   $0,  %rax", "default var value to 0");
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
@@ -160,26 +169,25 @@ void assemble_expressions(array<Expression*>& expressions) {
 	
 			case ExpressionGuard_LogicalAND: {
 				assemble_expressions(exp->expressions);
+				//string end_label_num = 
 				//peek to see if there's an OR ahead
 				if (i < expressions.size() - 1 && expressions[i + 1]->type == Expression_BinaryOpOR) {
 					//if there is we must check if the last result was true
-					string label_num = itos(label_count);
-					string end_label_num = itos(label_num_on_enter);
+					string label_num = itos(labels.OR_labels);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
 					addASMLine("je    _ORLabel" + label_num);
 					addASMLine("mov   $1,   %rax", "we didn't jump so last result was true");
-					addASMLine("jmp   _ORend" + end_label_num);
+					addASMLine("jmp   _ORend" + itos(labels.OR_end_labels));
 					addASMLine("_ORLabel" + label_num + ":");
-					label_count++;
+					labels.OR_labels++;
 				}
 				else if(i > expressions.size() + 1 && expressions[i - 1]->type == Expression_BinaryOpOR) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
-					string label_num = itos(label_count);
-					string end_label_num = itos(label_num_on_enter);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
 					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was true");
 					addASMLine("setne %al");
-					addASMLine("_ORend" + end_label_num + ":");
+					addASMLine("_ORend" + itos(labels.OR_end_labels) + ":");
+					labels.OR_end_labels++;
 				}
 			}break;
 	
@@ -188,23 +196,21 @@ void assemble_expressions(array<Expression*>& expressions) {
 				//peek to see if there's an AND ahead
 				if (i < expressions.size() - 1 && expressions[i + 1]->type == Expression_BinaryOpAND) {
 					//if there is we must check if the last result was true
-					string label_num = itos(label_count);
-					string end_label_num = itos(label_num_on_enter);
+					string label_num = itos(labels.AND_labels);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
 					addASMLine("jne   _ANDLabel" + label_num);
-					addASMLine("jmp   _ANDend" + end_label_num);
+					addASMLine("jmp   _ANDend" + itos(labels.AND_end_labels));
 					addASMLine("_ANDLabel" + label_num + ":");
 					flags.AND = true;
-					label_count++;
+					labels.AND_labels++;
 				}
 				else if (flags.AND){//(i > expressions.size() + 1 && expressions[i - 1]->type == Expression_BinaryOpAND) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
-					string label_num = itos(label_count);
-					string end_label_num = itos(label_num_on_enter);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
 					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was false");
 					addASMLine("setne %al");
-					addASMLine("_ANDend" + end_label_num + ":");
+					addASMLine("_ANDend" + itos(labels.AND_end_labels) + ":");
+					labels.AND_end_labels++;
 				}
 			}break;
 	
@@ -530,55 +536,72 @@ b32 master_if = false; // this is really scuffed
 string if_end_label_num = "";
 void assemble_statement(Statement* statement) {
 	smt = statement;
-	u32 label_num_on_enter = label_count;
 
 	b32 should_i_place_if_end_label = false;
 
 	if (!master_if) {
 		should_i_place_if_end_label = true;
-		if_end_label_num = itos(label_num_on_enter);
+		if_end_label_num = itos(labels.if_end_labels);
 		master_if = true;
 	}
 
 	switch (statement->type) {
-
 		case Statement_IfConditional: {
-			string end_label_num = itos(label_num_on_enter);
-			string label_num = itos(label_count);
 
-			
-			if (statement->statements.size() == 1) {
+			//assemble if statement's expression
+			assemble_expressions(statement->expressions);
+
+
+
+			//check if there are no else statements and if the inner statement is not another if statement
+			if (statement->statements.size() == 1 && statement->statements[0]->type != Statement_IfConditional) {
+				//if we're here then we can evaluate the expression and the inner statement which should only be an expression
 				assemble_expressions(statement->expressions);
 				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-				addASMLine("je    _IfEndLabel" + end_label_num);
+				addASMLine("je    _IfEndLabel" + itos(labels.if_end_labels));
 				assemble_statement(statement->statements[0]);
-				addASMLine("_IfEndLabel" + end_label_num + ":");
+				addASMLine("_IfEndLabel" + itos(labels.if_end_labels) + ":");
+				labels.if_end_labels++;
 			}
 			else {
-				assemble_expressions(statement->expressions);
+				//if we are here then evaluate the expression and 
 				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-				addASMLine("je    _ElseLabel" + label_num);
+				addASMLine("je    _ElseLabel" + itos(labels.else_labels));
 				for (int i = 0; i < statement->statements.size(); i++) {
-					label_num = itos(else_label_count);
+					string label_num = itos(labels.else_labels);
 					assemble_statement(statement->statements[i]);
 					if (i != statement->statements.size() - 1) {
 						addASMLine("jmp   _IfEndLabel" + if_end_label_num);
 						addASMLine("_ElseLabel" + label_num + ":");
 					}
-					else_label_count++;
+					labels.else_labels++;
 				}
-				if (should_i_place_if_end_label) {
-					addASMLine("_IfEndLabel" + if_end_label_num + ":");
-					master_if = false;
-				}
+				//if (should_i_place_if_end_label) {
+				//	addASMLine("_IfEndLabel" + if_end_label_num + ":");
+				//	master_if = false;
+				//	labels.if_end_labels++;
+				//}
 			}
-			
-			
-			label_count++;
+
+
+			//label_count++;
 		}break;
 
 		case Statement_ElseConditional: {
-			int i = 0;
+			if (statement->statements.size() == 0) {
+				//this must be an else statement with no if statement following it
+				assemble_expressions(statement->expressions);
+				addASMLine("_IfEndLabel" + itos(labels.if_end_labels));
+				labels.if_end_labels++;
+			}
+			else {
+				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
+				addASMLine("je    _ElseLabel" + itos(labels.else_labels));
+				assemble_statement(statement->statements[0]); //an else statement should only ever have an if statement in it's array... right?
+				addASMLine("jmp   _IfEndLabel" + if_end_label_num);
+				addASMLine("_ElseLabel" + itos(labels.else_labels) + ":");
+															  //assemble_expressions(statement->expressions);
+			}
 		}break;
 
 		case Statement_ConditionalStatement: {
@@ -594,7 +617,7 @@ void assemble_statement(Statement* statement) {
 			returned = true;
 			//I might want this to just be in assemble_function, but i saw a suggestion to do it here so we'll see
 			addASMLine("mov   %rbp, %rsp", "restore %rsp of caller");
-			addASMLine("pop   %rbp",       "retore old %rbp");
+			addASMLine("pop   %rbp", "retore old %rbp");
 			addASMLine("ret\n");
 		}break;
 	}
