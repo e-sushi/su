@@ -22,15 +22,6 @@
     <None Include="..\out.s" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\utils\array.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\string.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\utils\utility.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\su-lexer.cpp">
       <Filter>src\cpp</Filter>
     </ClCompile>
@@ -45,18 +36,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\utils\array.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\misc.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\string.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utils\utility.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\su-parser.h">
       <Filter>src\h</Filter>
     </ClInclude>
@@ -66,7 +45,28 @@
     <ClInclude Include="..\src\su-assembler.h">
       <Filter>src\h</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\utils\string.h">
+      <Filter>utils</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\utils\tuple.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\utility.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\utils.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\array.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\defines.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\hash.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\map.h">
       <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>

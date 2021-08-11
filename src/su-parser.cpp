@@ -1,5 +1,7 @@
 #include "su-parser.h"
 
+#include "utils/map.h"
+
 //TODO remove returning arrays of expressions and pass them by reference and modify instead
 //     or just use global arrays like we use a global string in assembling
 //TODO optimize the tree by bypassing nodes for expressions
@@ -36,11 +38,11 @@
 
 bool master_logger = true;
 
-#define PARSEOUT(message)\
+#define PrettyPrint(message)\
 if(master_logger){ for(int i = 0; i < layer; i++)\
 if(i % 2 == 0) std::cout << "|   ";\
 else std::cout << "!   ";\
-std::cout << message << std::endl;}
+std::cout << "~" << message << "~" << std::endl;}
 
 u32 layer = 0; //inc when we go into anything, dec when we come out
 
@@ -50,7 +52,7 @@ token curt;
 array<token> tokens;
 
 //master fail flag, set when something happens that prevents from building properly
-b32 epic_fail_n_we_must_gtfo = false;
+bool epic_fail_n_we_must_gtfo = false;
 
 //These defines are mostly for conveinence and clarity as to what im doing
 #define token_next curt = tokens.next()
@@ -59,14 +61,23 @@ b32 epic_fail_n_we_must_gtfo = false;
 #define token_peek tokens.peek(0)
 #define token_look_back(i) tokens.lookback(i)
 
-#define PARSE_FAIL(error)\
+#define ParseFail(error)\
 std::cout << "\nError: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl;
 
-#define EXPECT(tok_type)\
-if(curt.type == tok_type)
+#define Expect(tok_type)\
+if(curt.type == tok_type) {
 
-#define EXPECT_ONE_OF(exp_type)\
-if(is_in(curt.type, exp_type))
+#define ExpectOneOf(exp_type)\
+if(exp_type.has(curt.type)) {
+
+#define ElseExpect(tok_type)\
+} else if (curt.type == tok_type) {
+
+#define ExpectFail(error)\
+} else { ParseFail(error); }
+
+#define ExpectFailCode(failcode)\
+} else { failcode }
 
 //collection of flags/counters to help with error checking throughout the parsing process
 struct {
@@ -77,88 +88,85 @@ struct {
 	bool keyword_type = 0; //true if a type specifier keyword has been found
 } syntax;
 
-//operator "maps" until i make an actual map struct
-#define PTE pair<token_type, ExpressionType>
-array<PTE> binaryOps{
-	PTE(tok_Multiplication,     Expression_BinaryOpMultiply),
-	PTE(tok_Division,           Expression_BinaryOpDivision),
-	PTE(tok_Negation,           Expression_BinaryOpMinus),
-	PTE(tok_Plus,               Expression_BinaryOpPlus),
-	PTE(tok_AND,                Expression_BinaryOpAND),
-	PTE(tok_OR,                 Expression_BinaryOpOR),
-	PTE(tok_LessThan,           Expression_BinaryOpLessThan),
-	PTE(tok_GreaterThan,        Expression_BinaryOpGreaterThan),
-	PTE(tok_LessThanOrEqual,    Expression_BinaryOpLessThanOrEqual),
-	PTE(tok_GreaterThanOrEqual, Expression_BinaryOpGreaterThanOrEqual),
-	PTE(tok_Equal,              Expression_BinaryOpEqual),
-	PTE(tok_NotEqual,           Expression_BinaryOpNotEqual),
-	PTE(tok_BitAND,             Expression_BinaryOpBitAND),
-	PTE(tok_BitOR,              Expression_BinaryOpBitOR),
-	PTE(tok_BitXOR,		        ExpressionGuard_BitXOR),
-	PTE(tok_BitShiftLeft,       Expression_BinaryOpBitShiftLeft),
-	PTE(tok_BitShiftRight,      Expression_BinaryOpBitShiftRight),
-	PTE(tok_Modulo,             Expression_BinaryOpModulo),
+local map<token_type, ExpressionType> binaryOps{
+	{tok_Multiplication,     Expression_BinaryOpMultiply},
+	{tok_Division,           Expression_BinaryOpDivision},
+	{tok_Negation,           Expression_BinaryOpMinus},
+	{tok_Plus,               Expression_BinaryOpPlus},
+	{tok_AND,                Expression_BinaryOpAND},
+	{tok_OR,                 Expression_BinaryOpOR},
+	{tok_LessThan,           Expression_BinaryOpLessThan},
+	{tok_GreaterThan,        Expression_BinaryOpGreaterThan},
+	{tok_LessThanOrEqual,    Expression_BinaryOpLessThanOrEqual},
+	{tok_GreaterThanOrEqual, Expression_BinaryOpGreaterThanOrEqual},
+	{tok_Equal,              Expression_BinaryOpEqual},
+	{tok_NotEqual,           Expression_BinaryOpNotEqual},
+	{tok_BitAND,             Expression_BinaryOpBitAND},
+	{tok_BitOR,              Expression_BinaryOpBitOR},
+	{tok_BitXOR,		     ExpressionGuard_BitXOR},
+	{tok_BitShiftLeft,       Expression_BinaryOpBitShiftLeft},
+	{tok_BitShiftRight,      Expression_BinaryOpBitShiftRight},
+	{tok_Modulo,             Expression_BinaryOpModulo},
 };
 
 
-array<PTE> unaryOps{
-	PTE(tok_BitwiseComplement, Expression_UnaryOpBitComp),
-	PTE(tok_LogicalNOT,        Expression_UnaryOpLogiNOT),
-	PTE(tok_Negation,          Expression_UnaryOpNegate),
+local map<token_type, ExpressionType> unaryOps{
+	{tok_BitwiseComplement, Expression_UnaryOpBitComp},
+	{tok_LogicalNOT,        Expression_UnaryOpLogiNOT},
+	{tok_Negation,          Expression_UnaryOpNegate},
 };
 
 
 
-void parse_term(array<Expression*>* expressions);
-void parse_expressions(array<Expression*>* expressions);
+void parse_term(array<Expression>* expressions);
+void parse_expressions(array<Expression>* expressions);
 
 // <factor> :: = "(" <exp> ")" | <unary> <factor> | <int> | <id>
-void parse_factor(array<Expression*>* expressions) {
+void parse_factor(array<Expression>* expressions) {
 	layer++;
-	string name = "factor";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint("factor");
 
 	switch (curt.type) {
 
 		case tok_IntegerLiteral: {
-			PARSEOUT("int literal:  " << curt.str);
+			PrettyPrint("int literal:  " << curt.str);
 			syntax.integerf = 1;
-			expressions->add(new Expression(curt.str, Expression_IntegerLiteral));
+			expressions->add(Expression(curt.str, Expression_IntegerLiteral));
 			layer--;
 			return;
 		}break;
 
 		case tok_OpenParen: {
-			PARSEOUT("( OPEN");
-			Expression* e = new Expression(curt.str, ExpressionGuard_Factor);
+			PrettyPrint("( OPEN");
+			expressions->add(Expression(curt.str, ExpressionGuard_Factor));
+			
 			token_next;
-			parse_expressions(&e->expressions);
-			expressions->add(e);
+			parse_expressions(&expressions->last->expressions);
+			
 			token_next;
-			EXPECT(tok_CloseParen) {
-				PARSEOUT(") CLOSE");
+			Expect(tok_CloseParen) 
+				PrettyPrint(") CLOSE");
 				layer--;
 				return;
-			} else PARSE_FAIL("expected a closing parentheses");
+			ExpectFail("expected a )")
 		}break;
 
 		case tok_Identifier: {
-			PARSEOUT("identifier: " << curt.str);
-			expressions->add(new Expression(curt.str, Expression_IdentifierRHS));
+			PrettyPrint("identifier: " << curt.str);
+			expressions->add(Expression(curt.str, Expression_IdentifierRHS));
 			layer--;
 			return;
 		}break;
 
 		default: {
-			EXPECT_ONE_OF(unaryOps) {
-				PARSEOUT("unary op " << ExTypeStrings[vfk(curt.type, unaryOps)]);
-				Expression* e = new Expression(curt.str, vfk(curt.type, unaryOps));
+			ExpectOneOf(unaryOps)
+				PrettyPrint("unary op " << ExTypeStrings[*unaryOps.at(curt.type)]);
 				token_next;
-				parse_factor(&e->expressions);
-				expressions->add(e);
+				expressions->add(Expression(curt.str, *unaryOps.at(curt.type)));
+				parse_factor(&expressions->last->expressions);
 				layer--;
 				return;
-			} else PARSE_FAIL("unexpected token found in factor");
+			ExpectFail("unexpected token found in factor");
 		}
 	}
 
@@ -166,104 +174,96 @@ void parse_factor(array<Expression*>* expressions) {
 }
 
 // <term> :: = <factor> { ("*" | "/" | "%") <factor> }
-void parse_term(array<Expression*>* expressions) {
+void parse_term(array<Expression>* expressions) {
 	layer++;
-	string name = "term";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint("term");
 
 	//all terms become factors
-	Expression* e = new Expression(curt.str, ExpressionGuard_Factor);
-	parse_factor(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_Factor));
+	parse_factor(&expressions->last->expressions);
 
 	while (
 		token_peek.type == tok_Multiplication || token_peek.type == tok_Division ||
 		token_peek.type == tok_Modulo) {
 		
 		token_next;
-		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+		PrettyPrint("term");
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
 
+		expressions->add(Expression(curt.str, ExpressionGuard_Factor));
 		token_next;
-		Expression* e = new Expression(curt.str, ExpressionGuard_Factor);
-		parse_factor(&e->expressions);
-		expressions->add(e);
+		parse_factor(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <additive-exp> ::= <term> { ("+" | "-") <term> }
-void parse_additive(array<Expression*>* expressions) {
+void parse_additive(array<Expression>* expressions) {
 	layer++;
 	string name = "additive";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_Term);
-	parse_term(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_Term));
+	parse_term(&expressions->last->expressions);
 
-	while (token_peek.type == tok_Plus || token_peek.type == tok_Negation){
-		token_next; 
-		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("~" << name << ":");
+	while (token_peek.type == tok_Plus || token_peek.type == tok_Negation) {
+		token_next;
+		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+		PrettyPrint(name);
+		
 		//add operator expression
-		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
 
 		//decend down expression guards
+		expressions->add(Expression(curt.str, ExpressionGuard_Term));
 		token_next;
-		Expression* e = new Expression(curt.str, ExpressionGuard_Term);
-		parse_term(&e->expressions);
-		expressions->add(e);
+		parse_term(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
-void parse_bitshift(array<Expression*>* expressions) {
+void parse_bitshift(array<Expression>* expressions) {
 	layer++;
 	string name = "bitshift";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_Additive);
-	parse_additive(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_Additive));
+	parse_additive(&expressions->last->expressions);
 
 	while (token_peek.type == tok_BitShiftRight || token_peek.type == tok_BitShiftLeft) {
-
 		token_next;
-		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
 
-		token_next;
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_Additive);
-		parse_additive(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_Additive));
+		token_next;
+		parse_additive(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <relational> :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
-void parse_relational(array<Expression*>* expressions) {
+void parse_relational(array<Expression>* expressions) {
 	layer++;
 	string name = "relational";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_BitShift);
-	parse_bitshift(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_BitShift));
+	parse_bitshift(&expressions->last->expressions);
 
 	while (
 		token_peek.type == tok_LessThan ||
@@ -272,218 +272,204 @@ void parse_relational(array<Expression*>* expressions) {
 		token_peek.type == tok_GreaterThanOrEqual) {
 
 		token_next; 
-		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
-		token_next;
+		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
+		
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_BitShift);
-		parse_bitshift(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_BitShift));
+		token_next;
+		parse_bitshift(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <equality> ::= <relational> { ("!=" | "==") <relational> }
-void parse_equality(array<Expression*>* expressions) {
+void parse_equality(array<Expression>* expressions) {
 	layer++;
 	string name = "equality";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_Relational);
-	parse_relational(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_Relational));
+	parse_relational(&expressions->last->expressions);
 
 	while (token_peek.type == tok_NotEqual || token_peek.type == tok_Equal) {
 		token_next; 
-		PARSEOUT("binary op " << ExTypeStrings[vfk(curt.type, binaryOps)]);
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, vfk(curt.type, binaryOps)));
+		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
 		
-		token_next;
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_Relational);
-		parse_relational(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_Relational));
+		token_next;
+		parse_relational(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <bitwise and> :: = <equality> { "&" <equality> }
-void parse_bitwise_and(array<Expression*>* expressions) {
+void parse_bitwise_and(array<Expression>* expressions) {
 	layer++;
 	string name = "bit AND";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_Equality);
-	parse_equality(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_Equality));
+	parse_equality(&expressions->last->expressions);
 
 	while (token_peek.type == tok_BitAND) {
 		token_next;
-		PARSEOUT("binary op &");
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op &");
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, Expression_BinaryOpBitAND));
+		expressions->add(Expression(curt.str, Expression_BinaryOpBitAND));
 
-		token_next;
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_Equality);
-		parse_equality(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_Equality));
+		token_next;
+		parse_equality(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <bitwise xor> :: = <bitwise and> { "^" <bitwise and> }
-void parse_bitwise_xor(array<Expression*>* expressions) {
+void parse_bitwise_xor(array<Expression>* expressions) {
 	layer++;
 	string name = "bit XOR";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_BitAND);
-	parse_bitwise_and(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_BitAND));
+	parse_bitwise_and(&expressions->last->expressions);
 
 	while (token_peek.type == tok_BitXOR) {
 		token_next;
-		PARSEOUT("binary op ^");
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op ^");
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, Expression_BinaryOpXOR));
+		expressions->add(Expression(curt.str, Expression_BinaryOpXOR));
 
-		token_next;
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_BitAND);
-		parse_bitwise_and(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_BitAND));
+		token_next;
+		parse_bitwise_and(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 //<bitwise or> :: = <bitwise xor> { "|" <bitwise xor> }
-void parse_bitwise_or(array<Expression*>* expressions) {
+void parse_bitwise_or(array<Expression>* expressions) {
 	layer++;
 	string name = "bit OR";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_BitXOR);
-	parse_bitwise_xor(&e->expressions);
-	expressions->add(e);
+	parse_bitwise_xor(&expressions->last->expressions);
+	expressions->add(Expression(curt.str, ExpressionGuard_BitXOR));
 
 	while (token_peek.type == tok_BitOR) {
 		token_next;
-		PARSEOUT("binary op |");
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op |");
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, Expression_BinaryOpBitOR));
-		
-		token_next;
+		expressions->add(Expression(curt.str, Expression_BinaryOpBitOR));
+
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_BitXOR);
-		parse_bitwise_xor(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_BitXOR));
+		token_next;
+		parse_bitwise_xor(&expressions->last->expressions);
+
 	}
 
 	layer--;
 }
 
 // <logical and> :: = <bitwise or> { "&&" <bitwise or> } 
-void parse_logical_and(array<Expression*>* expressions) {
+void parse_logical_and(array<Expression>* expressions) {
 	layer++;
 	string name = "logi AND";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 	
 	//decend down expression guards
-	Expression* e = new Expression(curt.str, ExpressionGuard_BitOR);
-	parse_bitwise_or(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_BitOR));
+	parse_bitwise_or(&expressions->last->expressions);
 
 	while (token_peek.type == tok_AND) {
 		token_next;
-		PARSEOUT("binary op &&");
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op &&");
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, Expression_BinaryOpAND));
-		
-		token_next;
+		expressions->add(Expression(curt.str, Expression_BinaryOpAND));
+
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_BitOR);
-		parse_bitwise_or(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_BitOR));
+		token_next;
+		parse_bitwise_or(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <logical or> :: = <logical and> { "||" <logical and> }
-void parse_logical_or(array<Expression*>* expressions) {
+void parse_logical_or(array<Expression>* expressions) {
 	layer++;
 	string name = "logi OR";
-	PARSEOUT("~" << name << ":");
+	PrettyPrint(name);
 
 	//decend into expression guard hell
-	Expression* e = new Expression(curt.str, ExpressionGuard_LogicalAND);
-	parse_logical_and(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_LogicalAND));
+	parse_logical_and(&expressions->last->expressions);
 
 	while (token_peek.type == tok_OR) {
 		token_next;
-		PARSEOUT("binary op ||");
-		PARSEOUT("~" << name << ":");
+		PrettyPrint("binary op ||");
+		PrettyPrint(name);
 
 		//add operator expression
-		expressions->add(new Expression(curt.str, Expression_BinaryOpOR));
+		expressions->add(Expression(curt.str, Expression_BinaryOpOR));
 
-		token_next;
 		//decend down expression guards
-		Expression* e = new Expression(curt.str, ExpressionGuard_LogicalAND);
-		parse_logical_and(&e->expressions);
-		expressions->add(e);
+		expressions->add(Expression(curt.str, ExpressionGuard_LogicalAND));
+		token_next;
+		parse_logical_and(&expressions->last->expressions);
 	}
 
 	layer--;
 }
 
 // <conditional> ::= <logical or> [ "?" <exp> ":" <conditional> ]
-void parse_conditional(array<Expression*>* expressions) {
+void parse_conditional(array<Expression>* expressions) {
 	layer++;
+	PrettyPrint("~conditional:");
 
-	PARSEOUT("~conditional:");
-
-	Expression* e = new Expression(curt.str, ExpressionGuard_LogicalOR);
-	parse_logical_or(&e->expressions);
-	expressions->add(e);
+	expressions->add(Expression(curt.str, ExpressionGuard_LogicalOR));
+	parse_logical_or(&expressions->last->expressions);
 
 	if (token_peek.type == tok_QuestionMark) {
-		token_next; token_next;
-		PARSEOUT("~ternary conditional:");
-		Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
-		parse_expressions(&e->expressions);
-		expressions->add(e);
+		token_next; 
+		PrettyPrint("~ternary conditional:");
+		expressions->add(Expression(curt.str, ExpressionGuard_Assignment));
 		token_next;
-		EXPECT(tok_Colon) {
+		parse_expressions(&expressions->last->expressions);
+		token_next;
+		Expect(tok_Colon)
+			expressions->add(Expression(curt.str, ExpressionGuard_Conditional));
 			token_next;
-			Expression* e2 = new Expression(curt.str, ExpressionGuard_Conditional);
-			parse_conditional(&e2->expressions);
-			expressions->add(e2);
-		} else PARSE_FAIL("expected : for ternary conditional");
+			parse_conditional(&expressions->last->expressions);
+	    ExpectFail("expected : for ternary conditional");
 	}
 
 
@@ -491,38 +477,35 @@ void parse_conditional(array<Expression*>* expressions) {
 }
 
 // <exp> :: = <id> "=" <exp> | <conditional>
-void parse_expressions(array<Expression*>* expressions) {
+void parse_expressions(array<Expression>* expressions) {
 	layer++;
 	string name = "exp";
 	 
 	switch (curt.type) {
 		case tok_Identifier: {
-			PARSEOUT("~id " << curt.str << " exp:");
-			expressions->add(new Expression(curt.str, Expression_IdentifierLHS));
+			PrettyPrint("~id " << curt.str << " exp:");
+			expressions->add(Expression(curt.str, Expression_IdentifierLHS));
 			if(token_peek.type == tok_Assignment) {
-				token_next; token_next;
+				token_next; 
 				layer++;
-				PARSEOUT("~var assignment:");
-				expressions->add(new Expression(curt.str, Expression_BinaryOpAssignment));
-				Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
-				parse_expressions(&e->expressions);
-				expressions->add(e);
+				PrettyPrint("~var assignment:");
+				expressions->add(Expression(curt.str, Expression_BinaryOpAssignment));
+				
+				expressions->add(Expression(curt.str, ExpressionGuard_Assignment));
+				token_next;
+				parse_expressions(&expressions->last->expressions);
 				layer--;
 			} 
 			else {
-				Expression* e = new Expression(curt.str, ExpressionGuard_Conditional);
-				parse_conditional(&e->expressions);
-				expressions->add(e);
+				expressions->add(Expression(curt.str, ExpressionGuard_Conditional));
+				parse_conditional(&expressions->last->expressions);
 			}
 		}break;
 
-
-
 		//I think if it's anything else it should be parsed normally
 		default: {
-			Expression* e = new Expression(curt.str, ExpressionGuard_Conditional);
-			parse_conditional(&e->expressions);
-			expressions->add(e);
+			expressions->add(Expression(curt.str, ExpressionGuard_Conditional));
+			parse_conditional(&expressions->last->expressions);
 		}break;
 	}
 	layer--;
@@ -532,38 +515,39 @@ void parse_expressions(array<Expression*>* expressions) {
 void parse_declaration(Declaration* declaration, BlockItem* bi = nullptr) {
 	layer++;
 
-	EXPECT(tok_Identifier) {
+	Expect(tok_Identifier)
+
 		//Declaration* decl = new Declaration();
 		declaration->identifier = curt.str;
 		declaration->type = Decl_Int;
-		PARSEOUT("declaration of var '" << declaration->identifier << "' of type int:");
+		PrettyPrint("declaration of var '" << declaration->identifier << "' of type int:");
 
 		token_next;
-		EXPECT(tok_Assignment) {
+
+		Expect(tok_Assignment);
 			layer++;
-			PARSEOUT("~variable assignment:");
-			Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
+			PrettyPrint("~variable assignment:");
 			token_next;
-			parse_expressions(&e->expressions);
-			declaration->expressions.add(e);
+			declaration->expressions.add(Expression(curt.str, ExpressionGuard_Assignment));
+			parse_expressions(&declaration->expressions.last->expressions);
 			declaration->initialized = true;
 			layer--;
 			token_next;
-			EXPECT(tok_Semicolon){
-				//if (bi) bi->declaration = decl;
-			} else PARSE_FAIL("expected a ;");
-		}
-		else EXPECT(tok_Semicolon) {
+
+			Expect(tok_Semicolon);
+				//if (bi) bi.declaration = decl;
+			ExpectFail("expected a ;");
+
+		ElseExpect(tok_Semicolon)
 			layer++;
-			PARSEOUT("~no assignment");
+			PrettyPrint("~no assignment");
 			layer--;
 			//add expression guard for assignment regardless of if there is one so we can default to 0 in assembly 
-			Expression* e = new Expression(curt.str, ExpressionGuard_Assignment);
-			declaration->expressions.add(e);
-			//if (bi) bi->declaration = decl;
-		} else PARSE_FAIL("expected a ;");
+			declaration->expressions.add(Expression(curt.str, ExpressionGuard_Assignment));
+			//if (bi) bi.declaration = decl;
+		ExpectFail("expected a ;")
 
-	} else PARSE_FAIL("expected an identifier after type keyword");
+	ExpectFail("expected an identifier after type keyword");
 
 
 	layer--;
@@ -578,67 +562,66 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 	switch (curt.type) {
 
 		case tok_If: {
-			PARSEOUT("~if statement:");
+			PrettyPrint("~if statement:");
 			//Statement* smt = new Statement(Statement_Conditional);
 			if(statement->type == Statement_Unknown)
 				statement->type = Statement_IfConditional;
 			token_next;
-			EXPECT(tok_OpenParen) {
+			Expect(tok_OpenParen) {
 				token_next;
 				parse_expressions(&statement->expressions);
-				if (statement->expressions.size() == 0) PARSE_FAIL("missing expression for if statement");
+				if (statement->expressions.size() == 0) ParseFail("missing expression for if statement");
 				token_next;
-				EXPECT(tok_CloseParen) {
-					if (token_peek.type == tok_Keyword) { PARSE_FAIL("invalid attempt to declare a variable in non-scoped if statement"); }
+				Expect(tok_CloseParen) {
+					if (token_peek.type == tok_Keyword) { ParseFail("invalid attempt to declare a variable in non-scoped if statement"); }
 					else {
-						Statement* inner = new Statement(Statement_ConditionalStatement);
+						statement->statements.add(Statement(Statement_ConditionalStatement));
 						token_next;
-						parse_statement(inner);
-						statement->statements.add(inner);
-						EXPECT(tok_Semicolon) {
-							//if (bi) bi->statement = smt;
+						parse_statement(statement->statements.last);
+						Expect(tok_Semicolon) {
+							//if (bi) bi.statement = smt;
 							//check for optional else
 							if(token_peek.type == tok_Else) {
-								token_next; token_next;
-								PARSEOUT("~else statement");
-								Statement* elsmt = new Statement(Statement_ElseConditional);
+								token_next; 
+								PrettyPrint("~else statement");
+								statement->statements.add(Statement(Statement_ElseConditional));
+								token_next;
 								parse_statement(elsmt);
-								statement->statements.add(elsmt);
 							}
-						} else PARSE_FAIL("expected a ;");
+						} ExpectFail("expected a ;");
 					}
-				} else PARSE_FAIL("missing ) for if statement");
-			} else PARSE_FAIL("expected ( after if");
+				} ExpectFail("missing ) for if statement");
+			} ExpectFail("expected ( after if");
 		}break;
 
 		case tok_Else: {
-			PARSE_FAIL("else statement found without preceeding if statement");
+			ParseFail("else statement found without preceeding if statement");
 		}break;
 
 		case tok_IntegerLiteral:
 		case tok_Identifier: {
-			PARSEOUT("exp statement:");
+			PrettyPrint("exp statement:");
 			//Statement* smt = new Statement(Statement_Expression);
 			if (statement->type == Statement_Unknown)
 				statement->type = Statement_Expression;
 			parse_expressions(&statement->expressions);
 			token_next;
-			EXPECT(tok_Semicolon) {
-				//if (bi) bi->statement = smt;
-			} else PARSE_FAIL("expected a ;");
+			Expect(tok_Semicolon) {
+				//if (bi) bi.statement = smt;
+			} ExpectFail("expected a ;");
 		}break;
 
 		case tok_Return: {
-			PARSEOUT("return statement:");
+			PrettyPrint("return statement:");
 			//Statement* smt = new Statement(Statement_Return);
 			if (statement->type == Statement_Unknown)
 				statement->type = Statement_Return;
 			token_next;
 			parse_expressions(&statement->expressions);
 			token_next;
-			EXPECT(tok_Semicolon) {
-				//if (bi) bi->statement = smt;
-			} else PARSE_FAIL("expected a ;");
+			Expect(tok_Semicolon) {
+				//if (bi) bi.statement = smt;
+			} ExpectFail("expected a ;");
 		}break;
 
 	}
@@ -646,54 +629,52 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 }
 
 // <function> :: = "int" <id> "(" ")" "{" { <block item> } "}"
-void parse_function(array<Function*>* functions) {
+void parse_function(array<Function>* functions) {
 	layer++;
-	Function* function = new Function();
+	Function function = Function();
 
-	//EXPECT asks if the next tokens type matches a certain criteria and if it doesnt
+	//Expect asks if the next tokens type matches a certain criteria and if it doesnt
 	//we throw a parse fail
 	token_next;                             //expect keyword
-	EXPECT(tok_Keyword) {
+	Expect(tok_Keyword) {
 		token_next;                         //expect function identifier
-		EXPECT(tok_Identifier) {
-			function->identifier = curt.str;
-			PARSEOUT("Parse begin on function " << curt.str);
+		Expect(tok_Identifier) {
+			function.identifier = curt.str;
+			PrettyPrint("Parse begin on function " << curt.str);
 			token_next;                     // expect (
-			EXPECT(tok_OpenParen) {
+			Expect(tok_OpenParen) {
 				token_next;                 // expect )
-				EXPECT(tok_CloseParen) {
+				Expect(tok_CloseParen) {
 					token_next;             // expect {
-					EXPECT(tok_OpenBrace) {
+					Expect(tok_OpenBrace) {
 						while (token_peek.type != tok_CloseBrace) {
-							BlockItem* bi = new BlockItem();
+							BlockItem bi = BlockItem();
 							if (token_peek.type == tok_Keyword) {
 								// if we find a keyword then we are declaring a variable
 								token_next; token_next;
-								bi->is_declaration = 1;
-								bi->declaration = new Declaration();
-								parse_declaration(bi->declaration, bi);
+								bi.is_declaration = 1;
+								parse_declaration(bi.declaration, *bi);
 							}
 							else{
 								//else we must be doing some kind of statement 
 								token_next;
-								bi->statement = new Statement();
-								parse_statement(bi->statement, bi);
+								parse_statement(bi.statement, &bi);
 							}
-							function->blockitems.add(bi);
+							function.blockitems.add(bi);
 							if (token_peek.type == tok_EOF) {
-								PARSE_FAIL("EOF reached before closing function");
+								ParseFail("EOF reached before closing function");
 								goto function_fail;
 							}
 						}
 						token_next;
-						EXPECT(tok_CloseBrace) {
+						Expect(tok_CloseBrace) {
 							functions->add(function);
-						} else PARSE_FAIL("expected }");
-					} else PARSE_FAIL("expected {");
-				} else PARSE_FAIL("expected )");
-			} else PARSE_FAIL("expected (");
-		} else PARSE_FAIL("invalid function identifier following keyword");
-	} else PARSE_FAIL("expected a keyword (int, float, etc..) as first token");
+						} ExpectFail("expected }");
+					} ExpectFail("expected {");
+				} ExpectFail("expected )");
+			} ExpectFail("expected (");
+		} ExpectFail("invalid function identifier following keyword");
+	} ExpectFail("expected a keyword (int, float, etc..) as first token");
 
 function_fail:
 	layer--;
@@ -705,7 +686,7 @@ void suParser::parse(array<token>& tokens_in, Program& mother) {
 
 	tokens = tokens_in;
 
-	PARSEOUT("Parse begin");
+	PrettyPrint("Parse begin");
 
 	parse_function(&mother.functions);
 

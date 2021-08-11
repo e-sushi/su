@@ -161,19 +161,19 @@
     <ClCompile Include="..\src\su-lexer.cpp" />
     <ClCompile Include="..\src\su-main.cpp" />
     <ClCompile Include="..\src\su-parser.cpp" />
-    <ClCompile Include="..\src\utils\array.cpp" />
-    <ClCompile Include="..\src\utils\string.cpp" />
-    <ClCompile Include="..\src\utils\utility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\su-assembler.h" />
     <ClInclude Include="..\src\su-lexer.h" />
     <ClInclude Include="..\src\su-parser.h" />
     <ClInclude Include="..\src\utils\array.h" />
-    <ClInclude Include="..\src\utils\misc.h" />
+    <ClInclude Include="..\src\utils\defines.h" />
+    <ClInclude Include="..\src\utils\hash.h" />
+    <ClInclude Include="..\src\utils\map.h" />
     <ClInclude Include="..\src\utils\string.h" />
     <ClInclude Include="..\src\utils\tuple.h" />
     <ClInclude Include="..\src\utils\utility.h" />
+    <ClInclude Include="..\src\utils\utils.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="customvis.natvis" />

@@ -6,36 +6,36 @@ bool print_as_we_go = 1;
 
 //this may not be necessary and could just be a state enum, there only ever seems to be one flag set for each layer
 struct Flags {
-	b32 add  = 0;
-	b32 sub  = 0;
-	b32 mult = 0;
-	b32 divi = 0;
+	bool add  = 0;
+	bool sub  = 0;
+	bool mult = 0;
+	bool divi = 0;
 
-	b32 AND            = 0;
-	b32 bitAND         = 0;
-	b32 OR             = 0;
-	b32 bitOR          = 0;
-	b32 less           = 0;
-	b32 greater        = 0;
-	b32 less_eq        = 0;
-	b32 greater_eq     = 0;
-	b32 equal          = 0;
-	b32 not_equal      = 0;
-	b32 modulo         = 0;
-	b32 bitXOR         = 0;
-	b32 bitshift_left  = 0;
-	b32 bitshift_right = 0;
+	bool AND            = 0;
+	bool bitAND         = 0;
+	bool OR             = 0;
+	bool bitOR          = 0;
+	bool less           = 0;
+	bool greater        = 0;
+	bool less_eq        = 0;
+	bool greater_eq     = 0;
+	bool equal          = 0;
+	bool not_equal      = 0;
+	bool modulo         = 0;
+	bool bitXOR         = 0;
+	bool bitshift_left  = 0;
+	bool bitshift_right = 0;
 
 
-	b32 logi_not = 0;
-	b32 bit_comp = 0;
-	b32 negate   = 0;
+	bool logi_not = 0;
+	bool bit_comp = 0;
+	bool negate   = 0;
 
-	b32 factor_eval = 0;
-	b32 term_eval   = 0;
+	bool factor_eval = 0;
+	bool term_eval   = 0;
 
 	string var_offset = "";
-	b32 var_assignment = 1;
+	bool var_assignment = 1;
 };
 
 //increment when a label is made so we can generate unique names
@@ -107,7 +107,7 @@ Statement* smt;
 //current declaration
 Declaration* decl;
 void assemble_expressions(array<Expression*>& expressions) {
-	assert(expressions.size() != 0); "assemble_expression was passed an empty array";
+	Assert(expressions.size() != 0, "assemble_expression was passed an empty array");
 	Flags flags;
 
 	//u32 label_num_on_enter = label_count;
@@ -532,12 +532,12 @@ void assemble_expressions(array<Expression*>& expressions) {
 
 //TODO clean up how if/else labels are kept track of here
 bool returned = false;
-b32 master_if = false; // this is really scuffed
+bool master_if = false; // this is really scuffed
 string if_end_label_num = "";
 void assemble_statement(Statement* statement) {
 	smt = statement;
 
-	b32 should_i_place_if_end_label = false;
+	bool should_i_place_if_end_label = false;
 
 	if (!master_if) {
 		should_i_place_if_end_label = true;

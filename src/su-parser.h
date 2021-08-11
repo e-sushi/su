@@ -2,7 +2,6 @@
 #ifndef SU_PARSER_H
 #define SU_PARSER_H
 
-#include "utils/utility.h"
 #include "su-lexer.h"
 
 
@@ -109,7 +108,7 @@ struct Expression {
 	string expstr;
 	ExpressionType type;
 
-	array<Expression*> expressions;
+	array<Expression> expressions;
 
 	Expression(string expstr, ExpressionType type) {
 		this->type = type;
@@ -132,8 +131,8 @@ struct Statement {
 	StatementType type = Statement_Unknown;
 
 
-	array<Expression*> expressions;
-	array<Statement*> statements;
+	array<Expression> expressions;
+	array<Statement> statements;
 
 	Statement() {};
 
@@ -158,12 +157,12 @@ enum DeclType : u32 {
 struct Declaration {
 	DeclType type;
 	string identifier = "";
-	b32 initialized = false;
-	array<Expression*> expressions;
+	bool initialized = false;
+	array<Expression> expressions;
 };
 
 struct BlockItem {
-	b32 is_declaration = 0;
+	bool is_declaration = 0;
 
 	Declaration* declaration;
 	Statement* statement;
@@ -179,7 +178,7 @@ struct Function {
 	FuncType type;
 	string identifier = "";
 
-	array<BlockItem*> blockitems;
+	array<BlockItem> blockitems;
 
 	Function() {}
 
@@ -189,14 +188,9 @@ struct Function {
 
 };
 
-//abstract syntax tree
-//this could probably just be Program and hold a vector of functions that holds a vector of statement, etc.
 struct Program {
-
-	array<Function*> functions;
+	array<Function> functions;
 };
-
-
 
 
 namespace suParser {

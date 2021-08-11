@@ -1,8 +1,8 @@
 ﻿#include <iostream>
 
-#include "su-lexer.h"
-#include "su-parser.h"
 #include "su-assembler.h"
+#include "su-parser.h"
+#include "su-lexer.h"
 
 
 /*

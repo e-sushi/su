@@ -2,10 +2,9 @@
 #ifndef SU_LEXER_H
 #define SU_LEXER_H
 
-//#include "utils/string.h"
-//#include "utils/array.h"
+#include "utils/string.h"
+#include "utils/array.h"
 
-#include "utils/utility.h"
 
 
 enum token_type {
@@ -60,11 +59,9 @@ static const char* tokenStrings[] = {
 };
 
 struct token {
-	char head[4] = { 'H', 'e', 'a', 'd' };
 	string str;
 	token_type type;
 	u32 line = 0;
-	char tail[4] = { 'T', 'a', 'i', 'l' };
 	//string filename = "";
 };
 

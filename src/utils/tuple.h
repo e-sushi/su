@@ -1,9 +1,9 @@
-//lifted from deshi
-
-
 #pragma once
-#ifndef SU_TUPLE_H
-#define SU_TUPLE_H
+#ifndef DESHI_TUPLE_H
+#define DESHI_TUPLE_H
+
+#include "defines.h"
+#include <stdlib.h>
 
 template<class... T>
 struct tuple {
@@ -43,8 +43,6 @@ struct tuple {
 	
 };
 
-//TODO(delle) make_pair function that doesnt require specifying the template
-
 //base case, never instantiated
 template<typename... Dummy> struct pair;
 
@@ -53,10 +51,15 @@ struct pair<T,U> {
 	T first;
 	U second;
 	
+	pair(){ first={}; second={}; }
 	pair(T first, U second) {
 		this->first = first;
 		this->second = second;
 	}
+
+	//pair(const pair<T, U>& p) { this->first = p.first; this->second = p.second; }
+	//pair<T, U>& operator=(const pair<T, U>& p) { this->first = p.first; this->second = p.second; return *this; }
+
 };
 
 template<typename T, typename U, typename V>
@@ -65,6 +68,7 @@ struct pair<T,U,V> {
 	U second;
 	V third;
 	
+	pair(){ first={}; second={}; third={}; }
 	pair(T first, U second, V third) {
 		this->first = first;
 		this->second = second;
@@ -79,6 +83,7 @@ struct pair<T,U,V,W> {
 	V third;
 	W fourth;
 	
+	pair(){ first={}; second={}; third={}; fourth={}; }
 	pair(T first, U second, V third, W fourth) {
 		this->first = first;
 		this->second = second;
@@ -95,6 +100,7 @@ struct pair<T,U,V,W,X> {
 	W fourth;
 	X fifth;
 	
+	pair(){ first={}; second={}; third={}; fourth={}; fifth={}; }
 	pair(T first, U second, V third, W fourth, X fifth) {
 		this->first = first;
 		this->second = second;
@@ -103,5 +109,11 @@ struct pair<T,U,V,W,X> {
 		this->fifth = fifth;
 	}
 };
+
+template<typename T, typename U>
+static pair<T, U> make_pair(const T& first, const U& second) {
+	return pair<T, U>(first, second);
+}
+
 
 #endif //DESHI_TUPLE_H
