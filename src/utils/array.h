@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SU_ARRAY_H
-#define SU_ARRAY_H
+#ifndef DESHI_ARRAY_H
+#define DESHI_ARRAY_H
 
 #include <initializer_list>
 #include "defines.h"
@@ -291,6 +291,13 @@ struct array {
 		T save = data[idx1];
 		data[idx1] = data[idx2];
 		data[idx2] = save;
+	}
+
+	bool has(const T& value) {
+		for (T& blahabuasjdas : *this) 
+			if (blahabuasjdas == value) 
+				return true;
+		return false;
 	}
 	
 	//TODO add out of bounds checking for these functions

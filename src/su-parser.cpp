@@ -47,7 +47,6 @@ std::cout << "~" << message << "~" << std::endl;}
 u32 layer = 0; //inc when we go into anything, dec when we come out
 
 //master token
-//should probably redo this at some point I think, but i want to try doing it this way to see how it works
 token curt;
 array<token> tokens;
 
@@ -375,8 +374,8 @@ void parse_bitwise_or(array<Expression>* expressions) {
 	PrettyPrint(name);
 
 	//decend down expression guards
-	parse_bitwise_xor(&expressions->last->expressions);
 	expressions->add(Expression(curt.str, ExpressionGuard_BitXOR));
+	parse_bitwise_xor(&expressions->last->expressions);
 
 	while (token_peek.type == tok_BitOR) {
 		token_next;
@@ -515,18 +514,17 @@ void parse_expressions(array<Expression>* expressions) {
 void parse_declaration(Declaration* declaration, BlockItem* bi = nullptr) {
 	layer++;
 
-	Expect(tok_Identifier)
-
+	Expect(tok_Identifier) {
 		//Declaration* decl = new Declaration();
 		declaration->identifier = curt.str;
 		declaration->type = Decl_Int;
-		PrettyPrint("declaration of var '" << declaration->identifier << "' of type int:");
+		PrettyPrint("declaration of var '" << declaration->identifier << "' of type int");
 
 		token_next;
 
-		Expect(tok_Assignment);
+		Expect(tok_Assignment) {
 			layer++;
-			PrettyPrint("~variable assignment:");
+			PrettyPrint("variable assignment");
 			token_next;
 			declaration->expressions.add(Expression(curt.str, ExpressionGuard_Assignment));
 			parse_expressions(&declaration->expressions.last->expressions);
@@ -535,18 +533,19 @@ void parse_declaration(Declaration* declaration, BlockItem* bi = nullptr) {
 			token_next;
 
 			Expect(tok_Semicolon);
-				//if (bi) bi.declaration = decl;
+			//if (bi) bi.declaration = decl;
 			ExpectFail("expected a ;");
-
-		ElseExpect(tok_Semicolon)
+		}
+		ElseExpect(tok_Semicolon) {
 			layer++;
-			PrettyPrint("~no assignment");
+			PrettyPrint("no assignment");
 			layer--;
 			//add expression guard for assignment regardless of if there is one so we can default to 0 in assembly 
 			declaration->expressions.add(Expression(curt.str, ExpressionGuard_Assignment));
 			//if (bi) bi.declaration = decl;
+		}
 		ExpectFail("expected a ;")
-
+	}
 	ExpectFail("expected an identifier after type keyword");
 
 
@@ -562,7 +561,7 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 	switch (curt.type) {
 
 		case tok_If: {
-			PrettyPrint("~if statement:");
+			PrettyPrint("if statement");
 			//Statement* smt = new Statement(Statement_Conditional);
 			if(statement->type == Statement_Unknown)
 				statement->type = Statement_IfConditional;
@@ -582,11 +581,11 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 							//if (bi) bi.statement = smt;
 							//check for optional else
 							if(token_peek.type == tok_Else) {
-								token_next; 
-								PrettyPrint("~else statement");
+								token_next;
+								PrettyPrint("else statement");
 								statement->statements.add(Statement(Statement_ElseConditional));
 								token_next;
-								parse_statement(elsmt);
+								parse_statement(statement->statements.last);
 							}
 						} ExpectFail("expected a ;");
 					}
@@ -653,12 +652,12 @@ void parse_function(array<Function>* functions) {
 								// if we find a keyword then we are declaring a variable
 								token_next; token_next;
 								bi.is_declaration = 1;
-								parse_declaration(bi.declaration, *bi);
+								parse_declaration(&bi.declaration, &bi);
 							}
 							else{
 								//else we must be doing some kind of statement 
 								token_next;
-								parse_statement(bi.statement, &bi);
+								parse_statement(&bi.statement, &bi);
 							}
 							function.blockitems.add(bi);
 							if (token_peek.type == tok_EOF) {

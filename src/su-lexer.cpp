@@ -1,5 +1,5 @@
 #include "su-lexer.h"
-#include "utils/misc.h"
+#include "utils/defines.h"
 
 #define MAXBUFF 255
 
@@ -24,7 +24,7 @@ array<token> suLexer::lex(FILE* file) {
 	while (buff.size + 1 < MAXBUFF) {
 		currChar = fgetc(file);
 		//check that our current character isn't any 'stopping' characters
-		if (is_in(currChar, stopping_chars)) {
+		if (stopping_chars.has(currChar)) {
 
 			//store both the stopping character and previous buffer as tokens
 			//also decide what type of token it is
@@ -32,7 +32,7 @@ array<token> suLexer::lex(FILE* file) {
 				token t;
 				t.str = buff;
 				//check if token is a keyword
-				if (is_in(buff, keywords)) {
+				if (keywords.has(buff)) {
 					if      (buff == "return") t.type = tok_Return;
 					else if (buff == "int")    t.type = tok_Keyword;
 					else if (buff == "if")     t.type = tok_If;

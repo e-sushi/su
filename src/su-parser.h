@@ -164,8 +164,8 @@ struct Declaration {
 struct BlockItem {
 	bool is_declaration = 0;
 
-	Declaration* declaration;
-	Statement* statement;
+	Declaration declaration;
+	Statement statement;
 };
 
 enum FuncType : u32 {

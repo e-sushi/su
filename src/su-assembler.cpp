@@ -1,4 +1,5 @@
 ﻿#include "su-assembler.h"
+#include "utils/map.h"
 
 string ASMBuff = "";
 bool allow_comments = 1;
@@ -53,11 +54,10 @@ struct {
 
 
 //variable map for keeping track of variable names and their position on the stack
-#define PairStrU32 pair<string, u32>
-array<pair<string, u32>> var_map;
+map<string, u32> var_map;
 
 #define EXPFAIL(error)\
-std::cout << "\n\nError: " << error << "\n caused by expression '" << exp->expstr << "'" << std::endl;
+std::cout << "\n\nError: " << error << "\n caused by expression '" << exp.expstr << "'" << std::endl;
 
 inline void addASMLine(string asmLine, string comment = "") {
 	
@@ -106,15 +106,15 @@ inline void addASMLine(string asmLine, string comment = "") {
 Statement* smt;
 //current declaration
 Declaration* decl;
-void assemble_expressions(array<Expression*>& expressions) {
+void assemble_expressions(array<Expression>& expressions) {
 	Assert(expressions.size() != 0, "assemble_expression was passed an empty array");
 	Flags flags;
 
 	//u32 label_num_on_enter = label_count;
 
 	for (int i = 0; i < expressions.size(); i++) {
-		Expression* exp = expressions[i];
-		switch (exp->type) {
+		Expression exp = expressions[i];
+		switch (exp.type) {
 
 
 	
@@ -129,34 +129,34 @@ void assemble_expressions(array<Expression*>& expressions) {
 			case ExpressionGuard_Assignment: {
 				//TODO this needs to look prettier later
 				if (decl) {
-					try { vfk(decl->identifier, var_map);  EXPFAIL("attempt to redeclare a variable"); }
-					catch(...){
-						if (exp->expressions.size() != 0) {
-							assemble_expressions(exp->expressions);
-							var_map.add(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
+					if (var_map.at(decl->identifier)) { EXPFAIL("attempt to redeclare a variable"); }
+					else {
+						if (exp.expressions.size() != 0) {
+							assemble_expressions(exp.expressions);
+							var_map.add(decl->identifier);
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
 						else {
 							//case where we declare a variable but dont assign an expression to it
 							//default to 0
-							var_map.add(PairStrU32(decl->identifier, (var_map.size() + 1) * 8));
+							var_map.add(decl->identifier);
 							addASMLine("mov   $0,  %rax", "default var value to 0");
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
 					}
 				}
 				else{
-					assemble_expressions(exp->expressions);
+					assemble_expressions(exp.expressions);
 					addASMLine("mov   %rax, -" + flags.var_offset + "(%rbp)", "store result into specified variable");
 				}
 				
 			}break;
 
 			case ExpressionGuard_Conditional: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				//if (smt && smt->type == Statement_Conditional) {
-				//	string label_num = itos(label_count);
-				//	string end_label_num = itos(label_num_on_enter);
+				//	string label_num = string::toStr(label_count);
+				//	string end_label_num = string::toStr(label_num_on_enter);
 				//	
 				//	
 				//}
@@ -164,42 +164,42 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_LogicalOR: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 			}break;
 	
 			case ExpressionGuard_LogicalAND: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				//string end_label_num = 
 				//peek to see if there's an OR ahead
-				if (i < expressions.size() - 1 && expressions[i + 1]->type == Expression_BinaryOpOR) {
+				if (i < expressions.size() - 1 && expressions[i + 1].type == Expression_BinaryOpOR) {
 					//if there is we must check if the last result was true
-					string label_num = itos(labels.OR_labels);
+					string label_num = string::toStr(labels.OR_labels);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
 					addASMLine("je    _ORLabel" + label_num);
 					addASMLine("mov   $1,   %rax", "we didn't jump so last result was true");
-					addASMLine("jmp   _ORend" + itos(labels.OR_end_labels));
+					addASMLine("jmp   _ORend" + string::toStr(labels.OR_end_labels));
 					addASMLine("_ORLabel" + label_num + ":");
 					labels.OR_labels++;
 				}
-				else if(i > expressions.size() + 1 && expressions[i - 1]->type == Expression_BinaryOpOR) {
+				else if(i > expressions.size() + 1 && expressions[i - 1].type == Expression_BinaryOpOR) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
 					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was true");
 					addASMLine("setne %al");
-					addASMLine("_ORend" + itos(labels.OR_end_labels) + ":");
+					addASMLine("_ORend" + string::toStr(labels.OR_end_labels) + ":");
 					labels.OR_end_labels++;
 				}
 			}break;
 	
 			case ExpressionGuard_BitOR: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				//peek to see if there's an AND ahead
-				if (i < expressions.size() - 1 && expressions[i + 1]->type == Expression_BinaryOpAND) {
+				if (i < expressions.size() - 1 && expressions[i + 1].type == Expression_BinaryOpAND) {
 					//if there is we must check if the last result was true
-					string label_num = itos(labels.AND_labels);
+					string label_num = string::toStr(labels.AND_labels);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
 					addASMLine("jne   _ANDLabel" + label_num);
-					addASMLine("jmp   _ANDend" + itos(labels.AND_end_labels));
+					addASMLine("jmp   _ANDend" + string::toStr(labels.AND_end_labels));
 					addASMLine("_ANDLabel" + label_num + ":");
 					flags.AND = true;
 					labels.AND_labels++;
@@ -209,13 +209,13 @@ void assemble_expressions(array<Expression*>& expressions) {
 					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
 					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was false");
 					addASMLine("setne %al");
-					addASMLine("_ANDend" + itos(labels.AND_end_labels) + ":");
+					addASMLine("_ANDend" + string::toStr(labels.AND_end_labels) + ":");
 					labels.AND_end_labels++;
 				}
 			}break;
 	
 			case ExpressionGuard_BitXOR: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.bitOR) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise OR");
 					addASMLine("pop   %rax", "retrieve stored from stack");
@@ -226,7 +226,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_BitAND: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.bitXOR) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise XOR");
 					addASMLine("pop   %rax", "retrieve stored from stack");
@@ -236,7 +236,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_Equality: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.bitAND) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise and");
 					addASMLine("pop   %rax", "retrieve stored from stack");
@@ -246,7 +246,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_Relational: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.equal) {
 					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform equality check");
@@ -264,7 +264,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_BitShift: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.less) {
 					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform less than check");
@@ -296,7 +296,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_Additive: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.bitshift_left) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for left bitshift");
 					addASMLine("pop   %rax",       "retrieve stored from stack");
@@ -313,7 +313,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_Term: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.add) {
 					addASMLine("pop   %rcx", "retrieve stored from stack");
 					addASMLine("add   %rcx, %rax", "add, store result in %rax");
@@ -328,7 +328,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 			}break;
 	
 			case ExpressionGuard_Factor: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				if (flags.mult) {
 					addASMLine("pop   %rcx", "retrieve stored from stack");
 					addASMLine("imul  %rcx, %rax", "signed multiply, store result in %rax");
@@ -467,19 +467,19 @@ void assemble_expressions(array<Expression*>& expressions) {
 	
 	
 			case Expression_UnaryOpBitComp: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				addASMLine("not  %rax", "perform bitwise complement");
 			}break;
 	
 			case Expression_UnaryOpLogiNOT: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				addASMLine("cmp   $0,   %rax", "perform logical not");
 				addASMLine("mov   $0,   %rax");
 				addASMLine("sete  %al");
 			}break;
 	
 			case Expression_UnaryOpNegate: {
-				assemble_expressions(exp->expressions);
+				assemble_expressions(exp.expressions);
 				addASMLine("neg   %rax", "perform negation");
 			}break;
 	
@@ -494,7 +494,7 @@ void assemble_expressions(array<Expression*>& expressions) {
 	
 	
 			case Expression_IntegerLiteral: {
-				addASMLine("mov   $" + exp->expstr + ",%rax", "move integer literal into %rax");
+				addASMLine("mov   $" + exp.expstr + ",%rax", "move integer literal into %rax");
 			}break;
 	
 	
@@ -509,15 +509,15 @@ void assemble_expressions(array<Expression*>& expressions) {
 	
 			case Expression_IdentifierRHS: {
 				try {
-					flags.var_offset = itos(vfk(exp->expstr, var_map));
-					addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable '" + exp->expstr + "' value into %rax for use in an expression");
+					flags.var_offset = string::toStr(*var_map.at(exp.expstr));
+					addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable '" + exp.expstr + "' value into %rax for use in an expression");
 				}
 				catch (...) { EXPFAIL("attempt to reference an undeclared variable"); }
 			}break;
 	
 			case Expression_IdentifierLHS: {
 				try {
-					flags.var_offset = itos(vfk(exp->expstr, var_map));
+					flags.var_offset = string::toStr(*var_map.at(exp.expstr));
 					if (smt->type == Statement_Return) {
 					   // addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable's value into %rax for use in an expression");
 					}
@@ -541,7 +541,7 @@ void assemble_statement(Statement* statement) {
 
 	if (!master_if) {
 		should_i_place_if_end_label = true;
-		if_end_label_num = itos(labels.if_end_labels);
+		if_end_label_num = string::toStr(labels.if_end_labels);
 		master_if = true;
 	}
 
@@ -554,22 +554,22 @@ void assemble_statement(Statement* statement) {
 
 
 			//check if there are no else statements and if the inner statement is not another if statement
-			if (statement->statements.size() == 1 && statement->statements[0]->type != Statement_IfConditional) {
+			if (statement->statements.size() == 1 && statement->statements[0].type != Statement_IfConditional) {
 				//if we're here then we can evaluate the expression and the inner statement which should only be an expression
 				assemble_expressions(statement->expressions);
 				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-				addASMLine("je    _IfEndLabel" + itos(labels.if_end_labels));
-				assemble_statement(statement->statements[0]);
-				addASMLine("_IfEndLabel" + itos(labels.if_end_labels) + ":");
+				addASMLine("je    _IfEndLabel" + string::toStr(labels.if_end_labels));
+				assemble_statement(&statement->statements[0]);
+				addASMLine("_IfEndLabel" + string::toStr(labels.if_end_labels) + ":");
 				labels.if_end_labels++;
 			}
 			else {
 				//if we are here then evaluate the expression and 
 				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-				addASMLine("je    _ElseLabel" + itos(labels.else_labels));
+				addASMLine("je    _ElseLabel" + string::toStr(labels.else_labels));
 				for (int i = 0; i < statement->statements.size(); i++) {
-					string label_num = itos(labels.else_labels);
-					assemble_statement(statement->statements[i]);
+					string label_num = string::toStr(labels.else_labels);
+					assemble_statement(&statement->statements[i]);
 					if (i != statement->statements.size() - 1) {
 						addASMLine("jmp   _IfEndLabel" + if_end_label_num);
 						addASMLine("_ElseLabel" + label_num + ":");
@@ -591,16 +591,16 @@ void assemble_statement(Statement* statement) {
 			if (statement->statements.size() == 0) {
 				//this must be an else statement with no if statement following it
 				assemble_expressions(statement->expressions);
-				addASMLine("_IfEndLabel" + itos(labels.if_end_labels));
+				addASMLine("_IfEndLabel" + string::toStr(labels.if_end_labels));
 				labels.if_end_labels++;
 			}
 			else {
 				addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-				addASMLine("je    _ElseLabel" + itos(labels.else_labels));
-				assemble_statement(statement->statements[0]); //an else statement should only ever have an if statement in it's array... right?
+				addASMLine("je    _ElseLabel" + string::toStr(labels.else_labels));
+				assemble_statement(&statement->statements[0]); //an else statement should only ever have an if statement in it's array... right?
 				addASMLine("jmp   _IfEndLabel" + if_end_label_num);
-				addASMLine("_ElseLabel" + itos(labels.else_labels) + ":");
-															  //assemble_expressions(statement->expressions);
+				addASMLine("_ElseLabel" + string::toStr(labels.else_labels) + ":");
+				//assemble_expressions(statement->expressions);
 			}
 		}break;
 
@@ -642,12 +642,12 @@ void assemble_function(Function* func) {
 	//construct function body
 	addASMLine("push  %rbp",       "save old stack frame base");
 	addASMLine("mov   %rsp, %rbp", "current top of stack is now bottom of new stack frame");
-	for (BlockItem* block_item : func->blockitems) {
-		if (block_item->is_declaration) {
-			assemble_declaration(block_item->declaration);
+	for (BlockItem block_item : func->blockitems) {
+		if (block_item.is_declaration) {
+			assemble_declaration(&block_item.declaration);
 		}
 		else {
-			assemble_statement(block_item->statement);
+			assemble_statement(&block_item.statement);
 		}
 	}
 	if (!returned) {
@@ -661,8 +661,8 @@ void assemble_function(Function* func) {
 }
 
 string suAssembler::assemble(Program& program) {
-	for (Function* func : program.functions) {
-		assemble_function(func);
+	for (Function func : program.functions) {
+		assemble_function(&func);
 	}
 
 	return ASMBuff;

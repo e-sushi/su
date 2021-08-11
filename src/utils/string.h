@@ -106,6 +106,7 @@ struct string {
 			free(str);
 			str = (char*)malloc(size + 1);
 			memcpy(str, s.str, s.size+1);
+			memset(str + size, '\0', 1);
 			ADDRUPDATE(str, size, 1);
 		}
 		else {
@@ -163,7 +164,7 @@ struct string {
 		ADDRUPDATE(str, size, 1);
 	}
 	
-	bool operator == (string s) {
+	bool operator == (const string& s) {
 		return !strcmp(str, s.str);
 	}
 	
@@ -460,5 +461,8 @@ inline string operator + (const char* c, string s) {
 	string st(c);
 	return st + s;
 }
+
+
+
 
 
