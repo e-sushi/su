@@ -3,21 +3,20 @@
   
   <Type Name="array&lt;*&gt;">
     <Intrinsic Name="size"
-           Expression="(last == 0) ? 0 :(last - first) + 1" />
+           Expression="count" />
     <DisplayString Condition="last == 0">{{ empty }}</DisplayString>
     <DisplayString>{{ size={size()} }}</DisplayString>
     <Expand>
       <Synthetic Name="info">
-        <DisplayString>space = { space }, itemsize = {itemsize}</DisplayString>
+        <DisplayString>space = { space }</DisplayString>
         <Expand>
-          <Item Name="itemsize" ExcludeView="simple">itemsize</Item>
           <Item Name="space" ExcludeView="simple">space</Item>
         </Expand>
       </Synthetic>
       <Synthetic Name="ptrs">
         <DisplayString>first, last, max, and iteration pointers</DisplayString>
         <Expand>
-          <Item Name="items" ExcludeView="simple">items</Item>
+          <Item Name="data" ExcludeView="simple">data</Item>
           <Item Name="first" ExcludeView="simple">first</Item>
           <Item Name="last" ExcludeView="simple">last</Item>
           <Item Name="max" ExcludeView="simple">max</Item>

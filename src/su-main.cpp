@@ -11,9 +11,15 @@ General TODOs
 convert the assembler to take in instruction and register enums and then decide what instruction to put
 based on what architecture we're compiling for
 
-
 add the bonus operators in https://norasandler.com/2018/01/08/Write-a-Compiler-5.html
 
+detect if we're checking a variable against a value when doing equal/not-equal checks, you can 
+just compare the location on the stack with the value directly instead of still having
+to store its value first like you would if comparing 2 numbers
+
+reduce the size of ASTs by not placing nodes unless you have to eg. a number literal
+by itself doesnt need to go through all the expression nodes for us to know its 
+a number literal
 
 */
 

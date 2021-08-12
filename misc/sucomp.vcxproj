@@ -176,7 +176,7 @@
     <ClInclude Include="..\src\utils\utils.h" />
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="customvis.natvis" />
+    <Natvis Include="debugvis.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

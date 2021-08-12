@@ -3,20 +3,35 @@
 main:
     push  %rbp               # save old stack frame base
     mov   %rsp, %rbp         # current top of stack is now bottom of new stack frame
-    mov   $1,%rax            # move integer literal into %rax
-    push  %rax               # store %rax for subtraction
-    mov   $2,%rax            # move integer literal into %rax
-    push  %rax               # store %rax for multiplication
-    mov   $3,%rax            # move integer literal into %rax
+    mov   $0,%rax            # move integer literal into %rax
+    push  %rax               # save value of variable 'a' on the stack
+    mov   $0,%rax            # move integer literal into %rax
+    push  %rax               # save value of variable 'b' on the stack
+    mov   -0(%rbp), %rax     # store variable 'b' value into %rax for use in an expression
+    push  %rax               # store %rax for equal check
+    mov   $0,%rax            # move integer literal into %rax
     pop   %rcx               # retrieve stored from stack
-    imul  %rcx, %rax         # signed multiply, store result in %rax
-    mov   %rax, %rcx         # mov %rax into %rcx for subtraction
-    pop   %rax               # retrieve stored from stack
-    sub   %rcx, %rax         # sub, store result in %rax
-    push  %rax               # store %rax for addition
-    mov   $4,%rax            # move integer literal into %rax
+    cmp   %rax, %rcx         # perform equality check
+    mov   $0,   %rax
+    sete  %al
+    cmp   $0,   %rax         # check if result was false for if statement
+    je    _IfEndLabel0
+    mov   -0(%rbp), %rax     # store variable 'a' value into %rax for use in an expression
+    push  %rax               # store %rax for equal check
+    mov   $0,%rax            # move integer literal into %rax
     pop   %rcx               # retrieve stored from stack
-    add   %rcx, %rax         # add, store result in %rax
+    cmp   %rax, %rcx         # perform equality check
+    mov   $0,   %rax
+    sete  %al
+    cmp   $0,   %rax         # check if result was false for if statement
+    je    _IfEndLabel0
+    mov   $0,%rax            # move integer literal into %rax
+    mov   %rax, -0(%rbp)     # store result into specified variable
+    jmp   _IfEndLabel0
+_IfEndLabel0:
+    jmp   _IfEndLabel0
+_IfEndLabel1:
+    mov   -0(%rbp), %rax     # store variable 'a' value into %rax for use in an expression
     mov   %rbp, %rsp         # restore %rsp of caller
     pop   %rbp               # retore old %rbp
     ret

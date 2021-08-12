@@ -71,7 +71,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="customvis.natvis">
+    <Natvis Include="debugvis.natvis">
       <Filter>misc</Filter>
     </Natvis>
   </ItemGroup>

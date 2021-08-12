@@ -164,15 +164,15 @@ struct string {
 		ADDRUPDATE(str, size, 1);
 	}
 	
-	bool operator == (const string& s) {
+	bool operator == (const string& s) const {
 		return !strcmp(str, s.str);
 	}
 	
-	bool operator == (const char* s) {
+	bool operator == (const char* s) const {
 		return !strcmp(str, s);
 	}
 	
-	bool operator == (char c) {
+	bool operator == (char c) const {
 		if(size == 1 && *str == c) return true;
 		return false;
 	}

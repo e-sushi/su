@@ -46,6 +46,7 @@ enum ExpressionType : u32 {
 
 	//Expression Guards
 	ExpressionGuard_Assignment,
+	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations
 	ExpressionGuard_Conditional,
 	ExpressionGuard_LogicalOR,
 	ExpressionGuard_LogicalAND,
@@ -121,10 +122,9 @@ enum StatementType : u32 {
 	Statement_Return,
 	Statement_Expression,
 	Statement_Declaration,
-	Statement_IfConditional,
-	Statement_ElseConditional,
-	Statement_ConditionalStatement,
-
+	Statement_Conditional,
+	Statement_If,
+	Statement_Else,
 };
 
 struct Statement {
