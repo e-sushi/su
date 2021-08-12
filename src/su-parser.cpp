@@ -585,8 +585,8 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 						//parse for if statement's statements
 						is.statements.add(Statement(Statement_Conditional));
 						token_next;
-						parse_statement(is.statements.last);
 						statement->statements.add(is);
+						parse_statement(statement->statements.last);
 						Expect(tok_Semicolon) {
 							//check for optional else
 							if (token_peek.type == tok_Else) {
@@ -598,19 +598,19 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 								Expect(tok_OpenBrace) { // else {
 									es.statements.add(Statement(Statement_Conditional));
 									token_next;
-									parse_statement(es.statements.last);
 									statement->statements.add(es);
+									parse_statement(statement->statements.last);
 								}
 								ElseExpect(tok_If) { // else if
 									es.statements.add(Statement(Statement_If));
-									parse_statement(es.statements.last);
 									statement->statements.add(es);
+									parse_statement(statement->statements.last);
 								}
 								}else{ //temporary
 									es.statements.add(Statement(Statement_Conditional));
 									//token_next;
-									parse_statement(es.statements.last);
 									statement->statements.add(es);
+									parse_statement(statement->statements.last);
 								}
 							
 								//ExpectFail("expected an if statement or { after else");
@@ -657,15 +657,15 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 // <function> :: = "int" <id> "(" ")" "{" { <block item> } "}"
 void parse_function(array<Function>* functions) {
 	layer++;
-	Function function = Function();
 
 	//Expect asks if the next tokens type matches a certain criteria and if it doesnt
 	//we throw a parse fail
 	token_next;                                      //expect keyword                                 
 	Expect(tok_Keyword) { token_next;                //expect function identifier
 		Expect(tok_Identifier) {        
-			function.identifier = curt.str;
 			PrettyPrint("Parse begin on function " << curt.str);
+			functions->add(Function(curt.str));
+			Function* function = functions->last;
 			token_next;                              // expect (
 			Expect(tok_OpenParen) { token_next;      // expect )
 				Expect(tok_CloseParen) { token_next; // expect {
@@ -676,14 +676,15 @@ void parse_function(array<Function>* functions) {
 								// if we find a keyword then we are declaring a variable
 								token_next; token_next;
 								bi.is_declaration = 1;
-								parse_declaration(&bi.declaration, &bi);
+								functions->last->blockitems.add(bi);
+								parse_declaration(&function->blockitems.last->declaration, function->blockitems.last);
 							}
 							else{
 								//else we must be doing some kind of statement 
 								token_next;
-								parse_statement(&bi.statement, &bi);
+								functions->last->blockitems.add(bi);
+								parse_statement(&function->blockitems.last->statement, function->blockitems.last);
 							}
-							function.blockitems.add(bi);
 							if (token_peek.type == tok_EOF) {
 								ParseFail("EOF reached before closing function");
 								goto function_fail;
@@ -691,7 +692,6 @@ void parse_function(array<Function>* functions) {
 						}
 						token_next;
 						Expect(tok_CloseBrace) {
-							functions->add(function);
 						} ExpectFail("expected }");
 					} ExpectFail("expected {");
 				} ExpectFail("expected )");

@@ -5,6 +5,10 @@
 #include "su-lexer.h"
 
 
+//NOTE when doing stuff with trees add the node FIRST and reference it inside of it's array
+//	   this way you don't have a node with 20 million children being added to a single node
+//     and having to copy all of it 
+
 /*
 General TODOs
 
@@ -58,8 +62,4 @@ int main() {
 	fputs(assembly.str, out);
 	fclose(in);
 	fclose(out);
-
-
-
-
 }

@@ -539,8 +539,8 @@ void assemble_expressions(array<Expression>& expressions) {
 
 struct {
 	bool if_started = 0;
-	string if_end_label_num = "";
-	array<u32> if_label_stack;
+	string if_end_label_num = ""; //the label a chain of if statements jump to if one of their expressions is true
+	array<u32> if_label_stack; //the labels an if statement jumps to if its exp is false
 } statement_state;
 
 //TODO clean up how if/else labels are kept track of here
@@ -556,13 +556,14 @@ void assemble_statement(Statement* statement) {
 			//assemble if statement's expression
 			assemble_expressions(statement->expressions);
 			addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-			addASMLine("je    _IfEndLabel" + string::toStr(labels.if_end_labels));
+			addASMLine("je    _IfEndLabel" + string::toStr(*statement_state.if_label_stack.last));
 
 			//an if statement should only have one statement to assemble
 			assemble_statement(&statement->statements[0]);
 			
-			//jump to final if statement if expression was true
-			addASMLine("jmp   _IfEndLabel" + statement_state.if_end_label_num);
+			//jump to final if statement if expression was true and we are in a chain of if elses
+			if(statement_state.if_started)
+				addASMLine("jmp   _IfEndLabel" + statement_state.if_end_label_num);
 		}break;
 
 		case Statement_Else: {
@@ -577,11 +578,16 @@ void assemble_statement(Statement* statement) {
 			}
 			//if we have only one statement, it must be an if
 			else if(statement->statements.count == 1) {
-				statement_state.if_end_label_num = string::toStr(labels.if_end_labels);
+				//push if's end label num to the stack
+				statement_state.if_label_stack.add(labels.if_end_labels++);
+
+				//statement_state.if_end_label_num = string::toStr(labels.if_end_labels);
 				assemble_statement(&statement->statements[0]);
 
 				//add if end label for assembled if
-				addASMLine("_IfEndLabel" + string::toStr(labels.if_end_labels++) + ":");
+				addASMLine("_IfEndLabel" + string::toStr(*statement_state.if_label_stack.last) + ":");
+
+				statement_state.if_label_stack.pop();
 			}
 			//if we have 2 statements we must have an if and an else
 			else if (statement->statements.count == 2) {
@@ -592,11 +598,16 @@ void assemble_statement(Statement* statement) {
 					master_if = 1;
 				}
 
+				//push if's end label num to the stack
+				statement_state.if_label_stack.add(labels.if_end_labels++);
+
 				//assmeble if statement
 				assemble_statement(&statement->statements[0]);
 
 				//add if end label for assembled if
 				addASMLine("_IfEndLabel" + string::toStr(labels.if_end_labels++) + ":");
+
+				statement_state.if_label_stack.pop();
 
 				//assemble else statement
 				assemble_statement(&statement->statements[1]);
@@ -607,7 +618,6 @@ void assemble_statement(Statement* statement) {
 					master_if = 0;
 					statement_state.if_started = 0;
 				}
-
 			}
 			else {
 				//ExprFail("A conditional statement found more than 2 statements attched to it!")
