@@ -571,49 +571,35 @@ void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
 			PrettyPrint("if statement");
 			if(statement->type != Statement_Conditional)
 				statement->type = Statement_Conditional;
-			token_next;
+		
+			token_next; // if -> (
 			Expect(tok_OpenParen) {
-				token_next;
+				token_next; //( -> exp
 				//create actual if statement and parse it's expressions
-				Statement is(Statement_If);
-				parse_expressions(&is.expressions);
-				if (is.expressions.size() == 0) ParseFail("missing expression for if statement");
-				token_next;
+				statement->statements.add(Statement(Statement_If));
+				Statement* is = statement->statements.last;
+				parse_expressions(&is->expressions);
+				if (is->expressions.size() == 0) ParseFail("missing expression for if statement");
+				
+				token_next; // exp -> )
 				Expect(tok_CloseParen) {
 					if (token_peek.type == tok_Keyword) { ParseFail("invalid attempt to declare a variable in non-scoped if statement"); }
 					else {
+						token_next; // ) -> statement
+						
 						//parse for if statement's statements
-						is.statements.add(Statement(Statement_Conditional));
-						token_next;
-						statement->statements.add(is);
-						parse_statement(statement->statements.last);
+						is->statements.add(Statement(Statement_Conditional));
+						parse_statement(is->statements.last);
 						Expect(tok_Semicolon) {
 							//check for optional else
 							if (token_peek.type == tok_Else) {
-								token_next;
+								token_next; // ; -> else
 								PrettyPrint("else statement");
-								//create actual else statement and check if theres another if or just a statement
-								Statement es(Statement_Else);
-								token_next;
-								Expect(tok_OpenBrace) { // else {
-									es.statements.add(Statement(Statement_Conditional));
-									token_next;
-									statement->statements.add(es);
-									parse_statement(statement->statements.last);
-								}
-								ElseExpect(tok_If) { // else if
-									es.statements.add(Statement(Statement_If));
-									statement->statements.add(es);
-									parse_statement(statement->statements.last);
-								}
-								}else{ //temporary
-									es.statements.add(Statement(Statement_Conditional));
-									//token_next;
-									statement->statements.add(es);
-									parse_statement(statement->statements.last);
-								}
-							
-								//ExpectFail("expected an if statement or { after else");
+								statement->statements.add(Statement(Statement_Else));
+								Statement* es = statement->statements.last;
+								es->statements.add(Statement(Statement_Conditional));
+								token_next; // else -> whatever follows
+								parse_statement(es->statements.last);
 							}
 						} ExpectFail("expected a ;");
 					}

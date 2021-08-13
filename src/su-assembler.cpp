@@ -132,14 +132,14 @@ void assemble_expressions(array<Expression>& expressions) {
 					if (var_map.at(decl->identifier)) { ExprFail("attempt to redeclare a variable"); }
 					else {
 						if (exp.expressions.size() != 0) {
-							var_map.add(decl->identifier);
+							var_map.add(decl->identifier, (var_map.count + 1) * 8);
 							assemble_expressions(exp.expressions);
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
 						else {
 							//case where we declare a variable but dont assign an expression to it
 							//default to 0
-							var_map.add(decl->identifier);
+							var_map.add(decl->identifier, (var_map.count + 1) * 8);
 							addASMLine("mov   $0,  %rax", "default var value to 0");
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
 						}
@@ -561,9 +561,7 @@ void assemble_statement(Statement* statement) {
 			//an if statement should only have one statement to assemble
 			assemble_statement(&statement->statements[0]);
 			
-			//jump to final if statement if expression was true and we are in a chain of if elses
-			if(statement_state.if_started)
-				addASMLine("jmp   _IfEndLabel" + statement_state.if_end_label_num);
+			
 		}break;
 
 		case Statement_Else: {
@@ -595,17 +593,21 @@ void assemble_statement(Statement* statement) {
 					//set state to know that we have started an if statement and have a final end label
 					statement_state.if_started = 1;
 					statement_state.if_end_label_num = string::toStr(labels.if_end_labels++);
+					statement_state.if_label_stack.add(labels.if_end_labels++);
 					master_if = 1;
 				}
 
-				//push if's end label num to the stack
+
 				statement_state.if_label_stack.add(labels.if_end_labels++);
 
 				//assmeble if statement
 				assemble_statement(&statement->statements[0]);
 
+				//jump to final if statement if expression was true and we are in a chain of if elses
+				addASMLine("jmp   _IfEndLabel" + string::toStr(*statement_state.if_label_stack.first));
+
 				//add if end label for assembled if
-				addASMLine("_IfEndLabel" + string::toStr(labels.if_end_labels++) + ":");
+				addASMLine("_IfEndLabel" + string::toStr(*statement_state.if_label_stack.last) + ":");
 
 				statement_state.if_label_stack.pop();
 
@@ -614,7 +616,7 @@ void assemble_statement(Statement* statement) {
 
 				//add final if exit label if we started the if else chain
 				if (master_if) {
-					addASMLine("_IfEndLabel" + statement_state.if_end_label_num + ":");
+					addASMLine("_IfEndLabel" + string::toStr(*statement_state.if_label_stack.first) + ":");
 					master_if = 0;
 					statement_state.if_started = 0;
 				}
