@@ -25,12 +25,13 @@ reduce the size of ASTs by not placing nodes unless you have to eg. a number lit
 by itself doesnt need to go through all the expression nodes for us to know its 
 a number literal
 
+
+
 */
 
 
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
 int main() {
-
 	FILE* in = fopen("main.su", "r");
 	if (!in) {
 		std::cout << "ERROR: file not found." << std::endl;

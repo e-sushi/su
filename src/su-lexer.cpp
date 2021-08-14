@@ -33,10 +33,10 @@ array<token> suLexer::lex(FILE* file) {
 				t.str = buff;
 				//check if token is a keyword
 				if (keywords.has(buff)) {
-					if      (buff == "return") t.type = tok_Return;
-					else if (buff == "int")    t.type = tok_Keyword;
-					else if (buff == "if")     t.type = tok_If;
-					else if (buff == "else")   t.type = tok_Else;
+					if      (buff == "return") t.type = Token_Return;
+					else if (buff == "int")    t.type = Token_Keyword;
+					else if (buff == "if")     t.type = Token_If;
+					else if (buff == "else")   t.type = Token_Else;
 				}
 				//if its not then it could be a number of other things
 				else {
@@ -44,7 +44,7 @@ array<token> suLexer::lex(FILE* file) {
 					if (isalpha(buff[0])) {
 						//if it begins with a letter it must be an identifier
 						//for now
-						t.type = tok_Identifier;
+						t.type = Token_Identifier;
 					}
 					else if (isdigit(buff[0])) {
 						//check if its a digit, then verify that the rest are digits
@@ -52,8 +52,8 @@ array<token> suLexer::lex(FILE* file) {
 						for (int i = 0; i < buff.size; i++) {
 							if (!isdigit(buff[i])) error = true;
 						}
-						if (error) t.type = tok_ERROR;
-						else t.type = tok_IntegerLiteral;
+						if (error) t.type = Token_ERROR;
+						else t.type = Token_Literal;
 					}
 				}
 				t.line = lines;
@@ -65,95 +65,95 @@ array<token> suLexer::lex(FILE* file) {
 				token t;
 				t.str = currChar;
 				switch (currChar) {
-					case ';':  t.type = tok_Semicolon;         break;
-					case '{':  t.type = tok_OpenBrace;         break;
-					case '}':  t.type = tok_CloseBrace;        break;
-					case '\(': t.type = tok_OpenParen;         break;
-					case '\)': t.type = tok_CloseParen;        break;
-					case ',':  t.type = tok_Comma;             break;
-					case '+':  t.type = tok_Plus;              break;
-					case '-':  t.type = tok_Negation;          break;
-					case '*':  t.type = tok_Multiplication;    break;
-					case '/':  t.type = tok_Division;          break;
-					case '~':  t.type = tok_BitwiseComplement; break;
-					case '%':  t.type = tok_Modulo;            break;
-					case '^':  t.type = tok_BitXOR;            break;
-					case '?':  t.type = tok_QuestionMark;      break;
-					case ':':  t.type = tok_Colon;             break;
+					case ';':  t.type = Token_Semicolon;         break;
+					case '{':  t.type = Token_OpenBrace;         break;
+					case '}':  t.type = Token_CloseBrace;        break;
+					case '\(': t.type = Token_OpenParen;         break;
+					case '\)': t.type = Token_CloseParen;        break;
+					case ',':  t.type = Token_Comma;             break;
+					case '+':  t.type = Token_Plus;              break;
+					case '-':  t.type = Token_Negation;          break;
+					case '*':  t.type = Token_Multiplication;    break;
+					case '/':  t.type = Token_Division;          break;
+					case '~':  t.type = Token_BitwiseComplement; break;
+					case '%':  t.type = Token_Modulo;            break;
+					case '^':  t.type = Token_BitXOR;            break;
+					case '?':  t.type = Token_QuestionMark;      break;
+					case ':':  t.type = Token_Colon;             break;
 					
 					case '&': {
 						if (fgetc(file) == '&') {
-							t.type = tok_AND;
+							t.type = Token_AND;
 							t.str += '&';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
-							t.type = tok_BitAND;
+							t.type = Token_BitAND;
 						}
 					}break;
 
 					case '|': {
 						if (fgetc(file) == '|') {
-							t.type = tok_OR;
+							t.type = Token_OR;
 							t.str += '|';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
-							t.type = tok_BitOR;
+							t.type = Token_BitOR;
 						}
 					}break;
 
 					case '!': {
 						if (fgetc(file) == '=') {
-							t.type = tok_NotEqual;
+							t.type = Token_NotEqual;
 							t.str += '=';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
-							t.type = tok_LogicalNOT;
+							t.type = Token_LogicalNOT;
 						}
 					}break;
 
 					case '=': {
 						if (fgetc(file) == '=') {
-							t.type = tok_Equal;
+							t.type = Token_Equal;
 							t.str += '=';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
-							t.type = tok_Assignment;
+							t.type = Token_Assignment;
 						}
 					}break;
 
 					case '>': {
 						char c = fgetc(file);
 						if (c == '=') {
-							t.type = tok_GreaterThanOrEqual; 
+							t.type = Token_GreaterThanOrEqual; 
 							t.str += '=';
 						}
 						else if (c == '>') {
-							t.type = tok_BitShiftRight;
+							t.type = Token_BitShiftRight;
 							t.str += '>';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
-							t.type = tok_GreaterThan;
+							t.type = Token_GreaterThan;
 						}
 					}break;
 
 					case '<': {
 						char c = fgetc(file);
 						if (c == '=') {
-							t.type = tok_LessThanOrEqual;
+							t.type = Token_LessThanOrEqual;
 							t.str += '=';
 						}
 						else if (c == '<') {
-							t.type = tok_BitShiftLeft;
+							t.type = Token_BitShiftLeft;
 							t.str += '<';
 						}
 						else {
 							fseek(file, -1, SEEK_CUR);
-							t.type = tok_LessThan;
+							t.type = Token_LessThan;
 						}
 					}break;
 				}
@@ -165,7 +165,7 @@ array<token> suLexer::lex(FILE* file) {
 		else if (currChar == EOF) { 
 			token t;
 			t.str = "End of File";
-			t.type = tok_EOF;
+			t.type = Token_EOF;
 			t.line = lines;
 			tokens.add(t);
 			break;
