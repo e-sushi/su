@@ -44,6 +44,9 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
 
+	//Special ternary conditional expression type
+	Expression_TernaryConditional,
+
 	//Expression Guards
 	ExpressionGuard_Assignment,
 	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations

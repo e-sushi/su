@@ -1,5 +1,6 @@
 ﻿#include "su-assembler.h"
 #include "utils/map.h"
+#include "utils/string_conversion.h"
 
 string ASMBuff = "";
 bool allow_comments = 1;
@@ -27,6 +28,7 @@ struct Flags {
 	bool bitshift_left  = 0;
 	bool bitshift_right = 0;
 
+	bool ternary_conditional = 0;
 
 	bool logi_not = 0;
 	bool bit_comp = 0;
@@ -50,6 +52,8 @@ struct {
 	u32 if_labels     = 0;
 	u32 if_end_labels = 0;
 	u32 else_labels   = 0;
+
+	u32 ternary_labels = 0;
 }labels;
 
 
@@ -65,19 +69,19 @@ inline void addASMLine(string asmLine, string comment = "") {
 	if (print_as_we_go) {
 		string out = "";
 
-		if (asmLine[asmLine.size - 1] != ':' && asmLine[0] != '.') {
+		if (asmLine[asmLine.count - 1] != ':' && asmLine[0] != '.') {
 			out += "\n    " + asmLine;
 		}
 		else {
 			out += "\n" + asmLine;
 		}
 
-		if (allow_comments && comment.size > 0) {
-			if (asmLine.size > 25) {
+		if (allow_comments && comment.count > 0) {
+			if (asmLine.count > 25) {
 				out += " # " + comment;
 			}
 			else {
-				for (int i = 0; i < 25 - asmLine.size; i++) out += " ";
+				for (int i = 0; i < 25 - asmLine.count; i++) out += " ";
 				out += "# " + comment;
 			}
 		}
@@ -87,15 +91,15 @@ inline void addASMLine(string asmLine, string comment = "") {
 	}
 	else {
 		//check if we're adding an instruction and tab if we are
-		if (asmLine[asmLine.size - 1] != ':' && asmLine[0] != '.') {
+		if (asmLine[asmLine.count - 1] != ':' && asmLine[0] != '.') {
 			ASMBuff += "\n    " + asmLine;
 		}
 		else {
 			ASMBuff += "\n\n" + asmLine;
 		}
 
-		if (allow_comments && comment.size > 0) {
-			for (int i = 0; i < 16 - asmLine.size; i++) ASMBuff += " ";
+		if (allow_comments && comment.count > 0) {
+			for (int i = 0; i < 16 - asmLine.count; i++) ASMBuff += " ";
 			ASMBuff += "# " + comment;
 		}
 	}
@@ -106,14 +110,15 @@ inline void addASMLine(string asmLine, string comment = "") {
 Statement* smt;
 //current declaration
 Declaration* decl;
-void assemble_expressions(array<Expression>& expressions) {
-	Assert(expressions.size() != 0, "assemble_expression was passed an empty array");
+void assemble_expressions(array<Expression>& expressions, s32 idx = -1) {
+	Assert(expressions.count != 0, "assemble_expression was passed an empty array");
 	Flags flags;
 
 	//u32 label_num_on_enter = label_count;
 
-	for (int i = 0; i < expressions.size(); i++) {
-		Expression exp = expressions[i];
+	for (int i = 0; i < (idx == -1 ? expressions.count : 1); i++) {
+		
+		Expression exp = (idx == -1 ? expressions[i] : expressions[idx]);
 		switch (exp.type) {
 
 
@@ -131,7 +136,7 @@ void assemble_expressions(array<Expression>& expressions) {
 				if (decl) {
 					if (var_map.at(decl->identifier)) { ExprFail("attempt to redeclare a variable"); }
 					else {
-						if (exp.expressions.size() != 0) {
+						if (exp.expressions.count != 0) {
 							var_map.add(decl->identifier, (var_map.count + 1) * 8);
 							assemble_expressions(exp.expressions);
 							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
@@ -141,7 +146,7 @@ void assemble_expressions(array<Expression>& expressions) {
 							//default to 0
 							var_map.add(decl->identifier, (var_map.count + 1) * 8);
 							addASMLine("mov   $0,  %rax", "default var value to 0");
-							addASMLine("push  %rax", "save value of variable '" + decl->identifier + "' on the stack");
+							addASMLine("push  %rax",      "save value of variable '" + decl->identifier + "' on the stack");
 						}
 					}
 				}
@@ -158,11 +163,14 @@ void assemble_expressions(array<Expression>& expressions) {
 
 			case ExpressionGuard_Conditional: {
 				assemble_expressions(exp.expressions);
-				//if (smt && smt->type == Statement_Conditional) {
-				//	string label_num = string::toStr(label_count);
-				//	string end_label_num = string::toStr(label_num_on_enter);
-				//	
-				//	
+				//check if we're dealing with ternary conditional and manually handle the expressions if we are
+				//if (i < expressions.count - 1 && expressions[i + 1].type == Expression_TernaryConditional) {
+				//	assemble_expressions(exp.expressions, 0);
+				//	addASMLine("cmp   $0,   %rax", "check if last result was true for ternary conditional");
+				//	addASMLine("je    " + toStr(labels.ternary_labels++));
+				//	assemble_expressions(exp.expressions, 1);
+				//	//addASMLine()
+				//
 				//}
 
 			}break;
@@ -170,22 +178,22 @@ void assemble_expressions(array<Expression>& expressions) {
 			case ExpressionGuard_LogicalOR: {
 				assemble_expressions(exp.expressions);
 				//peek to see if there's an OR ahead
-				if (i < expressions.size() - 1 && expressions[i + 1].type == Expression_BinaryOpOR) {
+				if (i < expressions.count - 1 && expressions[i + 1].type == Expression_BinaryOpOR) {
 					//if there is we must check if the last result was true
-					string label_num = string::toStr(labels.OR_labels);
+					string label_num = toStr(labels.OR_labels);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
 					addASMLine("je    _ORLabel" + label_num);
 					addASMLine("mov   $1,   %rax", "we didn't jump so last result was true");
-					addASMLine("jmp   _ORend" + string::toStr(labels.OR_end_labels));
+					addASMLine("jmp   _ORend" + toStr(labels.OR_end_labels));
 					addASMLine("_ORLabel" + label_num + ":");
 					labels.OR_labels++;
 				}
-				else if (i > expressions.size() + 1 && expressions[i - 1].type == Expression_BinaryOpOR) {
+				else if (i > 0 && expressions[i - 1].type == Expression_BinaryOpOR) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					addASMLine("cmp   $0,   %rax", "check if last result was true for OR");
 					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was true");
 					addASMLine("setne %al");
-					addASMLine("_ORend" + string::toStr(labels.OR_end_labels) + ":");
+					addASMLine("_ORend" + toStr(labels.OR_end_labels) + ":");
 					labels.OR_end_labels++;
 				}
 			}break;
@@ -193,22 +201,22 @@ void assemble_expressions(array<Expression>& expressions) {
 			case ExpressionGuard_LogicalAND: {
 				assemble_expressions(exp.expressions);
 				//peek to see if there's an AND ahead
-				if (i < expressions.size() - 1 && expressions[i + 1].type == Expression_BinaryOpAND) {
+				if (i < expressions.count - 1 && expressions[i + 1].type == Expression_BinaryOpAND) {
 					//if there is we must check if the last result was true
-					string label_num = string::toStr(labels.AND_labels);
+					string label_num = toStr(labels.AND_labels);
 					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
 					addASMLine("jne   _ANDLabel" + label_num);
-					addASMLine("jmp   _ANDend" + string::toStr(labels.AND_end_labels));
+					addASMLine("jmp   _ANDend" + toStr(labels.AND_end_labels));
 					addASMLine("_ANDLabel" + label_num + ":");
 					flags.AND = true;
 					labels.AND_labels++;
 				}
-				else if (flags.AND) {//(i > expressions.size() + 1 && expressions[i - 1]->type == Expression_BinaryOpAND) {
+				else if (flags.AND) {//(i > expressions.count + 1 && expressions[i - 1]->type == Expression_BinaryOpAND) {
 					//if we didnt find one ahead but find one behind us then this must be the tail end of OR statements
 					addASMLine("cmp   $0,   %rax", "check if last result was true for AND");
 					addASMLine("mov   $0,   %rax", "zero out %rax and check if last result was false");
 					addASMLine("setne %al");
-					addASMLine("_ANDend" + string::toStr(labels.AND_end_labels) + ":");
+					addASMLine("_ANDend" + toStr(labels.AND_end_labels) + ":");
 					labels.AND_end_labels++;
 				}
 				
@@ -218,7 +226,7 @@ void assemble_expressions(array<Expression>& expressions) {
 				assemble_expressions(exp.expressions);
 				if (flags.bitOR) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise OR");
-					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
 					addASMLine("or    %rcx, %rax", "bitwise and %rax with %rcx");
 					flags.bitOR = 0;
 				}
@@ -229,7 +237,7 @@ void assemble_expressions(array<Expression>& expressions) {
 				assemble_expressions(exp.expressions);
 				if (flags.bitXOR) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise XOR");
-					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
 					addASMLine("xor   %rcx, %rax", "bitwise and %rax with %rcx");
 					flags.bitXOR = 0;
 				}
@@ -240,7 +248,7 @@ void assemble_expressions(array<Expression>& expressions) {
 				assemble_expressions(exp.expressions);
 				if (flags.bitAND) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for bitwise and");
-					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
 					addASMLine("and   %rcx, %rax", "bitwise and %rax with %rcx");
 					flags.bitAND = 0;
 				}
@@ -249,14 +257,14 @@ void assemble_expressions(array<Expression>& expressions) {
 			case ExpressionGuard_Equality: {
 				assemble_expressions(exp.expressions);
 				if (flags.equal) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform equality check");
 					addASMLine("mov   $0,   %rax");
 					addASMLine("sete  %al");
 					flags.equal = 0;
 				}
-				else if (flags.not_equal) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+				else if (flags.not_equal) { 
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform equality check");
 					addASMLine("mov   $0,   %rax");
 					addASMLine("setne %al");
@@ -267,14 +275,14 @@ void assemble_expressions(array<Expression>& expressions) {
 			case ExpressionGuard_Relational: {
 				assemble_expressions(exp.expressions);
 				if (flags.less) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform less than check");
 					addASMLine("mov   $0,   %rax");
 					addASMLine("setl  %al");
 					flags.less = 0;
 				}
 				else if (flags.less_eq) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform less than eq check");
 					addASMLine("mov   $0,   %eax");
 					addASMLine("setle %al");
@@ -288,7 +296,7 @@ void assemble_expressions(array<Expression>& expressions) {
 					flags.greater = 0;
 				}
 				else if (flags.greater_eq) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("cmp   %rax, %rcx", "perform greater than eq check");
 					addASMLine("mov   $0,   %rax");
 					addASMLine("setge %al");
@@ -300,14 +308,14 @@ void assemble_expressions(array<Expression>& expressions) {
 				assemble_expressions(exp.expressions);
 				if (flags.bitshift_left) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for left bitshift");
-					addASMLine("pop   %rax", "retrieve stored from stack");
-					addASMLine("shl   %cl, %rax", "left bitshift %rax by %rcx");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
+					addASMLine("shl   %cl, %rax",  "left bitshift %rax by %rcx");
 					flags.bitshift_left = 0;
 				}
 				else if (flags.bitshift_right) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for left bitshift");
-					addASMLine("pop   %rax", "retrieve stored from stack");
-					addASMLine("shr   %cl, %rax", "left bitshift %rax by %rcx");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
+					addASMLine("shr   %cl, %rax",  "left bitshift %rax by %rcx");
 					flags.bitshift_right = 0;
 				}
 			}break;
@@ -315,13 +323,13 @@ void assemble_expressions(array<Expression>& expressions) {
 			case ExpressionGuard_Additive: {
 				assemble_expressions(exp.expressions);
 				if (flags.add) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("add   %rcx, %rax", "add, store result in %rax");
 					flags.add = 0;
 				}
 				else if (flags.sub) {
 					addASMLine("mov   %rax, %rcx", "mov %rax into %rcx for subtraction");
-					addASMLine("pop   %rax", "retrieve stored from stack");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
 					addASMLine("sub   %rcx, %rax", "sub, store result in %rax");
 					flags.sub = 0;
 				}
@@ -331,22 +339,22 @@ void assemble_expressions(array<Expression>& expressions) {
 			case ExpressionGuard_Term: {
 				assemble_expressions(exp.expressions);
 				if (flags.mult) {
-					addASMLine("pop   %rcx", "retrieve stored from stack");
+					addASMLine("pop   %rcx",       "retrieve stored from stack");
 					addASMLine("imul  %rcx, %rax", "signed multiply, store result in %rax");
 					flags.mult = 0;
 				}
 				else if (flags.divi) {
 					addASMLine("mov   %rax, %rcx", "swap %rax and %rcx for division");
-					addASMLine("pop   %rax", "retrieve stored from stack");
-					addASMLine("cqto", "convert quad in %rax to octo in %rdx:%rax");
-					addASMLine("idiv  %rcx", "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
+					addASMLine("cqto",             "convert quad in %rax to octo in %rdx:%rax");
+					addASMLine("idiv  %rcx",       "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 					flags.divi = 0;
 				}
 				else if (flags.modulo) {
 					addASMLine("mov   %rax, %rcx", "swap %rax and %rcx for division");
-					addASMLine("pop   %rax", "retrieve stored from stack");
-					addASMLine("cqto", "convert quad in %rax to octo in %rdx:%rax");
-					addASMLine("idiv  %rcx", "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+					addASMLine("pop   %rax",       "retrieve stored from stack");
+					addASMLine("cqto",             "convert quad in %rax to octo in %rdx:%rax");
+					addASMLine("idiv  %rcx",       "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 					addASMLine("mov   %rdx, %rax", "move remainder into %rax");
 					flags.modulo = 0;
 				}
@@ -461,7 +469,21 @@ void assemble_expressions(array<Expression>& expressions) {
 				flags.var_assignment = 1;
 			}break;
 	
-	
+			
+			////////////////////////
+			////				////
+			////   Unary  Ops   ////
+			////				////
+			////////////////////////
+
+
+			case Expression_TernaryConditional: {
+				assemble_expressions(exp.expressions);
+				flags.ternary_conditional = 1;
+			}break;
+
+
+
 	
 			////////////////////////
 			////				////
@@ -514,7 +536,7 @@ void assemble_expressions(array<Expression>& expressions) {
 	
 			case Expression_IdentifierRHS: {
 				try {
-					flags.var_offset = string::toStr(*var_map.at(exp.expstr));
+					flags.var_offset = toStr(*var_map.at(exp.expstr));
 					addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable '" + exp.expstr + "' value into %rax for use in an expression");
 				}
 				catch (...) { ExprFail("attempt to reference an undeclared variable"); }
@@ -522,7 +544,7 @@ void assemble_expressions(array<Expression>& expressions) {
 	
 			case Expression_IdentifierLHS: {
 				try {
-					flags.var_offset = string::toStr(*var_map.at(exp.expstr));
+					flags.var_offset = toStr(*var_map.at(exp.expstr));
 					if (smt->type == Statement_Return) {
 					   // addASMLine("mov   -" + flags.var_offset + "(%rbp), %rax", "store variable's value into %rax for use in an expression");
 					}
@@ -556,7 +578,7 @@ void assemble_statement(Statement* statement) {
 			//assemble if statement's expression
 			assemble_expressions(statement->expressions);
 			addASMLine("cmp   $0,   %rax", "check if result was false for if statement");
-			addASMLine("je    _IfEndLabel" + string::toStr(*statement_state.if_label_stack.last));
+			addASMLine("je    _IfEndLabel" + toStr(*statement_state.if_label_stack.last));
 
 			//an if statement should only have one statement to assemble
 			assemble_statement(&statement->statements[0]);
@@ -579,11 +601,11 @@ void assemble_statement(Statement* statement) {
 				//push if's end label num to the stack
 				statement_state.if_label_stack.add(labels.if_end_labels++);
 
-				//statement_state.if_end_label_num = string::toStr(labels.if_end_labels);
+				//statement_state.if_end_label_num = toStr(labels.if_end_labels);
 				assemble_statement(&statement->statements[0]);
 
 				//add if end label for assembled if
-				addASMLine("_IfEndLabel" + string::toStr(*statement_state.if_label_stack.last) + ":");
+				addASMLine("_IfEndLabel" + toStr(*statement_state.if_label_stack.last) + ":");
 
 				statement_state.if_label_stack.pop();
 			}
@@ -592,7 +614,7 @@ void assemble_statement(Statement* statement) {
 				if (!statement_state.if_started) {
 					//set state to know that we have started an if statement and have a final end label
 					statement_state.if_started = 1;
-					statement_state.if_end_label_num = string::toStr(labels.if_end_labels++);
+					statement_state.if_end_label_num = toStr(labels.if_end_labels++);
 					statement_state.if_label_stack.add(labels.if_end_labels++);
 					master_if = 1;
 				}
@@ -604,10 +626,10 @@ void assemble_statement(Statement* statement) {
 				assemble_statement(&statement->statements[0]);
 
 				//jump to final if statement if expression was true and we are in a chain of if elses
-				addASMLine("jmp   _IfEndLabel" + string::toStr(*statement_state.if_label_stack.first));
+				addASMLine("jmp   _IfEndLabel" + toStr(*statement_state.if_label_stack.first));
 
 				//add if end label for assembled if
-				addASMLine("_IfEndLabel" + string::toStr(*statement_state.if_label_stack.last) + ":");
+				addASMLine("_IfEndLabel" + toStr(*statement_state.if_label_stack.last) + ":");
 
 				statement_state.if_label_stack.pop();
 
@@ -616,7 +638,7 @@ void assemble_statement(Statement* statement) {
 
 				//add final if exit label if we started the if else chain
 				if (master_if) {
-					addASMLine("_IfEndLabel" + string::toStr(*statement_state.if_label_stack.first) + ":");
+					addASMLine("_IfEndLabel" + toStr(*statement_state.if_label_stack.first) + ":");
 					master_if = 0;
 					statement_state.if_started = 0;
 				}
@@ -649,7 +671,7 @@ void assemble_statement(Statement* statement) {
 
 void assemble_declaration(Declaration* declaration) {
 	decl = declaration;
-	if (declaration->expressions.size() != 0) {
+	if (declaration->expressions.count != 0) {
 		assemble_expressions(declaration->expressions);
 	}
 	decl = nullptr;

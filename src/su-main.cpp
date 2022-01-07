@@ -10,6 +10,7 @@
 //     and having to copy all of it 
 
 /*
+
 General TODOs
 
 convert the assembler to take in instruction and register enums and then decide what instruction to put
@@ -24,8 +25,6 @@ to store its value first like you would if comparing 2 numbers
 reduce the size of ASTs by not placing nodes unless you have to eg. a number literal
 by itself doesnt need to go through all the expression nodes for us to know its 
 a number literal
-
-
 
 */
 
