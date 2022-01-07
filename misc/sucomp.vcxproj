@@ -167,12 +167,13 @@
     <ClInclude Include="..\src\su-lexer.h" />
     <ClInclude Include="..\src\su-parser.h" />
     <ClInclude Include="..\src\utils\array.h" />
+    <ClInclude Include="..\src\utils\carray.h" />
+    <ClInclude Include="..\src\utils\cstring.h" />
     <ClInclude Include="..\src\utils\defines.h" />
     <ClInclude Include="..\src\utils\hash.h" />
     <ClInclude Include="..\src\utils\map.h" />
     <ClInclude Include="..\src\utils\string.h" />
     <ClInclude Include="..\src\utils\tuple.h" />
-    <ClInclude Include="..\src\utils\utility.h" />
     <ClInclude Include="..\src\utils\utils.h" />
   </ItemGroup>
   <ItemGroup>

@@ -19,21 +19,42 @@
           <Item Name="data" ExcludeView="simple">data</Item>
           <Item Name="first" ExcludeView="simple">first</Item>
           <Item Name="last" ExcludeView="simple">last</Item>
-          <Item Name="max" ExcludeView="simple">max</Item>
           <Item Name="iter" ExcludeView="simple">iter</Item>
         </Expand>
       </Synthetic>
       <ArrayItems>
-        <Size>size()</Size>
+        <Size>count</Size>
         <ValuePointer>first</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
 
+	<Type Name="ring_array&lt;*&gt;">
+		<Intrinsic Name="size"
+			   Expression="count" />
+		<DisplayString Condition="count == 0">{{ empty }}</DisplayString>
+		<DisplayString>{{ size={count} }}</DisplayString>
+		<Expand>
+			<Synthetic Name="info">
+				<DisplayString>start={start}, end={end}</DisplayString>
+				<Expand>
+					<Item Name="space" ExcludeView="simple">capacity</Item>
+					<Item Name="start" ExcludeView="simple">start</Item>
+					<Item Name="end" ExcludeView="simple">end</Item>
+
+				</Expand>
+			</Synthetic>
+			<ArrayItems>
+				<Size>count</Size>
+				<ValuePointer>data</ValuePointer>
+			</ArrayItems>
+		</Expand>
+	</Type>
+
   <Type Name="string">
-    <Intrinsic Name="size" Expression="size" />
+    <Intrinsic Name="count" Expression="count" />
     <Intrinsic Name="data" Expression="str" />
-    <DisplayString>{str,[size]}</DisplayString>
+    <DisplayString>{str,[count]}</DisplayString>
   </Type>
 
   <Type Name="Expression">

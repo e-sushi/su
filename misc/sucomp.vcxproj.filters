@@ -51,9 +51,6 @@
     <ClInclude Include="..\src\utils\tuple.h">
       <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\utils\utility.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\utils\utils.h">
       <Filter>utils</Filter>
     </ClInclude>
@@ -67,6 +64,12 @@
       <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="..\src\utils\map.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\carray.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\cstring.h">
       <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,468 +1,761 @@
 #pragma once
-#include "defines.h"
+#ifndef DESHI_STRING_H
+#define DESHI_STRING_H
+
+#ifndef DESHI_STRING_ALLOCATOR
+#  define DESHI_STRING_ALLOCATOR stl_allocator
+#endif
+
 #include "tuple.h"
+#include "utils.h"
+#include "defines.h"
 
-#include <stdlib.h>
-#include <iostream>
-#include <vector> //temp and should be removed
-#include <string> //temp and should be removed
+#include <cstring>
+#include <cstdio>
+#include <iostream> //std::ostream operator<<
 
-#define __FILENAME__ (std::strrchr(__FILE__, '\\') ? std::strrchr(__FILE__, '\\') + 1 : __FILE__)
-#define ADDRUPDATE(str, size, create) 0//addrupdate((void*)str, size, __FILENAME__, __func__, create)
+struct string{
+	typedef char CHAR;
+	static constexpr u32 npos = -1;
+	static constexpr u32 CHAR_SIZE = sizeof(CHAR);
+	
+	u32   count;
+	u32   space;
+	CHAR* str;
+	
+	Allocator* allocator; //TODO(delle) maybe make this a constructor arg like array?
+	
+	string();
+	string(const CHAR* s);
+	string(const CHAR* s, u32 count);
+	string(const string& s);
+	~string();
+	
+	CHAR&  operator[](u32 idx);
+	CHAR   operator[](u32 idx) const;
+	void   operator= (const CHAR* s);
+	void   operator= (const string& s);
+	void   operator+=(const CHAR* s);
+	void   operator+=(const string& s);
+	string operator--(int);
+	string operator+ (const CHAR* c) const;
+	string operator+ (const string& s) const;
+	bool   operator==(const string& s) const;
+	bool   operator!=(const string& s) const;
+	bool   operator==(const CHAR* s) const;
+	bool   operator!=(const CHAR* s) const;
+	friend string operator+ (const CHAR* c, const string& s);
+	inline explicit operator bool(){ return count; }
+	
+	void   reserve(u32 _space);
+	void   resize(u32 count);
+	void   clear();
+	void   erase(u32 idx);
+	void   insert(CHAR c, u32 idx); //inserts at specified idx, pushing the CHARacter at idx and all following CHARacters to the right
+	CHAR   at(u32 idx) const; //returns a copy of the CHARacter at idx
+	string substr(u32 start, u32 end = npos) const; //returns a string including the start and end CHARacters, end equals the end of the string (size-1) if npos
+	u32    findFirstStr(const string& s) const;
+	u32    findFirstChar(CHAR c, u32 offset = 0) const; //returns first of CHAR from offset
+	u32    findFirstCharNot(CHAR c, u32 offset = 0) const; //returns first of CHAR from offset backwards
+	u32    findLastChar(CHAR c, u32 offset = 0) const;
+	u32    findLastCharNot(CHAR c) const;
+	u32    CHARCount(CHAR c) const; //returns how many times a CHAR appears in the string
+	string substrToChar(CHAR c) const; //returns a substring from the beginning to specifiec CHAR, not including the CHAR
+	b32 beginsWith(const string& s) const;
+	b32 endsWith(const string& s) const;
+	b32 contains(const string& s) const;
 
-global_ std::vector<pair<u32, void*, std::string>> addrs;
-global_ bool track = false;
-global_ u32 inscount = 0;
+	static string eatSpacesLeading(const string& s);
+	static string eatSpacesTrailing(const string& s);
+	static string toUpper(const string& s);
+	static string toLower(const string& s);
+};
 
-global_ void setTrack() { track = true; inscount = 0; }
-global_ void endTrack() { track = false; }
+///////////////////////
+//// @constructors ////
+///////////////////////
+inline string::string(){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count  = 0;
+	space = 0;
+	str   = 0;
+};
 
-global_ void addrupdate(void* addr, u32 size, const char* file, const char* func, bool create = true) {
-	if (track) {
-		std::cout << "\033c";
-		char* str = (char*)malloc(255);
-		strncpy(str, (char*)addr, size);
-		str[size] = '\0';
-		if (create) {
-			addrs.push_back(pair<u32, void*, std::string>(inscount, addr, std::string(func)));
-			std::cout << "added addr   " << (int)addr << " ~ " << str << std::endl;
-		}
-		else {
-			for (int i = 0; i < addrs.size(); i++) {
-				if (addrs[i].second == addr) {
-					std::cout << "erased addr   " << (int)addr << " at idx " << addrs[i].first << " ~ " << str <<  std::endl;
-					addrs.erase(addrs.begin() + i);
-					break;
-				}
-			}
-		}
-		
-		std::cout << "CURRENT ADDR LIST WITH " << inscount << " INSTRUCTIONS AND " << addrs.size() << " ADDRS:" << std::endl;
-		
-		for (int i = 0; i < addrs.size(); i++) {
-			std::cout << addrs[i].first << ".  " << (int)addrs[i].second << " - " << addrs[i].third << " ~ " << (char*)addrs[i].second << std::endl;
-		}
-		std::cout << std::endl;
-		free(str);
-		inscount++;
+inline string::string(const CHAR* s){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count  = strlen(s);
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s, count*CHAR_SIZE);
+}
+
+inline string::string(const CHAR* s, u32 _size){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count  = _size;
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s, count*CHAR_SIZE);
+}
+
+inline string::string(const string& s){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count = s.count;
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s.str, count*CHAR_SIZE);
+}
+
+inline string::~string(){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+}
+
+////////////////////
+//// @operators ////
+////////////////////
+inline string::CHAR& string::operator[](u32 idx){
+	Assert(idx < count+1);
+	return str[idx];
+}
+
+inline string::CHAR string::operator[](u32 idx) const {
+	Assert(idx < count + 1);
+	return str[idx];
+}
+
+inline void string::operator= (const CHAR* s){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+	
+	count  = strlen(s);
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s, count*CHAR_SIZE);
+}
+
+inline void string::operator= (const string& s){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+	allocator = s.allocator;
+	
+	count = s.count;
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE); 
+	memcpy(str, s.str, count*CHAR_SIZE);
+}
+
+inline void string::operator+=(const CHAR* s){
+	u32 old_len = count;
+	u32 str_len = strlen(s);
+	if(str_len == 0) return;
+	count += str_len;
+	
+	if(space == 0){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		allocator->commit(str, space*CHAR_SIZE);
+		memcpy(str, s, count*CHAR_SIZE);
+	}else if(space < count+1){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		memcpy(str+old_len, s, (str_len+1)*CHAR_SIZE);
+	}else{
+		memcpy(str+old_len, s, (str_len+1)*CHAR_SIZE);
 	}
 }
 
-//TODO(delle) add reserved space on string for small strings, offset it to a proper padding
-struct string {
-	char* str = 0;
-	int size = 0;
+inline void string::operator+=(const string& s){
+	u32 old_len = count;
+	u32 str_len = s.count;
+	if(str_len == 0) return;
+	count += str_len;
 	
-	//returned when something specified is not found in a search fucntion
-	static const size_t npos = -1;
+	if(space == 0){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		allocator->commit(str, space*CHAR_SIZE);
+		memcpy(str, s.str, count*CHAR_SIZE);
+	}else if(space < count+1){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		memcpy(str+old_len, s.str, (str_len+1)*CHAR_SIZE);
+	}else{
+		memcpy(str+old_len, s.str, (str_len+1)*CHAR_SIZE);
+	}
+}
+
+inline string string::operator--(int){
+	if(count == 0) return *this;
+	str[--count] = '\0';
+	return *this;
+}
+
+inline string string::operator+ (const CHAR* c) const{
+	if(count == 0) return string(c);
+	u32 str_len = strlen(c);
+	if(str_len == 0) return *this;
 	
-	string() {
-		size = 0;
-		ADDRUPDATE(str, 0, 1);
-	};
+	string result;
+	result.count  = count + str_len;
+	result.space = RoundUpTo(result.count+1, 4);
+	result.str = (CHAR*)allocator->reserve(result.space*CHAR_SIZE); Assert(result.str, "Failed to allocate memory");
+	allocator->commit(result.str, result.space*CHAR_SIZE);
+	memcpy(result.str,       str, count*CHAR_SIZE);
+	memcpy(result.str+count, c,   str_len*CHAR_SIZE);
+	return result;
+}
+
+inline string string::operator+(const string& s) const{
+	if(s.count == 0) return *this;
 	
-	string(const char c) {
-		size = 1;
-		str = (char*)malloc(1 + 1);
+	string result;
+	result.count  = count + s.count;
+	result.space = RoundUpTo(result.count+1, 4);
+	result.str = (CHAR*)allocator->reserve(result.space*CHAR_SIZE); Assert(result.str, "Failed to allocate memory");
+	allocator->commit(result.str, result.space*CHAR_SIZE);
+	memcpy(result.str,       str,   count*CHAR_SIZE);
+	memcpy(result.str+count, s.str, s.count*CHAR_SIZE);
+	return result;
+}
+
+inline bool string::operator==(const string& s) const{
+	return !strcmp(str, s.str);
+}
+
+inline bool string::operator==(const CHAR* s) const{
+	return !strcmp(str, s);
+}
+
+inline bool string::operator!=(const string& s) const {
+	return strcmp(str, s.str);
+}
+
+inline bool string::operator!=(const CHAR* s) const {
+	return strcmp(str, s);
+}
+
+
+////////////////////////////
+//// @special operators ////
+////////////////////////////
+inline std::ostream& operator<<(std::ostream& os, const string& m){
+	return os << (m.str ? m.str : "");
+}
+
+inline string operator+ (const string::CHAR* c, const string& s){
+	return string(c) + s;
+}
+
+////////////////////
+//// @functions ////
+////////////////////
+inline void string::reserve(u32 _space){
+	if(_space > space){
+		space = RoundUpTo(_space+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	}
+}
+
+inline void string::resize(u32 _count) {
+	count = _count;
+	space = Max(space, u32(RoundUpTo(_count + 1, 4)));
+	str = (CHAR*)allocator->resize(str, space * CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	str[count+1] = 0;
+}
+
+inline void string::clear(){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+	count = 0;
+	space = 0;
+	str   = 0;
+}
+
+inline void string::erase(u32 idx){
+	Assert(idx < count && idx >= 0);
+	if (count == 1) clear();
+	else memmove(str+idx, str+idx+1, (count-- - idx)*CHAR_SIZE);
+}
+
+inline void string::insert(CHAR c, u32 idx){
+	Assert(idx <= count);
+	count += 1;
+	if(space == 0){
+		space = 4;
+		str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		allocator->commit(str, space*CHAR_SIZE);
 		str[0] = c;
-		str[1] = '\0';
-		ADDRUPDATE(str, size, 1);
-	}
-	
-	string(const char* s) {
-		size = strlen(s);
-		if (size != 0) {
-			str = (char*)malloc(size + 1);
-			strcpy(str, s);
-			ADDRUPDATE(str, size, 1);
-		}
-		else {
-			//str = new char[1];
-			str = (char*)malloc(1);
-			memset(str, '\0', 1);
-			ADDRUPDATE(str, size, 1);
-		}
-	}
-	
-	string(const char* s, size_t size) {
-		this->size = size;
-		if (size != 0) {
-			str = (char*)malloc(size + 1);
-			memcpy(str, s, size);
-			memset(str + size, '\0', 1);
-			ADDRUPDATE(str, size, 1);
-		}
-		else {
-			str = (char*)malloc(1);
-			memset(str, '\0', 1);
-			ADDRUPDATE(str, size, 1);
-		}
-	}
-	
-	string(const string& s) {
-		
-		size = s.size;
-		if (size != 0) {
-			free(str);
-			str = (char*)malloc(size + 1);
-			memcpy(str, s.str, s.size+1);
-			memset(str + size, '\0', 1);
-			ADDRUPDATE(str, size, 1);
-		}
-		else {
-			free(str);
-			str = (char*)malloc(1);
-			size = 0;
-			memset(str, '\0', 1);
-			ADDRUPDATE(str, 0, 1);
-		}
-	}
-	
-	//temp
-	string(std::string s) {
-		free(str);
-		size = s.size();
-		str = (char*)malloc(size + 1);
-		memcpy(str, s.c_str(), size);
-		memset(str + size, '\0', 1);
-	}
-	
-	~string() {
-		ADDRUPDATE(str, size, 0);
-		free(str);
-		str = nullptr;
-		size = 0;
-	}
-	
-	char& operator[](int i) {
-		//assert that index is less than str size
-		return str[i];
-	}
-	
-	void operator = (char c) {
-		size = 1;
-		str = (char*)malloc(size + 1);
-		memset(str, c, 2);
-		memset(str + 1, '\0', 1);
-		ADDRUPDATE(str, size, 1);
-	}
-	
-	void operator = (const string& s) {
-		ADDRUPDATE(str, size, 0);
-		free(str);
-		size = s.size;
-		str = (char*)malloc(size + 1);
-		memcpy(str, s.str, size + 1);
-		memset(str + size, '\0', 1);
-		ADDRUPDATE(str, size, 1);
-	}
-	
-	void operator = (const char* s) {
-		size = strlen(s);
-		str = (char*)malloc(size + 1);
-		strcpy(str, s);
-		ADDRUPDATE(str, size, 1);
-	}
-	
-	bool operator == (const string& s) const {
-		return !strcmp(str, s.str);
-	}
-	
-	bool operator == (const char* s) const {
-		return !strcmp(str, s);
-	}
-	
-	bool operator == (char c) const {
-		if(size == 1 && *str == c) return true;
-		return false;
-	}
-	
-	//these could probably be better
-	void operator += (char& c) {
-		int newsize = size + 1;
-		char* old = new char[size];
-		memcpy(old, str, size);
-		str = (char*)malloc(newsize + 1);
-		memcpy(str, old, size);
-		memcpy(str + size, &c, 1);
-		size = newsize;
-		memset(str + size, '\0', 1);
-		ADDRUPDATE(str, size, 1);
-		delete old;
-	}
-	
-	//these could probably be better
-	void operator += (const string& s) {
-		if (s.size == 0) return;
-		int newsize = size + s.size;
-		str = (char*)realloc(str, newsize + 1);
-		memcpy(str + size, s.str, s.size);
-		size = newsize;
-		memset(str + size, '\0', 1);
-		ADDRUPDATE(str, size, 1);
-	}
-	
-	//these could probably be better
-	void operator += (const char* ss) {
-		string s(ss); //being lazy
-		if (s.size == 0) return;
-		int newsize = size + s.size;
-		char* old = new char[size];
-		memcpy(old, str, size);
-		str = (char*)malloc(newsize + 1);
-		memcpy(str, old, size);
-		memcpy(str + size, s.str, s.size);
-		size = newsize;
-		memset(str + size, '\0', 1);
-		ADDRUPDATE(str, size, 1);
-		delete old;
-	}
-	
-	string operator + (string s) {
-		if (s.size == 0) return *this;
-		int newsize = size + s.size;
-		char* old = new char[size];
-		memcpy(old, str, size);
-		string nustr;
-		nustr.str = (char*)malloc(newsize + 1);
-		memcpy(nustr.str, old, size);
-		memcpy(nustr.str + size, s.str, s.size);
-		nustr.size = newsize;
-		memset(nustr.str + nustr.size, '\0', 1);
-		delete old;
-		return nustr;
-	}
-	
-	string operator + (const char* c) {
-		string s(c);
-		return this->operator+(s);
-	}
-	
-	string operator -- (int) {
-		if (size != 1) {
-			str = (char*)realloc(str, size - 1);
-			size--;
-			memset(str + size, '\0', 1);
-		}
-		else {
-			str = (char*)realloc(str, 1);
-			size = 0;
-			memset(str, '\0', 1);
-		}
-		return *this;
-		
-	}	
-	
-	//const func for getting a char in a string
-	char at(u32 idx) const {
-		return str[idx];
-	}
-	
-	void clear() {
-		str = (char*)realloc(str, 1);
-		str[0] = '\0';
-		size = 0;
-	}
-	
-	void erase(u32 idx) {
-		Assert(idx <= size && idx >= 0 && size != 0);
-		if (size - 1 != 0) {
-			for (int i = idx; i < size - 1; i++)
-				str[i] = str[i + 1];
-			size--;
-			str = (char*)realloc(str, size + 1);
-			memset(str + size, '\0', 1);
-		}
-		else {
-			size = 0;
-			str = (char*)realloc(str, 1);
-			memset(str, '\0', 1);
-		}
-	}
-	
-	//inserts after specified idx, so an idx of -1 inserts at the begining
-	void insert(char c, s32 idx) {
-		Assert(idx <= size && idx >= -1);
-		
-		idx++;
-		size++;
-		str = (char*)realloc(str, size + 1);
-		for (s32 i = size - 1; i >= idx; i--)
-			str[i] = str[i - 1];
+	}else if(space < count+1){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		memmove(str+idx+1, str+idx, (count-idx)*CHAR_SIZE);
+		str[idx] = c;
+	}else{
+		memmove(str+idx+1, str+idx, (count-idx)*CHAR_SIZE);
 		str[idx] = c;
 	}
-	
-	
-	//https://cp-algorithms.com/string/string-hashing.html
-	static u64 hash(string str) {
-		const int p = 31;
-		const int m = 1e9 + 9;
-		u64 hash_value = 0;
-		u64 p_pow = 1;
-		for (int i = 0; i < str.size; i++) {
-			hash_value = (hash_value + (str.str[i] - 'a' + 1) * p_pow) % m;
-			p_pow = (p_pow * p) % m;
-		}
-		return hash_value;
+}
+
+inline string::CHAR string::at(u32 idx) const{
+	Assert(idx <= count);
+	return str[idx];
+}
+
+inline string string::substr(u32 start, u32 end) const{
+	if(end == npos) end = count-1;
+	Assert(start <= count && end <= count && start <= end, "check start/end vars");
+	return string(str+start, (end-start)+1);
+}
+
+inline u32 string::findFirstStr(const string& s) const{
+	for(u32 i = 0; i < count; ++i){
+		if(strncmp(str+i, s.str, s.count) == 0) return i;
 	}
-	
-	static int stoi(string str) {
-		int x;
-		sscanf(str.str, "%d", &x);
-		return x;
+	return npos;
+}
+
+inline u32 string::findFirstChar(CHAR c, u32 offset) const{
+	for(u32 i = offset; i < count; ++i){
+		if(str[i] == c) return i;
 	}
-	
-	static string toStr(int i) {
-		string s;
-		s.size = (i == 0) ? 1 : (int)((floor(log10(i)) + 1) * sizeof(char));
-		free(s.str);
-		s.str = (char*)malloc(s.size + 1);
-		sprintf(s.str, "%d", i);
-		ADDRUPDATE(s.str, s.size, 1);
-		return s;
+	return npos;
+}
+
+inline u32 string::findFirstCharNot(CHAR c, u32 offset) const{
+	for(u32 i = 0; i < count; ++i){
+		if(str[i] != c) return i;
 	}
-	
-	static string toStr(u32 i) {
-		string s;
-		s.size = (i == 0) ? 1 : (int)((floor(log10(i)) + 1) * sizeof(char));
-		free(s.str);
-		s.str = (char*)malloc(s.size + 1);
-		sprintf(s.str, "%d", i);
-		ADDRUPDATE(s.str, s.size, 1);
-		return s;
+	return npos;
+}
+
+inline u32 string::findLastChar(CHAR c, u32 offset) const{
+	Assert(offset < count);
+	for(u32 i = (offset != 0 ? offset : count - 1); i != 0; --i){
+		if(str[i] == c) return i;
 	}
-	
-	static string toStr(float f) {
-		string s;
-		s.size = snprintf(nullptr, 0, "%f", f);
-		s.str = (char*)malloc(s.size + 1);
-		snprintf(s.str, s.size + 1, "%f", f);
-		ADDRUPDATE(s.str, s.size, 1);
-		return s;
+	return npos;
+}
+
+inline u32 string::findLastCharNot(CHAR c) const{
+	for(u32 i = count-1; i != 0; --i){
+		if(str[i] != c) return i;
 	}
-	
-	static string toStr(size_t f) {
-		string s;
-		s.size = snprintf(nullptr, 0, "%zu", f);
-		s.str = (char*)malloc(s.size + 1);
-		snprintf(s.str, s.size + 1, "%zu", f);
-		ADDRUPDATE(s.str, s.size, 1);
-		return s;
+	return npos;
+}
+
+inline u32 string::CHARCount(CHAR c) const{
+	u32 sum = 0;
+	for(u32 i = 0; i < count; ++i){ if(str[i] == c){ sum++; } }
+	return sum;
+}
+
+inline string string::substrToChar(CHAR c) const{
+	u32 idx = findFirstChar(c);
+	return (idx != npos) ? *this : string(str, idx); //!TestMe
+}
+
+inline b32 string::beginsWith(const string& s) const{
+	if (s.count > count) return false;
+	return !memcmp(str, s.str, s.count);
+}
+
+inline b32 string::endsWith(const string& s) const{
+	if (s.count > count) return false;
+	return !memcmp(str + (count - s.count), s.str, s.count);
+}
+
+inline b32 string::contains(const string& s) const{
+	if (s.count > count) return false;
+	for (u32 i = 0; i < count - s.count; i++) {
+		if (!memcmp(s.str, str + i, s.count)) return true;
 	}
+	return false;
+}
+
+
+///////////////////////////
+//// @static functions ////
+///////////////////////////
+inline string string::eatSpacesLeading(const string& text){
+	u32 idx = text.findFirstCharNot(' ');
+	return (idx != npos) ? text.substr(idx) : string();
+}
+
+inline string string::eatSpacesTrailing(const string& text){
+	u32 idx = text.findLastCharNot(' ');
+	return (idx != npos) ? text.substr(0, idx+1) : string();
+}
+
+inline string string::toUpper(const string& in){
+	string result = in;
+	forI(result.count) if(result.str[i] >= 'a' && result.str[i] <= 'z') result.str[i] -= 32;
+	return result;
+}
+
+inline string string::toLower(const string& in){
+	string result = in;
+	forI(result.count) if(result.str[i] >= 'A' && result.str[i] <= 'Z') result.str[i] += 32;
+	return result;
+}
+
+
+//WSTRING
+//unicode version of string
+
+
+struct wstring {
+	typedef wchar_t CHAR;
+	static constexpr u32 npos = -1;
+	static constexpr u32 CHAR_SIZE = sizeof(CHAR);
 	
-	friend string operator + (const char* c, string s);
+	u32   count;
+	u32   space;
+	CHAR* str;
 	
-	inline string substr(size_t first, size_t second = npos) const {
-		if(second == npos) second = size;
-		Assert(first <= size && second <= size && second >= first, "check first/second variables");
-		return string(str + first, second - first + 1);
-	}
+	Allocator* allocator; //TODO(delle) maybe make this a constructor arg like array?
 	
-	inline size_t find(const string& text) const {
-		for (int i = 0; i < size - (text.size - 1); i++) {
-			//dont use strcmp if text.size is only 1
-			if (text.size == 1)
-				if (str[i] == text.str[0])
-				return i;
-			
-			//early cont if char doesnt match first char of input
-			if (str[i] != text.str[0]) continue;
-			else if(!strcmp(substr(i, i + text.size - 1).str, text.str)) {
-				return i;
-			}
-		}
-		return npos;
-	}
+	wstring();
+	wstring(const CHAR* s);
+	wstring(const CHAR* s, u32 count);
+	wstring(const wstring& s);
+	~wstring();
 	
-	inline size_t find_first_of(char c) const {
-		for (int i = 0; i < size; i++) {
-			if (c == str[i]) return i;
-		}
-		return npos;
-	}
+	CHAR& operator[](u32 idx);
+	void   operator= (const CHAR* s);
+	void   operator= (const wstring& s);
+	void   operator+=(const CHAR* s);
+	void   operator+=(const wstring& s);
+	wstring operator--(int);
+	wstring operator+ (const CHAR* c) const;
+	wstring operator+ (const wstring& s) const;
+	bool   operator==(const wstring& s) const;
+	bool   operator==(const CHAR* s) const;
+	friend wstring operator+ (const CHAR* c, const wstring& s);
+	inline explicit operator bool() { return count; }
 	
-	//find first of from offset
-	inline size_t find_first_of(char c, int offset) const {
-		Assert(offset < size, "attempt to parse string at offset greater than size");
-		for (int i = offset; i < size; i++) {
-			if (c == str[i]) return i;
-		}
-		return npos;
-	}
+	void   reserve(u32 _space);
+	void   clear();
+	void   erase(u32 idx);
+	//inserts at specified idx, pushing the CHARacter at idx and all following CHARacters to the right
+	void   insert(CHAR c, u32 idx);
+	//returns a copy of the CHARacter at idx
+	CHAR   at(u32 idx) const;
+	//returns a wstring including the start and end CHARacters, end equals the end of the wstring (size-1) if npos
+	wstring substr(u32 start, u32 end = npos) const;
+	u32    findFirstStr(const wstring& s) const;
+	//returns first of CHAR from offset
+	u32    findFirstChar(CHAR c, u32 offset = 0) const;
+	//returns first of CHAR from offset backwards
+	u32    findFirstCharNot(CHAR c, u32 offset = 0) const;
+	u32    findLastChar(CHAR c, u32 offset = 0) const;
+	u32    findLastCharNot(CHAR c) const;
+	//returns how many times a CHAR appears in the wstring
+	u32    CHARCount(CHAR c) const;
+	//returns a subwstring from the beginning to specifiec CHAR, not including the CHAR
+	wstring substrToChar(CHAR c) const;
 	
-	//find first of from offset backwards
-	//TODO(sushi) make this for the other functions
-	inline size_t find_first_of_lookback(char c, int offset = 0) const {
-		Assert(offset < size, "attempt to parse string at offset greater than size");
-		for (int i = offset; i > 0; i--) {
-			if (c == str[i]) return i;
-		}
-		return npos;
-	}
-	
-	inline size_t find_first_not_of(char c) const {
-		for (int i = 0; i < size; i++) {
-			if (c != str[i]) return i;
-		}
-		return npos;
-	}
-	
-	inline size_t find_last_of(char c) const {
-		for (int i = size - 1; i != 0; i--) {
-			if (c == str[i]) return i;
-		}
-		return npos;
-	}
-	
-	inline size_t find_last_not_of(char c) const {
-		for (int i = size - 1; i != 0; i--) {
-			if (c != str[i]) return i;
-		}
-		return npos;
-	}
-	
-	//counts how many characters are in the string
-	inline u32 count(char c) {
-		u32 sum = 0;
-		for (int i = 0; i < size; i++) if (str[i] == c) sum++;
-		return sum;
-	}
-	
-	inline string substrToChar(char c) const {
-		size_t first = find_first_of(c);
-		if(first == npos){
-			return string(str);
-		}else{
-			return string(str, first);
-		}
-	}
-	
-	static inline string eatSpacesLeading(string text) {
-		size_t idx = text.find_first_of(' ');
-		return (idx != npos) ? text.substr(idx) : "";
-	}
-	
-	static inline string eatSpacesTrailing(string text) {
-		size_t idx = text.find_last_not_of(' ');
-		return (idx != npos) ? text.substr(0, idx + 1) : "";
-	}
+	static wstring eatSpacesLeading(const wstring& s);
+	static wstring eatSpacesTrailing(const wstring& s);
+	static wstring toUpper(const wstring& s);
+	static wstring toLower(const wstring& s);
 };
 
+///////////////////////
+//// @constructors ////
+///////////////////////
+inline wstring::wstring(){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count  = 0;
+	space = 0;
+	str   = 0;
+};
 
-inline std::ostream& operator<<(std::ostream& os, string& m) {
+inline wstring::wstring(const CHAR* s){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count  = wcslen(s);
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s, count*CHAR_SIZE);
+}
+
+inline wstring::wstring(const CHAR* s, u32 _size){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count  = _size;
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s, count*CHAR_SIZE);
+}
+
+inline wstring::wstring(const wstring& s){
+	allocator = DESHI_STRING_ALLOCATOR;
+	count = s.count;
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s.str, count*CHAR_SIZE);
+}
+
+inline wstring::~wstring(){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+}
+
+////////////////////
+//// @operators ////
+////////////////////
+inline wstring::CHAR& wstring::operator[](u32 idx){
+	Assert(idx < space+1);
+	return str[idx];
+}
+
+inline void wstring::operator= (const CHAR* s){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+	
+	count  = wcslen(s);
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE);
+	memcpy(str, s, count*CHAR_SIZE);
+}
+
+inline void wstring::operator= (const wstring& s){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+	allocator = s.allocator;
+	
+	count = s.count;
+	space = RoundUpTo(count+1, 4);
+	str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+	allocator->commit(str, space*CHAR_SIZE); 
+	memcpy(str, s.str, count*CHAR_SIZE);
+}
+
+inline void wstring::operator+=(const CHAR* s){
+	u32 old_len = count;
+	u32 str_len = wcslen(s);
+	if(str_len == 0) return;
+	count += str_len;
+	
+	if(space == 0){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		allocator->commit(str, space*CHAR_SIZE);
+		memcpy(str, s, count*CHAR_SIZE);
+	}else if(space < count+1){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		memcpy(str+old_len, s, (str_len+1)*CHAR_SIZE);
+	}else{
+		memcpy(str+old_len, s, (str_len+1)*CHAR_SIZE);
+	}
+}
+
+inline void wstring::operator+=(const wstring& s){
+	u32 old_len = count;
+	u32 str_len = s.count;
+	if(str_len == 0) return;
+	count += str_len;
+	
+	if(space == 0){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		allocator->commit(str, space*CHAR_SIZE);
+		memcpy(str, s.str, count*CHAR_SIZE);
+	}else if(space < count+1){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		memcpy(str+old_len, s.str, (str_len+1)*CHAR_SIZE);
+	}else{
+		memcpy(str+old_len, s.str, (str_len+1)*CHAR_SIZE);
+	}
+}
+
+inline wstring wstring::operator--(int){
+	if(count == 0) return *this;
+	str[--count] = '\0';
+	return *this;
+}
+
+inline wstring wstring::operator+ (const CHAR* c) const{
+	if(count == 0) return wstring(c);
+	u32 str_len = wcslen(c);
+	if(str_len == 0) return *this;
+	
+	wstring result;
+	result.count  = count + str_len;
+	result.space = RoundUpTo(result.count+1, 4);
+	result.str = (CHAR*)allocator->reserve(result.space*CHAR_SIZE); Assert(result.str, "Failed to allocate memory");
+	allocator->commit(result.str, result.space*CHAR_SIZE);
+	memcpy(result.str,       str, count*CHAR_SIZE);
+	memcpy(result.str+count, c,   str_len*CHAR_SIZE);
+	return result;
+}
+
+inline wstring wstring::operator+(const wstring& s) const{
+	if(s.count == 0) return *this;
+	
+	wstring result;
+	result.count  = count + s.count;
+	result.space = RoundUpTo(result.count+1, 4);
+	result.str = (CHAR*)allocator->reserve(result.space*CHAR_SIZE); Assert(result.str, "Failed to allocate memory");
+	allocator->commit(result.str, result.space*CHAR_SIZE);
+	memcpy(result.str,       str,   count*CHAR_SIZE);
+	memcpy(result.str+count, s.str, s.count*CHAR_SIZE);
+	return result;
+}
+
+inline bool wstring::operator==(const wstring& s) const{
+	return wcscmp(str, s.str) == 0;
+}
+
+inline bool wstring::operator==(const CHAR* s) const{
+	return wcscmp(str, s) == 0;
+}
+
+////////////////////////////
+//// @special operators ////
+////////////////////////////
+inline std::ostream& operator<<(std::ostream& os, const wstring& m){
 	return os << m.str;
 }
 
-inline string operator + (const char* c, string s) {
-	if (s.size == 0) {
-		string why_do_i_have_to_do_this(c);
-		return why_do_i_have_to_do_this;
+inline wstring operator+ (const wstring::CHAR* c, const wstring& s){
+	return wstring(c) + s;
+}
+
+////////////////////
+//// @functions ////
+////////////////////
+inline void wstring::reserve(u32 _space){
+	if(_space > space){
+		space = RoundUpTo(_space+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
 	}
-	string st(c);
-	return st + s;
+}
+
+inline void wstring::clear(){
+	if(!allocator) allocator = DESHI_STRING_ALLOCATOR;
+	allocator->release(str);
+	count = 0;
+	space = 0;
+	str   = 0;
+}
+
+inline void wstring::erase(u32 idx){
+	Assert(idx < count && idx >= 0);
+	if (count == 1) memset(str, 0, space);
+	else            memmove(str+idx, str+idx+1, (--count)*CHAR_SIZE);
+}
+
+inline void wstring::insert(CHAR c, u32 idx){
+	Assert(idx <= count);
+	count += 1;
+	if(space == 0){
+		space = 4;
+		str = (CHAR*)allocator->reserve(space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		allocator->commit(str, space*CHAR_SIZE);
+		str[0] = c;
+	}else if(space < count+1){
+		space = RoundUpTo(count+1, 4);
+		str = (CHAR*)allocator->resize(str, space*CHAR_SIZE); Assert(str, "Failed to allocate memory");
+		memmove(str+idx+1, str+idx, (count-idx)*CHAR_SIZE);
+		str[idx] = c;
+	}else{
+		memmove(str+idx+1, str+idx, (count-idx)*CHAR_SIZE);
+		str[idx] = c;
+	}
+}
+
+inline wstring::CHAR wstring::at(u32 idx) const{
+	Assert(idx <= count);
+	return str[idx];
+}
+
+inline wstring wstring::substr(u32 start, u32 end) const{
+	if(end == npos) end = count-1;
+	Assert(start <= count && end <= count && start <= end, "check start/end vars");
+	return wstring(str+start, (end-start)+1);
+}
+
+inline u32 wstring::findFirstStr(const wstring& s) const{
+	for(u32 i = 0; i < count; ++i){
+		if(wcsncmp(str+i, s.str, s.count) == 0) return i;
+	}
+	return npos;
+}
+
+inline u32 wstring::findFirstChar(CHAR c, u32 offset) const{
+	for(u32 i = offset; i < count; ++i){
+		if(str[i] == c) return i;
+	}
+	return npos;
+}
+
+inline u32 wstring::findFirstCharNot(CHAR c, u32 offset) const{
+	for(u32 i = 0; i < count; ++i){
+		if(str[i] != c) return i;
+	}
+	return npos;
+}
+
+inline u32 wstring::findLastChar(CHAR c, u32 offset) const{
+	Assert(offset < count);
+	for(u32 i = (offset != 0 ? offset : count - 1); i != 0; --i){
+		if(str[i] == c) return i;
+	}
+	return npos;
+}
+
+inline u32 wstring::findLastCharNot(CHAR c) const{
+	for(u32 i = count-1; i != 0; --i){
+		if(str[i] != c) return i;
+	}
+	return npos;
+}
+
+inline u32 wstring::CHARCount(CHAR c) const{
+	u32 sum = 0;
+	for(u32 i = 0; i < count; ++i){ if(str[i] == c){ sum++; } }
+	return sum;
+}
+
+inline wstring wstring::substrToChar(CHAR c) const{
+	u32 idx = findFirstChar(c);
+	return (idx != npos) ? *this : wstring(str, idx); //!TestMe
+}
+
+///////////////////////////
+//// @static functions ////
+///////////////////////////
+inline wstring wstring::eatSpacesLeading(const wstring& text){
+	u32 idx = text.findFirstCharNot(' ');
+	return (idx != npos) ? text.substr(idx) : wstring();
+}
+
+inline wstring wstring::eatSpacesTrailing(const wstring& text){
+	u32 idx = text.findLastCharNot(' ');
+	return (idx != npos) ? text.substr(0, idx+1) : wstring();
+}
+
+inline wstring wstring::toUpper(const wstring& in){
+	wstring result = in;
+	forI(result.count) if(result.str[i] >= 'a' && result.str[i] <= 'z') result.str[i] -= 32;
+	return result;
+}
+
+inline wstring wstring::toLower(const wstring& in){
+	wstring result = in;
+	forI(result.count) if(result.str[i] >= 'A' && result.str[i] <= 'Z') result.str[i] += 32;
+	return result;
 }
 
 
-
-
-
+#endif //DESHI_wstring_H
