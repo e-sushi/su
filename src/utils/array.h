@@ -46,8 +46,10 @@ struct array{
 	//for taking in something without copying it
 	void emplace(const T& t);
 	void insert(const T& t, u32 idx);
+	//removes last element and returns it 
+	T pop();
 	//removes _count elements from the end
-	void pop(u32 _count = 1);
+	void pop(u32 _count);
 	//removes element at i and shifts all following elements down one
 	void remove(u32 i);
 	//removes all elements but DOES NOT affect space
@@ -63,8 +65,8 @@ struct array{
 	T&   at(u32 i);
 	
 	//TODO add out of bounds checking for these functions
-	//returns the value of iter and increments it by one
-	T& next();
+	//returns the value of iter and increments it by count
+	T& next(u32 count = 1);
 	//returns the value of iter + some value and doesn't increment it 
 	T& peek(int i = 1);
 	//returns the value of iter and decrements it by one
@@ -308,6 +310,16 @@ insert(const T& t, u32 idx){
 	}
 }
 
+template<typename T> inline T array<T>::
+pop() {
+	Assert(count, "attempted to pop with no elements in array");
+	T save = *last;
+	last->~T();
+	last--;
+	count--;
+	return save;
+}
+
 template<typename T> inline void array<T>::
 pop(u32 _count){
 	Assert(count >= _count, "attempted to pop more than array size");
@@ -429,8 +441,11 @@ at(u32 i){
 }
 
 template<typename T> inline T& array<T>::
-next(){
-	if(last - iter + 1 >= 0) return *++iter;
+next(u32 count){
+	if (last - iter + 1 >= 0) {
+		iter += count;
+		return *iter;
+	}
 	return *iter;
 }
 

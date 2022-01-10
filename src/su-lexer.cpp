@@ -2,19 +2,6 @@
 #include "utils/defines.h"
 #include "utils/cstring.h"
 
-#define MAXBUFF 255
-
-array<char> stopping_chars{
-	';', ' ', '{',  '}', '\(', '\)', 
-	',', '+', '*', '/', '-', '<', '>', 
-	'=', '!', '~', '\n', '&', '|', '^',
-	'%', ':', '?'
-};
-
-array<string> keywords{
-	"int", "return", "if", "else"
-};
-
 enum LexerState_ {
 	DiscernChar,
 	ReadingString,
@@ -156,5 +143,6 @@ array<token> suLexer::lex(FILE* file) {
 			}break;
 		}
 	}
+	tokens.add(token{ "", Token_EOF, lines });
 	return tokens;
 }

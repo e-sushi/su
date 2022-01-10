@@ -20,6 +20,9 @@
   <ItemGroup>
     <None Include="..\main.su" />
     <None Include="..\out.s" />
+    <None Include="cpp.hint">
+      <Filter>misc</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\su-lexer.cpp">

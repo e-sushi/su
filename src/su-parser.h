@@ -10,7 +10,6 @@
 	//////////////////////////////////////
 
 
-
 enum ExpressionType : u32 {
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
@@ -130,12 +129,13 @@ enum StatementType : u32 {
 	Statement_Else,
 };
 
+struct BlockItem;
 struct Statement {
 	StatementType type = Statement_Unknown;
 
-
 	array<Expression> expressions;
-	array<Statement> statements;
+	array<Statement>  statements;
+	array<BlockItem*> compound;
 
 	Statement() {};
 
@@ -148,17 +148,8 @@ struct Statement {
 	}
 };
 
-
-
-enum DeclType : u32 {
-	Decl_Int,
-	Decl_Float,
-	Decl_Double,
-	Decl_User_Defined
-};
-
 struct Declaration {
-	DeclType type;
+	Token_Type type;
 	string identifier = "";
 	bool initialized = false;
 	array<Expression> expressions;
@@ -171,14 +162,8 @@ struct BlockItem {
 	Statement statement;
 };
 
-enum FuncType : u32 {
-	INT,
-	FLOAT,
-	DOUBLE
-};
-
 struct Function {
-	FuncType type;
+	Token_Type type;
 	string identifier = "";
 
 	array<BlockItem> blockitems;

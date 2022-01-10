@@ -155,6 +155,7 @@
   <ItemGroup>
     <None Include="..\main.su" />
     <None Include="..\out.s" />
+    <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\su-assembler.cpp" />

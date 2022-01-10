@@ -1,0 +1,3 @@
+#define Expect(Token_Type) if(curt.type == Token_Type) {
+#define ExpectFail(error) }else { ParseFail(error); } 
+#define token_next curt = tokens.next()
