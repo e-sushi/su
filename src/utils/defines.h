@@ -316,14 +316,10 @@ template <class F> deferrer<F> operator*(defer_dummy, F f) { return {f}; }
 #  define defer auto DEFER(__LINE__) = defer_dummy{} *[&]()
 #endif // defer
 
-//// double linked list node ////
-struct Node{
-	Node* next;
-	Node* prev;
-};
-#define NodeInsertNext(x,node) ((node)->next=(x)->next,(node)->prev=(x),(node)->next->prev=(node),(x)->next=(node))
-#define NodeInsertPrev(x,node) ((node)->prev=(x)->prev,(node)->next=(x),(node)->prev->next=(node),(x)->prev=(node))
-#define NodeRemove(node) ((node)->next->prev=(node)->prev,(node)->prev->next=(node)->next)
+//#define NodeInsertChild(x, node) (((node)->first_child?(node):(node)->first_child=(x)), (x)->last=(node)->last_child, (node)->last_child=(x), (node)->child_count++)
+//#define NodeInsertNext(x,node) ((node)->next=(x)->next,(node)->prev=(x),(node)->next->prev=(node),(x)->next=(node))
+//#define NodeInsertPrev(x,node) ((node)->prev=(x)->prev,(node)->next=(x),(node)->prev->next=(node),(x)->prev=(node))
+//#define NodeRemove(node) ((node)->next->prev=(node)->prev,(node)->prev->next=(node)->next)
 
 //// C/C++ STL allocator ////
 global_ void* STLAllocator_Reserve(upt size){void* a = calloc(1,size); Assert(a); return a;}

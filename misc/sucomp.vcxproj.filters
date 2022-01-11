@@ -75,6 +75,12 @@
     <ClInclude Include="..\src\utils\cstring.h">
       <Filter>utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\su-types.h">
+      <Filter>src\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\utils\string_conversion.h">
+      <Filter>utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="debugvis.natvis">

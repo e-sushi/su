@@ -57,6 +57,10 @@
     <DisplayString>{str,[count]}</DisplayString>
   </Type>
 
+	<Type Name="Node">
+		<DisplayString>{debug_str.str,[debug_str.count]}</DisplayString>
+	</Type>
+
   <Type Name="Expression">
     <DisplayString>{expression_type} with {expressions.size()} child expressions</DisplayString>
     <Expand>
