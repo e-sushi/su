@@ -3,6 +3,7 @@
 #include "su-assembler.h"
 #include "su-parser.h"
 #include "su-lexer.h"
+#include "utils/string_conversion.h"
 
 
 //NOTE when doing stuff with trees add the node FIRST and reference it inside of it's array
@@ -28,6 +29,25 @@ a number literal
 
 */
 
+u32 i = 0;
+u32 o = 0;
+FILE* graph = 0;
+
+void compilegraph(Node* node, u32 parent) {
+	i++;
+	u32 save = i;
+
+	fputs(toStr(save, "[label=\"", node->debug_str, "\"shape=box]", '\n').str, graph);
+	fflush(graph);
+	Node* stage = node;
+
+	if (stage->first_child)   compilegraph(stage->first_child, save);
+	if (stage->next != stage) compilegraph(stage->next, parent);
+
+	fputs(toStr(parent, " -- ", save, '\n').str, graph);
+	fflush(graph);
+}
+
 
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
 int main() {
@@ -51,6 +71,14 @@ int main() {
 	std::cout << "parsing" << std::endl;
 	suParser::parse(tokens, program);
 	std::cout << "parsing finished" << std::endl;
+
+	graph = fopen("ASTgraph.dot", "w");
+	 fputs("graph ast {\n", graph);
+
+	Node* node = &program.node;
+	compilegraph(node, 0);
+	fputs("}", graph);
+	fclose(graph);
 
 	std::cout << "assembling" << std::endl;
 	string assembly = suAssembler::assemble(program);
