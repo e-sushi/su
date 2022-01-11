@@ -38,7 +38,7 @@
 
 
 
-bool master_logger = true;
+bool master_logger = false;
 
 #define PrettyPrint(message)\
 if(master_logger){ for(int i = 0; i < layer; i++)\
@@ -724,39 +724,31 @@ array<Declaration> declarations;
 array<Statement>   statements;
 array<Expression>  expressions;
 
+Arena arena;
+
 inline void new_function(string& identifier) {
-	//PrettyPrint(toStr("function ", identifier));
-	functions.add(Function{ identifier });
-	functions.last->node.prev = functions.last->node.next = &functions.last->node;
-	function = functions.last;
+	function = (Function*)arena.add(Function{ identifier });
+	function->node.prev = function->node.next = &function->node;
 }
 
 inline void new_block_item() {
-	//PrettyPrint("blockitem");
-	blockitems.add(BlockItem());
-	blockitems.last->node.prev = blockitems.last->node.next = &blockitems.last->node;
-	blockitem = blockitems.last;
+	blockitem = (BlockItem*)arena.add(BlockItem());
+	blockitem->node.prev = blockitem->node.next = &blockitem->node;
 }
 
 inline void new_declaration() {
-	//PrettyPrint("declaration");
-	declarations.add(Declaration());
-	declarations.last->node.prev = declarations.last->node.next = &declarations.last->node;
-	declaration = declarations.last;
+	declaration = (Declaration*)arena.add(Declaration());
+	declaration->node.prev = declaration->node.next = &declaration->node;
 }
 
 inline void new_statement() {
-	//PrettyPrint("statement");
-	statements.add(Statement());
-	statements.last->node.prev = statements.last->node.next = &statements.last->node;
-	statement = statements.last;
+	statement = (Statement*)arena.add(Statement());
+	statement->node.prev = statement->node.next = &statement->node;
 }
 
 inline void new_expression(string& str, ExpressionType type) {
-	//PrettyPrint(toStr("expression ", ExTypeStrings[type], " ", str));
-	expressions.add(Expression(str, type));
-	expressions.last->node.prev = expressions.last->node.next = &expressions.last->node;
-	expression = expressions.last;
+	expression = (Expression*)arena.add(Expression(str, type));
+	expression->node.prev = expression->node.next = &expression->node;
 }
 
 enum ParseState {
@@ -785,6 +777,8 @@ Node* debugprogramnode = 0;
 
 #define EarlyOut goto emergency_exit
 Node* parser(ParseState state, Node* node) {
+	//std::cout << f32(tokens.iter - tokens.data) / tokens.count * 100 << "% done" << std::endl;
+
 	layer++;
 
 	switch (state) {
@@ -1133,6 +1127,19 @@ Node* parser(ParseState state, Node* node) {
 					NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_IntegerLiteral]);
 				}break;
 
+				case Token_OpenParen: {
+					PrettyPrint("(");
+					new_expression(curt.str, ExpressionGuard_HEAD);
+					NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_HEAD]);
+					token_next();
+					parser(psExpression, &expression->node);
+					token_next();
+					Expect(Token_CloseParen) {
+						PrettyPrint(")");
+					}ExpectFail("expected a )");
+
+				}break;
+
 				default: {
 
 				}break;
@@ -1156,6 +1163,10 @@ emergency_exit:
 // <program> ::= <function>
 void suParser::parse(array<token>& tokens_in, Program& mother) {
 	//Program mother;
+
+	std::cout << '\n';
+
+	arena.init(Kilobytes(10));
 
 	tokens = tokens_in;
 	curt = tokens[0];

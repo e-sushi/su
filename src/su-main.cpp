@@ -60,10 +60,10 @@ int main() {
 	array<token> tokens = suLexer::lex(in);
 	std::cout << "lexing finished" << std::endl;
 
-	for (token& t : tokens) {
-		std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
-	}
-	std::cout << std::endl;
+	//for (token& t : tokens) {
+	//	std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
+	//}
+	//std::cout << std::endl;
 
 	Program program;
 
