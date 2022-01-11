@@ -1,6 +1,7 @@
 #include "su-parser.h"
 
 #include "utils/map.h"
+#include "utils/string_conversion.h"
 
 //TODO remove returning arrays of expressions and pass them by reference and modify instead
 //     or just use global arrays like we use a global string in assembling
@@ -43,7 +44,7 @@ bool master_logger = true;
 if(master_logger){ for(int i = 0; i < layer; i++)\
 if(i % 2 == 0) std::cout << "|   ";\
 else std::cout << "!   ";\
-std::cout << "~" << message << std::endl;}
+std::cout << "~" << message << " on node " << node->debug_str << std::endl;}
 
 u32 layer = 0; //inc when we go into anything, dec when we come out
 
@@ -80,6 +81,8 @@ if(exp_type.has(curt.type))
 #define ElseExpect(Token_Type)\
 else if (curt.type == Token_Type) 
 
+#define ExpectSignature(...) if(check_signature(__VA_ARGS__))
+#define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
  else { ParseFail(error); }
@@ -111,7 +114,7 @@ local map<Token_Type, ExpressionType> binaryOps{
 	{Token_NotEqual,           Expression_BinaryOpNotEqual},
 	{Token_BitAND,             Expression_BinaryOpBitAND},
 	{Token_BitOR,              Expression_BinaryOpBitOR},
-	{Token_BitXOR,		       ExpressionGuard_BitXOR},
+	{Token_BitXOR,		       Expression_BinaryOpBitXOR},
 	{Token_BitShiftLeft,       Expression_BinaryOpBitShiftLeft},
 	{Token_BitShiftRight,      Expression_BinaryOpBitShiftRight},
 	{Token_Modulo,             Expression_BinaryOpModulo},
@@ -708,6 +711,54 @@ inline b32 check_signature(T... in) {
 //	layer--;
 //}
 
+Function*    function;
+BlockItem*   blockitem;
+Declaration* declaration;
+Statement*   statement;
+Expression*  expression;
+
+//NOTE the purpose of these arrays is to keep the structs alive so that we dont have to randomly alloc nodes and we can read them in assembly
+array<Function>    functions;
+array<BlockItem>   blockitems;
+array<Declaration> declarations;
+array<Statement>   statements;
+array<Expression>  expressions;
+
+inline void new_function(string& identifier) {
+	//PrettyPrint(toStr("function ", identifier));
+	functions.add(Function{ identifier });
+	functions.last->node.prev = functions.last->node.next = &functions.last->node;
+	function = functions.last;
+}
+
+inline void new_block_item() {
+	//PrettyPrint("blockitem");
+	blockitems.add(BlockItem());
+	blockitems.last->node.prev = blockitems.last->node.next = &blockitems.last->node;
+	blockitem = blockitems.last;
+}
+
+inline void new_declaration() {
+	//PrettyPrint("declaration");
+	declarations.add(Declaration());
+	declarations.last->node.prev = declarations.last->node.next = &declarations.last->node;
+	declaration = declarations.last;
+}
+
+inline void new_statement() {
+	//PrettyPrint("statement");
+	statements.add(Statement());
+	statements.last->node.prev = statements.last->node.next = &statements.last->node;
+	statement = statements.last;
+}
+
+inline void new_expression(string& str, ExpressionType type) {
+	//PrettyPrint(toStr("expression ", ExTypeStrings[type], " ", str));
+	expressions.add(Expression(str, type));
+	expressions.last->node.prev = expressions.last->node.next = &expressions.last->node;
+	expression = expressions.last;
+}
+
 enum ParseState {
 	psGlobal,      	// <program>       :: = <function>
 	psFunction,		// <function>      :: = "int" <id> "(" ")" "{" { <block item> } "}"
@@ -730,91 +781,29 @@ enum ParseState {
 	psUnary,        // <unary>         :: = "!" | "~" | "-"
 }; 
 
-//working vars
-Program*     program;
-Function*    function;
-BlockItem*   blockitem;
-Statement*   statement;
-Declaration* declaration;
-Expression*  expression;
-
-//stacks
-array<Function*>    functions;
-array<BlockItem*>   blockitems;
-array<Statement*>   statements;
-array<Declaration*> declarations;
-array<Expression*>  expressions;
-
-enum FlagBits {
-
-}; typedef u32 Flags;
-
-inline void push_function() { functions.add(function); }
-inline void pop_function() { function = *functions.last; functions.pop(); }
-
-inline void new_function(string name, b32 set = 1) {
-	program->functions.add(Function(name));
-	function = program->functions.last;
-}
-
-inline void push_block_item() { blockitems.add(blockitem); }
-inline void pop_block_item() { blockitem = *blockitems.last; blockitems.pop(); }
-
-inline void new_block_item(b32 set = 1) {
-	if (blockitem) blockitems.add(blockitem);
-	if(set) function->blockitems.add(BlockItem());
-	blockitem = function->blockitems.last;
-}
-
-inline void push_declaration() { declarations.add(declaration); }
-inline void pop_declaration() { declaration = *declarations.last; declarations.pop(); }
-
-inline void new_declaration(string identifier, Token_Type type, b32 set = 1) {
-	blockitem->declaration = Declaration{ type,identifier };
-	if(set) declaration = &blockitem->declaration;
-	blockitem->is_declaration = 1;
-}
-
-inline void push_statement() { if (statement) statements.add(statement); }
-inline void pop_statement()  { statement = *statements.last; statements.pop(); }
-
-inline void new_statement_on_block_item(string str, StatementType type, b32 set = 1) {
-	blockitem->statement = Statement(str, type);
-	if(set) statement = &blockitem->statement;
-}
-
-inline void new_statement_on_statement(string str, StatementType type, b32 set = 1) {
-	statement->statements.add(Statement(str, type));
-	if(set) statement = (*statements.last)->statements.last;
-}
-
-inline void push_expression() { if (expression) expressions.add(expression); }
-inline void pop_expression()  { expression = *expressions.last; expressions.pop(); }
-
-inline void new_expression_on_declaration(string str, ExpressionType type, b32 set = 1) {
-	declaration->expressions.add(Expression(str, type));
-	if(set) expression = declaration->expressions.last;
-}
-
-inline void new_expression_on_expression(string str, ExpressionType type, b32 set = 1) {
-	expression->expressions.add(Expression(str, type));
-	if(set) expression = expression->expressions.last;
-}
-
-
+Node* debugprogramnode = 0;
 
 #define EarlyOut goto emergency_exit
-void parser(ParseState state) {
+Node* parser(ParseState state, Node* node) {
 	layer++;
+
 	switch (state) {
 
-		case psGlobal: { //////////////////////////////////////////////////////////////////////
+		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!next_match(Token_EOF)) {
+				//here the node is the program, the global scope
+				//we look for either a function, struct, or global variables
+				//(as of right now, we just look for functions)
 				ExpectOneOf(typeTokens) {
 					token_next();
 					Expect(Token_Identifier){
-						if (next_match(Token_OpenParen)) parser(psFunction);
-						
+						if (next_match(Token_OpenParen)) {
+							//we have found a function, make a node for it and parse it 
+							PrettyPrint("function " + curt.str);
+							new_function(curt.str);
+							NodeInsertChild(node, &function->node, "function");
+							parser(psFunction, &function->node);
+						}
 					}
 					//else if(check_signature(Token_Identifier, Token_))
 					Expect(Token_Identifier) {
@@ -824,116 +813,269 @@ void parser(ParseState state) {
 						}
 					}
 				}ExpectFail("yeah i dont know right now");
+				token_next();
 			}
 		}break;
 
-		case psFunction: { ////////////////////////////////////////////////////////////////////
-			push_function();
+		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
+			//here our node is a function, we look for block items, which are either variable declarations or statements 
+			//push_function();
 			token_next();
 			Expect(Token_OpenParen) { 
-				new_function(curt.str);
 				token_next();
-				//function parameter checking goes here
+				//function parameter checking will go here
 				Expect(Token_CloseParen) {
 					token_next();
 					Expect(Token_OpenBrace) {
 						while (!next_match(Token_CloseBrace)) {
 							token_next();
-							parser(psBlockItem);
+							//we are now within the scope of the function and expect only blockitems 
+							PrettyPrint("blockitem");
+							new_block_item();
+							NodeInsertChild(node, &blockitem->node, "blockitem");
+							parser(psBlockItem, &blockitem->node);
 
 							if (next_match(Token_EOF)) { ParseFail("Unexpected EOF"); EarlyOut; }
 						}
 					}ExpectFail("expected {");
 				}ExpectFail("expected )");
 			}ExpectFail("expected (");
-			pop_function();
 		}break;
 
-		case psBlockItem: {////////////////////////////////////////////////////////////////////
-			push_block_item();
-			new_block_item();
+		case psBlockItem: {//////////////////////////////////////////////////////////////////// @BlockItem
+			//here we look for whether we are declaring a variable or a statement
+			
 			ExpectOneOf(typeTokens) {
-				parser(psDeclaration); 
+				PrettyPrint("declaration");
+				new_declaration();
+				NodeInsertChild(node, &declaration->node, "declaration");
+				parser(psDeclaration, &declaration->node);
 			}
 			else {
-				
-				
+				PrettyPrint("statement");
+				new_statement();
+				NodeInsertChild(node, &statement->node, "statement");
+				parser(psStatement, &statement->node);
 			}
-			pop_block_item();
 		}break;
 
-		case psDeclaration: {///////////////////////////////////////////////////////////////////
-			push_declaration();
+		case psDeclaration: {////////////////////////////////////////////////////////////////// @Declaration
 			Token_Type type = curt.type;
 			token_next();
 			Expect(Token_Identifier) {
-				new_declaration(curt.str, type);
+				string id = curt.str; 
 				token_next();
 				Expect(Token_Assignment) {
-					new_expression_on_declaration(curt.str, ExpressionGuard_Assignment);
-					parser(psExpression);
-					declaration->initialized = true;
+					PrettyPrint("var assignment " + id);
+					new_expression(curt.str, ExpressionGuard_Assignment);
+					token_next();
+					NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Assignment]);
+					parser(psExpression, &expression->node);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("expected a ; after variable assignment")
 				}
 				ElseExpect(Token_Semicolon) {
-					//add expression guard for assignment regardless of if there is one so we can default to 0 in assembly 
-					new_expression_on_declaration(curt.str, ExpressionGuard_Assignment);
-				}
-				ExpectFail("expected a semicolon or assignment after variable declaration");
+				
+				}ExpectFail("expected a semicolon or assignment after variable declaration");
 			}
-			pop_declaration();
 		}break;
 
-
 		case psStatement: {
-			push_statement();
-			token_next();
 			switch (curt.type) {
 				case Token_If: {
 					
 					token_next();
 
 				}break;
+
+				case Token_Return: {
+					PrettyPrint("return statement");
+					statement->type = Statement_Return;
+					token_next();
+					parser(psExpression, node);
+					token_next();
+					Expect(Token_Semicolon) {}
+					ExpectFail("expected a ;");
+					
+				}break;
 			}
-			pop_statement();
 		}break;
 
-		case psExpression: {///////////////////////////////////////////////////////////////////
-			push_expression();
-			token_next();
+		case psExpression: {/////////////////////////////////////////////////////////////////// @Expression
 			switch (curt.type) {
 				case Token_Identifier: {
 					if (next_match(Token_Assignment)) {
-						new_expression_on_expression(curt.str, Expression_IdentifierLHS, 0);
-						token_next();
-						new_expression_on_expression(curt.str, Expression_BinaryOpAssignment, 0);
-						new_expression_on_expression(curt.str, ExpressionGuard_Assignment);
-						token_next();
-						parser(psExpression);
+						PrettyPrint("var assignment " + curt.str);
+						new_expression(curt.str, Expression_IdentifierLHS);     
+						NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_IdentifierLHS]); token_next();
+						new_expression(curt.str, Expression_BinaryOpAssignment); 
+						NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_BinaryOpAssignment]); token_next();
+						new_expression(curt.str, ExpressionGuard_Assignment);    
+						NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Assignment]); token_next();
+
+						parser(psExpression, &expression->node);
 					}
 					else {
-						new_expression_on_expression(curt.str, ExpressionGuard_HEAD);
-						parser(psConditional);
+						//new_expression_on_expression(curt.str, ExpressionGuard_HEAD);
+						parser(psConditional, 0);
 					}
 				}break;
 				default: {
-					new_expression_on_expression(curt.str, ExpressionGuard_HEAD);
-					parser(psConditional);
+					PrettyPrint("expression");
+					new_expression(curt.str, ExpressionGuard_HEAD);
+					NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_HEAD]);
+					parser(psConditional, &expression->node);
 				}break;
 
 			}
-			pop_expression();
+			//pop_expression();
 		}break;
 
-		case psConditional: {///////////////////////////////////////////////////////////////////
+		case psConditional: {////////////////////////////////////////////////////////////////// @Conditional
+			PrettyPrint("conditional");
+			new_expression(curt.str, ExpressionGuard_Conditional);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Conditional]);
+			parser(psLogicalOR, &expression->node);
 
+			while (next_match(Token_QuestionMark)) {
+				token_next();
+				PrettyPrint("ternary conditional");
+				new_expression(curt.str, Expression_TernaryConditional);
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_TernaryConditional]);
+				parser(psExpression, &expression->node);
+				token_next();
+				Expect(Token_Colon) {
+					new_expression(curt.str, ExpressionGuard_Conditional);
+					token_next();
+					NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Conditional]);
+					parser(psConditional, &expression->node);
+				}ExpectFail("Expected : for ternary conditional")
+			}
+		}break;
+
+		case psLogicalOR: {//////////////////////////////////////////////////////////////////// @Logical OR
+			PrettyPrint("logi OR");
+			new_expression(curt.str, ExpressionGuard_LogicalOR);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_LogicalOR]);
+			parser(psLogicalAND, &expression->node);
+		}break;
+		
+		case psLogicalAND: {/////////////////////////////////////////////////////////////////// @Logical AND
+			PrettyPrint("logi AND");
+			new_expression(curt.str, ExpressionGuard_LogicalAND);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_LogicalAND]);
+			parser(psBitwiseOR, &expression->node);
+		}break;
+		
+		case psBitwiseOR: {//////////////////////////////////////////////////////////////////// @Bitwise OR
+			PrettyPrint("bit OR");
+			new_expression(curt.str, ExpressionGuard_BitOR);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitOR]);
+			parser(psBitwiseXOR, &expression->node);
+		}break;
+		
+		case psBitwiseXOR: {/////////////////////////////////////////////////////////////////// @Bitwise XOR
+			PrettyPrint("bit XOR");
+			new_expression(curt.str, ExpressionGuard_BitXOR);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitXOR]);
+			parser(psBitwiseAND, &expression->node);
+		}break;
+
+		case psBitwiseAND: {/////////////////////////////////////////////////////////////////// @Bitwise AND
+			PrettyPrint("bit AND");
+			new_expression(curt.str, ExpressionGuard_BitAND);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitAND]);
+			parser(psEquality, &expression->node);
+		}break;
+
+		case psEquality: {///////////////////////////////////////////////////////////////////// @Equality
+			PrettyPrint("equality");
+			new_expression(curt.str, ExpressionGuard_Equality);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Equality]);
+			parser(psRelational, &expression->node);
+		}break;
+
+		case psRelational: {/////////////////////////////////////////////////////////////////// @Relational
+			PrettyPrint("relational");
+			new_expression(curt.str, ExpressionGuard_Relational);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Relational]);
+			parser(psBitshift, &expression->node);
+		}break;
+
+		case psBitshift: {///////////////////////////////////////////////////////////////////// @Bitshift
+			PrettyPrint("bitshift");
+			new_expression(curt.str, ExpressionGuard_BitShift);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitShift]);
+			parser(psAdditive, &expression->node);
+		}break;
+
+		case psAdditive: {///////////////////////////////////////////////////////////////////// @Additive
+			PrettyPrint("additive");
+			new_expression(curt.str, ExpressionGuard_Additive);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Additive]);
+			parser(psTerm, &expression->node);
+
+			while (next_match(Token_Plus) || next_match(Token_Negation)) {
+				token_next();
+				PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+				new_expression(curt.str, *binaryOps.at(curt.type));
+				NodeInsertChild(node, &expression->node, ExTypeStrings[*binaryOps.at(curt.type)]); token_next();
+				new_expression(curt.str, ExpressionGuard_Additive);
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Additive]);
+				parser(psTerm, &expression->node);
+			}
+		}break;
+			 
+		case psTerm: {///////////////////////////////////////////////////////////////////////// @Term
+			PrettyPrint("term");
+			new_expression(curt.str, ExpressionGuard_Term);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Term]);
+			parser(psFactor, &expression->node);
+
+			while (next_match(Token_Multiplication) || next_match(Token_Division) || next_match(Token_Modulo)) {
+				token_next();
+				PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+				new_expression(curt.str, *binaryOps.at(curt.type)); 
+				NodeInsertChild(node, &expression->node, ExTypeStrings[*binaryOps.at(curt.type)]); token_next();
+				new_expression(curt.str, ExpressionGuard_Term);
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Term]);
+				parser(psFactor, &expression->node);
+			}
+		}break;
+
+		case psFactor: {/////////////////////////////////////////////////////////////////////// @Factor
+			PrettyPrint("factor");
+			new_expression(curt.str, ExpressionGuard_Factor);
+			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Factor]);
+			node = &expression->node;
+
+			switch (curt.type) {
+				case Token_Literal: {
+					PrettyPrint("literal " << curt.str);
+					new_expression(curt.str, Expression_IntegerLiteral);
+					NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_IntegerLiteral]);
+				}break;
+
+				default: {
+
+				}break;
+			}
+
+
+		}break;
+
+		case psUnary: {//////////////////////////////////////////////////////////////////////// @Unary
+			PrettyPrint("unary");
 		}break;
 	}
+			
 
 emergency_exit:
 	layer--;
+
+	return 0;
 }
 
 // <program> ::= <function>
@@ -942,13 +1084,16 @@ void suParser::parse(array<token>& tokens_in, Program& mother) {
 
 	tokens = tokens_in;
 	curt = tokens[0];
-	program = &mother;
+	//program = &mother;
 
-	PrettyPrint("Parse begin");
+	//PrettyPrint("Parse begin");
+
+	mother.node.next = mother.node.prev = &mother.node;
+	mother.node.debug_str = "program";
+
+	debugprogramnode = &mother.node;
 	
-
-	parser(psGlobal);
-
+	parser(psGlobal, &mother.node);
 
 	//return mother;
 }

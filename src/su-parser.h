@@ -3,6 +3,7 @@
 #define SU_PARSER_H
 
 #include "su-lexer.h"
+#include "su-types.h"
 
 
 	//////////////////////////////////////
@@ -38,7 +39,7 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpEqual,
 	Expression_BinaryOpNotEqual,
 	Expression_BinaryOpModulo,
-	Expression_BinaryOpXOR,
+	Expression_BinaryOpBitXOR,
 	Expression_BinaryOpBitShiftLeft,
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
@@ -93,9 +94,13 @@ static const char* ExTypeStrings[] = {
 	">>",
 	"=",
 
+	"tern cond",
+
 	"assignment",
-	"logical and",
+	"head",
+	"conditional",
 	"logical or",
+	"logical and",
 	"bit or",
 	"bit xor",
 	"bit and",
@@ -111,7 +116,9 @@ struct Expression {
 	string expstr;
 	ExpressionType type;
 
-	array<Expression> expressions;
+	//array<Expression> expressions;
+
+	Node node;
 
 	Expression(string expstr, ExpressionType type) {
 		this->type = type;
@@ -133,9 +140,11 @@ struct BlockItem;
 struct Statement {
 	StatementType type = Statement_Unknown;
 
-	array<Expression> expressions;
-	array<Statement>  statements;
-	array<BlockItem*> compound;
+	//array<Expression> expressions;
+	//array<Statement>  statements;
+	//array<BlockItem*> compound;
+
+	Node node;
 
 	Statement() {};
 
@@ -151,22 +160,26 @@ struct Statement {
 struct Declaration {
 	Token_Type type;
 	string identifier = "";
-	bool initialized = false;
-	array<Expression> expressions;
+	b32 initialized = false;
+	//array<Expression> expressions;
+	Node node;
 };
 
 struct BlockItem {
-	bool is_declaration = 0;
+	b32 is_declaration = 0;
+	Node node; //NOTE this node is a singleton and is either a statement or a declaration
 
-	Declaration declaration;
-	Statement statement;
+	//Declaration declaration;
+	//Statement statement;
+	//Node declaration; //NOTE these nodes are singletons!
+	//Node statement; 
 };
 
 struct Function {
-	Token_Type type;
 	string identifier = "";
+	DataType type;
 
-	array<BlockItem> blockitems;
+	Node node;
 
 	Function() {}
 
@@ -177,9 +190,9 @@ struct Function {
 };
 
 struct Program {
-	array<Function> functions;
+	//array<Function> functions;
+	Node node;
 };
-
 
 namespace suParser {
 	void parse(array<token>& tokens, Program& mother);
