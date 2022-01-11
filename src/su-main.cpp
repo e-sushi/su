@@ -30,7 +30,6 @@ a number literal
 */
 
 u32 i = 0;
-u32 o = 0;
 FILE* graph = 0;
 
 void compilegraph(Node* node, u32 parent) {

@@ -131,7 +131,11 @@ array<token> suLexer::lex(FILE* file) {
 							b32 valid = 1;
 							forI(buff.str - chunk_start) if (!isnumber(chunk_start[i])) valid = 0;
 							if (valid) tokens.add(token{ chunkstr, Token_Literal, lines });
-							else tokens.add(token{ chunkstr, Token_ERROR, lines }); // TODO error out of the program here
+							else {
+								tokens.add(token{ chunkstr, Token_ERROR, lines });
+								PRINTLN("TOKEN ERROR ON TOKEN " << chunkstr);
+							}
+							// TODO error out of the program here
 						}
 						
 						if (buff[0] == '\n') lines++;

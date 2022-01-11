@@ -960,6 +960,15 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_LogicalOR);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_LogicalOR]);
 			parser(psLogicalAND, &expression->node);
+
+			while (next_match(Token_OR)) {
+				token_next();
+				PrettyPrint("binary op ||");
+				new_expression(curt.str, Expression_BinaryOpOR);
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_LogicalOR]);
+				parser(psLogicalAND, &expression->node);
+			}
 		}break;
 		
 		case psLogicalAND: {/////////////////////////////////////////////////////////////////// @Logical AND
@@ -967,6 +976,15 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_LogicalAND);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_LogicalAND]);
 			parser(psBitwiseOR, &expression->node);
+
+			while (next_match(Token_AND)) {
+				token_next();
+				PrettyPrint("binary op &&");
+				new_expression(curt.str, Expression_BinaryOpAND);
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_LogicalAND]);
+				parser(psBitwiseOR, &expression->node);
+			}
 		}break;
 		
 		case psBitwiseOR: {//////////////////////////////////////////////////////////////////// @Bitwise OR
@@ -974,6 +992,15 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_BitOR);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitOR]);
 			parser(psBitwiseXOR, &expression->node);
+
+			while (next_match(Token_BitOR)) {
+				token_next();
+				PrettyPrint("binary op |");
+				new_expression(curt.str, Expression_BinaryOpBitOR);
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitOR]);
+				parser(psBitwiseXOR, &expression->node);
+			}
 		}break;
 		
 		case psBitwiseXOR: {/////////////////////////////////////////////////////////////////// @Bitwise XOR
@@ -981,6 +1008,15 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_BitXOR);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitXOR]);
 			parser(psBitwiseAND, &expression->node);
+
+			while (next_match(Token_BitXOR)) {
+				token_next();
+				PrettyPrint("binary op ^");
+				new_expression(curt.str, Expression_BinaryOpBitXOR);
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitXOR]);
+				parser(psBitwiseAND, &expression->node);
+			}
 		}break;
 
 		case psBitwiseAND: {/////////////////////////////////////////////////////////////////// @Bitwise AND
@@ -988,6 +1024,16 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_BitAND);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitAND]);
 			parser(psEquality, &expression->node);
+
+
+			while (next_match(Token_BitAND)) {
+				token_next();
+				PrettyPrint("binary op ^");
+				new_expression(curt.str, Expression_BinaryOpBitAND);
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitAND]);
+				parser(psEquality, &expression->node);
+			}
 		}break;
 
 		case psEquality: {///////////////////////////////////////////////////////////////////// @Equality
@@ -995,6 +1041,15 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_Equality);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Equality]);
 			parser(psRelational, &expression->node);
+
+			while (next_match(Token_NotEqual) || next_match(Token_Equal)) {
+				token_next();
+				PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+				new_expression(curt.str, *binaryOps.at(curt.type));
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Equality]);
+				parser(psRelational, &expression->node);
+			}
 		}break;
 
 		case psRelational: {/////////////////////////////////////////////////////////////////// @Relational
@@ -1002,6 +1057,16 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_Relational);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Relational]);
 			parser(psBitshift, &expression->node);
+
+
+			while (next_match(Token_LessThan) || next_match(Token_GreaterThan) || next_match(Token_LessThanOrEqual) || next_match(Token_GreaterThanOrEqual)) {
+				token_next();
+				PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+				new_expression(curt.str, *binaryOps.at(curt.type));
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Relational]);
+				parser(psBitshift, &expression->node);
+			}
 		}break;
 
 		case psBitshift: {///////////////////////////////////////////////////////////////////// @Bitshift
@@ -1009,6 +1074,16 @@ Node* parser(ParseState state, Node* node) {
 			new_expression(curt.str, ExpressionGuard_BitShift);
 			NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitShift]);
 			parser(psAdditive, &expression->node);
+
+
+			while (next_match(Token_BitShiftLeft) || next_match(Token_BitShiftRight)) {
+				token_next();
+				PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
+				new_expression(curt.str, *binaryOps.at(curt.type));
+				token_next();
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitShift]);
+				parser(psAdditive, &expression->node);
+			}
 		}break;
 
 		case psAdditive: {///////////////////////////////////////////////////////////////////// @Additive
