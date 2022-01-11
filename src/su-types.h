@@ -75,4 +75,27 @@ inline void NodeInsertChild(Node* parent, Node* child, string debugstr = "") {
 }
 //TODO remove child node
 
+struct Arena {
+	u8* data = 0;
+	u8* cursor = 0;
+	upt size = 0;
+
+	void init(upt bytes) {
+		data = (u8*)calloc(1, bytes);
+		cursor = data;
+		size = bytes;
+	}
+
+	template<typename T>
+	void* add(const T& in) {
+		if (cursor - data < sizeof(T) + size) {
+			data = (u8*)calloc(1, size); 
+			cursor = data;
+		}
+		memcpy(cursor, &in, sizeof(T));
+		cursor += sizeof(T);
+		return cursor - sizeof(T);
+	}
+};
+
 #endif

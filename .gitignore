@@ -36,3 +36,6 @@ ASTgraph.dot
 ast.png
 main.su
 out.s
+ast.svg
+main.su
+out.s
