@@ -36,14 +36,19 @@ void compilegraph(Node* node, u32 parent) {
 	i++;
 	u32 save = i;
 
-	fputs(toStr(save, "[label=\"", node->debug_str, "\"shape=box]", '\n').str, graph);
+	string send = node->debug_str;
+	send.replace('&', "&amp;");
+	send.replace('<', "&lt;");
+	send.replace('>', "&gt;");
+
+	fputs(toStr(save, "[label=<<font color=\"#ffffff\">", send, "</font>>", "shape=box] ", '\n').str, graph);
 	fflush(graph);
 	Node* stage = node;
 
 	if (stage->first_child)   compilegraph(stage->first_child, save);
 	if (stage->next != stage) compilegraph(stage->next, parent);
 
-	fputs(toStr(parent, " -- ", save, '\n').str, graph);
+	fputs(toStr(parent, " -- ", save, "[color=\"white\" labelfontcolor=\"white\"]", '\n').str, graph);
 	fflush(graph);
 }
 
@@ -60,10 +65,10 @@ int main() {
 	array<token> tokens = suLexer::lex(in);
 	std::cout << "lexing finished" << std::endl;
 
-	//for (token& t : tokens) {
-	//	std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
-	//}
-	//std::cout << std::endl;
+	for (token& t : tokens) {
+		std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
+	}
+	std::cout << std::endl;
 
 	Program program;
 
@@ -72,7 +77,7 @@ int main() {
 	std::cout << "parsing finished" << std::endl;
 
 	graph = fopen("ASTgraph.dot", "w");
-	 fputs("graph ast {\n", graph);
+	 fputs("graph ast {\nbgcolor=\"black\"\n", graph);
 
 	Node* node = &program.node;
 	compilegraph(node, 0);
