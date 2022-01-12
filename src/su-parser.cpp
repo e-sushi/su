@@ -67,6 +67,7 @@ void token_next(u32 count = 1) {
 #define token_look_back(i) tokens.lookback(i)
 
 #define next_match(tok) (tokens.peek().type == tok)
+#define next_match_any(tok_type) (tok_type.has(tokens.peek().type))
 #define curr_atch(tok) (curt.type == tok)
 
 #define ParseFail(error)\
@@ -141,588 +142,11 @@ inline b32 check_signature(T... in) {
 	return ((tokens.peek(i++).type == in) && ...);
 }
 
-//void parse_term(array<Expression>* expressions);
-//void parse_expressions(array<Expression>* expressions);
-//
-//// <factor> :: = "(" <exp> ")" | <unary> <factor> | <int> | <id>
-//void parse_factor(array<Expression>* expressions) {
-//	layer++;
-//	PrettyPrint("factor");
-//	expressions->add(Expression(curt.str, ExpressionGuard_Factor));
-//
-//	switch (curt.type) {
-//
-//		case Token_Literal: {
-//			PrettyPrint("int literal:  " << curt.str);
-//			syntax.integerf = 1;
-//			expressions->last->expressions.add(Expression(curt.str, Expression_IntegerLiteral));
-//			layer--;
-//			return;
-//		}break;
-//
-//		case Token_OpenParen: {
-//			PrettyPrint("( OPEN");
-//			expressions->add(Expression(curt.str, ExpressionGuard_HEAD));
-//			
-//			token_next();
-//			parse_expressions(&expressions->last->expressions);
-//			
-//			token_next();
-//			Expect(Token_CloseParen) 
-//				PrettyPrint(") CLOSE");
-//				layer--;
-//				return;
-//			ExpectFail("Expected a )")
-//		}break;
-//
-//		case Token_Identifier: {
-//			PrettyPrint("identifier: " << curt.str);
-//			expressions->add(Expression(curt.str, Expression_IdentifierRHS));
-//			layer--;
-//			return;
-//		}break;
-//
-//		default: {
-//			ExpectOneOf(unaryOps)
-//				PrettyPrint("unary op " << ExTypeStrings[*unaryOps.at(curt.type)]);
-//				token_next();
-//				expressions->add(Expression(curt.str, *unaryOps.at(curt.type)));
-//				parse_factor(&expressions->last->expressions);
-//				layer--;
-//				return;
-//			ExpectFail("unExpected token found in factor");
-//		}
-//	}
-//
-//	layer--;
-//}
-//
-//// <term> :: = <factor> { ("*" | "/" | "%") <factor> }
-//void parse_term(array<Expression>* expressions) {
-//	layer++;
-//	PrettyPrint("term");
-//
-//	//all terms become factors
-//	expressions->add(Expression(curt.str, ExpressionGuard_Term));
-//	parse_factor(&expressions->last->expressions);
-//
-//	while (
-//		token_peek.type == Token_Multiplication || token_peek.type == Token_Division ||
-//		token_peek.type == Token_Modulo) {
-//		
-//		token_next();
-//		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
-//		PrettyPrint("term");
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
-//
-//		expressions->add(Expression(curt.str, ExpressionGuard_Term));
-//		token_next();
-//		parse_factor(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <additive-exp> ::= <term> { ("+" | "-") <term> }
-//void parse_additive(array<Expression>* expressions) {
-//	layer++;
-//	string name = "additive";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_Additive));
-//	parse_term(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_Plus || token_peek.type == Token_Negation) {
-//		token_next();
-//		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
-//		PrettyPrint(name);
-//		
-//		//add operator expression
-//		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_Additive));
-//		token_next();
-//		parse_term(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
-//void parse_bitshift(array<Expression>* expressions) {
-//	layer++;
-//	string name = "bitshift";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_BitShift));
-//	parse_additive(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_BitShiftRight || token_peek.type == Token_BitShiftLeft) {
-//		token_next();
-//		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_BitShift));
-//		token_next();
-//		parse_additive(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <relational> :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
-//void parse_relational(array<Expression>* expressions) {
-//	layer++;
-//	string name = "relational";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_Relational));
-//	parse_bitshift(&expressions->last->expressions);
-//
-//	while (
-//		token_peek.type == Token_LessThan ||
-//		token_peek.type == Token_GreaterThan ||
-//		token_peek.type == Token_LessThanOrEqual ||
-//		token_peek.type == Token_GreaterThanOrEqual) {
-//
-//		token_next(); 
-//		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
-//		
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_Relational));
-//		token_next();
-//		parse_bitshift(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <equality> ::= <relational> { ("!=" | "==") <relational> }
-//void parse_equality(array<Expression>* expressions) {
-//	layer++;
-//	string name = "equality";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_Equality));
-//	parse_relational(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_NotEqual || token_peek.type == Token_Equal) {
-//		token_next(); 
-//		PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, *binaryOps.at(curt.type)));
-//		
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_Equality));
-//		token_next();
-//		parse_relational(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <bitwise and> :: = <equality> { "&" <equality> }
-//void parse_bitwise_and(array<Expression>* expressions) {
-//	layer++;
-//	string name = "bit AND";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_BitAND));
-//	parse_equality(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_BitAND) {
-//		token_next();
-//		PrettyPrint("binary op &");
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, Expression_BinaryOpBitAND));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_BitAND));
-//		token_next();
-//		parse_equality(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <bitwise xor> :: = <bitwise and> { "^" <bitwise and> }
-//void parse_bitwise_xor(array<Expression>* expressions) {
-//	layer++;
-//	string name = "bit XOR";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_BitXOR));
-//	parse_bitwise_and(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_BitXOR) {
-//		token_next();
-//		PrettyPrint("binary op ^");
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, Expression_BinaryOpXOR));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_BitXOR));
-//		token_next();
-//		parse_bitwise_and(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-////<bitwise or> :: = <bitwise xor> { "|" <bitwise xor> }
-//void parse_bitwise_or(array<Expression>* expressions) {
-//	layer++;
-//	string name = "bit OR";
-//	PrettyPrint(name);
-//
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_BitOR));
-//	parse_bitwise_xor(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_BitOR) {
-//		token_next();
-//		PrettyPrint("binary op |");
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, Expression_BinaryOpBitOR));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_BitOR));
-//		token_next();
-//		parse_bitwise_xor(&expressions->last->expressions);
-//
-//	}
-//
-//	layer--;
-//}
-//
-//// <logical and> :: = <bitwise or> { "&&" <bitwise or> } 
-//void parse_logical_and(array<Expression>* expressions) {
-//	layer++;
-//	string name = "logi AND";
-//	PrettyPrint(name);
-//	
-//	//decend down expression guards
-//	expressions->add(Expression(curt.str, ExpressionGuard_BitAND));
-//	parse_bitwise_or(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_AND) {
-//		token_next();
-//		PrettyPrint("binary op &&");
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, Expression_BinaryOpAND));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_BitAND));
-//		token_next();
-//		parse_bitwise_or(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <logical or> :: = <logical and> { "||" <logical and> }
-//void parse_logical_or(array<Expression>* expressions) {
-//	layer++;
-//	string name = "logi OR";
-//	PrettyPrint(name);
-//
-//	//decend into expression guard hell
-//	expressions->add(Expression(curt.str, ExpressionGuard_LogicalOR));
-//	parse_logical_and(&expressions->last->expressions);
-//
-//	while (token_peek.type == Token_OR) {
-//		token_next();
-//		PrettyPrint("binary op ||");
-//		PrettyPrint(name);
-//
-//		//add operator expression
-//		expressions->add(Expression(curt.str, Expression_BinaryOpOR));
-//
-//		//decend down expression guards
-//		expressions->add(Expression(curt.str, ExpressionGuard_LogicalOR));
-//		token_next();
-//		parse_logical_and(&expressions->last->expressions);
-//	}
-//
-//	layer--;
-//}
-//
-//// <conditional> ::= <logical or> [ "?" <exp> ":" <conditional> ]
-//void parse_conditional(array<Expression>* expressions) {
-//	layer++;
-//	PrettyPrint("conditional");
-//
-//	expressions->add(Expression(curt.str, ExpressionGuard_Conditional));
-//	parse_logical_or(&expressions->last->expressions);
-//
-//	if (token_peek.type == Token_QuestionMark) {
-//		token_next();
-//		PrettyPrint("ternary conditional");
-//		expressions->add(Expression(curt.str, Expression_TernaryConditional));
-//		token_next();
-//		parse_expressions(&expressions->last->expressions);
-//		token_next();
-//		Expect(Token_Colon) {
-//			expressions->add(Expression(curt.str, ExpressionGuard_Conditional));
-//			token_next();
-//			parse_conditional(&expressions->last->expressions);
-//		}
-//		ExpectFail("Expected : for ternary conditional")
-//	}
-//
-//
-//	layer--;
-//}
-//
-//// <exp> :: = <id> "=" <exp> | <conditional>
-//void parse_expressions(array<Expression>* expressions) {
-//	layer++;
-//	string name = "exp";
-//	 
-//	switch (curt.type) {
-//		case Token_Identifier: {
-//			PrettyPrint("~id " << curt.str << " exp:");
-//			if(token_peek.type == Token_Assignment) {
-//				expressions->add(Expression(curt.str, Expression_IdentifierLHS));
-//				token_next(); 
-//				layer++;
-//				PrettyPrint("var assignment");
-//				expressions->add(Expression(curt.str, Expression_BinaryOpAssignment));
-//				
-//				expressions->add(Expression(curt.str, ExpressionGuard_Assignment));
-//				token_next();
-//				parse_expressions(&expressions->last->expressions);
-//				layer--;
-//			} 
-//			else {
-//				expressions->add(Expression(curt.str, ExpressionGuard_HEAD));
-//				parse_conditional(&expressions->last->expressions);
-//			}
-//		}break;
-//
-//		//I think if it's anything else it should be parsed normally
-//		default: {
-//			expressions->add(Expression(curt.str, ExpressionGuard_HEAD));
-//			parse_conditional(&expressions->last->expressions);
-//		}break;
-//	}
-//	layer--;
-//}
-//
-//// <declaration> :: = "int" <id> [ = <exp> ] ";"
-//void parse_declaration(Declaration* declaration, BlockItem* bi = nullptr) {
-//	layer++;
-//
-//	Expect(Token_Identifier) {
-//		//Declaration* decl = new Declaration();
-//		declaration->identifier = curt.str;
-//		declaration->type = Decl_Int;
-//		PrettyPrint("declaration of var '" << declaration->identifier << "' of type int");
-//
-//		token_next();
-//
-//		Expect(Token_Assignment) {
-//			layer++;
-//			PrettyPrint("variable assignment");
-//			token_next();
-//			declaration->expressions.add(Expression(curt.str, ExpressionGuard_Assignment));
-//			parse_expressions(&declaration->expressions.last->expressions);
-//			declaration->initialized = true;
-//			layer--;
-//			token_next();
-//
-//			Expect(Token_Semicolon);
-//			//if (bi) bi.declaration = decl;
-//			ExpectFail("Expected a ;");
-//		}
-//		ElseExpect(Token_Semicolon) {
-//			layer++;
-//			PrettyPrint("no assignment");
-//			layer--;
-//			//add expression guard for assignment regardless of if there is one so we can default to 0 in assembly 
-//			declaration->expressions.add(Expression(curt.str, ExpressionGuard_Assignment));
-//			//if (bi) bi.declaration = decl;
-//		}
-//		ExpectFail("Expected a ;")
-//	}
-//	ExpectFail("Expected an identifier after type keyword");
-//
-//
-//	layer--;
-//}
-//
-//// <statement> :: = "return" <exp> ";" | 
-////                  <exp> ";" | 
-////                  "if" "(" <exp> ")" <statement> [ "else" <statement> ] 
-//void parse_statement(Statement* statement, BlockItem* bi = nullptr) {
-//	layer++;
-//
-//	switch (curt.type) {
-//
-//		//both if and else tokens are handled here!
-//		//if an else token is found outside of this then it has no preceeding if statement
-//		//if and else are added to a Conditional Statement to allow easy placing of if labels
-//		case Token_If: {
-//			PrettyPrint("if statement");
-//			if(statement->type != Statement_Conditional)
-//				statement->type = Statement_Conditional;
-//		
-//			token_next(); // if -> (
-//			Expect(Token_OpenParen) {
-//				token_next(); //( -> exp
-//				//create actual if statement and parse it's expressions
-//				statement->statements.add(Statement(Statement_If));
-//				Statement* is = statement->statements.last;
-//				parse_expressions(&is->expressions);
-//				if (is->expressions.size() == 0) ParseFail("missing expression for if statement");
-//				
-//				token_next(); // exp -> )
-//				Expect(Token_CloseParen) {
-//					if (token_peek.type == Token_Unsigned32) { ParseFail("invalid attempt to declare a variable in non-scoped if statement"); }
-//					else {
-//						token_next(); // ) -> statement
-//						
-//						//parse for if statement's statements
-//						is->statements.add(Statement(Statement_Conditional));
-//						parse_statement(is->statements.last);
-//						Expect(Token_Semicolon) {
-//							//check for optional else
-//							if (token_peek.type == Token_Else) {
-//								token_next(); // ; -> else
-//								PrettyPrint("else statement");
-//								statement->statements.add(Statement(Statement_Else));
-//								Statement* es = statement->statements.last;
-//								es->statements.add(Statement(Statement_Conditional));
-//								token_next(); // else -> whatever follows
-//								parse_statement(es->statements.last);
-//							}
-//						} ExpectFail("Expected a ;");
-//					}
-//				} ExpectFail("missing ) for if statement");
-//			} ExpectFail("Expected ( after if");
-//		}break;
-//
-//		case Token_Else: {
-//			ParseFail("else statement found without preceeding if statement");
-//		}break;
-//
-//		case Token_Literal:
-//		case Token_Identifier: {
-//			PrettyPrint("exp statement:");
-//			if (statement->type != Statement_Expression)
-//				statement->type = Statement_Expression;
-//			parse_expressions(&statement->expressions);
-//			token_next();
-//			Expect(Token_Semicolon) {
-//				//if (bi) bi.statement = smt;
-//			} ExpectFail("Expected a ;");
-//		}break;
-//
-//		case Token_Return: {
-//			PrettyPrint("return statement:");
-//			//Statement* smt = new Statement(Statement_Return);
-//			if (statement->type != Statement_Return)
-//				statement->type = Statement_Return;
-//			token_next();
-//			parse_expressions(&statement->expressions);
-//			token_next();
-//			Expect(Token_Semicolon) {
-//				//if (bi) bi.statement = smt;
-//			} ExpectFail("Expected a ;");
-//		}break;
-//
-//	}
-//	layer--;
-//}
-//
-//// <function> :: = "int" <id> "(" ")" "{" { <block item> } "}"
-//void parse_function(array<Function>* functions) {
-//	layer++;
-//
-//	//Expect asks if the next tokens type matches a certain criteria and if it doesnt
-//	//we throw a parse fail
-//	token_next();                                      //Expect keyword                                 
-//	Expect(Token_Unsigned32) { token_next();                //Expect function identifier
-//		Expect(Token_Identifier) {        
-//			PrettyPrint("Parse begin on function " << curt.str);
-//			functions->add(Function(curt.str));
-//			Function* function = functions->last;
-//			token_next();                              // Expect (
-//			Expect(Token_OpenParen) { token_next();      // Expect )
-//				Expect(Token_CloseParen) { token_next(); // Expect {
-//					Expect(Token_OpenBrace) {
-//						while (token_peek.type != Token_CloseBrace) {
-//							BlockItem bi = BlockItem();
-//							if (token_peek.type == Token_Unsigned32) {
-//								// if we find a keyword then we are declaring a variable
-//								token_next(); token_next();
-//								bi.is_declaration = 1;
-//								functions->last->blockitems.add(bi);
-//								parse_declaration(&function->blockitems.last->declaration, function->blockitems.last);
-//							}
-//							else{
-//								//else we must be doing some kind of statement 
-//								token_next();
-//								functions->last->blockitems.add(bi);
-//								parse_statement(&function->blockitems.last->statement, function->blockitems.last);
-//							}
-//							if (token_peek.type == Token_EOF) {
-//								ParseFail("EOF reached before closing function");
-//								goto function_fail;
-//							}
-//						}
-//						token_next();
-//						Expect(Token_CloseBrace) {
-//						} ExpectFail("Expected }");
-//					} ExpectFail("Expected {");
-//				} ExpectFail("Expected )");
-//			} ExpectFail("Expected (");
-//		} ExpectFail("invalid function identifier following keyword");
-//	} ExpectFail("Expected a keyword (int, float, etc..) as first token");
-//
-//function_fail:
-//	layer--;
-//}
-
 Function*    function;
 BlockItem*   blockitem;
 Declaration* declaration;
 Statement*   statement;
 Expression*  expression;
-
-//NOTE the purpose of these arrays is to keep the structs alive so that we dont have to randomly alloc nodes and we can read them in assembly
-array<Function>    functions;
-array<BlockItem>   blockitems;
-array<Declaration> declarations;
-array<Statement>   statements;
-array<Expression>  expressions;
 
 Arena arena;
 
@@ -867,20 +291,59 @@ Node* parser(ParseState state, Node* node) {
 					parser(psExpression, &expression->node);
 					token_next();
 					Expect(Token_Semicolon) {}
-					ExpectFail("expected a ; after variable assignment")
+					ExpectFail("missing ; after variable assignment")
 				}
-				ElseExpect(Token_Semicolon) {
-				
-				}ExpectFail("expected a semicolon or assignment after variable declaration");
+				ElseExpect(Token_Semicolon) {}
+				ExpectFail("missing semicolon or assignment after variable declaration");
 			}
 		}break;
 
 		case psStatement: {
 			switch (curt.type) {
 				case Token_If: {
-					
+					statement->type = Statement_Conditional;
+					statement->node.debug_str = "conditional statement";
 					token_next();
+					Expect(Token_OpenParen) {
+						token_next();
+						parser(psExpression, &statement->node);
+						if (!statement->node.first_child)
+							ParseFail("missing expression for if statement");
 
+						token_next();
+						Expect(Token_CloseParen) {
+							if (next_match_any(typeTokens)) {
+								ParseFail("attempt to declare a variable in non-scoped if statement");
+							}
+							else {
+								token_next();
+								new_statement();
+								statement->type = Statement_If;
+								NodeInsertChild(node, &statement->node, "if statement");
+								parser(psStatement, &statement->node);
+								Expect(Token_Semicolon) {}
+								ExpectFail("expected a ;");
+
+								if (next_match(Token_Else)) {
+									token_next();
+									new_statement();
+									statement->type = Statement_Else;
+									NodeInsertChild(node, &statement->node, "else statement");
+									token_next();
+									parser(psStatement, &statement->node);
+								}
+							}
+						}ExpectFail("expected a )");
+					}ExpectFail("expected a (");
+				}break;
+
+				case Token_Literal:
+				case Token_Identifier: {
+					statement->type = Statement_Expression;
+					parser(psExpression, &statement->node);
+					token_next();
+					Expect(Token_Semicolon) {} 
+					ExpectFail("Expected a ;");
 				}break;
 
 				case Token_Return: {
@@ -906,13 +369,15 @@ Node* parser(ParseState state, Node* node) {
 						new_expression(curt.str, Expression_BinaryOpAssignment); 
 						NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_BinaryOpAssignment]); token_next();
 						new_expression(curt.str, ExpressionGuard_Assignment);    
-						NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Assignment]); token_next();
+						NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_Assignment]);
 
 						parser(psExpression, &expression->node);
 					}
 					else {
 						//new_expression_on_expression(curt.str, ExpressionGuard_HEAD);
-						parser(psConditional, 0);
+						new_expression(curt.str, ExpressionGuard_HEAD);
+						NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_HEAD]);
+						parser(psConditional, &expression->node);
 					}
 				}break;
 				default: {
@@ -1074,8 +539,9 @@ Node* parser(ParseState state, Node* node) {
 				token_next();
 				PrettyPrint("binary op " << ExTypeStrings[*binaryOps.at(curt.type)]);
 				new_expression(curt.str, *binaryOps.at(curt.type));
-				token_next();
-				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitShift]);
+				NodeInsertChild(node, &expression->node, ExTypeStrings[*binaryOps.at(curt.type)]); token_next();
+				new_expression(curt.str, ExpressionGuard_BitShift);
+				NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_BitShift]); 
 				parser(psAdditive, &expression->node);
 			}
 		}break;
@@ -1124,13 +590,13 @@ Node* parser(ParseState state, Node* node) {
 				case Token_Literal: {
 					PrettyPrint("literal " << curt.str);
 					new_expression(curt.str, Expression_IntegerLiteral);
-					NodeInsertChild(node, &expression->node, ExTypeStrings[Expression_IntegerLiteral]);
+					NodeInsertChild(node, &expression->node, toStr(ExTypeStrings[Expression_IntegerLiteral], " ", curt.str));
 				}break;
 
 				case Token_OpenParen: {
 					PrettyPrint("(");
-					new_expression(curt.str, ExpressionGuard_HEAD);
-					NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_HEAD]);
+					//new_expression(curt.str, ExpressionGuard_HEAD);
+					//NodeInsertChild(node, &expression->node, ExTypeStrings[ExpressionGuard_HEAD]);
 					token_next();
 					parser(psExpression, &expression->node);
 					token_next();
@@ -1140,8 +606,21 @@ Node* parser(ParseState state, Node* node) {
 
 				}break;
 
-				default: {
+				case Token_Identifier: {
+					new_expression(curt.str, Expression_IdentifierRHS);
+					NodeInsertChild(node, &expression->node, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
+				}break;
 
+				default: {
+					ExpectOneOf(unaryOps) {
+						PrettyPrint("unary op " << ExTypeStrings[*unaryOps.at(curt.type)]);
+						new_expression(curt.str, *unaryOps.at(curt.type));
+						NodeInsertChild(node, &expression->node, ExTypeStrings[*unaryOps.at(curt.type)]);
+						token_next();
+						parser(psFactor, &expression->node);
+						layer--;
+					}
+					ExpectFail("unexpected token found in factor");
 				}break;
 			}
 

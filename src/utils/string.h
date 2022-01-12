@@ -52,6 +52,7 @@ struct string{
 	void   clear();
 	void   erase(u32 idx);
 	void   insert(CHAR c, u32 idx); //inserts at specified idx, pushing the CHARacter at idx and all following CHARacters to the right
+	void   replace(CHAR c, string with); //replaces all occurences of a char with a string
 	CHAR   at(u32 idx) const; //returns a copy of the CHARacter at idx
 	string substr(u32 start, u32 end = npos) const; //returns a string including the start and end CHARacters, end equals the end of the string (size-1) if npos
 	u32    findFirstStr(const string& s) const;
@@ -298,6 +299,19 @@ inline void string::insert(CHAR c, u32 idx){
 	}else{
 		memmove(str+idx+1, str+idx, (count-idx)*CHAR_SIZE);
 		str[idx] = c;
+	}
+}
+
+//TODO implement this better
+inline void string::replace(CHAR c, string with) {
+	for (u32 i = 0; i < count; i++) {
+		if (str[i] == c) {
+			erase(i);
+			for (u32 o = with.count; o != 0; o--) {
+				insert(with[o - 1], i);
+			}
+			i += with.count - 1;
+		}
 	}
 }
 
