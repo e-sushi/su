@@ -90,10 +90,12 @@ array<token> suLexer::lex(FILE* file) {
 					}break;
 					case '<': {
 						if (buff[1] == '=') { tokens.add(token{ "<=", Token_LessThanOrEqual, lines }); advance(&buff, 2); }
-						tokens.add(token{ "<", Token_LessThan, lines }); advance(&buff);
+						else if (buff[1] == '<') { tokens.add(token{ "<<", Token_BitShiftLeft, lines }); advance(&buff, 2); }
+						else { tokens.add(token{ "<", Token_LessThan, lines }); advance(&buff); }
 					}break;
 					case '>': {
 						if (buff[1] == '=') { tokens.add(token{ ">=", Token_GreaterThanOrEqual, lines }); advance(&buff, 2); }
+						else if (buff[1] == '>') { tokens.add(token{ ">>", Token_BitShiftRight, lines }); advance(&buff, 2); }
 						else { tokens.add(token{ ">", Token_GreaterThan, lines }); advance(&buff); }
 					}break;
 					case '?': { tokens.add(token{ "", Token_QuestionMark, lines }); advance(&buff); }break;
