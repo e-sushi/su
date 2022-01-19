@@ -91,15 +91,6 @@ else if (curt.type == Token_Type)
 #define ExpectFailCode(failcode)\
  else { failcode }
 
-//collection of flags/counters to help with error checking throughout the parsing process
-struct {
-	bool unaryf = 0;    //true if a unary op has been found
-	bool binaryf = 0;   //true if a binary op has been found
- 	bool integerf = 0;  //true if an integer has been found
-
-	bool keyword_type = 0; //true if a type specifier keyword has been found
-} syntax;
-
 local map<Token_Type, ExpressionType> binaryOps{
 	{Token_Multiplication,     Expression_BinaryOpMultiply},
 	{Token_Division,           Expression_BinaryOpDivision},
@@ -200,7 +191,7 @@ enum ParseState {
 Node* debugprogramnode = 0;
 
 #define EarlyOut goto emergency_exit
-Node* parser(ParseState state, Node* node) {
+void parser(ParseState state, Node* node) {
 	//std::cout << f32(tokens.iter - tokens.data) / tokens.count * 100 << "% done" << std::endl;
 
 	layer++;
@@ -209,21 +200,16 @@ Node* parser(ParseState state, Node* node) {
 
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!next_match(Token_EOF)) {
-				//here the node is the program, the global scope
-				//we look for either a function, struct, or global variables
-				//(as of right now, we just look for functions)
 				ExpectOneOf(typeTokens) {
 					token_next();
 					Expect(Token_Identifier){
 						if (next_match(Token_OpenParen)) {
-							//we have found a function, make a node for it and parse it 
 							PrettyPrint("function " + curt.str);
 							new_function(curt.str);
 							NodeInsertChild(node, &function->node, "function");
 							parser(psFunction, &function->node);
 						}
 					}
-					//else if(check_signature(Token_Identifier, Token_))
 					Expect(Token_Identifier) {
 						token_next();
 						Expect(Token_OpenParen) {
@@ -236,8 +222,6 @@ Node* parser(ParseState state, Node* node) {
 		}break;
 
 		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
-			//here our node is a function, we look for block items, which are either variable declarations or statements 
-			//push_function();
 			token_next();
 			Expect(Token_OpenParen) { 
 				token_next();
@@ -298,7 +282,7 @@ Node* parser(ParseState state, Node* node) {
 			}
 		}break;
 
-		case psStatement: {
+		case psStatement: {//////////////////////////////////////////////////////////////////// @Statement
 			switch (curt.type) {
 				case Token_If: {
 					statement->type = Statement_Conditional;
@@ -635,23 +619,14 @@ Node* parser(ParseState state, Node* node) {
 
 emergency_exit:
 	layer--;
-
-	return 0;
 }
 
 // <program> ::= <function>
 void suParser::parse(array<token>& tokens_in, Program& mother) {
-	//Program mother;
-
-	std::cout << '\n';
-
 	arena.init(Kilobytes(10));
 
 	tokens = tokens_in;
 	curt = tokens[0];
-	//program = &mother;
-
-	//PrettyPrint("Parse begin");
 
 	mother.node.next = mother.node.prev = &mother.node;
 	mother.node.debug_str = "program";
@@ -659,6 +634,4 @@ void suParser::parse(array<token>& tokens_in, Program& mother) {
 	debugprogramnode = &mother.node;
 	
 	parser(psGlobal, &mother.node);
-
-	//return mother;
 }
