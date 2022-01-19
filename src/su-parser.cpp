@@ -199,7 +199,7 @@ void parser(ParseState state, Node* node) {
 	switch (state) {
 
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
-			while (!next_match(Token_EOF)) {
+			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
 				ExpectOneOf(typeTokens) {
 					token_next();
 					Expect(Token_Identifier){
