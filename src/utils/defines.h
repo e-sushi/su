@@ -1,6 +1,113 @@
 #pragma once
 #ifndef DEFINES_H
 #define DEFINES_H
+////////////////////////////////////////// compilers: COMPILER_CL, COMPILER_CLANG, COMPILER_GCC
+//// compiler, platform, architecture //// platforms: OS_WINDOWS. OS_LINUX, OS_MAC
+////////////////////////////////////////// architectures: ARCH_X64, ARCH_X86, ARCH_ARM64, ARCH_ARM32
+//// CL Compiler //// (used for windows)
+#if defined(_MSC_VER)
+#  define COMPILER_CL 1
+
+#  if defined(_WIN32)
+#    define OS_WINDOWS 1
+#  else //_WIN32
+#    error "unhandled compiler/platform combo"
+#  endif //_WIN32
+
+#  if defined(_M_AMD64)
+#    define ARCH_X64 1
+#  elif defined(_M_IX86) //_M_AMD64
+#    define ARCH_X86 1
+#  elif defined(_M_ARM64) //_M_IX86
+#    define ARCH_ARM64 1
+#  elif defined(_M_ARM) //_M_ARM64
+#    define ARCH_ARM32 1
+#  else //_M_ARM
+#    error "unhandled architecture"
+#  endif
+
+//// CLANG Compiler //// (used for mac)
+#elif defined(__clang__) //_MSC_VER
+#  define COMPILER_CLANG 1
+
+#  if defined(__APPLE__) && defined(__MACH__)
+#    define OS_MAC 1
+#  else //__APPLE__ || __MACH__
+#    error "unhandled compiler/platform combo"
+#  endif //__APPLE__ || __MACH__
+
+#  if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64)
+#    define ARCH_X64 1
+#  elif defined(i386) || defined(__i386) || defined(__i386__) //__amd64__ || __amd64 || __x86_64 || __x86_64__
+#    define ARCH_X86 1
+#  elif defined(__aarch64__) //i386 || __i386__ || __i386__
+#    define ARCH_ARM64 1
+#  elif defined(__arm__) //__aarch64__
+#    define ARCH_ARM32 1
+#  else //__arm__
+#    error "unhandled architecture"
+#  endif
+
+//// GCC Compiler //// (used for linux)
+#elif defined(__GNUC__) || defined(__GNUG__) //__clang__
+#  define COMPILER_GCC 1
+
+#  if defined(__gnu_linux__)
+#    define OS_LINUX 1
+#  else //__gnu_linux__
+#    error "unhandled compiler/platform combo"
+#  endif
+
+#  if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64)
+#    define ARCH_X64 1
+#  elif defined(i386) || defined(__i386) || defined(__i386__) //__amd64__ || __amd64 || __x86_64 || __x86_64__
+#    define ARCH_X86 1
+#  elif defined(__aarch64__) //i386 || __i386__ || __i386__
+#    define ARCH_ARM64 1
+#  elif defined(__arm__) //__aarch64__
+#    define ARCH_ARM32 1
+#  else //__arm__
+#    error "unhandled architecture"
+#  endif
+
+#if !defined(COMPILER_CL)
+#  define COMPILER_CL 0
+#endif
+#if !defined(COMPILER_CLANG)
+#  define COMPILER_CLANG 0
+#endif
+#if !defined(COMPILER_GCC)
+#  define COMPILER_GCC 0
+#endif
+
+#if !defined(OS_WINDOWS)
+#  define OS_WINDOWS 0
+#endif
+#if !defined(OS_LINUX)
+#  define OS_LINUX 0
+#endif
+#if !defined(OS_MAC)
+#  define OS_MAC 0
+#endif
+
+#if !defined(ARCH_X64)
+#  define ARCH_X64 0
+#endif
+#if !defined(ARCH_X86)
+#  define ARCH_X86 0
+#endif
+#if !defined(ARCH_ARM64)
+#  define ARCH_ARM64 0
+#endif
+#if !defined(ARCH_ARM32)
+#  define ARCH_ARM32 0
+#endif
+
+//// Unhandled Compiler ////
+#else //__GNUC__ || __GNUG__
+#  error "unhandled compiler"
+#endif
+
 ///////////////////////// //NOTE this file is included is almost every other file of the project, so be frugal with includes here
 //// common includes ////
 /////////////////////////
@@ -21,22 +128,32 @@
 /////////////////////////////////////
 //// compiler-dependent builtins ////
 /////////////////////////////////////
-#if   defined(_MSC_VER)
+#if COMPILER_CL
 #  define FORCE_INLINE __forceinline
-#  define DEBUG_BREAK __debugbreak()
+#  define DebugBreakpoint __debugbreak()
 #  define ByteSwap16(x) _byteswap_ushort(x)
 #  define ByteSwap32(x) _byteswap_ulong(x)
 #  define ByteSwap64(x) _byteswap_uint64(x)
-#elif defined(__GNUC__) || defined(__clang__) //_MSC_VER
+#elif COMPILER_CLANG || COMPILER_GCC //COMPILER_CL
 #  define FORCE_INLINE inline __attribute__((always_inline))
 #  error "unhandled debug breakpoint; look at: https://github.com/scottt/debugbreak"
 #  define ByteSwap16(x) __builtin_bswap16(x)
 #  define ByteSwap32(x) __builtin_bswap32(x)
 #  define ByteSwap64(x) __builtin_bswap64(x)
-#else //__GNUC__ || __clang__
+#else
 #  error "unhandled compiler"
 #endif
-#define DebugBreakpoint DEBUG_BREAK
+
+//// stack allocation ////
+#if OS_WINDOWS
+#  include <malloc.h>
+#  define StackAlloc(bytes) _alloca(bytes)
+#elif OS_LINUX || OS_MAC //OS_WINDOWS
+#  include <alloca.h>
+#  define StackAlloc(bytes) alloca(bytes)
+#else //OS_LINUX || OS_MAC
+#  error "unhandled os"
+#endif
 
 //////////////////////
 //// common types ////
@@ -57,7 +174,7 @@ typedef s32                b32;   //sized boolean type
 typedef wchar_t            wchar;
 
 typedef u32 Type;
-//typedef u32 Flags;
+typedef u32 Flags;
 
 struct cstring{
     char* str;
@@ -70,9 +187,9 @@ struct cstring{
 	FORCE_INLINE char* end()  { return &str[count]; }
 	FORCE_INLINE const char* begin()const{ return &str[0]; }
 	FORCE_INLINE const char* end()  const{ return &str[count]; }
-};
 #define cstring_lit(s) cstring{(char*)s, sizeof(s)-1}
 #define cstr_lit(s) cstring{(char*)s, sizeof(s)-1}
+};
 
 template<typename T>
 struct carray{
@@ -86,6 +203,12 @@ struct carray{
 	FORCE_INLINE T* end()  { return &data[count]; }
 	FORCE_INLINE const T* begin()const{ return &data[0]; }
 	FORCE_INLINE const T* end()  const{ return &data[count]; }
+};
+
+struct CodeLocation{
+	cstring file;
+	u32     line;
+	u32     column;
 };
 
 //TODO(delle) function pointer signature macro
@@ -106,6 +229,7 @@ struct Allocator{
 };
 
 enum Types{
+	//defines
 	Type_void,
 	Type_s8,
 	Type_s16,
@@ -121,7 +245,11 @@ enum Types{
 	Type_f64,
 	Type_b32,
 	Type_uchar,
+	Type_cstring,
+	Type_carray,
+	Type_CodeLocation,
 	Type_Allocator,
+	Type_Node,
 	
 	//TODO define deshi types elsewhere
 	//math
@@ -134,8 +262,6 @@ enum Types{
 	Type_quat,
 	
 	//utils
-	Type_cstring,
-	Type_carray,
 	Type_array,
 	Type_string,
 	Type_ring_array,
@@ -145,6 +271,11 @@ enum Types{
 	Type_optional,
 	Type_hash,
 	
+	//memory
+	Type_Arena,
+	Type_MemChunk,
+	Type_Heap,
+	Type_AllocInfo,
 };
 
 //////////////////////////
@@ -183,6 +314,8 @@ global_const f32 M_SQRT_TWO        = 1.41421356237f;
 global_const f32 M_SQRT_THREE      = 1.73205080757f;
 global_const f32 M_HALF_SQRT_TWO   = 0.707106781187f;
 global_const f32 M_HALF_SQRT_THREE = 0.866025403784f;
+
+global_const u32 npos = -1;
 
 ///////////////////////// 
 //// common var sizes////
@@ -224,7 +357,8 @@ global_const u64 wcharsize = sizeof(wchar);
 #define Radians(a) ((a) * (M_PI / 180.f))
 #define Degrees(a) ((a) * (180.f / M_PI))
 #define ArrayCount(arr) (sizeof((arr)) / sizeof(((arr))[0])) //length of a static-size c-array
-#define RoundUpTo(value, multiple) (((upt)((value) + (((upt)(multiple))-1)) / (upt)(multiple)) * (upt)(multiple))
+#define RoundUpTo(value,multiple) (((upt)((value) + (((upt)(multiple))-1)) / (upt)(multiple)) * (upt)(multiple))
+#define AlignToPow2(value,power) (((value) + ((power)-1)) & ~((power)-1))
 #define PackU32(x,y,z,w) (((u32)(x) << 24) | ((u32)(y) << 16) | ((u32)(z) << 8) | ((u32)(w) << 0))
 #define PointerDifference(a,b) ((u8*)(a) - (u8*)(b))
 #define PointerAsInt(a) PointerDifference(a,0)
@@ -246,6 +380,7 @@ global_const u64 wcharsize = sizeof(wchar);
 //// common functions ////
 //////////////////////////
 FORCE_INLINE void ZeroMemory(void* ptr, upt bytes){memset(ptr, 0, bytes);}
+FORCE_INLINE void CopyMemory(void* dst, void* src, upt bytes){memcpy(dst,src,bytes);}
 FORCE_INLINE b32  IsPow2(u64 value)       {return (value != 0) && ((value & (value-1)) == 0);}
 FORCE_INLINE upt  roundUpToPow2(upt x)    { return (upt)1 << (upt)((upt)log2(f64(--x)) + 1); }
 FORCE_INLINE char bytesUnit(upt bytes)    { return (bytes > Kilobytes(1) ? bytes > Megabytes(1) ? bytes > Gigabytes(1) ? bytes > Terabytes(1) ? 'T' : 'G' : 'M' : 'K' : 'B'); }
@@ -263,11 +398,11 @@ template<typename T,typename U> FORCE_INLINE T ClampMin(T value, U min){return (
 template<typename T,typename U> FORCE_INLINE T ClampMax(T value, U max){return (value > max) ? max : value;};
 template<typename T> FORCE_INLINE T Nudge(T val, T target, T delta) {return (val != target) ? (val < target) ? ((val + delta < target) ? val + delta : target) : ((val - delta > target) ? val - delta : target) : target;}
 template<typename T> FORCE_INLINE b32 EpsilonEqual(T a, T b){ return abs(a - b) < M_EPSILON; }
+template<typename T> FORCE_INLINE T Remap(T val, T nu_min, T nu_max, T old_min, T old_max) { return (val - old_min) / (old_max - old_min) * (nu_max - nu_min); }
 
-
-/////////////////////// 
-//// assert macros //// //NOTE the ... is for a programmer message at the assert; it is unused otherwise
-/////////////////////// //TODO(delle) refactor Assert() usages so the expression is not used
+/////////////////////// //NOTE the ... is for a programmer message at the assert; it is unused otherwise
+//// assert macros //// //TODO(delle) refactor Assert() usages so the expression is not used
+/////////////////////// //TODO(delle) assert message popup thru the OS
 #define AssertAlways(expression, ...) STMNT( if(!(expression)){*(volatile int*)0 = 0;} ) //works regardless of SLOW or INTERNAL
 #define AssertBreakpoint(expression, ...) STMNT( if(!(expression)){ DebugBreakpoint; } )
 #define StaticAssertAlways(expression, ...) char GLUE(__ignore__, GLUE(__LINE__,__default__))[(expression)?1:-1]
@@ -288,6 +423,7 @@ template<typename T> FORCE_INLINE b32 EpsilonEqual(T a, T b){ return abs(a - b) 
 #define TestMe AssertBreakpoint(false, "this needs to be tested")
 #define FixMe AssertBreakpoint(false, "this is broken in some way")
 #define DontCompile (0=__deshi_dont_compile_this__)
+#define WarnFuncNotImplemented(extra) LogW("FUNC", "Function ", __FUNCTION__, " has not been implemented or is not finished", (extra ? "\n" : ""), extra);
 
 /////////////////////////
 //// for-loop macros ////
@@ -316,12 +452,16 @@ template <class F> deferrer<F> operator*(defer_dummy, F f) { return {f}; }
 #  define defer auto DEFER(__LINE__) = defer_dummy{} *[&]()
 #endif // defer
 
-//#define NodeInsertChild(x, node) (((node)->first_child?(node):(node)->first_child=(x)), (x)->last=(node)->last_child, (node)->last_child=(x), (node)->child_count++)
+////// double linked list node ////
+//struct Node{
+//	Node* next;
+//	Node* prev;
+//};
 //#define NodeInsertNext(x,node) ((node)->next=(x)->next,(node)->prev=(x),(node)->next->prev=(node),(x)->next=(node))
 //#define NodeInsertPrev(x,node) ((node)->prev=(x)->prev,(node)->next=(x),(node)->prev->next=(node),(x)->prev=(node))
 //#define NodeRemove(node) ((node)->next->prev=(node)->prev,(node)->prev->next=(node)->next)
 
-//// C/C++ STL allocator ////
+//// C/C++ STL allocator //// //TODO rename this to libc allocator (STL is something different)
 global_ void* STLAllocator_Reserve(upt size){void* a = calloc(1,size); Assert(a); return a;}
 global_ void  STLAllocator_Release(void* ptr){free(ptr);}
 global_ void* STLAllocator_Resize(void* ptr, upt size){void* a = realloc(ptr,size); Assert(a); return a;}
@@ -333,9 +473,6 @@ global_ Allocator stl_allocator_{
 	STLAllocator_Resize
 };
 global_ Allocator* stl_allocator = &stl_allocator_;
-
-//// potentially preprocessor define ////
-#define PROCESS(...)
 
 //// for quick reference when i forget again ////
 #define PRINTBASICTYPESIZES PRINTLN("   s8 size: " << s8size); PRINTLN("  s16 size: " << s16size); PRINTLN("  s32 size: " << s32size); PRINTLN("  s64 size: " << s64size); PRINTLN("  spt size: " << sptsize); PRINTLN("   u8 size: " << u8size); PRINTLN("  u16 size: " << u16size); PRINTLN("  u32 size: " << u32size); PRINTLN("  u64 size: " << u64size); PRINTLN("  upt size: " << uptsize); PRINTLN("  f32 size: " << f32size); PRINTLN("  f64 size: " << f64size); PRINTLN("  b32 size: " << b32size); PRINTLN("wchar size: " << wcharsize);

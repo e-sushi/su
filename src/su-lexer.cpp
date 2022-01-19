@@ -1,7 +1,3 @@
-#include "su-lexer.h"
-#include "utils/defines.h"
-#include "utils/cstring.h"
-
 enum LexerState_ {
 	DiscernChar,
 	ReadingString,

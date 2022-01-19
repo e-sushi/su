@@ -98,4 +98,4 @@ struct Arena {
 	}
 };
 
-#endif
+#endif //SU_TYPES_H

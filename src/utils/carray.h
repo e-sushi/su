@@ -2,7 +2,7 @@
 #ifndef DESHI_CARRAY_H
 #define DESHI_CARRAY_H
 
-#include "../defines.h"
+#include "defines.h"
 #include <cstring> //memcpy, memset
 
 //NOTE The purposed of these functions is to avoid rewriting their implementations everywhere, not to be fully functional.

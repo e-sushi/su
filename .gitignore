@@ -1,4 +1,4 @@
-# sucomp ignores
+# su ignores
 
 #extensions
 *.pdb
@@ -11,32 +11,18 @@
 *.4coder
 *.spv
 *.cap
+*.rdc
 *.rdbg
-.tlog
+*.tmp
+*.ctm
+*.diagsession
 
 #folders
 .vs/
 build/
-deshicheck-cppcheck-build-dir/
-docs/doxygen/
-x64/
-Debug/
 docs/
-
 
 #specific files
 TODOs.txt
-misc/4coder.bat
+#misc/su.vcxproj.user
 misc/shell.bat
-misc/deshi.vcxproj.user
-
-out.s
-out.s
-ASTgraph.dot
-ast.png
-main.su
-out.s
-ast.svg
-main.su
-out.s
-ASTgraph.svg

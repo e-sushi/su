@@ -1,18 +1,4 @@
-﻿#include <iostream>
-
-#include "su-assembler.h"
-#include "su-parser.h"
-#include "su-lexer.h"
-#include "utils/string_conversion.h"
-#include "graphviz/gvc.h"
-
-
-
-//NOTE when doing stuff with trees add the node FIRST and reference it inside of it's array
-//	   this way you don't have a node with 20 million children being added to a single node
-//     and having to copy all of it 
-
-/*
+﻿/*
 
 General TODOs
 
@@ -30,6 +16,38 @@ by itself doesnt need to go through all the expression nodes for us to know its
 a number literal
 
 */
+
+//NOTE when doing stuff with trees add the node FIRST and reference it inside of it's array
+//	   this way you don't have a node with 20 million children being added to a single node
+//     and having to copy all of it 
+
+//utils
+#include "utils/array.h"
+#include "utils/array_utils.h"
+#include "utils/carray.h"
+#include "utils/cstring.h"
+#include "utils/defines.h"
+#include "utils/hash.h"
+#include "utils/map.h"
+#include "utils/pair.h"
+#include "utils/string.h"
+#include "utils/string_utils.h"
+#include "utils/unicode.h"
+#include "utils/utils.h"
+
+//libs
+#include <iostream>
+#include "graphviz/gvc.h"
+
+//headers
+#include "su-lexer.h"
+#include "su-parser.h"
+#include "su-assembler.h"
+
+//source
+#include "su-lexer.cpp"
+#include "su-parser.cpp"
+#include "su-assembler.cpp"
 
 Agraph_t* gvgraph = 0;
 GVC_t* gvc = 0;

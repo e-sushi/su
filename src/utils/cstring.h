@@ -160,7 +160,7 @@ struct wcstring{
 #define wcstr_lit(s) wcstring{(wchar_t*)s, sizeof(s)/2-1}
 
 global_ inline void
-advance(wcstring* s, u64 count){
+advance(wcstring* s, u64 count = 1){
     s->str += count; s->count -= count;
 }
 

@@ -1,8 +1,4 @@
-﻿#include "su-assembler.h"
-#include "utils/map.h"
-#include "utils/string_conversion.h"
-//
-string ASMBuff = "";
+﻿string ASMBuff = "";
 //bool allow_comments = 1;
 //bool print_as_we_go = 1;
 //

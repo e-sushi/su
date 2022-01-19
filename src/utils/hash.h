@@ -74,4 +74,5 @@ struct hash<array<T>> {
 		return seed;
 	}
 };
+
 #endif

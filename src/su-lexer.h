@@ -126,4 +126,4 @@ namespace suLexer {
 	array<token> lex(FILE* file);
 }
 
-#endif
+#endif //SU_LEXER_H

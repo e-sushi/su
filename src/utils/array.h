@@ -46,10 +46,8 @@ struct array{
 	//for taking in something without copying it
 	void emplace(const T& t);
 	void insert(const T& t, u32 idx);
-	//removes last element and returns it 
-	T pop();
 	//removes _count elements from the end
-	void pop(u32 _count);
+	void pop(u32 _count = 1);
 	//removes element at i and shifts all following elements down one
 	void remove(u32 i);
 	//removes all elements but DOES NOT affect space
@@ -65,20 +63,20 @@ struct array{
 	T&   at(u32 i);
 	
 	//TODO add out of bounds checking for these functions
-	//returns the value of iter and increments it by count
-	T& next(u32 count = 1);
+	//returns the value of iter and increments it by one
+	T& next(u32 count = 0);
 	//returns the value of iter + some value and doesn't increment it 
-	T& peek(int i = 1);
+	T& peek(u32 i = 1);
 	//returns the value of iter and decrements it by one
 	T& prev();
-	T& lookback(int i = 1);
-	//iterator functions that return pointers if the object isnt already one
+	T& lookback(u32 i = 1);
+	//iterator functions that return pou32ers if the object isnt already one
 	T* nextptr();
 	//returns the value of iter + some value and doesn't increment it 
-	T* peekptr(int i = 1);
+	T* peekptr(u32 i = 1);
 	//returns the value of iter and decrements it by one
 	T* prevptr();
-	T* lookbackptr(int i = 1);
+	T* lookbackptr(u32 i = 1);
 	
 	//begin/end functions for for-each loops
 	inline T* begin(){ return &data[0]; }
@@ -310,16 +308,6 @@ insert(const T& t, u32 idx){
 	}
 }
 
-template<typename T> inline T array<T>::
-pop() {
-	Assert(count, "attempted to pop with no elements in array");
-	T save = *last;
-	last->~T();
-	last--;
-	count--;
-	return save;
-}
-
 template<typename T> inline void array<T>::
 pop(u32 _count){
 	Assert(count >= _count, "attempted to pop more than array size");
@@ -373,8 +361,8 @@ clear(){
 	memset(data, 0, count*sizeof(T));
 	
 	count = 0;
-	first = 0;
-	iter  = 0;
+	first = data;
+	iter  = data;
 	last  = 0;
 }
 
@@ -450,7 +438,7 @@ next(u32 count){
 }
 
 template<typename T> inline T& array<T>::
-peek(int i){
+peek(u32 i){
 	if(last - iter + 1 >= 0) return *(iter + i);
 	return *iter;
 }
@@ -461,7 +449,7 @@ prev(){
 }
 
 template<typename T> inline T& array<T>::
-lookback(int i){
+lookback(u32 i){
 	if(first - iter + 1 >= 0) return *(iter - i);
 }
 
@@ -473,7 +461,7 @@ nextptr(){
 
 //TODO come up with a better name for this and the corresponding previous overload
 template<typename T> inline T* array<T>::
-peekptr(int i){
+peekptr(u32 i){
 	if(iter + 1 - last >= 0) return iter + i;
 	else return nullptr;
 }
@@ -485,7 +473,7 @@ prevptr(){
 }
 
 template<typename T> inline T* array<T>::
-lookbackptr(int i){
+lookbackptr(u32 i){
 	if(iter - 1 - first >= 0) return iter - i;
 	else return nullptr;
 }
