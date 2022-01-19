@@ -4,6 +4,8 @@
 #include "su-parser.h"
 #include "su-lexer.h"
 #include "utils/string_conversion.h"
+#include "graphviz/gvc.h"
+
 
 
 //NOTE when doing stuff with trees add the node FIRST and reference it inside of it's array
@@ -29,27 +31,25 @@ a number literal
 
 */
 
-u32 i = 0;
-FILE* graph = 0;
+Agraph_t* gvgraph = 0;
+GVC_t* gvc = 0;
 
-void compilegraph(Node* node, u32 parent) {
+void make_dot_file(Node* node, Agnode_t* parent) {
+	static u32 i = 0;
 	i++;
 	u32 save = i;
 
 	string send = node->debug_str;
-	send.replace('&', "&amp;");
-	send.replace('<', "&lt;");
-	send.replace('>', "&gt;");
 
-	fputs(toStr(save, "[label=<<font color=\"#ffffff\">", send, "</font>>", "shape=box] ", '\n').str, graph);
-	fflush(graph);
-	Node* stage = node;
+	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
+	agset(me, "label", send.str);
 
-	if (stage->first_child)   compilegraph(stage->first_child, save);
-	if (stage->next != stage) compilegraph(stage->next, parent);
+	if (node->first_child)  make_dot_file(node->first_child, me);
+	if (node->next != node) make_dot_file(node->next, parent);
 
-	fputs(toStr(parent, " -- ", save, "[color=\"white\" labelfontcolor=\"white\"]", '\n').str, graph);
-	fflush(graph);
+	if (parent)
+		agedge(gvgraph, parent, me, "", 1);
+
 }
 
 
@@ -76,13 +76,12 @@ int main() {
 	suParser::parse(tokens, program);
 	std::cout << "parsing finished" << std::endl;
 
-	graph = fopen("ASTgraph.dot", "w");
-	 fputs("graph ast {\nbgcolor=\"black\"\n", graph);
-
+	gvc = gvContext();
+	gvgraph = agopen("ast tree", Agdirected, 0);
 	Node* node = &program.node;
-	compilegraph(node, 0);
-	fputs("}", graph);
-	fclose(graph);
+	make_dot_file(node, 0);
+	gvLayout(gvc, gvgraph, "dot");
+	gvRenderFilename(gvc, gvgraph, "svg", "ASTgraph.svg");
 
 	std::cout << "assembling" << std::endl;
 	string assembly = suAssembler::assemble(program);
