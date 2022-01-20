@@ -143,8 +143,6 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 	return ret;
 }
 
-
-//TODO setup main to take arguments for multiple files, compiler flags, etc.
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)
 	if (argc < 2) {
 		PRINTLN("ERROR: no arguments passed");
@@ -156,11 +154,12 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 	string output_dir = "";
 	for(int i=1; i<argc; ++i) {
 		char* arg = argv[i];
-		if (!strcmp("-i", arg)) { //////////////////////////////////// @-i
+		if (!strcmp("-i", arg)) { //////////////////////////////////////////////////// @-i
 			i++; arg = argv[i];
 			if (str_ends_with(arg, ".su")) {
 				filenames.add(argv[i]);
 				//TODO block .subuild files after finding a .su
+				//NOTE maybe actually allow .subuild files to be used with different combinations of .su files?
 			}
 			else if (str_ends_with(arg, ".subuild")) {
 				//TODO build file parsing
@@ -171,12 +170,12 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				return ReturnCode_File_Invalid_Extension;
 			}
 		}
-		else if (!strcmp("-wl", arg)) { ///////////////////////////// @-wl
+		else if (!strcmp("-wl", arg)) { ////////////////////////////////////////////// @-wl
 			i++; arg = argv[i];
 			globals.warning_level = stoi(argv[i]);
 			//TODO handle invalid arg here
 		}
-		else if (!strcmp("-os", arg)) { ////////////////////////////// @-os
+		else if (!strcmp("-os", arg)) { ////////////////////////////////////////////// @-os
 			i++; arg = argv[i];
 			if      (!strcmp("windows", arg)) { globals.osout = OSOut_Windows; }
 			else if (!strcmp("linux",   arg)) { globals.osout = OSOut_Linux; }
@@ -186,7 +185,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				return ReturnCode_Invalid_Argument;
 			}
 		}
-		else if (!strcmp("-o", arg)) { ////////////////////////////// @-o
+		else if (!strcmp("-o", arg)) { ////////////////////////////////////////////// @-o
 			i++; arg = argv[i];
 			output_dir = arg;
 			if(output_dir[output_dir.count-1] != '\\' && output_dir[output_dir.count-1] != '/'){
@@ -198,16 +197,13 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 			return ReturnCode_Invalid_Argument;
 		}
 	}
+	//TODO dont do this so we support relative paths
 	cstring filename_raw{filenames[0].str, filenames[0].count}; //just the name, no extention or path
-	u32 last_slash = 0;
-	for(u32 i = filename_raw.count-1; i != 0; --i){
-		if(filename_raw[i] == '/' || filename_raw[i] == '\\'){
-			last_slash = i+1;
-			break;
-		}
+	u32 last_slash = find_last_char<'/', '\\'>(filename_raw);
+	if (last_slash != npos) {
+		filename_raw.str += last_slash+1;
+		filename_raw.count -= last_slash + 3;
 	}
-	filename_raw.str   += last_slash;
-	filename_raw.count -= last_slash + 3;
 	string filename(filename_raw);
 	
 	FILE* in = fopen(filenames[0].str, "r");
@@ -250,7 +246,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 	agattr(gvgraph, AGRAPH, "bgcolor",     "grey12");
 	agattr(gvgraph, AGRAPH, "concentrate", "true");
 	agattr(gvgraph, AGRAPH, "splines",     "true");
-	
 	make_dot_file(&program.node, 0);
 	gvLayout(gvc, gvgraph, "dot");
 	string output_graph_path = output_dir + filename + ".svg";
@@ -263,8 +258,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		return ReturnCode_Assembler_Failed;
 	}
 	PRINTLN("assembling finished");
-	
-	//std::cout << assembly << std::endl;
 	
 	string output_asm_path = output_dir + filename + ".s";
 	FILE* out = fopen(output_asm_path.str, "w");

@@ -159,47 +159,50 @@ ToString(T... args){
 	return str;
 }
 
+template<typename... T>
+inline b32 company(char c, T... args) {
+	return ((c == args) || ...);
+}
 
-
-global_ u32 
-find_first_char(const char* str, u32 strsize, char c, u32 offset = 0) {
+template<char... in> global_  u32
+find_first_char(const char* str, u32 strsize, u32 offset = 0) {
 	for (u32 i = offset; i < strsize; ++i)
-		if (str[i] == c) return i;
+		if (company(str[i], in...)) return i;
 	return npos;
 }
-global_ u32 find_first_char(const char* str, char c, u32 offset = 0)    { return find_first_char(str, strlen(str), c, offset); } 
-global_ u32 find_first_char(const cstring& str, char c, u32 offset = 0) { return find_first_char(str.str, str.count, c, offset); } 
-global_ u32 find_first_char(const string& str, char c, u32 offset = 0)  { return find_first_char(str.str, str.count, c, offset); }
+template<char... in> global_ u32 find_first_char(const char*    str, u32 offset = 0) { return find_first_char<in...>(str, strlen(str), offset); } 
+template<char... in> global_ u32 find_first_char(const cstring& str, u32 offset = 0) { return find_first_char<in...>(str.str, str.count, offset); } 
+template<char... in> global_ u32 find_first_char(const string&  str, u32 offset = 0) { return find_first_char<in...>(str.str, str.count, offset); }
 
-global_ u32 
-find_first_char_not(const char* str, u32 strsize, char c, u32 offset = 0) {
+template<char... in> global_ u32
+find_first_char_not(const char* str, u32 strsize, u32 offset = 0) {
 	for (u32 i = 0; i < strsize; ++i)
-		if (str[i] != c) return i;
+		if (!company(str[i], in...)) return i;
 	return npos;
 }
-global_ u32 find_first_char_not(const char*    str, char c, u32 offset = 0) { return find_first_char_not(str, strlen(str), c, offset); }
-global_ u32 find_first_char_not(const cstring& str, char c, u32 offset = 0) { return find_first_char_not(str.str, str.count, c, offset); }
-global_ u32 find_first_char_not(const string&  str, char c, u32 offset = 0) { return find_first_char_not(str.str, str.count, c, offset); }
+template<char... in> global_ u32 find_first_char_not(const char*    str, u32 offset = 0) { return find_first_char_not<in...>(str, strlen(str), offset); }
+template<char... in> global_ u32 find_first_char_not(const cstring& str, u32 offset = 0) { return find_first_char_not<in...>(str.str, str.count, offset); }
+template<char... in> global_ u32 find_first_char_not(const string&  str, u32 offset = 0) { return find_first_char_not<in...>(str.str, str.count, offset); }
 
-global_ u32 
+template<char... in> global_ u32
 find_last_char(const char* str, u32 strsize, char c, u32 offset = 0) {
 	for (u32 i = (offset != 0 ? offset : strsize - 1); i != 0; --i)
-		if (str[i] == c) return i;
+		if (company(str[i], in...)) return i;
 	return npos;
 }
-global_ u32 find_last_char(const char*    str, char c, u32 offset = 0) { return find_last_char(str, strlen(str), c, offset); } 
-global_ u32 find_last_char(const cstring& str, char c, u32 offset = 0) { return find_last_char(str.str, str.count, c, offset); } 
-global_ u32 find_last_char(const string&  str, char c, u32 offset = 0) { return find_last_char(str.str, str.count, c, offset); }
+template<char... in> global_ u32 find_last_char(const char*    str, u32 offset = 0) { return find_last_char<in...>(str, strlen(str), offset); } 
+template<char... in> global_ u32 find_last_char(const cstring& str, u32 offset = 0) { return find_last_char<in...>(str.str, str.count, offset); } 
+template<char... in> global_ u32 find_last_char(const string&  str, u32 offset = 0) { return find_last_char<in...>(str.str, str.count, offset); }
 
-global_ u32 
+template<char... in> global_ u32
 find_last_char_not(const char* str, u32 strsize, char c, u32 offset = 0) {
 	for (u32 i = strsize - 1; i != 0; --i)
-		if (str[i] != c) return i;
+		if (!company(str[i], in...)) return i;
 	return npos;
 }
-global_ u32 find_last_char_not(const char*    str, char c, u32 offset = 0) { return find_last_char_not(str, strlen(str), c, offset); }
-global_ u32 find_last_char_not(const cstring& str, char c, u32 offset = 0) { return find_last_char_not(str.str, str.count, c, offset); }
-global_ u32 find_last_char_not(const string&  str, char c, u32 offset = 0) { return find_last_char_not(str.str, str.count, c, offset); }
+template<char... in> global_ u32 find_last_char_not(const char*    str, u32 offset = 0) { return find_last_char_not<in...>(str, strlen(str), offset); }
+template<char... in> global_ u32 find_last_char_not(const cstring& str, u32 offset = 0) { return find_last_char_not<in...>(str.str, str.count, offset); }
+template<char... in> global_ u32 find_last_char_not(const string&  str, u32 offset = 0) { return find_last_char_not<in...>(str.str, str.count, offset); }
 
 global_ u32 
 find_first_string(const char* str, u32 strsize, const char* str2, u32 str2size, u32 offset = 0) {
