@@ -1,0 +1,58 @@
+//prototype included file, showing filters, internal filter, and an example of what including may look like
+
+
+[[SEARCH_FUNCS]] //defines a filter so you may selectively include code
+
+u32 find_first_char(str* s, u8 char){...}
+u32 find_last_char(str* s, u8 char){...}
+//etc...
+
+[[SEARCH_FUNCS]]
+
+[[UTIL_FUNCS]]
+
+void eat_spaces(str* s){...}
+///etc...
+
+[[UTIL_FUNCS]]
+
+[[internal]]
+	//internal specifier prevents code within this block from being included when including an entire file
+	//things in this block are still usable throughout the file, and may still be accessed if the including file requests it
+	
+struct internal_string{
+	//a struct that wont be included ever unless internal or internal_string is requested
+	
+}
+[[internal]]
+
+
+//structs like this in the global namespace are included automatically if an entire file is included, however if a filter is used, it is not
+//but if it were in a filter that were requested, then it would be
+struct string{
+	//some crazy dynamic string stuff
+};
+
+struct string2{
+	//uh
+}
+
+//example of including:
+
+include <string>                           //includes the entire file, excluding the internal filter
+
+include <string> [SEARCH_FUNCS]            //includes only functions from the search filter, this does not include string or string2
+
+include <string> [SEARCH_FUNCS|UTIL_FUNCS] //includes search and util funcs
+
+include <string> [SEARCH_FUNCS|global] //includes SEARCH_FUNCS filter, and anything else thats not in a filter, so string and string2. needs a better keyword though
+
+include <string> [SEARCH_FUNCS]{ //includes only functions from the SEARCH_FUNCS filter, and sets custom names for them
+	rename find_first_char ffc;  //doing this overloads their names, so find_first_char is not defined in this file
+	rename find_last_char flc;
+	//etc..
+}
+
+include <string> [string] //filtering to just a single struct eg. a module
+
+include <string> [string|string2] //filtering to multiple structs/modules
