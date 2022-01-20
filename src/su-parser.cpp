@@ -67,7 +67,7 @@ void token_next(u32 count = 1) {
 #define curr_atch(tok) (curt.type == tok)
 
 #define ParseFail(error)\
-std::cout << "\nError: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl;
+std::cout << "\nError: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl;  parse_failed = true;
 
 #define Expect(Token_Type)\
 if(curt.type == Token_Type) 
@@ -82,7 +82,7 @@ else if (curt.type == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
- else { parse_failed = true; ParseFail(error); }
+ else { ParseFail(error); }
 
 #define ExpectFailCode(failcode)\
  else { failcode }
