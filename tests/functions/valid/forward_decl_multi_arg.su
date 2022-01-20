@@ -1,9 +1,9 @@
-int foo(int a, int b);
+s32 foo(s32 a, s32 b);
 
-int main() {
+s32 main() {
     return foo(1, 2);
 }
 
-int foo(int x, int y){
+s32 foo(s32 x, s32 y){
     return x - y;
 }

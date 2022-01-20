@@ -1,11 +1,11 @@
-int foo(int a);
-int bar(int b);
+s32 foo(s32 a);
+s32 bar(s32 b);
 
-int main() {
+s32 main() {
     return foo(5);
 }
 
-int foo(int a) {
+s32 foo(s32 a) {
     if (a <= 0) {
         return a;
     }
@@ -13,7 +13,7 @@ int foo(int a) {
     return a + bar(a - 1);
 }
 
-int bar(int b) {
+s32 bar(s32 b) {
     if (b <= 0) {
         return b;
     }

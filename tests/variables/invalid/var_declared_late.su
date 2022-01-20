@@ -1,5 +1,5 @@
-int main() {
+s32 main() {
     a = 1 + 2;
-    int a;
+    s32 a;
     return a;
 }

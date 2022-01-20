@@ -1,7 +1,7 @@
-int foo(int a){
+s32 foo(s32 a){
     return 3 + a;
 }
 
-int main(){
+s32 main(){
     return foo();
 }

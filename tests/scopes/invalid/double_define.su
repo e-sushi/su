@@ -1,6 +1,6 @@
-int main() {
+s32 main() {
     {
-        int a;
-        int a;
+        s32 a;
+        s32 a;
     }
 }

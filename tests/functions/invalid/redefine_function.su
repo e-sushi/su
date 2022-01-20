@@ -1,11 +1,11 @@
-int foo(){
+s32 foo(){
     return 3;
 }
 
-int main() {
+s32 main() {
     return foo();
 }
 
-int foo(){
+s32 foo(){
     return 4;
 }

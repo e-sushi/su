@@ -1,7 +1,7 @@
-int test1(){
+s32 test1(){
   return 256;
 }
 
-int main(){
+s32 main(){
   return 100;
 }

@@ -1,5 +1,5 @@
-int foo = 4;
+s32 foo = 4;
 
-int main() {
+s32 main() {
     return foo + 3;
 }

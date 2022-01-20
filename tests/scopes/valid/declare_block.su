@@ -1,6 +1,6 @@
-int main() {
+s32 main() {
     if (5) {
-        int i = 0;
+        s32 i = 0;
         return i;
     }
 }

@@ -1,5 +1,5 @@
-int main() {
-    for (int i = 2; i < 3)
+s32 main() {
+    for (s32 i = 2; i < 3)
         3;
     return 0;
 }
