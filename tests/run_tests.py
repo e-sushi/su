@@ -31,6 +31,18 @@ tests = [
     ["entry_point/invalid/no_semicolon.su",   ReturnCode_Parser_Failed],
     ["entry_point/invalid/no_space.su",       ReturnCode_Parser_Failed],
     ["entry_point/invalid/wrong_case.su",     ReturnCode_Parser_Failed],
+    
+    ["unary_ops/valid/bitwise.su",      0b11111111111111111111111111110011], #~12
+    ["unary_ops/valid/bitwise_zero.su", 0b11111111111111111111111111111111], #~0
+    ["unary_ops/valid/neg.su",          0b11111111111111111111111111111011], #-5
+    ["unary_ops/valid/nested_ops.su",   0],
+    ["unary_ops/valid/nested_ops_2.su", 1],
+    ["unary_ops/valid/not_five.su",     0],
+    ["unary_ops/valid/not_zero.su",     1],
+    ["unary_ops/invalid/missing_const.su",        ReturnCode_Parser_Failed],
+    ["unary_ops/invalid/missing_semicolon.su",    ReturnCode_Parser_Failed],
+    ["unary_ops/invalid/nested_missing_const.su", ReturnCode_Parser_Failed],
+    ["unary_ops/invalid/wrong_order.su",          ReturnCode_Parser_Failed],
 ];
 
 def main():
