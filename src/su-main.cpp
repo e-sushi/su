@@ -106,9 +106,9 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 	i++;
 	u32 save = i;
 	u32 colsave = colidx;
-
+	
 	string send = node->debug_str;
-
+	
 	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
 	agset(me, "label", send.str);
 	agset(me, "color", to_string(colsave).str);
@@ -122,7 +122,7 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 		}
 	}
 	if (node->next != node) { colidx = (colidx + 1) % 11 + 1; make_dot_file(node->next, parent); }
-
+	
 	if (parent) {
 		Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
 		agset(edge, "color", to_string(colsave).str);
@@ -130,31 +130,31 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 		//	agset(edge, "constraint", "false"); 
 		//}
 	}
-
+	
 	//TODO figure out how to make columns stay in line
 	if (ret != me && node->next != node) {
 		//Agedge_t* edge = agedge(gvgraph, me, ret, "", 1);
 		//agset(edge, "weight", "10");
 		//agset(edge, "style", "invis");
 		//agset(edge, "constraint", "false");
-
+		
 	}
-
+	
 	return ret;
 }
 
 
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
-int main(int argc, char* argv[]) {
-	if (!argc) {
+int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)
+	if (argc < 2) {
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
-
+	
 	//make this not array and string later maybe 
 	array<string> filenames;
 	string output_dir = "";
-	forI(argc) {
+	for(int i=1; i<argc; ++i) {
 		char* arg = argv[i];
 		if (!strcmp("-i", arg)) { //////////////////////////////////// @-i
 			i++; arg = argv[i];
@@ -189,14 +189,13 @@ int main(int argc, char* argv[]) {
 		else if (!strcmp("-o", arg)) { ////////////////////////////// @-o
 			i++; arg = argv[i];
 			output_dir = arg;
-			if(output_dir[output_dir.count-1] != '\\' || output_dir[output_dir.count-1] != '/'){
+			if(output_dir[output_dir.count-1] != '\\' && output_dir[output_dir.count-1] != '/'){
 				output_dir += "/";
 			}
 		}
 		else {
-			//ignore invalid args for cuz vs is silly and puts the path of the exe for wahtever reason
-			//PRINTLN("ERROR: invalid argument");
-			//return ReturnCode_Invalid_Argument;
+			PRINTLN("ERROR: invalid argument: '" << arg << "'");
+			return ReturnCode_Invalid_Argument;
 		}
 	}
 	cstring filename_raw{filenames[0].str, filenames[0].count}; //just the name, no extention or path
@@ -212,12 +211,11 @@ int main(int argc, char* argv[]) {
 	string filename(filename_raw);
 	
 	FILE* in = fopen(filenames[0].str, "r");
-	defer{ fclose(in); };
 	if (!in) {
 		PRINTLN("ERROR: file not found.");
 		return ReturnCode_File_Not_Found;
 	}
-
+	
 	array<token> tokens;
 	PRINTLN("lexing");
 	if (!suLexer::lex(in, tokens)) {
@@ -225,7 +223,7 @@ int main(int argc, char* argv[]) {
 		return ReturnCode_Lexer_Failed;
 	}
 	PRINTLN("lexing finished");
-
+	
 	Program program;
 	PRINTLN("parsing");
 	if (suParser::parse(tokens, program)) {
@@ -233,7 +231,7 @@ int main(int argc, char* argv[]) {
 		return ReturnCode_Parser_Failed;
 	}
 	PRINTLN("parsing finished");
-
+	
 	gvc = gvContext();
 	gvgraph = agopen("ast tree", Agdirected, 0);
 	agattr(gvgraph, AGNODE, "fontcolor",   "white");
@@ -252,12 +250,12 @@ int main(int argc, char* argv[]) {
 	agattr(gvgraph, AGRAPH, "bgcolor",     "grey12");
 	agattr(gvgraph, AGRAPH, "concentrate", "true");
 	agattr(gvgraph, AGRAPH, "splines",     "true");
-
+	
 	make_dot_file(&program.node, 0);
 	gvLayout(gvc, gvgraph, "dot");
 	string output_graph_path = output_dir + filename + ".svg";
 	gvRenderFilename(gvc, gvgraph, "svg", output_graph_path.str);
-
+	
 	PRINTLN("assembling");
 	string assembly;
 	if (!suAssembler::assemble(program, assembly)) {
@@ -265,18 +263,19 @@ int main(int argc, char* argv[]) {
 		return ReturnCode_Assembler_Failed;
 	}
 	PRINTLN("assembling finished");
-
+	
 	//std::cout << assembly << std::endl;
 	
-	string output_asm_path = output_dir + filename + ".asm";
+	string output_asm_path = output_dir + filename + ".s";
 	FILE* out = fopen(output_asm_path.str, "w");
-	defer{ fclose(out); };
 	if (!out) {
 		PRINTLN("ERROR: failed to open output file.");
 		return ReturnCode_File_Locked;
 	}
 	
 	fputs(assembly.str, out);
-
+	
+	fclose(in);
+	fclose(out);
 	return ReturnCode_Success;
 }

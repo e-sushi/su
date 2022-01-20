@@ -17,6 +17,7 @@
 *.ctm
 *.diagsession
 *.svg
+*.s
 
 #folders
 .vs/

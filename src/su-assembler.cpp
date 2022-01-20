@@ -900,7 +900,7 @@ assemble_expression(Expression* expr){
 		//// Literals ////
 		case Expression_IntegerLiteral:{
             //string args = toStr("$",expr->integer_literal.value,",%rax");
-            string args = toStr("$",expr->expstr,",%rax");
+            string args = "$" + expr->expstr + ",%rax";
             asm_instruction("mov", args.str, "move integer literal into %rax");
         }break;
     }
