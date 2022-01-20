@@ -1,0 +1,80 @@
+#include "stdlib.su" 
+#include "stdstr.su"
+#include "stdarr.su"
+
+struct vec2{
+	f32 x,y;
+	
+	f32 dot(vec2 rhs)   {...}
+	
+	//operator thats implicitly called in string situations 
+	//though im not sure this can be this transparent
+	//but it would be used like how x and y are in the return statement, the compiler is able to tell that the programmer wants to get the string
+	//of the type because they are trying to add it to another string
+	operator str{
+		return "{ " + x + ", " + y + " }";
+	}
+};
+
+struct vec3{
+	f32 x,y,z; //POD types default to 0
+	//the % tells the compiler that vec2's variables are going to be referencing already existant variables
+	// this requires all avaliable variables on vec2 to be set to already existant variables, there are no partial reference types
+	vec2% 
+	xy{x, y}, 
+	yz{y, z},
+	xz{x, z};
+	
+	f32  dot(vec3 rhs)   {...}
+	vec3 cross(vec3 rhs) {...}
+	vec3 xset(f32 x)     {...}
+};
+
+u32 main(){
+	vec3 a{3,2,1};  //normal C struct filling
+	vec3 b{         //named var struct filling
+		x=4,
+		z=5,
+		y=6,
+	};
+	
+	
+	//
+	// reflection
+	//
+	
+	
+	println(a.typeinfo.name);          // "a"
+	println(a.typeinfo.type);          // "vec3"
+	println(a.typeinfo.size);          // "12"
+	println(sizeof(a));                // ditto
+	println(a.typeinfo.members.vars);  // "{x, y, z, xy. yz. xz}" a list of the vars themself, not just strings of their names
+	println(a.typeinfo.members,funcs); // "{dot, cross}" a list of the functions themself, maybe function pointers?
+	
+	for(any var : a.typeinfo.members.vars){
+		println(autospace = true, var.typeinfo.type, var.typeinfo.name, "=", var);
+	}
+	// "f32 x = 3"
+	// "f32 y = 2"
+	// "f32 z = 1"
+	// "vec2 xy = {3, 2}"
+	// "vec2 yz = {2, 1}"
+	// "vec2 xz = {3, 1}"
+	
+	for(any func : a.typeinfo.members.funcs){ //loops through all functions and filters them for a signature, this is very runtimey, maybe needs better syntax to make it more compile time friendly
+		if(func.signature == signature(vec3)){
+			println(autospace = true, func.name, "returns", func(b));
+		}
+	}
+	// "dot returns (value)"
+	// "cross returns (value)"
+	
+	
+	type[3] some_types = {vec3, vec2, f32}; //an array that simply holds types and their information
+	
+	//types dont have to go through typeinfo to get their information
+	println(vec3.members.vars); // "{x, y, z, xy. yz. xz}"
+	
+
+	return 0;
+}
