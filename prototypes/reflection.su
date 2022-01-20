@@ -37,7 +37,6 @@ u32 main(){
 		z=5,
 		y=6,
 	};
-	vec3& c = a;   //normal C references
 	
 	
 	//
