@@ -1,6 +1,8 @@
 # run_tests.py
 # expected to be run from root folder su/ with the su.exe in the same folder
 
+#NOT CURRENTLY FUNCTIONAL
+
 import os,subprocess
 
 valid_tests = [
