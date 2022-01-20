@@ -6,22 +6,22 @@
 import os,subprocess
 
 valid_tests = [
-    ["multi_digit.su", 100],
-    ["newlines.su", 12],
-    ["no_newlines.su", 6],
-    ["return_0.su", 0],
-    ["return_2.su", 2],
-    ["spaces.su", 5],
-    ["two_funcs.su", 100],
+    ["entry_point\\multi_digit.su", 100],
+    ["entry_point\\newlines.su",     12],
+    ["entry_point\\no_newlines.su",   6],
+    ["entry_point\\return_0.su",      0],
+    ["entry_point\\return_2.su",      2],
+    ["entry_point\\spaces.su",        5],
+    ["entry_point\\two_funcs.su",   100],
 ];
 
 invalid_tests = [
-    "missing_paren.su",
-    "missing_retval.su",
-    "no_brace.su",
-    "no_semicolon.su",
-    "no_space.su",
-    "wrong_case.su",
+    "entry_point\\missing_paren.su",
+    "entry_point\\missing_retval.su",
+    "entry_point\\no_brace.su",
+    "entry_point\\no_semicolon.su",
+    "entry_point\\no_space.su",
+    "entry_point\\wrong_case.su",
 ];
 
 def main():
@@ -33,7 +33,7 @@ def main():
     for name,expected in valid_tests:
         tests_total += 1;
         try:
-            file = ("tests\\valid\\"+name)[:-3];
+            file = name[:-3];
             file_s = file+".s";
             file_su = file+".su";
             file_exe = file+".exe";

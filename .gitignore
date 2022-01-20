@@ -16,6 +16,7 @@
 *.tmp
 *.ctm
 *.diagsession
+*.svg
 
 #folders
 .vs/

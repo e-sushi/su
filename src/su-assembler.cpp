@@ -1,4 +1,4 @@
-﻿string ASMBuff = "";
+﻿//string ASMBuff = "";
 //bool allow_comments = 1;
 //bool print_as_we_go = 1;
 //
@@ -698,11 +698,284 @@
 //	}
 //}
 //
-b32 suAssembler::assemble(Program& program, string& assembly) {
-	//for (Function& func : program.functions) {
-	//	assemble_function(&func);
-	//}
 
-	assembly = ASMBuff;
+struct Assembler{
+	string output;
+	b32 function_returned = false;
+	b32 write_comments = true;
+	u32 padding_width = 2;
+	u32 instruction_width = 8;
+	u32 args_width = 16;
+} assembler;
+
+
+////////////////
+//// @utils //// //NOTE assembly is in AT&T syntax: instr src,dest #comment
+////////////////
+local FORCE_INLINE void
+asm_pure(const char* str){
+    assembler.output += str;
+}
+
+local FORCE_INLINE void
+asm_pure(const string& str){
+	assembler.output += str;
+}
+
+local void
+asm_instruction(const char* instruction, const char* comment){  //'pad instruction # comment\n'
+    upt len_instruction = Max(strlen(instruction), upt(assembler.instruction_width + assembler.args_width + 1));
+    char* str = 0;
+	upt count = 0;
+    if(comment && assembler.write_comments){
+		str   = assembler.output.str + assembler.output.count;
+		count = assembler.padding_width + len_instruction + 2 + strlen(comment) + 1;
+		assembler.output.reserve(assembler.output.count + count);
+        sprintf(str, "%-*s%-*s# %s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction, comment);
+    }else{
+		str   = assembler.output.str + assembler.output.count;
+		count = assembler.padding_width + len_instruction + 1;
+		assembler.output.reserve(assembler.output.count + count);
+        sprintf(str, "%-*s%-*s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction);
+    }
+	assembler.output.count += count;
+}
+
+local void
+asm_instruction(const char* instruction, const char* args, const char* comment){  //'pad instruction args # comment\n'
+    upt len_instruction = Max(strlen(instruction), upt(assembler.instruction_width));
+    upt len_args = Max(strlen(args), upt(assembler.args_width));
+    char* str = 0;
+	upt count = 0;
+    if(comment && assembler.write_comments){
+		str   = assembler.output.str + assembler.output.count;
+		count = assembler.padding_width + len_instruction + len_args + 2 + strlen(comment) + 2;
+		assembler.output.reserve(assembler.output.count + count);
+        sprintf(str, "%-*s%-*s %-*s# %s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction, (int)len_args, args, comment);
+    }else{
+		str   = assembler.output.str + assembler.output.count;
+		count = assembler.padding_width + len_instruction + len_args + 2;
+		assembler.output.reserve(assembler.output.count + count);
+        sprintf(str, "%-*s%-*s %-*s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction, (int)len_args, args);
+    }
+    assembler.output.count += count;
+}
+
+local FORCE_INLINE void
+asm_start_scope(){
+    asm_instruction("push", "%rbp",      "save base pointer to stack (start scope)");
+    asm_instruction("mov",  "%rsp,%rbp", "put the previous stack pointer into the base pointer");
+}
+
+local FORCE_INLINE void
+asm_end_scope(){
+    asm_instruction("leave", "undo stack pointer move and push (end scope)");
+}
+
+/////////////////////
+//// @assembling ////
+/////////////////////
+local void
+assemble_expression(Expression* expr){
+    switch(expr->type){
+		
+		//// Guards ////
+		case ExpressionGuard_Assignment:{
+			
+		}break;
+		
+        case ExpressionGuard_HEAD:{
+			Assert(expr->node.child_count == 1, "ExpressionGuard_HEAD should only have one child node");
+			assemble_expression(ExpressionFromNode(expr->node.first_child)); //TODO why does HEAD exist if its just a pass-thru?
+		}break;
+		
+		case ExpressionGuard_Conditional:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
+			//TODO handle ternary expression
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_LogicalOR:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_LogicalOR must have at least one child node");
+			//TODO handle logical or
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_LogicalAND:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_LogicalAND must have at least one child node");
+			//TODO handle logical and
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_BitOR:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_BitOR must have at least one child node");
+			//TODO handle bit or
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_BitXOR:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_BitXOR must have at least one child node");
+			//TODO handle bit xor
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_BitAND:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_BitAND must have at least one child node");
+			//TODO handle bit and
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_Equality:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Equality must have at least one child node");
+			//TODO handle equality
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_Relational:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Relational must have at least one child node");
+			//TODO handle relational
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_BitShift:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_BitShift must have at least one child node");
+			//TODO handle bitshift
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_Additive:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Additive must have at least one child node");
+			//TODO handle additive
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_Term:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
+			//TODO handle term
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		case ExpressionGuard_Factor:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Factor must have at least one child node");
+			//TODO handle factor
+			for(Node* node = expr->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == expr->node.first_child) break;
+			}
+		}break;
+		
+		//// Literals ////
+		case Expression_IntegerLiteral:{
+            //string args = toStr("$",expr->integer_literal.value,",%rax");
+            string args = toStr("$",expr->expstr,",%rax");
+            asm_instruction("mov", args.str, "move integer literal into %rax");
+        }break;
+    }
+}
+
+local void
+assemble_statement(Statement* stmt){
+    switch(stmt->type){
+        case Statement_Return:{
+			for(Node* node = stmt->node.first_child; ;node = node->next){
+				assemble_expression(ExpressionFromNode(node));
+				if(node->next == stmt->node.first_child) break;
+			}
+			
+            asm_end_scope();
+            asm_instruction("ret", "return code pointer back to func call site");
+            assembler.function_returned = true;
+        }break;
+    }
+}
+
+local void
+assemble_declaration(Declaration* decl){
+	if(decl->node.child_count == 0) return;
+	
+    for(Node* node = decl->node.first_child; ;node = node->next){
+		Expression* expr = ExpressionFromNode(node);
+		
+		assemble_expression(expr);
+		
+		if(node->next == decl->node.first_child) break;
+	}
+}
+
+local void
+assemble_function(Function* func){
+	if(func->node.child_count == 0) return;
+    assembler.function_returned = false;
+    
+    asm_pure(func->identifier.str); asm_pure(":\n");
+    asm_start_scope();
+	for(Node* node = func->node.first_child; ;node = node->next){
+		BlockItem* block_item = BlockItemFromNode(node);
+		Assert(block_item->node.child_count == 1, "BlockItem should only have one child node");
+		
+		if(block_item->is_declaration){
+			assemble_declaration(DeclarationFromNode(block_item->node.first_child));
+		}else{
+			assemble_statement(StatementFromNode(block_item->node.first_child));
+		}
+		
+		if(node->next == func->node.first_child) break;
+	}
+    if(!assembler.function_returned){
+		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");
+        asm_end_scope();
+        asm_instruction("ret",            "return code pointer back to func call site");
+    }
+}
+
+////////////////////
+//// @interface ////
+////////////////////
+b32 suAssembler::assemble(Program& program, string& assembly) {
+    assembler.output.reserve(1024);
+    //string filename(program->name); filename = "\"" + filename + "\""; //TODO add filename to Program
+    //asm_instruction(".file", filename.str, "start of this file");
+    asm_instruction(".text",               "start of code section");
+    asm_instruction(".globl", "main", "marks the function 'main' as being global"); //TODO add entry point to Program
+    
+	for(Node* node = program.node.first_child; ;node = node->next){
+		assemble_function(FunctionFromNode(node));
+		if(node->next == program.node.first_child) break;
+	}
+	
+	assembly = assembler.output;
 	return true;
 }

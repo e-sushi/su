@@ -386,7 +386,7 @@ inline u32 string::CHARCount(CHAR c) const{
 
 inline string string::substrToChar(CHAR c) const{
 	u32 idx = findFirstChar(c);
-	return (idx != npos) ? *this : string(str, idx); //!TestMe
+	return (idx != npos) ? string(str, idx) : *this;
 }
 
 inline b32 string::beginsWith(const string& s) const{

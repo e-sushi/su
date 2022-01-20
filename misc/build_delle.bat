@@ -17,7 +17,7 @@ REM ____________________________________________________________________________
 REM                                      Compiler and Linker Flags
 REM _____________________________________________________________________________________________________
 
-@set WARNINGS=/W1 /wd4201 /wd4100 /wd4189 /wd4706 /wd4311 /wd4552
+@set WARNINGS=/W1 /wd4201 /wd4100 /wd4189 /wd4706 /wd4311 /wd4552 /wd4553
 @set COMPILE_FLAGS=/diagnostics:column /EHsc /nologo /MT /MP /Oi /GR /Gm- /Fm /std:c++17 %WARNINGS%
 @set LINK_FLAGS=/nologo /opt:ref /incremental:no
 @set OUT_EXE=su.exe

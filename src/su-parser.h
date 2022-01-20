@@ -125,6 +125,7 @@ struct Expression {
 		this->expstr = expstr;
 	}
 };
+#define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
 
 enum StatementType : u32 {
 	Statement_Unknown,
@@ -156,6 +157,7 @@ struct Statement {
 		type = st;
 	}
 };
+#define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
 struct Declaration {
 	Token_Type type;
@@ -164,6 +166,7 @@ struct Declaration {
 	//array<Expression> expressions;
 	Node node;
 };
+#define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
 struct BlockItem {
 	b32 is_declaration = 0;
@@ -174,6 +177,7 @@ struct BlockItem {
 	//Node declaration; //NOTE these nodes are singletons!
 	//Node statement; 
 };
+#define BlockItemFromNode(node_ptr) ((BlockItem*)((u8*)(node_ptr) - OffsetOfMember(BlockItem,node)))
 
 struct Function {
 	string identifier = "";
@@ -188,6 +192,7 @@ struct Function {
 	}
 
 };
+#define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
 struct Program {
 	//array<Function> functions;

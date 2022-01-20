@@ -99,7 +99,8 @@ inline void NodeInsertChild(Node* parent, Node* child, string debugstr = "") {
 	if (parent->last_child) parent->last_child->next = child;
 	parent->last_child = child;
 	child->parent = parent;
-	child->debug_str=debugstr;
+	child->debug_str = debugstr;
+	parent->child_count++;
 }
 //TODO remove child node
 
@@ -120,7 +121,7 @@ struct Arena {
 			data = (u8*)calloc(1, size); 
 			cursor = data;
 		}
-		memcpy(cursor, &in, sizeof(T));
+		*((T*)cursor) = in;
 		cursor += sizeof(T);
 		return cursor - sizeof(T);
 	}

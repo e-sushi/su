@@ -30,6 +30,9 @@ command line arguments:
 				  :  linux
 				  :  osx
 
+-o [str] default: working directory
+directory to output the .asm (and other output) files to
+
 		-ep [str] default: main 
 				set the name of the entry point function of the program; 
 
@@ -150,6 +153,7 @@ int main(int argc, char* argv[]) {
 
 	//make this not array and string later maybe 
 	array<string> filenames;
+	string output_dir = "";
 	forI(argc) {
 		char* arg = argv[i];
 		if (!strcmp("-i", arg)) { //////////////////////////////////// @-i
@@ -182,13 +186,33 @@ int main(int argc, char* argv[]) {
 				return ReturnCode_Invalid_Argument;
 			}
 		}
+		else if (!strcmp("-o", arg)) { ////////////////////////////// @-o
+			i++; arg = argv[i];
+			output_dir = arg;
+			if(output_dir[output_dir.count-1] != '\\' || output_dir[output_dir.count-1] != '/'){
+				output_dir += "/";
+			}
+		}
 		else {
 			//ignore invalid args for cuz vs is silly and puts the path of the exe for wahtever reason
 			//PRINTLN("ERROR: invalid argument");
 			//return ReturnCode_Invalid_Argument;
 		}
 	}
-	FILE* in = fopen("main.su", "r");
+	cstring filename_raw{filenames[0].str, filenames[0].count}; //just the name, no extention or path
+	u32 last_slash = 0;
+	for(u32 i = filename_raw.count-1; i != 0; --i){
+		if(filename_raw[i] == '/' || filename_raw[i] == '\\'){
+			last_slash = i+1;
+			break;
+		}
+	}
+	filename_raw.str   += last_slash;
+	filename_raw.count -= last_slash + 3;
+	string filename(filename_raw);
+	
+	FILE* in = fopen(filenames[0].str, "r");
+	defer{ fclose(in); };
 	if (!in) {
 		PRINTLN("ERROR: file not found.");
 		return ReturnCode_File_Not_Found;
@@ -231,7 +255,8 @@ int main(int argc, char* argv[]) {
 
 	make_dot_file(&program.node, 0);
 	gvLayout(gvc, gvgraph, "dot");
-	gvRenderFilename(gvc, gvgraph, "svg", "ASTgraph.svg");
+	string output_graph_path = output_dir + filename + ".svg";
+	gvRenderFilename(gvc, gvgraph, "svg", output_graph_path.str);
 
 	PRINTLN("assembling");
 	string assembly;
@@ -242,11 +267,16 @@ int main(int argc, char* argv[]) {
 	PRINTLN("assembling finished");
 
 	//std::cout << assembly << std::endl;
-
-	FILE* out = fopen("out.s", "w");
+	
+	string output_asm_path = output_dir + filename + ".asm";
+	FILE* out = fopen(output_asm_path.str, "w");
+	defer{ fclose(out); };
+	if (!out) {
+		PRINTLN("ERROR: failed to open output file.");
+		return ReturnCode_File_Locked;
+	}
+	
 	fputs(assembly.str, out);
-	fclose(in);
-	fclose(out);
 
 	return ReturnCode_Success;
 }
