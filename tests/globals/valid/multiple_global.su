@@ -1,6 +1,6 @@
-int a = 3;
-int b = 4;
+s32 a = 3;
+s32 b = 4;
 
-int main() {
+s32 main() {
     return a * b;
 }

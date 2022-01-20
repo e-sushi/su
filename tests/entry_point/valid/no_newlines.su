@@ -1,1 +1,1 @@
-int main(){return 6;}
+s32 main(){return 6;}

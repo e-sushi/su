@@ -1,6 +1,6 @@
-int putchar(int c);
+s32 putchar(s32 c);
 
-int main() {
+s32 main() {
     putchar(72);
     putchar(101);
     putchar(108);

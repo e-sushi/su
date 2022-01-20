@@ -1,4 +1,4 @@
-int fib(int n) {
+s32 fib(s32 n) {
     if (n == 0 || n == 1) {
         return n;
     } else {
@@ -6,7 +6,7 @@ int fib(int n) {
     }
 }
 
-int main() {
-    int n = 5;
+s32 main() {
+    s32 n = 5;
     return fib(n);
 }

@@ -1,7 +1,7 @@
-int foo(int x) {
-    int x = 3;
+s32 foo(s32 x) {
+    s32 x = 3;
 }
 
-int main() {
+s32 main() {
     foo(1);
 }

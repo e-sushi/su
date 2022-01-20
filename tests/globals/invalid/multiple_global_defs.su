@@ -1,7 +1,7 @@
-int foo = 3;
+s32 foo = 3;
 
-int main() {
+s32 main() {
     return foo;
 }
 
-int foo = 0;
+s32 foo = 0;

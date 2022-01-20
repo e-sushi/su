@@ -1,4 +1,4 @@
-int main() {
+s32 main() {
     ints a = 1;
     return a;
 }

@@ -1,4 +1,4 @@
-int main() {
+s32 main() {
     do
         3;
     while (4)

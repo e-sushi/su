@@ -1,7 +1,7 @@
-int main() {
-    int a = 0;
+s32 main() {
+    s32 a = 0;
 
-    for (int i = 0; i < 3; i = i + 1)
+    for (s32 i = 0; i < 3; i = i + 1)
         a = a + 1;
     return a;
 }

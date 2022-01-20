@@ -1,6 +1,6 @@
-int main() {
+s32 main() {
     {
-        int a = 2;
+        s32 a = 2;
     }
     return a;
 }

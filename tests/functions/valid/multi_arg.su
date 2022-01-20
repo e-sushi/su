@@ -1,7 +1,7 @@
-int sub_3(int x, int y, int z) {
+s32 sub_3(s32 x, s32 y, s32 z) {
     return x - y - z;
 }
 
-int main() {
+s32 main() {
     return sub_3(10, 4, 2);
 }

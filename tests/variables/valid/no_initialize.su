@@ -1,4 +1,4 @@
-int main() {
-    int a;
+s32 main() {
+    s32 a;
     return 0;
 }
