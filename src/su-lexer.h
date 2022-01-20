@@ -4,7 +4,7 @@
 
 #include "utils/string.h"
 #include "utils/array.h"
-
+#include "utils/defines.h"
 
 
 enum Token_Type {
@@ -123,7 +123,7 @@ struct token {
 };
 
 namespace suLexer {
-	array<token> lex(FILE* file);
+	b32 lex(FILE* file, array<token>& tokens);
 }
 
 #endif //SU_LEXER_H

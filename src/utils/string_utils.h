@@ -12,7 +12,7 @@
 ///////////////
 //// @stox ////
 ///////////////
-global_ u32
+global_ s32
 stoi(const string& s) {
 	u32 x;
 	(void)sscanf(s.str, "%d", &x);
@@ -231,7 +231,7 @@ global_ b32 str_begins_with(const cstring& buf1, const char*    buf2) { return s
 global_ b32 str_begins_with(const char*    buf1, const char*    buf2) { return str_begins_with(buf1, buf2, strlen(buf2)); }
 
 FORCE_INLINE global_ b32
-str_ends_with(const char* buf1, u32 buf1len, const char* buf2, u32 buf2len) {return (buf2len > buf1len ? 0 : !memcmp(buf1 + (buf2len - buf1len), buf2, buf2len));}
+str_ends_with(const char* buf1, u32 buf1len, const char* buf2, u32 buf2len) {return (buf2len > buf1len ? 0 : !memcmp(buf1 + (buf1len - buf2len), buf2, buf2len));}
 global_ b32 str_ends_with(const string&  buf1, const string&  buf2) { return str_ends_with(buf1.str, buf1.count, buf2.str, buf2.count); }
 global_ b32 str_ends_with(const cstring& buf1, const cstring& buf2) { return str_ends_with(buf1.str, buf1.count, buf2.str, buf2.count); }
 global_ b32 str_ends_with(const string&  buf1, const cstring& buf2) { return str_ends_with(buf1.str, buf1.count, buf2.str, buf2.count); }

@@ -698,10 +698,11 @@
 //	}
 //}
 //
-string suAssembler::assemble(Program& program) {
+b32 suAssembler::assemble(Program& program, string& assembly) {
 	//for (Function& func : program.functions) {
 	//	assemble_function(&func);
 	//}
 
-	return ASMBuff;
+	assembly = ASMBuff;
+	return true;
 }

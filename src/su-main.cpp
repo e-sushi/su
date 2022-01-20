@@ -1,5 +1,54 @@
 ﻿/*
 
+
+Return codes are listen in su-types.h
+
+.subuild files are detailed below, however if you're using one, the following flags do not need to be specified
+ on the command line and can be done in the build file
+
+command line arguments:
+		-i        input files; either a collection of .su files or a .subuild file
+		
+		-wl [int] default: 1
+		          set warning level:
+				  :  0: disable all warnings
+				  :  1: arthmatic errors; logic errors
+				  :  2: saftey errors
+				  :  3: idk yet
+				  :  4: all warnings
+
+		-defstr [option] default: utf8
+			      set the default type of str 
+				  :  ascii
+				  :  utf8
+				  :  utf16
+				  :  utf32
+
+		-os [str] default: auto-detected
+				  set the platform/OS to compile for; 
+				  :  windows //maybe need options for different releases?
+				  :  linux
+				  :  osx
+
+		-ep [str] default: main 
+				set the name of the entry point function of the program; 
+
+		-sw       suppress warnings
+		-se       suppress errors
+		-sm       suppress messages
+		-sa       suppress all printing
+		-v        verbose printing of internal actions (actual compiler steps, not warnings, errors, etc. for debugging the compiler)
+		-gv       generate graphviz graph of the AST tree (output as .svg)
+
+.subuild specific
+		-conf [str] default: none
+				  use a specific configuration specified in a subuild file 
+
+subuild files:
+	TODO write about this when we have it :)
+
+
+
 General TODOs
 
 convert the assembler to take in instruction and register enums and then decide what instruction to put
@@ -16,10 +65,6 @@ by itself doesnt need to go through all the expression nodes for us to know its
 a number literal
 
 */
-
-//NOTE when doing stuff with trees add the node FIRST and reference it inside of it's array
-//	   this way you don't have a node with 20 million children being added to a single node
-//     and having to copy all of it 
 
 //utils
 #include "utils/array.h"
@@ -97,27 +142,73 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 
 
 //TODO setup main to take arguments for multiple files, compiler flags, etc.
-int main() {
-	FILE* in = fopen("main.su", "r");
-	if (!in) {
-		std::cout << "ERROR: file not found." << std::endl;
-		return 0;
+int main(int argc, char* argv[]) {
+	if (!argc) {
+		PRINTLN("ERROR: no arguments passed");
+		return ReturnCode_No_File_Passed;
 	}
 
-	std::cout << "lexing" << std::endl;
-	array<token> tokens = suLexer::lex(in);
-	std::cout << "lexing finished" << std::endl;
+	//make this not array and string later maybe 
+	array<string> filenames;
+	forI(argc) {
+		char* arg = argv[i];
+		if (!strcmp("-i", arg)) { //////////////////////////////////// @-i
+			i++; arg = argv[i];
+			if (str_ends_with(arg, ".su")) {
+				filenames.add(argv[i]);
+				//TODO block .subuild files after finding a .su
+			}
+			else if (str_ends_with(arg, ".subuild")) {
+				//TODO build file parsing
+				//TODO block .su files after finding a build file
+			}
+			else {
+				PRINTLN("file with invalid file type passed: " << arg);
+				return ReturnCode_File_Invalid_Extension;
+			}
+		}
+		else if (!strcmp("-wl", arg)) { ///////////////////////////// @-wl
+			i++; arg = argv[i];
+			globals.warning_level = stoi(argv[i]);
+			//TODO handle invalid arg here
+		}
+		else if (!strcmp("-os", arg)) { ////////////////////////////// @-os
+			i++; arg = argv[i];
+			if      (!strcmp("windows", arg)) { globals.osout = OSOut_Windows; }
+			else if (!strcmp("linux",   arg)) { globals.osout = OSOut_Linux; }
+			else if (!strcmp("osx",     arg)) { globals.osout = OSOut_OSX; }
+			else {
+				PRINTLN("ERROR: invalid argument");
+				return ReturnCode_Invalid_Argument;
+			}
+		}
+		else {
+			//ignore invalid args for cuz vs is silly and puts the path of the exe for wahtever reason
+			//PRINTLN("ERROR: invalid argument");
+			//return ReturnCode_Invalid_Argument;
+		}
+	}
+	FILE* in = fopen("main.su", "r");
+	if (!in) {
+		PRINTLN("ERROR: file not found.");
+		return ReturnCode_File_Not_Found;
+	}
 
-	//for (token& t : tokens) {
-	//	std::cout << t.str << " " << tokenStrings[t.type] << std::endl;
-	//}
-	//std::cout << std::endl;
+	array<token> tokens;
+	PRINTLN("lexing");
+	if (!suLexer::lex(in, tokens)) {
+		PRINTLN("lexer failed");
+		return ReturnCode_Lexer_Failed;
+	}
+	PRINTLN("lexing finished");
 
 	Program program;
-
-	std::cout << "parsing" << std::endl;
-	suParser::parse(tokens, program);
-	std::cout << "parsing finished" << std::endl;
+	PRINTLN("parsing");
+	if (suParser::parse(tokens, program)) {
+		PRINTLN("parsing failed");
+		return ReturnCode_Parser_Failed;
+	}
+	PRINTLN("parsing finished");
 
 	gvc = gvContext();
 	gvgraph = agopen("ast tree", Agdirected, 0);
@@ -138,14 +229,17 @@ int main() {
 	agattr(gvgraph, AGRAPH, "concentrate", "true");
 	agattr(gvgraph, AGRAPH, "splines",     "true");
 
-	Node* node = &program.node;
-	make_dot_file(node, 0);
+	make_dot_file(&program.node, 0);
 	gvLayout(gvc, gvgraph, "dot");
 	gvRenderFilename(gvc, gvgraph, "svg", "ASTgraph.svg");
 
-	std::cout << "assembling" << std::endl;
-	string assembly = suAssembler::assemble(program);
-	std::cout << "assembling finished" << std::endl;
+	PRINTLN("assembling");
+	string assembly;
+	if (!suAssembler::assemble(program, assembly)) {
+		PRINTLN("assembler failed");
+		return ReturnCode_Assembler_Failed;
+	}
+	PRINTLN("assembling finished");
 
 	//std::cout << assembly << std::endl;
 
@@ -153,4 +247,6 @@ int main() {
 	fputs(assembly.str, out);
 	fclose(in);
 	fclose(out);
+
+	return ReturnCode_Success;
 }

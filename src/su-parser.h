@@ -195,7 +195,7 @@ struct Program {
 };
 
 namespace suParser {
-	void parse(array<token>& tokens, Program& mother);
+	b32 parse(array<token>& tokens, Program& mother);
 }
 
 

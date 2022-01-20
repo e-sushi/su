@@ -5,7 +5,7 @@
 #include "su-parser.h"
 
 namespace suAssembler {
-	string assemble(Program& program);
+	b32 assemble(Program& program, string& assembly);
 }
 
 

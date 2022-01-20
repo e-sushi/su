@@ -48,7 +48,8 @@ token curt;
 array<token> tokens;
 
 //master fail flag, set when something happens that prevents from building properly
-bool epic_fail_n_we_must_gtfo = false;
+b32 epic_fail_n_we_must_gtfo = false;
+b32 parse_failed = false;
 
 //These defines are mostly for conveinence and clarity as to what im doing
 //#define token_next() curt = tokens.next()
@@ -81,7 +82,7 @@ else if (curt.type == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
- else { ParseFail(error); }
+ else { parse_failed = true; ParseFail(error); }
 
 #define ExpectFailCode(failcode)\
  else { failcode }
@@ -617,7 +618,7 @@ emergency_exit:
 }
 
 // <program> ::= <function>
-void suParser::parse(array<token>& tokens_in, Program& mother) {
+b32 suParser::parse(array<token>& tokens_in, Program& mother) {
 	arena.init(Kilobytes(10));
 
 	tokens = tokens_in;
@@ -629,4 +630,6 @@ void suParser::parse(array<token>& tokens_in, Program& mother) {
 	debugprogramnode = &mother.node;
 	
 	parser(psGlobal, &mother.node);
+
+	return parse_failed;
 }

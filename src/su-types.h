@@ -4,6 +4,34 @@
 
 #include "utils/defines.h"
 
+enum ReturnCode {
+	ReturnCode_Success                = 0,
+	ReturnCode_No_File_Passed         = 1,
+	ReturnCode_File_Not_Found         = 2,
+	ReturnCode_File_Locked            = 3,
+	ReturnCode_File_Invalid_Extension = 4,
+	ReturnCode_Invalid_Argument       = 5,
+	ReturnCode_Lexer_Failed           = 6,
+	ReturnCode_Preprocessor_Failed    = 7,
+	ReturnCode_Parser_Failed          = 8,
+	ReturnCode_Assembler_Failed       = 9,
+};
+
+enum OSOut {
+	OSOut_Windows,
+	OSOut_Linux,
+	OSOut_OSX,
+};
+
+struct {
+	u32   warning_level    = 1;
+	b32   verbose_print    = false;
+	b32   supress_warnings = false;
+	b32   supress_errors   = false;
+	b32   supress_messages = false;
+	OSOut osout            = OSOut_Windows;
+} globals; 
+
 //data type specifiers
 enum DataType : u32 { 
 	DataType_NotTyped,

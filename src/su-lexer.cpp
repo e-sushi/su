@@ -6,8 +6,7 @@ enum LexerState_ {
 
 LexerState state = DiscernChar;
 
-array<token> suLexer::lex(FILE* file) {
-	array<token> tokens;
+b32 suLexer::lex(FILE* file, array<token>& tokens) {
 	char currChar = 0;
 	char* buffptr = 0;
 	u32 lines = 1;
@@ -146,5 +145,5 @@ array<token> suLexer::lex(FILE* file) {
 		}
 	}
 	tokens.add(token{ "", Token_EOF, lines });
-	return tokens;
+	return true;
 }
