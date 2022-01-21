@@ -153,6 +153,9 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				output_dir += "/";
 			}
 		}
+		else if (!strcmp("-v", arg)) {
+			globals.verbose_print = true;
+		}
 		else {
 			PRINTLN("ERROR: invalid argument: '" << arg << "'");
 			return ReturnCode_Invalid_Argument;

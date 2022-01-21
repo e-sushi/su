@@ -101,7 +101,7 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 					case ';': case ' ': case '{': case '}': case '(': case ')':
 					case ',': case '+': case '*': case '/': case '-': case '<': 
 					case '=': case '!': case '~': case '&': case '|': case '\t':
-					case '%': case ':': case '?': case '>': case '^': case '\n': case '\r': {
+					case '%': case ':': case '?': case '>': case '^': case '\n': {
 						if (isalpha(*chunk_start)) {
 							if      (!strncmp("return", chunk_start, 6)) tokens.add(token{ "return", Token_Return,     lines });
 							else if (!strncmp("if",     chunk_start, 2)) tokens.add(token{ "if",     Token_If,         lines });
