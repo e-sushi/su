@@ -61,28 +61,28 @@ tests = [
     ["binary_ops/invalid/missing_second_op.su", ReturnCode_Parser_Failed],
     ["binary_ops/invalid/no_semicolon.su",      ReturnCode_Parser_Failed],
     
-    ["comparison_ops/valid/and_false.su",                              0],
-    ["comparison_ops/valid/and_true.su",                            True],
-    ["comparison_ops/valid/eq_false.su",                               0],
-    ["comparison_ops/valid/eq_true.su",                             True],
-    ["comparison_ops/valid/ge_false.su",                               0],
-    ["comparison_ops/valid/ge_true.su",                             True],
-    ["comparison_ops/valid/gt_false.su",                               0],
-    ["comparison_ops/valid/gt_true.su",                             True],
-    ["comparison_ops/valid/le_false.su",                               0],
-    ["comparison_ops/valid/le_true.su",                             True],
-    ["comparison_ops/valid/lt_false.su",                               0],
-    ["comparison_ops/valid/lt_true.su",                             True],
-    ["comparison_ops/valid/ne_false.su",                               0],
-    ["comparison_ops/valid/ne_true.su",                             True],
-    ["comparison_ops/valid/or_false.su",                               0],
-    ["comparison_ops/valid/or_true.su",                             True],
-    ["comparison_ops/valid/precedence.su",                          True],
-    ["comparison_ops/valid/precedence_2.su",                           0],
-    ["comparison_ops/valid/precedence_3.su",                        True],
-    ["comparison_ops/valid/skip_on_failure_multi_short_circuit.su", True],
-    ["comparison_ops/valid/skip_on_failure_short_circuit_and.su",      0],
-    ["comparison_ops/valid/skip_on_failure_short_circuit_or.su",       0],
+    ["comparison_ops/valid/and_false.su",                                0],
+    ["comparison_ops/valid/and_true.su",                            "true"],
+    ["comparison_ops/valid/eq_false.su",                                 0],
+    ["comparison_ops/valid/eq_true.su",                             "true"],
+    ["comparison_ops/valid/ge_false.su",                                 0],
+    ["comparison_ops/valid/ge_true.su",                             "true"],
+    ["comparison_ops/valid/gt_false.su",                                 0],
+    ["comparison_ops/valid/gt_true.su",                             "true"],
+    ["comparison_ops/valid/le_false.su",                                 0],
+    ["comparison_ops/valid/le_true.su",                             "true"],
+    ["comparison_ops/valid/lt_false.su",                                 0],
+    ["comparison_ops/valid/lt_true.su",                             "true"],
+    ["comparison_ops/valid/ne_false.su",                                 0],
+    ["comparison_ops/valid/ne_true.su",                             "true"],
+    ["comparison_ops/valid/or_false.su",                                 0],
+    ["comparison_ops/valid/or_true.su",                             "true"],
+    ["comparison_ops/valid/precedence.su",                          "true"],
+    ["comparison_ops/valid/precedence_2.su",                             0],
+    ["comparison_ops/valid/precedence_3.su",                        "true"],
+    ["comparison_ops/valid/skip_on_failure_multi_short_circuit.su", "true"],
+    ["comparison_ops/valid/skip_on_failure_short_circuit_and.su",        0],
+    ["comparison_ops/valid/skip_on_failure_short_circuit_or.su",         0],
     ["comparison_ops/invalid/missing_first_op.su",  ReturnCode_Parser_Failed],
     ["comparison_ops/invalid/missing_mid_op.su",    ReturnCode_Parser_Failed],
     ["comparison_ops/invalid/missing_second_op.su", ReturnCode_Parser_Failed],
@@ -114,10 +114,12 @@ def main():
                 
                 try:
                     subprocess.run(file_exe, capture_output=True, check=True);
+                    #print("%-60s%s (E: %d; A: %d)" % (file, "PASSED", expected, 0));
                     print("%-60s%s" % (file, "PASSED"));
                 except subprocess.CalledProcessError as err:
                     actual = ctypes.c_int32(err.returncode).value;
-                    if((actual == expected) or (expected == True and expected != 0)):
+                    if((actual == expected) or (expected == "true" and actual != 0)):
+                        #print("%-60s%s (E: %d; A: %d)" % (file, "PASSED", expected, actual));
                         print("%-60s%s" % (file, "PASSED"));
                         tests_passed += 1;
                     else:
@@ -138,7 +140,8 @@ def main():
                 tests_failed += 1;
             except subprocess.CalledProcessError as err:
                 actual = ctypes.c_int32(err.returncode).value;
-                if((actual == expected) or (expected == True and expected != 0)):
+                if((actual == expected) or (expected == "true" and actual != 0)):
+                    #print("%-60s%s (E: %d; A: %d)" % (file, "PASSED", expected, actual));
                     print("%-60s%s" % (file, "PASSED"));
                     tests_passed += 1;
                 else:

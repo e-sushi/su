@@ -115,15 +115,7 @@ static const char* ExTypeStrings[] = {
 struct Expression {
 	string expstr;
 	ExpressionType type;
-	
-	//array<Expression> expressions;
-	
 	Node node;
-	
-	Expression(string expstr, ExpressionType type) {
-		this->type = type;
-		this->expstr = expstr;
-	}
 };
 #define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
 
@@ -135,26 +127,12 @@ enum StatementType : u32 {
 	Statement_Conditional,
 	Statement_If,
 	Statement_Else,
+	Statement_Scope,
 };
 
 struct Statement {
 	StatementType type = Statement_Unknown;
-	
-	//array<Expression> expressions;
-	//array<Statement>  statements;
-	//array<BlockItem*> compound;
-	
 	Node node;
-	
-	Statement() {};
-	
-	Statement(StatementType st) {
-		type = st;
-	}
-	
-	Statement(string vid, StatementType st) {
-		type = st;
-	}
 };
 #define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
@@ -162,34 +140,29 @@ struct Declaration {
 	Token_Type type;
 	string identifier = "";
 	b32 initialized = false;
-	//array<Expression> expressions;
 	Node node;
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
+//probably doesnt need to be a struct
+struct Scope {
+	Node node;
+};
+#define ScopeFromNode(node_ptr) ((Scope*)((u8*)(node_ptr) - OffsetOfMember(Scope,node)))
+
 struct Function {
 	string identifier = "";
 	DataType type;
-	
 	Node node;
-	
-	Function() {}
-	
-	Function(string identifier) {
-		this->identifier = identifier;
-	}
-	
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
 struct Program {
-	//array<Function> functions;
 	Node node;
 };
 
 namespace suParser {
 	b32 parse(array<token>& tokens, Program& mother);
 }
-
 
 #endif //SU_PARSER_H

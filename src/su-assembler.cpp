@@ -1139,23 +1139,28 @@ assemble_declaration(Declaration* decl){
 }
 
 local void
+assemble_scope(Scope* scope){
+	for(Node* node = scope->node.first_child; ;node = node->next){
+		if      (node->type == NodeType_Declaration){
+			assemble_declaration(DeclarationFromNode(node));
+		}else if(node->type == NodeType_Statement){
+			assemble_statement(StatementFromNode(node));
+		}else if(node->type == NodeType_Scope){
+			assemble_scope(ScopeFromNode(node));
+		}else{ NotImplemented; }
+		if(node->next == scope->node.first_child) break;
+	}
+}
+
+local void
 assemble_function(Function* func){
 	if(func->node.child_count == 0) return;
     assembler.function_returned = false;
     
     asm_pure(func->identifier.str); asm_pure(":\n");
     asm_start_scope();
-	for(Node* node = func->node.first_child; ;node = node->next){
-		if      (node->type == NodeType_Declaration){
-			assemble_declaration(DeclarationFromNode(node));
-		}else if(node->type == NodeType_Statement){
-			assemble_statement(StatementFromNode(node));
-		}else{
-			NotImplemented;
-		}
-		
-		if(node->next == func->node.first_child) break;
-	}
+	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "a function only has one child and it has to be a scope");
+	assemble_scope(ScopeFromNode(func->node.first_child));
     if(!assembler.function_returned){
 		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");
         asm_end_scope();

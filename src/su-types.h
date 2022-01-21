@@ -105,6 +105,7 @@ struct {
 enum NodeType : u32 {
 	NodeType_Program,
 	NodeType_Function,
+	NodeType_Scope,
 	NodeType_Declaration,
 	NodeType_Statement,
 	NodeType_Expression,
