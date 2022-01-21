@@ -123,6 +123,8 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 	}
 	if (node->next != node) { colidx = (colidx + 1) % 11 + 1; make_dot_file(node->next, parent); }
 	
+
+
 	if (parent) {
 		Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
 		agset(edge, "color", to_string(colsave).str);

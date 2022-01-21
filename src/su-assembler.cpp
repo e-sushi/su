@@ -984,16 +984,16 @@ assemble_function(Function* func){
     asm_pure(func->identifier.str); asm_pure(":\n");
     asm_start_scope();
 	for(Node* node = func->node.first_child; ;node = node->next){
-		BlockItem* block_item = BlockItemFromNode(node);
-		Assert(block_item->node.child_count == 1, "BlockItem should only have one child node");
-		
-		if(block_item->is_declaration){
-			assemble_declaration(DeclarationFromNode(block_item->node.first_child));
-		}else{
-			assemble_statement(StatementFromNode(block_item->node.first_child));
-		}
-		
-		if(node->next == func->node.first_child) break;
+		//BlockItem* block_item = BlockItemFromNode(node);
+		//Assert(block_item->node.child_count == 1, "BlockItem should only have one child node");
+		//
+		//if(block_item->is_declaration){
+		//	assemble_declaration(DeclarationFromNode(block_item->node.first_child));
+		//}else{
+		//	assemble_statement(StatementFromNode(block_item->node.first_child));
+		//}
+		//
+		//if(node->next == func->node.first_child) break;
 	}
     if(!assembler.function_returned){
 		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");

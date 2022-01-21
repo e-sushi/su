@@ -32,6 +32,14 @@ struct {
 	OSOut osout            = OSOut_Windows;
 } globals; 
 
+enum NodeType : u32 {
+	NodeType_Program,
+	NodeType_Function,
+	NodeType_Declaration,
+	NodeType_Statement,
+	NodeType_Expression,
+};
+
 //data type specifiers
 enum DataType : u32 { 
 	DataType_NotTyped,
@@ -57,6 +65,8 @@ struct Node {
 	Node* last_child = 0;
 	u32 child_count = 0;
 
+	NodeType type;
+
 	string debug_str;
 
 	Node() {
@@ -64,25 +74,22 @@ struct Node {
 	}
 };
 
-inline Node* NewNode() {
-	//TODO eventually these Nodes should be stored somewhere so they're not randomly alloced all over the place
-	return new Node;
-}
-
-inline void NodeInsertNext(Node* to, Node* from, string debugstr = "") {
+inline void NodeInsertNext(Node* to, Node* from, NodeType type, string debugstr = "") {
 	if(to->next != to) from->next = to->next;
 	from->prev = to;
 	from->next->prev = from;
 	to->next = from;
+	from->type = type;
 	from->parent = to->parent; //this maybe should just be done on insert child
 	from->debug_str=debugstr;
 }
 
-inline void NodeInsertPrev(Node* to, Node* from, string debugstr = "") {
+inline void NodeInsertPrev(Node* to, Node* from, NodeType type, string debugstr = "") {
 	if(to->prev != to) from->prev = to->prev;
 	from->next = to;
 	from->prev->next = from;
 	to->prev = from;
+	from->type = type;
 	from->parent = to->parent;
 	from->debug_str = debugstr;
 }
@@ -92,7 +99,7 @@ inline void NodeRemove(Node* node, string debugstr = "") {
 	node->prev->next = node->next;
 }
 
-inline void NodeInsertChild(Node* parent, Node* child, string debugstr = "") {
+inline void NodeInsertChild(Node* parent, Node* child, NodeType type, string debugstr = "") {
 	//TODO maybe we can avoid these checks ?
 	if (!parent->first_child) parent->first_child = child;
 	child->prev = parent->last_child;
@@ -100,6 +107,7 @@ inline void NodeInsertChild(Node* parent, Node* child, string debugstr = "") {
 	parent->last_child = child;
 	child->parent = parent;
 	child->debug_str = debugstr;
+	child->type = type;
 	parent->child_count++;
 }
 //TODO remove child node

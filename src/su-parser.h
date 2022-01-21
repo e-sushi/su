@@ -65,10 +65,10 @@ enum ExpressionType : u32 {
 };
 
 static const char* ExTypeStrings[] = {
-	"IdentifierLHS",
-	"IdentifierRHS",
+	"idLHS",
+	"idRHS",
 
-	"IntegerLiteral",
+	"literal",
 
 	"~",
 	"!",
@@ -137,7 +137,6 @@ enum StatementType : u32 {
 	Statement_Else,
 };
 
-struct BlockItem;
 struct Statement {
 	StatementType type = Statement_Unknown;
 
@@ -167,17 +166,6 @@ struct Declaration {
 	Node node;
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
-
-struct BlockItem {
-	b32 is_declaration = 0;
-	Node node; //NOTE this node is a singleton and is either a statement or a declaration
-
-	//Declaration declaration;
-	//Statement statement;
-	//Node declaration; //NOTE these nodes are singletons!
-	//Node statement; 
-};
-#define BlockItemFromNode(node_ptr) ((BlockItem*)((u8*)(node_ptr) - OffsetOfMember(BlockItem,node)))
 
 struct Function {
 	string identifier = "";
