@@ -674,6 +674,12 @@
     <ClCompile Include="..\src\su-main.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\su-ast-graph.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\su-io.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\utils\carray.h">
