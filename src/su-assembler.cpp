@@ -833,9 +833,9 @@ local void assemble_expressions_from_expression(Expression* expr){
 
 local void
 assemble_expression(Expression* expr){
-    switch(expr->type){
-		
-		//// Guards ////
+	switch(expr->type){
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Guards
 		case ExpressionGuard_Assignment:{
 			
 		}break;
@@ -917,7 +917,13 @@ assemble_expression(Expression* expr){
 			//TODO handle factor
 		}break;
 		
-		//// Unary Operators ////
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Binary Operators
+		
+		
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Unary Operators
 		case Expression_UnaryOpBitComp:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
@@ -938,7 +944,8 @@ assemble_expression(Expression* expr){
 			asm_instruction("neg", "%rax", "perform artihmetic negation");
 		}break;
 		
-		//// Literals ////
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Literals
 		case Expression_IntegerLiteral:{
 			//string args = toStr("$",expr->integer_literal.value,",%rax");
 			string args = "$" + expr->expstr + ",%rax";

@@ -10,21 +10,22 @@
 enum Token_Type {
     Token_ERROR,                    // when something doesnt make sense during lexing
     Token_EOF,                      // end of file
+	
     Token_Identifier,               // function/variable names
-    Token_Return,                   // return
     Token_Literal,                  // 1, 2, 3.221, "string", 'c'
-    Token_Signed32,                 // s32 
-    Token_Signed64,                 // s64 
-    Token_Unsigned32,               // u32 
-    Token_Unsigned64,               // u64 
-    Token_Float32,                  // f32 
-    Token_Float64,                  // f64 
+	
+	//// control characters ////
     Token_Semicolon,                // ;
     Token_OpenBrace,                // {
     Token_CloseBrace,               // }
     Token_OpenParen,                // (
     Token_CloseParen,               // )
     Token_Comma,                    // ,
+	Token_QuestionMark,             // ?
+    Token_Colon,                    // :
+    Token_Dot,                      // .
+	
+	//// operators ////
     Token_Plus,                     // +
     Token_PlusAssignment,           // +=
     Token_Negation,                 // -
@@ -55,75 +56,110 @@ enum Token_Type {
     Token_LessThanOrEqual,          // <=
     Token_GreaterThan,              // >
     Token_GreaterThanOrEqual,       // >=
-    Token_QuestionMark,             // ?
-    Token_Colon,                    // :
+	
+	//// control keywords ////
+	Token_Return,                   // return
     Token_If,                       // if
     Token_Else,                     // else
+	Token_Struct,                   // struct
+	
+	//// type keywords ////
+	Token_Signed32,                 // s32 
+    Token_Signed64,                 // s64 
+    Token_Unsigned32,               // u32 
+    Token_Unsigned64,               // u64 
+    Token_Float32,                  // f32 
+    Token_Float64,                  // f64 
 };
 
 static const char* tokenStrings[] = {
-    "ERROR",                
-    "EOF",                      
-    "Identifier",               
-    "Return",                   
-    "Literal",                  
-    "Signed32",                 
-    "Signed64",                 
-    "Unsigned32",               
-    "Unsigned64",               
-    "Float32",                  
-    "Float64",                  
-    "Semicolon",                
-    "OpenBrace",                
-    "CloseBrace",               
-    "OpenParen",                
-    "CloseParen",               
-    "Comma",                    
-    "Plus",                     
-    "PlusAssignment",           
-    "Negation",                 
-    "NegationAssignment",       
-    "Multiplication",           
-    "MultiplicationAssignment", 
-    "Division",                 
-    "DivisionAssignment",       
-    "BitNOT",                   
-    "BitNOTAssignment",         
-    "BitAND",                   
-    "BitANDAssignment",         
-    "AND",                      
-    "BitOR",                    
-    "BitORAssignment",          
-    "OR",                       
-    "BitXOR",                   
-    "BitXORAssignment",         
-    "BitShiftLeft",             
-    "BitShiftRight",            
-    "Modulo",                   
-    "ModuloAssignment",         
-    "Assignment",               
-    "Equal",                    
-    "LogicalNOT",               
-    "NotEqual",                 
-    "LessThan",                 
-    "LessThanOrEqual",          
-    "GreaterThan",              
-    "GreaterThanOrEqual",       
-    "QuestionMark",             
-    "Colon",                    
-    "If",                       
-    "Else",                     
+    "ERROR",
+	"EOF",
+	
+    "Identifier",
+	"Literal",
+	
+    "Semicolon",
+    "OpenBrace",
+    "CloseBrace",
+    "OpenParen",
+    "CloseParen",
+    "Comma",
+	"QuestionMark",
+    "Colon",
+    "Dot",
+	
+    "Plus",
+    "PlusAssignment",
+    "Negation",
+    "NegationAssignment",
+    "Multiplication",
+    "MultiplicationAssignment",
+    "Division",
+    "DivisionAssignment",
+    "BitNOT",
+    "BitNOTAssignment",
+    "BitAND",
+    "BitANDAssignment",
+    "AND",
+    "BitOR",
+    "BitORAssignment",
+    "OR",
+    "BitXOR",
+    "BitXORAssignment",
+    "BitShiftLeft",
+    "BitShiftRight",
+    "Modulo",
+    "ModuloAssignment",
+    "Assignment",
+    "Equal",
+    "LogicalNOT",
+    "NotEqual",
+    "LessThan",
+    "LessThanOrEqual",
+    "GreaterThan",
+    "GreaterThanOrEqual",
+	
+	"Return",
+	"If",
+	"Else",
+	"Struct",
+	
+	"Signed32",
+	"Signed64",
+	"Unsigned32",
+	"Unsigned64",
+	"Float32",
+	"Float64",
 };
+
+//struct token {
+//Token_Type type;
+//cstring raw;
+//u64 line;
+//};
 
 struct token {
 	string str;
-	Token_Type type; 
-	u32 line = 0;
-    //string filename = "";
+	Token_Type type;
+	u64 line = 0;
+};
+
+enum TokenGroupType_{
+	TokenGroup_Variable,
+	TokenGroup_Struct,
+	TokenGroup_Function,
+	//TokenGroup_Enum,
+}; typedef u32 TokenGroupType;
+
+struct TokenGroup{
+	TokenGroupType type;
+	u64 start;
+	u64 end;
 };
 
 namespace suLexer {
-	b32 lex(FILE* file, array<token>& tokens);
+	b32 lex(const string& file, array<token>& tokens);
 }
 
 #endif //SU_LEXER_H
