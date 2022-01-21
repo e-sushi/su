@@ -100,8 +100,8 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 				switch (buff[0]) {
 					case ';': case ' ': case '{': case '}': case '(': case ')':
 					case ',': case '+': case '*': case '/': case '-': case '<': 
-					case '=': case '!': case '~': case '&': case '|': case '\n':
-					case '%': case ':': case '?': case '>': case '^': case '\t': {
+					case '=': case '!': case '~': case '&': case '|': case '\t':
+					case '%': case ':': case '?': case '>': case '^': case '\n': case '\r': {
 						if (isalpha(*chunk_start)) {
 							if      (!strncmp("return", chunk_start, 6)) tokens.add(token{ "return", Token_Return,     lines });
 							else if (!strncmp("if",     chunk_start, 2)) tokens.add(token{ "if",     Token_If,         lines });
@@ -120,8 +120,8 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 							forI(buff.str - chunk_start) if (!isnumber(chunk_start[i])) valid = 0;
 							if (valid) tokens.add(token{ chunkstr, Token_Literal, lines });
 							else {
-								tokens.add(token{ chunkstr, Token_ERROR, lines });
-								PRINTLN("TOKEN ERROR ON TOKEN " << chunkstr);
+								//tokens.add(token{ chunkstr, Token_ERROR, lines });
+								//PRINTLN("TOKEN ERROR ON TOKEN " << chunkstr);
 							}
 							// TODO error out of the program here
 						}
