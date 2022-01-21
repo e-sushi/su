@@ -3,8 +3,9 @@
 Agraph_t* gvgraph = 0;
 GVC_t* gvc = 0;
 u32 colidx = 1;
+u32 groupid = 0;
 
-Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
+Agnode_t* make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 	static u32 i = 0;
 	i++;
 	u32 save = i;
@@ -19,15 +20,25 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 	Agnode_t* ret = me;
 	
 	if (node->first_child) {
-		ret = make_dot_file(node->first_child, me);
-		if (node->first_child != node->last_child) {
-			ret = me;
+		if (node->first_child->next == node->first_child && (node->next != node || node->prev != node)) {
+			align_to = node;
+			make_dot_file(node->first_child, me, node);
 		}
+		else {
+			make_dot_file(node->first_child, me, align_to);
+		}
+		
+		//ret = p.first;
+		//if (node->first_child != node->last_child) {
+		//	ret = me;
+		//	groupid++;
+		//}
 	}
 	if (node->parent && node->next != node->parent->first_child) {
 		colidx = (colidx + 1) % 11 + 1;
-		make_dot_file(node->next, parent);
+		make_dot_file(node->next, parent, align_to);
 	}
+	agset(me, "group", to_string(align_to).str);
 	
 	if (parent) {
 		Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
@@ -56,6 +67,7 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 	agattr(gvgraph, AGNODE, "color",       "1");
 	agattr(gvgraph, AGNODE, "shape",       "box");
 	agattr(gvgraph, AGNODE, "margins",     "0.08");
+	agattr(gvgraph, AGNODE, "group",       "0");
 	agattr(gvgraph, AGNODE, "width",       "0");
 	agattr(gvgraph, AGNODE, "height",      "0");
 	agattr(gvgraph, AGNODE, "colorscheme", "rdylbu11");
@@ -69,7 +81,7 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 	agattr(gvgraph, AGRAPH, "concentrate", "true");
 	agattr(gvgraph, AGRAPH, "splines",     "true");
 	
-	make_dot_file(&program.node, 0);
+	make_dot_file(&program.node, 0, 0);
 	gvLayout(gvc, gvgraph, "dot");
 	gvRenderFilename(gvc, gvgraph, "svg", filepath);
 }
