@@ -133,15 +133,33 @@ static const char* tokenStrings[] = {
 	"Float64",
 };
 
+//struct token {
+//Token_Type type;
+//cstring raw;
+//u64 line;
+//};
+
 struct token {
 	string str;
-	Token_Type type; 
-	u32 line = 0;
-    //string filename = "";
+	Token_Type type;
+	u64 line = 0;
+};
+
+enum TokenGroupType_{
+	TokenGroup_Variable,
+	TokenGroup_Struct,
+	TokenGroup_Function,
+	//TokenGroup_Enum,
+}; typedef u32 TokenGroupType;
+
+struct TokenGroup{
+	TokenGroupType type;
+	u64 start;
+	u64 end;
 };
 
 namespace suLexer {
-	b32 lex(FILE* file, array<token>& tokens);
+	b32 lex(const string& file, array<token>& tokens);
 }
 
 #endif //SU_LEXER_H

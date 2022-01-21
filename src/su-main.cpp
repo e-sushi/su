@@ -85,7 +85,6 @@ a number literal
 
 //libs
 #include <iostream>
-#include "graphviz/gvc.h"
 
 //headers
 #include "su-lexer.h"
@@ -93,71 +92,30 @@ a number literal
 #include "su-assembler.h"
 
 //source
+#include "su-io.cpp"
 #include "su-lexer.cpp"
 #include "su-parser.cpp"
 #include "su-assembler.cpp"
-
-Agraph_t* gvgraph = 0;
-GVC_t* gvc = 0;
-u32 colidx = 1;
-
-Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
-	static u32 i = 0;
-	i++;
-	u32 save = i;
-	u32 colsave = colidx;
-	
-	string send = node->debug_str;
-	
-	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
-	agset(me, "label", send.str);
-	agset(me, "color", to_string(colsave).str);
-	
-	Agnode_t* ret = me;
-	
-	if (node->first_child) {
-		ret = make_dot_file(node->first_child, me);
-		if (node->first_child != node->last_child) {
-			ret = me;
-		}
-	}
-	if (node->next != node) { colidx = (colidx + 1) % 11 + 1; make_dot_file(node->next, parent); }
-	
-	if (parent) {
-		Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
-		agset(edge, "color", to_string(colsave).str);
-		//if (node->next != node) { 
-		//	agset(edge, "constraint", "false"); 
-		//}
-	}
-	
-	//TODO figure out how to make columns stay in line
-	if (ret != me && node->next != node) {
-		//Agedge_t* edge = agedge(gvgraph, me, ret, "", 1);
-		//agset(edge, "weight", "10");
-		//agset(edge, "style", "invis");
-		//agset(edge, "constraint", "false");
-		
-	}
-	
-	return ret;
-}
+#include "su-ast-graph.cpp"
 
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//// Command Line Arguments
 	if (argc < 2) {
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
 	
 	//make this not array and string later maybe 
-	array<string> filenames;
+	array<string> filepaths;
 	string output_dir = "";
 	for(int i=1; i<argc; ++i) {
 		char* arg = argv[i];
-		if (!strcmp("-i", arg)) { //////////////////////////////////////////////////// @-i
+		//// @-i files to compile ////
+		if (!strcmp("-i", arg)) {
 			i++; arg = argv[i];
 			if (str_ends_with(arg, ".su")) {
-				filenames.add(argv[i]);
+				filepaths.add(argv[i]);
 				//TODO block .subuild files after finding a .su
 				//NOTE maybe actually allow .subuild files to be used with different combinations of .su files?
 			}
@@ -170,12 +128,14 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				return ReturnCode_File_Invalid_Extension;
 			}
 		}
-		else if (!strcmp("-wl", arg)) { ////////////////////////////////////////////// @-wl
+		//// @-wl warning level ////
+		else if (!strcmp("-wl", arg)) {
 			i++; arg = argv[i];
 			globals.warning_level = stoi(argv[i]);
 			//TODO handle invalid arg here
 		}
-		else if (!strcmp("-os", arg)) { ////////////////////////////////////////////// @-os
+		//// @-os output OS ////
+		else if (!strcmp("-os", arg)) {
 			i++; arg = argv[i];
 			if      (!strcmp("windows", arg)) { globals.osout = OSOut_Windows; }
 			else if (!strcmp("linux",   arg)) { globals.osout = OSOut_Linux; }
@@ -185,7 +145,8 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				return ReturnCode_Invalid_Argument;
 			}
 		}
-		else if (!strcmp("-o", arg)) { ////////////////////////////////////////////// @-o
+		//// @-o output directory ////
+		else if (!strcmp("-o", arg)) {
 			i++; arg = argv[i];
 			output_dir = arg;
 			if(output_dir[output_dir.count-1] != '\\' && output_dir[output_dir.count-1] != '/'){
@@ -197,78 +158,59 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 			return ReturnCode_Invalid_Argument;
 		}
 	}
-	//TODO dont do this so we support relative paths
-	cstring filename_raw{filenames[0].str, filenames[0].count}; //just the name, no extention or path
-	u32 last_slash = find_last_char<'/', '\\'>(filename_raw);
-	if (last_slash != npos) {
-		filename_raw.str += last_slash+1;
-		filename_raw.count -= last_slash + 3;
-	}
-	string filename(filename_raw);
 	
-	FILE* in = fopen(filenames[0].str, "r");
-	if (!in) {
-		PRINTLN("ERROR: file not found.");
-		return ReturnCode_File_Not_Found;
+	//check that a file was passed
+	if(filepaths.count == 0){
+		PRINTLN("ERROR: no files passed");
+		return ReturnCode_No_File_Passed;
 	}
 	
-	array<token> tokens;
-	PRINTLN("lexing");
-	if (!suLexer::lex(in, tokens)) {
-		PRINTLN("lexer failed");
-		return ReturnCode_Lexer_Failed;
+	for(const string& raw_filepath : filepaths){ //NOTE MULTIPLE FILES DOESNT ACTUALLY WORK YET
+		//TODO dont do this so we support relative paths
+		FilePath filepath(cstring{raw_filepath.str, raw_filepath.count});
+		
+		string source = load_file(raw_filepath.str);
+		if(!source) return ReturnCode_File_Not_Found;
+		
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Lexing
+		array<token> tokens;
+		if(globals.verbose_print) PRINTLN("lexing started");
+		if(!suLexer::lex(source, tokens)){
+			PRINTLN("ERROR: lexer failed");
+			return ReturnCode_Lexer_Failed;
+		}
+		if(globals.verbose_print) PRINTLN("lexing finished");
+		
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Parsing
+		Program program;
+		if(globals.verbose_print) PRINTLN("parsing started");
+		if(suParser::parse(tokens, program)){
+			PRINTLN("ERROR: parser failed");
+			return ReturnCode_Parser_Failed;
+		}
+		if(globals.verbose_print) PRINTLN("parsing finished");
+		
+		string output_graph_path = output_dir + filepath.filename + ".svg";
+		generate_ast_graph_svg(output_graph_path.str, program);
+		
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Assembling
+		if(globals.verbose_print) PRINTLN("assembling started");
+		string assembly;
+		if(!suAssembler::assemble(program, assembly)){
+			PRINTLN("ERROR: assembler failed");
+			return ReturnCode_Assembler_Failed;
+		}
+		if(globals.verbose_print) PRINTLN("assembling finished");
+		
+		string output_asm_path = output_dir + filepath.filename + ".s";
+		b32 success = write_file(output_asm_path.str, assembly);
+		if(!success) return ReturnCode_File_Locked;
+		
+		//print successfully compiled file
+		printf("%s\n", filepath.filename.str); //NOTE printf will go until \0 which happens to include the extension
 	}
-	PRINTLN("lexing finished");
-	
-	Program program;
-	PRINTLN("parsing");
-	if (suParser::parse(tokens, program)) {
-		PRINTLN("parsing failed");
-		return ReturnCode_Parser_Failed;
-	}
-	PRINTLN("parsing finished");
-	
-	gvc = gvContext();
-	gvgraph = agopen("ast tree", Agdirected, 0);
-	agattr(gvgraph, AGNODE, "fontcolor",   "white");
-	agattr(gvgraph, AGNODE, "color",       "1");
-	agattr(gvgraph, AGNODE, "shape",       "box");
-	agattr(gvgraph, AGNODE, "margins",     "0.08");
-	agattr(gvgraph, AGNODE, "width",       "0");
-	agattr(gvgraph, AGNODE, "height",      "0");
-	agattr(gvgraph, AGNODE, "colorscheme", "rdylbu11");
-	agattr(gvgraph, AGEDGE, "color",       "white");
-	agattr(gvgraph, AGEDGE, "colorscheme", "rdylbu11");
-	agattr(gvgraph, AGEDGE, "style",       "");
-	agattr(gvgraph, AGEDGE, "arrowhead",   "none");
-	agattr(gvgraph, AGEDGE, "penwidth",    "0.5");
-	agattr(gvgraph, AGEDGE, "constraint",  "true");
-	agattr(gvgraph, AGRAPH, "bgcolor",     "grey12");
-	agattr(gvgraph, AGRAPH, "concentrate", "true");
-	agattr(gvgraph, AGRAPH, "splines",     "true");
-	make_dot_file(&program.node, 0);
-	gvLayout(gvc, gvgraph, "dot");
-	string output_graph_path = output_dir + filename + ".svg";
-	gvRenderFilename(gvc, gvgraph, "svg", output_graph_path.str);
-	
-	PRINTLN("assembling");
-	string assembly;
-	if (!suAssembler::assemble(program, assembly)) {
-		PRINTLN("assembler failed");
-		return ReturnCode_Assembler_Failed;
-	}
-	PRINTLN("assembling finished");
-	
-	string output_asm_path = output_dir + filename + ".s";
-	FILE* out = fopen(output_asm_path.str, "w");
-	if (!out) {
-		PRINTLN("ERROR: failed to open output file.");
-		return ReturnCode_File_Locked;
-	}
-	
-	fputs(assembly.str, out);
-	
-	fclose(in);
-	fclose(out);
 	return ReturnCode_Success;
 }

@@ -1,26 +1,14 @@
 enum LexerState_ {
 	DiscernChar,
 	ReadingString,
-	
 }; typedef u32 LexerState;
 
 LexerState state = DiscernChar;
 
-b32 suLexer::lex(FILE* file, array<token>& tokens) {
-	char currChar = 0;
-	char* buffptr = 0;
+
+b32 suLexer::lex(const string& file, array<token>& tokens) {
+	cstring buff{file.str, file.count};
 	u32 lines = 1;
-	
-	fseek(file, 0, SEEK_END);
-	u32 size = ftell(file);
-	buffptr = (char*)malloc(size);
-	
-	rewind(file);
-	u32 read = fread(buffptr, 1, size, file);
-	
-	buffptr[read] = 0;
-	
-	cstring buff{ buffptr, read };
 	
 	char* chunk_start = 0;
 #define chunksiz buff.str - chunk_start
