@@ -72,7 +72,7 @@ else if (curt.type == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
- else { ParseFail(error); }
+ else { ParseFail(error); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode)\
  else { failcode }
@@ -126,6 +126,7 @@ next_match(T... in) {
 
 
 Function*    function;
+Scope*       scope;
 Declaration* declaration;
 Statement*   statement;
 Expression*  expression;
@@ -138,13 +139,19 @@ inline Node* new_function(string& identifier) {
 	return &function->node;
 }
 
+inline Node* new_scope() {
+	scope = (Scope*)arena.add(Scope());
+	scope->node.prev = scope->node.next = &scope->node;
+	return &scope->node;
+}
+
 inline Node* new_declaration() {
 	declaration = (Declaration*)arena.add(Declaration());
 	declaration->node.prev = declaration->node.next = &declaration->node;
 	return &declaration->node;
 }
 
-inline Node* new_statement() {
+inline Node* new_statement(StatementType type){
 	statement = (Statement*)arena.add(Statement());
 	statement->node.prev = statement->node.next = &statement->node;
 	return &statement->node;
@@ -158,11 +165,12 @@ inline Node* new_expression(string& str, ExpressionType type) {
 
 enum ParseState {
 	psGlobal,      	// <program>       :: = <function>
-	psFunction,		// <function>      :: = "int" <id> "(" ")" "{" { <block item> } "}"
+	psFunction,		// <function>      :: = "int" <id> "(" ")" <scope>
+	psScope,        // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
 	psDeclaration,	// <declaration>   :: = "int" <id> [ = <exp> ] ";"
-	psStatement,	// <statement>     :: = "return" <exp> ";" | <exp> ";" | "if" "(" <exp> ")" <statement> [ "else" <statement> ] | "{" { <block-item> } "}
+	psStatement,	// <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> | "if" "(" <exp> ")" <statement> [ "else" <statement> ] 
 	psExpression,	// <exp>           :: = <id> "=" <exp> | <conditional>
-	psConditional,	// <conditional>   :: = <logical or> [ "?" <exp> ":" <conditional> ]
+	psConditional,	// <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
 	psLogicalOR,	// <logical or>    :: = <logical and> { "||" <logical and> } 
 	psLogicalAND,	// <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
 	psBitwiseOR,	// <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
@@ -215,23 +223,31 @@ Node* parser(ParseState state, Node* node) {
 				Expect(Token_CloseParen) {
 					token_next();
 					Expect(Token_OpenBrace) {
-						while (!next_match(Token_CloseBrace)) {
-							token_next();
-							ExpectOneOf(typeTokens) {
-								new_declaration();
-								NodeInsertChild(node, &declaration->node, NodeType_Declaration,  "decl " + tokens.peek().str);
-								parser(psDeclaration, &declaration->node);
-							}
-							else {
-								new_statement();
-								NodeInsertChild(node, &statement->node, NodeType_Statement, "statement");
-								parser(psStatement, &statement->node);
-							}
-							if (next_match(Token_EOF)) { ParseFail("Unexpected EOF"); EarlyOut; }
-						}
+						parser(psScope, node);
 					}ExpectFail("expected {");
 				}ExpectFail("expected )");
 			}ExpectFail("expected (");
+		}break;
+
+		case psScope: { /////////////////////////////////////////////////////////////////////// @Scope
+			Node* me = new_scope();
+			NodeInsertChild(node, &scope->node, NodeType_Scope, "scope");
+			while (!next_match(Token_CloseBrace)) {
+				token_next();
+				ExpectOneOf(typeTokens) {
+					new_declaration();
+					NodeInsertChild(me, &declaration->node, NodeType_Declaration, "decl " + tokens.peek().str);
+					parser(psDeclaration, &declaration->node);
+				}
+				ElseExpect(Token_OpenBrace) {
+					parser(psScope, me);
+				}
+				else {
+					parser(psStatement, me);
+				}
+				if (next_match(Token_EOF)) { ParseFail("Unexpected EOF"); EarlyOut; }
+			}
+			token_next();
 		}break;
 
 		case psDeclaration: {////////////////////////////////////////////////////////////////// @Declaration
@@ -244,9 +260,9 @@ Node* parser(ParseState state, Node* node) {
 					new_expression(curt.str, ExpressionGuard_Assignment);
 					token_next();
 					NodeInsertChild(node, &expression->node, NodeType_Expression, ExTypeStrings[ExpressionGuard_Assignment]);
-					parser(psExpression, &expression->node);
+					Node* ret = parser(psExpression, &expression->node);
 					token_next();
-					Expect(Token_Semicolon) {}
+					Expect(Token_Semicolon) { return ret; }
 					ExpectFail("missing ; after variable assignment")
 				}
 				ElseExpect(Token_Semicolon) {}
@@ -257,41 +273,49 @@ Node* parser(ParseState state, Node* node) {
 		case psStatement: {//////////////////////////////////////////////////////////////////// @Statement
 			switch (curt.type) {
 				case Token_If: {
-					statement->type = Statement_Conditional;
-					statement->node.debug_str = "conditional statement";
+					Node* ifno = new_statement(Statement_Conditional);
+					NodeInsertChild(node, ifno, NodeType_Statement, "if statement");
 					token_next();
 					Expect(Token_OpenParen) {
 						token_next();
-						parser(psExpression, &statement->node);
-						if (!statement->node.first_child)
+						parser(psExpression, ifno);
+						if (!statement->node.first_child) {
 							ParseFail("missing expression for if statement");
-
+						}
 						token_next();
 						Expect(Token_CloseParen) {
 							token_next();
-							new_statement();
-							statement->type = Statement_If;
-							NodeInsertChild(node, &statement->node, NodeType_Statement, "if statement");
-							parser(psStatement, &statement->node);
-							Expect(Token_Semicolon) {}
-							ExpectFail("expected a ;");
-
-							if (next_match(Token_Else)) {
-								token_next();
-								new_statement();
-								statement->type = Statement_Else;
-								NodeInsertChild(node, &statement->node, NodeType_Statement, "else statement");
-								token_next();
-								parser(psStatement, &statement->node);
+							Expect(Token_OpenBrace) {
+								parser(psStatement, ifno);
 							}
-						}ExpectFail("expected a )");
-					}ExpectFail("expected a (");
+						else {
+							ExpectOneOf(typeTokens) {
+								ParseFail("can't declare a variable in an unscoped if statement");
+								return 0;
+							}
+							parser(psStatement, ifno);
+							Expect(Token_Semicolon) { }
+                            ExpectFail("expected a ;");
+						}
+						if (next_match(Token_Else)) {
+							token_next();
+							parser(psStatement, ifno);
+						}
+						}ExpectFail("expected )");
+					}ExpectFail("expected (");
+				}break;
+
+				case Token_Else: {
+					new_statement(Statement_Conditional);
+					NodeInsertChild(node, &statement->node, NodeType_Statement, "else statement");
+					token_next();
+					parser(psStatement, &statement->node);
 				}break;
 
 				case Token_Literal:
 				case Token_Identifier: {
-					statement->node.debug_str = "expression statement";
-					statement->type = Statement_Expression;
+					new_statement(Statement_Expression);
+					NodeInsertChild(node, &statement->node, NodeType_Statement, "exp statement");
 					parser(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {} 
@@ -299,14 +323,18 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 
 				case Token_Return: {
-					statement->node.debug_str = "return statement";
-					statement->type = Statement_Return;
+					new_statement(Statement_Return);
+					NodeInsertChild(node, &statement->node, NodeType_Statement, "return statement");
 					token_next();
-					parser(psExpression, node);
+					parser(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("expected a ;");
 					
+				}break;
+
+				case Token_OpenBrace: {
+					parser(psScope, node);
 				}break;
 			}
 		}break;
@@ -622,5 +650,5 @@ b32 suParser::parse(array<token>& tokens_in, Program& mother) {
 	
 	parser(psGlobal, &mother.node);
 
-	return parse_failed;
+	return 0;//parse_failed;
 }

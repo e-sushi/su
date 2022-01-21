@@ -135,6 +135,7 @@ enum StatementType : u32 {
 	Statement_Conditional,
 	Statement_If,
 	Statement_Else,
+	Statement_Scope,
 };
 
 struct Statement {
@@ -166,6 +167,11 @@ struct Declaration {
 	Node node;
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
+
+//probably doesnt need to be a struct
+struct Scope {
+	Node node;
+};
 
 struct Function {
 	string identifier = "";
