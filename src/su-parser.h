@@ -6,23 +6,23 @@
 #include "su-types.h"
 
 
-	//////////////////////////////////////
-	//// Abstract Syntax Tree Structs ////
-	//////////////////////////////////////
+//////////////////////////////////////
+//// Abstract Syntax Tree Structs ////
+//////////////////////////////////////
 
 
 enum ExpressionType : u32 {
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
-
+	
 	//Types
 	Expression_IntegerLiteral,
-
+	
 	//Unary Operators
 	Expression_UnaryOpBitComp,
 	Expression_UnaryOpLogiNOT,
 	Expression_UnaryOpNegate,
-
+	
 	//Binary Operators
 	Expression_BinaryOpPlus,
 	Expression_BinaryOpMinus,
@@ -43,10 +43,10 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpBitShiftLeft,
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
-
+	
 	//Special ternary conditional expression type
 	Expression_TernaryConditional,
-
+	
 	//Expression Guards
 	ExpressionGuard_Assignment,
 	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations
@@ -67,13 +67,13 @@ enum ExpressionType : u32 {
 static const char* ExTypeStrings[] = {
 	"idLHS",
 	"idRHS",
-
+	
 	"literal",
-
+	
 	"~",
 	"!",
 	"-",
-
+	
 	"+",
 	"-",
 	"*",
@@ -93,9 +93,9 @@ static const char* ExTypeStrings[] = {
 	"<<",
 	">>",
 	"=",
-
+	
 	"tern cond",
-
+	
 	"assignment",
 	"head",
 	"conditional",
@@ -115,11 +115,11 @@ static const char* ExTypeStrings[] = {
 struct Expression {
 	string expstr;
 	ExpressionType type;
-
+	
 	//array<Expression> expressions;
-
+	
 	Node node;
-
+	
 	Expression(string expstr, ExpressionType type) {
 		this->type = type;
 		this->expstr = expstr;
@@ -139,19 +139,19 @@ enum StatementType : u32 {
 
 struct Statement {
 	StatementType type = Statement_Unknown;
-
+	
 	//array<Expression> expressions;
 	//array<Statement>  statements;
 	//array<BlockItem*> compound;
-
+	
 	Node node;
-
+	
 	Statement() {};
-
+	
 	Statement(StatementType st) {
 		type = st;
 	}
-
+	
 	Statement(string vid, StatementType st) {
 		type = st;
 	}
@@ -170,15 +170,15 @@ struct Declaration {
 struct Function {
 	string identifier = "";
 	DataType type;
-
+	
 	Node node;
-
+	
 	Function() {}
-
+	
 	Function(string identifier) {
 		this->identifier = identifier;
 	}
-
+	
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 

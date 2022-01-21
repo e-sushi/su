@@ -9,25 +9,26 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 	i++;
 	u32 save = i;
 	u32 colsave = colidx;
-
+	
 	string send = node->debug_str;
-
+	
 	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
 	agset(me, "label", send.str);
 	agset(me, "color", to_string(colsave).str);
-
+	
 	Agnode_t* ret = me;
-
+	
 	if (node->first_child) {
 		ret = make_dot_file(node->first_child, me);
 		if (node->first_child != node->last_child) {
 			ret = me;
 		}
 	}
-	if (node->next != node) { colidx = (colidx + 1) % 11 + 1; make_dot_file(node->next, parent); }
-
-
-
+	if (node->parent && node->next != node->parent->first_child) {
+		colidx = (colidx + 1) % 11 + 1;
+		make_dot_file(node->next, parent);
+	}
+	
 	if (parent) {
 		Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
 		agset(edge, "color", to_string(colsave).str);
@@ -35,16 +36,16 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent) {
 		//	agset(edge, "constraint", "false"); 
 		//}
 	}
-
+	
 	//TODO figure out how to make columns stay in line
 	if (ret != me && node->next != node) {
 		//Agedge_t* edge = agedge(gvgraph, me, ret, "", 1);
 		//agset(edge, "weight", "10");
 		//agset(edge, "style", "invis");
 		//agset(edge, "constraint", "false");
-
+		
 	}
-
+	
 	return ret;
 }
 

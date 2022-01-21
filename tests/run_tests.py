@@ -2,7 +2,7 @@
 #expected to be run from su/tests
 #TODO add command-line args for su.exe path and tests directory
 
-import os,subprocess,enum
+import os,subprocess,enum,ctypes
 
 su_exe_path = "..\\build\\debug\\su.exe"
 
@@ -32,17 +32,61 @@ tests = [
     ["entry_point/invalid/no_space.su",       ReturnCode_Parser_Failed],
     ["entry_point/invalid/wrong_case.su",     ReturnCode_Parser_Failed],
     
-    ["unary_ops/valid/bitwise.su",      0b11111111111111111111111111110011], #~12
-    ["unary_ops/valid/bitwise_zero.su", 0b11111111111111111111111111111111], #~0
-    ["unary_ops/valid/neg.su",          0b11111111111111111111111111111011], #-5
-    ["unary_ops/valid/nested_ops.su",   0],
-    ["unary_ops/valid/nested_ops_2.su", 1],
-    ["unary_ops/valid/not_five.su",     0],
-    ["unary_ops/valid/not_zero.su",     1],
+    ["unary_ops/valid/bitwise.su",      -13],
+    ["unary_ops/valid/bitwise_zero.su",  -1],
+    ["unary_ops/valid/neg.su",           -5],
+    ["unary_ops/valid/nested_ops.su",     0],
+    ["unary_ops/valid/nested_ops_2.su",   1],
+    ["unary_ops/valid/not_five.su",       0],
+    ["unary_ops/valid/not_zero.su",       1],
     ["unary_ops/invalid/missing_const.su",        ReturnCode_Parser_Failed],
     ["unary_ops/invalid/missing_semicolon.su",    ReturnCode_Parser_Failed],
     ["unary_ops/invalid/nested_missing_const.su", ReturnCode_Parser_Failed],
     ["unary_ops/invalid/wrong_order.su",          ReturnCode_Parser_Failed],
+    
+    ["binary_ops/valid/add.su",             3],
+    ["binary_ops/valid/associativity.su",  -4],
+    ["binary_ops/valid/associativity_2.su", 1],
+    ["binary_ops/valid/div.su",             2],
+    ["binary_ops/valid/div_neg.su",        -2],
+    ["binary_ops/valid/mult.su",            6],
+    ["binary_ops/valid/parens.su",         14],
+    ["binary_ops/valid/precedence.su",     14],
+    ["binary_ops/valid/sub.su",            -1],
+    ["binary_ops/valid/sub_neg.su",         3],
+    ["binary_ops/valid/unop_add.su",        0],
+    ["binary_ops/valid/unop_parens.su",    -3],
+    ["binary_ops/invalid/malformed_paren.su",   ReturnCode_Parser_Failed],
+    ["binary_ops/invalid/missing_first_op.su",  ReturnCode_Parser_Failed],
+    ["binary_ops/invalid/missing_second_op.su", ReturnCode_Parser_Failed],
+    ["binary_ops/invalid/no_semicolon.su",      ReturnCode_Parser_Failed],
+    
+    ["comparison_ops/valid/and_false.su",                              0],
+    ["comparison_ops/valid/and_true.su",                            True],
+    ["comparison_ops/valid/eq_false.su",                               0],
+    ["comparison_ops/valid/eq_true.su",                             True],
+    ["comparison_ops/valid/ge_false.su",                               0],
+    ["comparison_ops/valid/ge_true.su",                             True],
+    ["comparison_ops/valid/gt_false.su",                               0],
+    ["comparison_ops/valid/gt_true.su",                             True],
+    ["comparison_ops/valid/le_false.su",                               0],
+    ["comparison_ops/valid/le_true.su",                             True],
+    ["comparison_ops/valid/lt_false.su",                               0],
+    ["comparison_ops/valid/lt_true.su",                             True],
+    ["comparison_ops/valid/ne_false.su",                               0],
+    ["comparison_ops/valid/ne_true.su",                             True],
+    ["comparison_ops/valid/or_false.su",                               0],
+    ["comparison_ops/valid/or_true.su",                             True],
+    ["comparison_ops/valid/precedence.su",                          True],
+    ["comparison_ops/valid/precedence_2.su",                           0],
+    ["comparison_ops/valid/precedence_3.su",                        True],
+    ["comparison_ops/valid/skip_on_failure_multi_short_circuit.su", True],
+    ["comparison_ops/valid/skip_on_failure_short_circuit_and.su",      0],
+    ["comparison_ops/valid/skip_on_failure_short_circuit_or.su",       0],
+    ["comparison_ops/invalid/missing_first_op.su",  ReturnCode_Parser_Failed],
+    ["comparison_ops/invalid/missing_mid_op.su",    ReturnCode_Parser_Failed],
+    ["comparison_ops/invalid/missing_second_op.su", ReturnCode_Parser_Failed],
+    ["comparison_ops/invalid/missing_semicolon.su", ReturnCode_Parser_Failed],
 ];
 
 def main():
@@ -72,15 +116,17 @@ def main():
                     subprocess.run(file_exe, capture_output=True, check=True);
                     print("%-60s%s" % (file, "PASSED"));
                 except subprocess.CalledProcessError as err:
-                    if(err.returncode == expected):
+                    actual = ctypes.c_int32(err.returncode).value;
+                    if((actual == expected) or (expected == True and expected != 0)):
                         print("%-60s%s" % (file, "PASSED"));
                         tests_passed += 1;
                     else:
-                        print("%-60s%s (E: %d; A: %d)" % (file, "FAILED", expected, err.returncode));
+                        print("%-60s%s (E: %d; A: %d)" % (file, "FAILED", expected, actual));
                         tests_failed += 1;
                 os.remove(file_exe);
             except subprocess.CalledProcessError as err:
-                print("%-60s%s (compile error: %d)" % (file, "FAILED", err.returncode));
+                actual = ctypes.c_int32(err.returncode).value;
+                print("%-60s%s (compile error: %d)" % (file, "FAILED", actual));
                 tests_failed += 1;
         elif(type == 'invalid'):
             tests_total += 1;
@@ -91,11 +137,12 @@ def main():
                 print("%-60s%s (no compile error)" % (file, "FAILED"));
                 tests_failed += 1;
             except subprocess.CalledProcessError as err:
-                if(err.returncode == expected):
+                actual = ctypes.c_int32(err.returncode).value;
+                if((actual == expected) or (expected == True and expected != 0)):
                     print("%-60s%s" % (file, "PASSED"));
                     tests_passed += 1;
                 else:
-                    print("%-60s%s (E: %d; A: %d)" % (file, "FAILED", expected, err.returncode));
+                    print("%-60s%s (E: %d; A: %d)" % (file, "FAILED", expected, actual));
                     tests_failed += 1;
     print("tests: %d; passed: %d; failed: %d" % (tests_total, tests_passed, tests_failed));
 

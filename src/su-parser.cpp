@@ -72,10 +72,10 @@ else if (curt.type == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
- else { ParseFail(error); }
+else { ParseFail(error); }
 
 #define ExpectFailCode(failcode)\
- else { failcode }
+else { failcode }
 
 local map<Token_Type, ExpressionType> binaryOps{
 	{Token_Multiplication,     Expression_BinaryOpMultiply},
@@ -182,9 +182,9 @@ Node* debugprogramnode = 0;
 #define EarlyOut goto emergency_exit
 Node* parser(ParseState state, Node* node) {
 	if (parse_failed) return 0;
-
+	
 	switch (state) {
-
+		
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
 				ExpectOneOf(typeTokens) {
@@ -199,14 +199,14 @@ Node* parser(ParseState state, Node* node) {
 					Expect(Token_Identifier) {
 						token_next();
 						Expect(Token_OpenParen) {
-
+							
 						}
 					}
 				}ExpectFail("yeah i dont know right now");
 				token_next();
 			}
 		}break;
-
+		
 		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
 			token_next();
 			Expect(Token_OpenParen) { 
@@ -233,7 +233,7 @@ Node* parser(ParseState state, Node* node) {
 				}ExpectFail("expected )");
 			}ExpectFail("expected (");
 		}break;
-
+		
 		case psDeclaration: {////////////////////////////////////////////////////////////////// @Declaration
 			Token_Type type = curt.type;
 			token_next();
@@ -253,7 +253,7 @@ Node* parser(ParseState state, Node* node) {
 				ExpectFail("missing semicolon or assignment after variable declaration");
 			}
 		}break;
-
+		
 		case psStatement: {//////////////////////////////////////////////////////////////////// @Statement
 			switch (curt.type) {
 				case Token_If: {
@@ -265,7 +265,7 @@ Node* parser(ParseState state, Node* node) {
 						parser(psExpression, &statement->node);
 						if (!statement->node.first_child)
 							ParseFail("missing expression for if statement");
-
+						
 						token_next();
 						Expect(Token_CloseParen) {
 							token_next();
@@ -275,7 +275,7 @@ Node* parser(ParseState state, Node* node) {
 							parser(psStatement, &statement->node);
 							Expect(Token_Semicolon) {}
 							ExpectFail("expected a ;");
-
+							
 							if (next_match(Token_Else)) {
 								token_next();
 								new_statement();
@@ -287,7 +287,7 @@ Node* parser(ParseState state, Node* node) {
 						}ExpectFail("expected a )");
 					}ExpectFail("expected a (");
 				}break;
-
+				
 				case Token_Literal:
 				case Token_Identifier: {
 					statement->node.debug_str = "expression statement";
@@ -297,7 +297,7 @@ Node* parser(ParseState state, Node* node) {
 					Expect(Token_Semicolon) {} 
 					ExpectFail("Expected a ;");
 				}break;
-
+				
 				case Token_Return: {
 					statement->node.debug_str = "return statement";
 					statement->type = Statement_Return;
@@ -310,7 +310,7 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 			}
 		}break;
-
+		
 		case psExpression: {/////////////////////////////////////////////////////////////////// @Expression
 			switch (curt.type) {
 				case Token_Identifier: {
@@ -320,7 +320,7 @@ Node* parser(ParseState state, Node* node) {
 						new_expression(curt.str, Expression_BinaryOpAssignment);
 						NodeInsertChild(node, &expression->node, NodeType_Expression, ExTypeStrings[Expression_BinaryOpAssignment]); token_next();
 						new_expression(curt.str, ExpressionGuard_Assignment);
-
+						
 						Node* ret = parser(psExpression, &expression->node);
 						NodeInsertChild(node, ret, ret->type, ret->debug_str);
 						return ret;
@@ -338,16 +338,16 @@ Node* parser(ParseState state, Node* node) {
 					NodeInsertChild(node, ret, ret->type, ret->debug_str);
 					return ret;
 				}break;
-
+				
 			}
 		}break;
-
+		
 		case psConditional: {////////////////////////////////////////////////////////////////// @Conditional
 			Node* me  = new_expression(curt.str, ExpressionGuard_Conditional);
 			Node* ret = parser(psLogicalOR, &expression->node);
 			if (!next_match(Token_QuestionMark))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_Conditional]);
 			while (next_match(Token_QuestionMark)) {
@@ -368,13 +368,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psLogicalOR: {//////////////////////////////////////////////////////////////////// @Logical OR
-			Node* me = new_expression(curt.str, ExpressionGuard_LogicalOR);
+			Node* me = new_expression(curt.str, ExpressionGuard_LogicalOR); //!Leak
 			Node* ret = parser(psLogicalAND, &expression->node);
 			if (!next_match(Token_OR))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_LogicalOR]);
 			while (next_match(Token_OR)) {
@@ -386,13 +386,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psLogicalAND: {/////////////////////////////////////////////////////////////////// @Logical AND
-			Node* me = new_expression(curt.str, ExpressionGuard_LogicalAND);
+			Node* me = new_expression(curt.str, ExpressionGuard_LogicalAND); //!Leak
 			Node* ret = parser(psBitwiseOR, &expression->node);
 			if (!next_match(Token_AND))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_LogicalAND]);
 			while (next_match(Token_AND)) {
@@ -404,13 +404,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psBitwiseOR: {//////////////////////////////////////////////////////////////////// @Bitwise OR
-			Node* me = new_expression(curt.str, ExpressionGuard_BitOR);
+			Node* me = new_expression(curt.str, ExpressionGuard_BitOR); //!Leak
 			Node* ret = parser(psBitwiseXOR, &expression->node);
 			if (!next_match(Token_BitOR))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_BitOR]);
 			while (next_match(Token_BitOR)) {
@@ -422,13 +422,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psBitwiseXOR: {/////////////////////////////////////////////////////////////////// @Bitwise XOR
-			Node* me = new_expression(curt.str, ExpressionGuard_BitXOR);
+			Node* me = new_expression(curt.str, ExpressionGuard_BitXOR); //!Leak
 			Node* ret = parser(psBitwiseAND, &expression->node);
 			if (!next_match(Token_BitXOR))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_BitXOR]);
 			while (next_match(Token_BitXOR)) {
@@ -438,17 +438,17 @@ Node* parser(ParseState state, Node* node) {
 				new_expression(curt.str, ExpressionGuard_BitShift);
 				ret = parser(psBitwiseAND, &expression->node);
 				NodeInsertChild(me, ret, ret->type, ret->debug_str);
-
+				
 			}
 			return me;
 		}break;
-
+		
 		case psBitwiseAND: {/////////////////////////////////////////////////////////////////// @Bitwise AND
-			Node* me = new_expression(curt.str, ExpressionGuard_BitAND);
+			Node* me = new_expression(curt.str, ExpressionGuard_BitAND); //!Leak
 			Node* ret = parser(psEquality, &expression->node);
 			if (!next_match(Token_BitAND))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_BitAND]);
 			while (next_match(Token_BitAND)) {
@@ -460,13 +460,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psEquality: {///////////////////////////////////////////////////////////////////// @Equality
-			Node* me = new_expression(curt.str, ExpressionGuard_Equality);
+			Node* me = new_expression(curt.str, ExpressionGuard_Equality); //!Leak
 			Node* ret = parser(psRelational, &expression->node);
 			if (!next_match(Token_NotEqual, Token_Equal))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_Equality]);
 			while (next_match(Token_NotEqual, Token_Equal)) {
@@ -479,13 +479,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psRelational: {/////////////////////////////////////////////////////////////////// @Relational
-			Node* me = new_expression(curt.str, ExpressionGuard_Relational);
+			Node* me = new_expression(curt.str, ExpressionGuard_Relational); //!Leak
 			Node* ret = parser(psBitshift, &expression->node);
 			if (!next_match(Token_LessThan, Token_GreaterThan, Token_LessThanOrEqual, Token_GreaterThanOrEqual))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_Relational]);
 			while (next_match(Token_LessThan, Token_GreaterThan, Token_LessThanOrEqual, Token_GreaterThanOrEqual)) {
@@ -498,9 +498,9 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psBitshift: {///////////////////////////////////////////////////////////////////// @Bitshift
-			Node* me  = new_expression(curt.str, ExpressionGuard_BitShift);
+			Node* me  = new_expression(curt.str, ExpressionGuard_BitShift); //!Leak
 			Node* ret = parser(psAdditive, &expression->node);
 			if (!next_match(Token_BitShiftLeft, Token_BitShiftRight))
 				return ret;
@@ -517,13 +517,13 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psAdditive: {///////////////////////////////////////////////////////////////////// @Additive
-			Node* me  = new_expression(curt.str, ExpressionGuard_Additive);
+			Node* me  = new_expression(curt.str, ExpressionGuard_Additive); //!Leak
 			Node* ret = parser(psTerm, me);
 			if (!next_match(Token_Plus, Token_Negation))
 				return ret;
-
+			
 			NodeInsertChild(me, ret, ret->type, ret->debug_str);
 			NodeInsertChild(node, me, NodeType_Expression, ExTypeStrings[ExpressionGuard_Additive]);
 			while (next_match(Token_Plus, Token_Negation)) {
@@ -536,9 +536,9 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psTerm: {///////////////////////////////////////////////////////////////////////// @Term
-			Node* me  = new_expression(curt.str, ExpressionGuard_Term);
+			Node* me  = new_expression(curt.str, ExpressionGuard_Term); //!Leak
 			Node* ret = parser(psFactor, me);
 			if (!next_match(Token_Multiplication, Token_Division, Token_Modulo))
 				return ret;
@@ -555,19 +555,19 @@ Node* parser(ParseState state, Node* node) {
 			}
 			return me;
 		}break;
-
+		
 		case psFactor: {/////////////////////////////////////////////////////////////////////// @Factor
 			new_expression(curt.str, ExpressionGuard_Factor);
 			//NodeInsertChild(node, &expression->node, NodeType_Expression, ExTypeStrings[ExpressionGuard_Factor]);
 			//node = &expression->node;
-
+			
 			switch (curt.type) {
 				case Token_Literal: {
 					new_expression(curt.str, Expression_IntegerLiteral);
 					NodeInsertChild(node, &expression->node, NodeType_Expression, toStr(ExTypeStrings[Expression_IntegerLiteral], " ", curt.str));
 					return &expression->node;
 				}break;
-
+				
 				case Token_OpenParen: {
 					token_next();
 					Node* ret = parser(psExpression, &expression->node);
@@ -575,13 +575,13 @@ Node* parser(ParseState state, Node* node) {
 					Expect(Token_CloseParen) { return ret; }
 					ExpectFail("expected a )");
 				}break;
-
+				
 				case Token_Identifier: {
 					new_expression(curt.str, Expression_IdentifierRHS);
 					NodeInsertChild(node, &expression->node, NodeType_Expression, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
 					return &expression->node;
 				}break;
-
+				
 				default: {
 					ExpectOneOf(unaryOps) {
 						new_expression(curt.str, *unaryOps.at(curt.type));
@@ -595,32 +595,32 @@ Node* parser(ParseState state, Node* node) {
 					ExpectFail("unexpected token found in factor");
 				}break;
 			}
-
-
+			
+			
 		}break;
-
+		
 		case psUnary: {//////////////////////////////////////////////////////////////////////// @Unary
 		}break;
 	}
-			
-
-emergency_exit: //TODO maybe not necessary
+	
+	
+	emergency_exit: //TODO maybe not necessary
 	return 0;
 }
 
 // <program> ::= <function>
 b32 suParser::parse(array<token>& tokens_in, Program& mother) {
 	arena.init(Kilobytes(10));
-
+	
 	tokens = tokens_in;
 	curt = tokens[0];
-
+	
 	mother.node.next = mother.node.prev = &mother.node;
 	mother.node.debug_str = "program";
-
+	
 	debugprogramnode = &mother.node;
 	
 	parser(psGlobal, &mother.node);
-
+	
 	return parse_failed;
 }

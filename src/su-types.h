@@ -23,6 +23,76 @@ enum OSOut {
 	OSOut_OSX,
 };
 
+enum Registers{
+	Register_NULL,
+	
+	Register0_64,  Register0_32,  Register0_16,  Register0_8,
+	Register1_64,  Register1_32,  Register1_16,  Register1_8,
+	Register2_64,  Register2_32,  Register2_16,  Register2_8,
+	Register3_64,  Register3_32,  Register3_16,  Register3_8,
+	Register4_64,  Register4_32,  Register4_16,  Register4_8,
+	Register5_64,  Register5_32,  Register5_16,  Register5_8,
+	Register6_64,  Register6_32,  Register6_16,  Register6_8,
+	Register7_64,  Register7_32,  Register7_16,  Register7_8,
+	Register8_64,  Register8_32,  Register8_16,  Register8_8,
+	Register9_64,  Register9_32,  Register9_16,  Register9_8,
+	Register10_64, Register10_32, Register10_16, Register10_8,
+	Register11_64, Register11_32, Register11_16, Register11_8,
+	Register12_64, Register12_32, Register12_16, Register12_8,
+	Register13_64, Register13_32, Register13_16, Register13_8,
+	Register14_64, Register14_32, Register14_16, Register14_8,
+	Register15_64, Register15_32, Register15_16, Register15_8,
+	
+	//x64 names
+	Register_RAX = Register0_64,  Register_EAX  = Register0_32,  Register_AX   = Register0_16,  Register_AL   = Register0_8,
+	Register_RCX = Register1_64,  Register_ECX  = Register1_32,  Register_CX   = Register1_16,  Register_CL   = Register1_8,
+	Register_RDX = Register2_64,  Register_EDX  = Register2_32,  Register_DX   = Register2_16,  Register_DL   = Register2_8,
+	Register_RBX = Register3_64,  Register_EBX  = Register3_32,  Register_BX   = Register3_16,  Register_BL   = Register3_8,
+	Register_RSI = Register4_64,  Register_ESI  = Register4_32,  Register_SI   = Register4_16,  Register_SIL  = Register4_8,
+	Register_RDI = Register5_64,  Register_EDI  = Register5_32,  Register_DI   = Register5_16,  Register_DIL  = Register5_8,
+	Register_RSP = Register6_64,  Register_ESP  = Register6_32,  Register_SP   = Register6_16,  Register_SPL  = Register6_8,
+	Register_RBP = Register7_64,  Register_EBP  = Register7_32,  Register_BP   = Register7_16,  Register_BPL  = Register7_8,
+	Register_R8  = Register8_64,  Register_R8D  = Register8_32,  Register_R8W  = Register8_16,  Register_R8B  = Register8_8,
+	Register_R9  = Register9_64,  Register_R9D  = Register9_32,  Register_R9W  = Register9_16,  Register_R9B  = Register9_8,
+	Register_R10 = Register10_64, Register_R10D = Register10_32, Register_R10W = Register10_16, Register_R10B = Register10_8,
+	Register_R11 = Register11_64, Register_R11D = Register11_32, Register_R11W = Register11_16, Register_R11B = Register11_8,
+	Register_R12 = Register12_64, Register_R12D = Register12_32, Register_R12W = Register12_16, Register_R12B = Register12_8,
+	Register_R13 = Register13_64, Register_R13D = Register13_32, Register_R13W = Register13_16, Register_R13B = Register13_8,
+	Register_R14 = Register14_64, Register_R14D = Register14_32, Register_R14W = Register14_16, Register_R14B = Register14_8,
+	Register_R15 = Register15_64, Register_R15D = Register15_32, Register_R15W = Register15_16, Register_R15B = Register15_8,
+	
+	//usage
+	Register_FunctionReturn     = Register_RAX,
+	Register_BasePointer        = Register_RBP,
+	Register_StackPointer       = Register_RSP,
+	Register_FunctionParameter0 = Register_RDI,
+	Register_FunctionParameter1 = Register_RSI,
+	Register_FunctionParameter2 = Register_RDX,
+	Register_FunctionParameter3 = Register_RCX,
+	Register_FunctionParameter4 = Register_R8,
+	Register_FunctionParameter5 = Register_R9,
+};
+
+global_ const char* registers_x64[] = {
+	"%null",
+	"%rax", "%eax",  "%ax",   "%al",
+	"%rcx", "%ecx",  "%cx",   "%cl",
+	"%rdx", "%edx",  "%dx",   "%dl",
+	"%rbx", "%ebx",  "%bx",   "%bl",
+	"%rsi", "%esi",  "%si",   "%sil",
+	"%rdi", "%edi",  "%di",   "%dil",
+	"%rsp", "%esp",  "%sp",   "%spl",
+	"%rbp", "%ebp",  "%bp",   "%bpl",
+	"%r8",  "%r8d",  "%r8w",  "%r8b",
+	"%r9",  "%r9d",  "%r9w",  "%r9b",
+	"%r10", "%r10d", "%r10w", "%r10b",
+	"%r11", "%r11d", "%r11w", "%r11b",
+	"%r12", "%r12d", "%r12w", "%r12b",
+	"%r13", "%r13d", "%r13w", "%r13b",
+	"%r14", "%r14d", "%r14w", "%r14b",
+	"%r15", "%r15d", "%r15w", "%r15b",
+};
+
 struct {
 	u32   warning_level    = 1;
 	b32   verbose_print    = false;
@@ -59,72 +129,125 @@ enum DataType : u32 {
 struct Node {
 	Node* next = 0;
 	Node* prev = 0;
-
+	
 	Node* parent = 0;
 	Node* first_child = 0;
 	Node* last_child = 0;
 	u32 child_count = 0;
-
+	
 	NodeType type;
-
+	
 	string debug_str;
-
-	Node() {
+	
+	Node() { //TODO next,prev dont need to be circular since we can ref parent's children (also simplifies alot of node logic)
 		next = prev = this;
 	}
 };
 
-inline void NodeInsertNext(Node* to, Node* from, NodeType type, string debugstr = "") {
-	if(to->next != to) from->next = to->next;
-	from->prev = to;
-	from->next->prev = from;
-	to->next = from;
-	from->type = type;
-	from->parent = to->parent; //this maybe should just be done on insert child
-	from->debug_str=debugstr;
-}
+#define NodeInsertNext(x,node) ((node)->next=(x)->next,(node)->prev=(x),(node)->next->prev=(node),(x)->next=(node))
+#define NodeInsertPrev(x,node) ((node)->prev=(x)->prev,(node)->next=(x),(node)->prev->next=(node),(x)->prev=(node))
+#define NodeRemoveHorizontal(node) ((node)->next->prev=(node)->prev,(node)->prev->next=(node)->next)
 
-inline void NodeInsertPrev(Node* to, Node* from, NodeType type, string debugstr = "") {
-	if(to->prev != to) from->prev = to->prev;
-	from->next = to;
-	from->prev->next = from;
-	to->prev = from;
-	from->type = type;
-	from->parent = to->parent;
-	from->debug_str = debugstr;
-}
-
-inline void NodeRemove(Node* node, string debugstr = "") {
-	node->next->prev = node->prev;
-	node->prev->next = node->next;
-}
-
-inline void NodeInsertChild(Node* parent, Node* child, NodeType type, string debugstr = "") {
-	//TODO maybe we can avoid these checks ?
-	if (!parent->first_child) parent->first_child = child;
-	child->prev = parent->last_child;
-	if (parent->last_child) parent->last_child->next = child;
-	parent->last_child = child;
+void NodeInsertChild(Node* parent, Node* child){
+	if(parent == 0){
+		child->parent = 0;
+		return;
+	}
+	
 	child->parent = parent;
-	child->debug_str = debugstr;
-	child->type = type;
+	if(parent->first_child){
+		NodeInsertNext(parent->last_child, child);
+		parent->last_child = child;
+	}else{
+		parent->first_child = child;
+		parent->last_child = child;
+	}
 	parent->child_count++;
 }
-//TODO remove child node
+
+//TODO remove this and move nodetype and debugstr addition to node creation
+FORCE_INLINE void NodeInsertChild(Node* parent, Node* child, NodeType type, string debugstr = "") {
+	child->type = type;
+	child->debug_str = debugstr;
+	NodeInsertChild(parent, child);
+}
+
+void NodeRemove(Node* node){
+	//remove self from parent
+	if(node->parent){
+		if(node->parent->child_count > 1){
+			Assert(node->next != node && node->prev != node, "node is horizontally pointing to itself even tho its parent has more than one child");
+			if(node == node->parent->first_child){
+				node->parent->first_child = node->next;
+			}
+			if(node == node->parent->last_child){
+				node->parent->last_child = node->prev;
+			}
+		}else{
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+	
+	//add children to parent (and remove self from children)
+	if(node->child_count > 1){
+		for(Node* child = node->first_child; ;child = child->next){
+			NodeInsertChild(node->parent, child);
+			if(child->next == node->first_child) break;
+		}
+	}
+	
+	//remove self horizontally
+	NodeRemoveHorizontal(node);
+	
+	//reset self  //TODO not necessary if we are deleting this node, so exclude this logic in another function NodeDelete?
+	node->next = node->prev = node;
+	node->parent = node->first_child = node->last_child = 0;
+	node->child_count = 0;
+}
+
+void NodeChangeParent(Node* new_parent, Node* node){
+	//if old parent, remove self from it 
+	if(node->parent){
+		if(node->parent->child_count > 1){
+			Assert(node->next != node && node->prev != node, "node is horizontally pointing to itself even tho its parent has more than one child");
+			if(node == node->parent->first_child){
+				node->parent->first_child = node->next;
+			}
+			if(node == node->parent->last_child){
+				node->parent->last_child = node->prev;
+			}
+		}else{
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			Assert(node->next == node && node->prev == node, "if node is the only child node, it should horizontally point to itself");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+	
+	//remove self horizontally
+	NodeRemoveHorizontal(node);
+	
+	//add self to new parent
+	NodeInsertChild(new_parent, node);
+}
 
 struct Arena {
 	u8* data = 0;
 	u8* cursor = 0;
 	upt size = 0;
-
+	
 	void init(upt bytes) {
 		data = (u8*)calloc(1, bytes);
 		cursor = data;
 		size = bytes;
 	}
-
+	
 	template<typename T>
-	void* add(const T& in) {
+		void* add(const T& in) {
 		if (cursor - data < sizeof(T) + size) {
 			data = (u8*)calloc(1, size); 
 			cursor = data;
