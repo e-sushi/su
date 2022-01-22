@@ -700,13 +700,17 @@
 //
 
 struct Assembler{
-	string output;
-	b32 function_returned = false;
+	//settings
 	b32 write_comments = true;
 	u32 padding_width = 2;
 	u32 instruction_width = 8;
 	u32 args_width = 16;
+	
+	//state
+	string output;
+	b32 function_returned = false;
 	Type sub_expression = 0;
+	u32 label_counter = 1;
 } assembler;
 
 
@@ -788,20 +792,6 @@ asm_pop_stack(u32 reg, const char* comment = 0){
 /////////////////////
 void assemble_expression(Expression* expr);
 
-local void assemble_expressions_from_expression(Expression* expr){
-	for(Node* node = expr->node.first_child; ;node = node->next){
-		assemble_expression(ExpressionFromNode(node));
-		if(node->next == expr->node.first_child) break;
-	}
-}
-
-local void assemble_expressions_from_expression_reverse(Expression* expr){
-	for(Node* node = expr->node.last_child; ;node = node->prev){
-		assemble_expression(ExpressionFromNode(node));
-		if(node->prev == expr->node.last_child) break;
-	}
-}
-
 local void
 assemble_expression(Expression* expr){
 	switch(expr->type){
@@ -818,27 +808,27 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_Conditional:{
 			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			//TODO handle ternary expression
 		}break;
 		
 		case ExpressionGuard_LogicalOR:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_LogicalOR must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			//TODO handle logical or
 			assembler.sub_expression = 0;
 		}break;
 		
 		case ExpressionGuard_LogicalAND:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_LogicalAND must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			//TODO handle logical and
 			assembler.sub_expression = 0;
 		}break;
 		
 		case ExpressionGuard_BitOR:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_BitOR must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if(assembler.sub_expression == Expression_BinaryOpBitOR){
 				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitwise or");
 				asm_pop_stack(Register_RAX, "pop stack into %rax for bitwise or");
@@ -849,7 +839,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_BitXOR:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_BitXOR must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if(assembler.sub_expression == Expression_BinaryOpBitXOR){
 				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitwise xor");
 				asm_pop_stack(Register_RAX, "pop stack into %rax for bitwise xor");
@@ -860,7 +850,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_BitAND:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_BitAND must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if(assembler.sub_expression == Expression_BinaryOpBitAND){
 				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitwise and");
 				asm_pop_stack(Register_RAX, "pop stack into %rax for bitwise and");
@@ -871,7 +861,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_Equality:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_Equality must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if      (assembler.sub_expression == Expression_BinaryOpEqual){
 				asm_pop_stack(Register_RCX, "pop stack into %rcx for equal");
 				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx == %rax");
@@ -886,7 +876,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_Relational:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_Relational must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if      (assembler.sub_expression == Expression_BinaryOpLessThan){
 				asm_pop_stack(Register_RCX, "pop stack into %rcx for less than");
 				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx < %rax");
@@ -909,7 +899,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_BitShift:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_BitShift must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if      (assembler.sub_expression == Expression_BinaryOpBitShiftLeft){
 				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift left");
 				asm_pop_stack(Register_RAX, "pop stack into %rax for bitshift left");
@@ -924,7 +914,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_Additive:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_Additive must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if      (assembler.sub_expression == Expression_BinaryOpPlus){
 				asm_pop_stack(Register_RCX, "pop stack into %rcx for addition");
 				asm_instruction("add", "%rcx,%rax", "add, store result in %rax");
@@ -938,7 +928,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_Term:{
 			Assert(expr->node.child_count == 3, "ExpressionGuard_Term must have three child nodes");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 			if      (assembler.sub_expression == Expression_BinaryOpMultiply){
 				asm_pop_stack(Register_RCX, "pop stack into %rcx for multiplication");
 				asm_instruction("imul", "%rcx,%rax", "signed multiply, store result in %rax");
@@ -959,7 +949,7 @@ assemble_expression(Expression* expr){
 		
 		case ExpressionGuard_Factor:{
 			Assert(expr->node.child_count >= 1, "ExpressionGuard_Factor must have at least one child node");
-			assemble_expressions_from_expression(expr);
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1113,9 +1103,8 @@ local void
 assemble_statement(Statement* stmt){
     switch(stmt->type){
         case Statement_Return:{
-			for(Node* node = stmt->node.first_child; ;node = node->next){
-				assemble_expression(ExpressionFromNode(node));
-				if(node->next == stmt->node.first_child) break;
+			for_node(stmt->node.first_child){
+				assemble_expression(ExpressionFromNode(it));
 			}
 			
             asm_end_scope();
@@ -1127,28 +1116,20 @@ assemble_statement(Statement* stmt){
 
 local void
 assemble_declaration(Declaration* decl){
-	if(decl->node.child_count == 0) return;
-	
-    for(Node* node = decl->node.first_child; ;node = node->next){
-		Expression* expr = ExpressionFromNode(node);
-		
-		assemble_expression(expr);
-		
-		if(node->next == decl->node.first_child) break;
+	for_node(decl->node.first_child){
+		assemble_expression(ExpressionFromNode(it));
 	}
 }
 
 local void
 assemble_scope(Scope* scope){
-	for(Node* node = scope->node.first_child; ;node = node->next){
-		if      (node->type == NodeType_Declaration){
-			assemble_declaration(DeclarationFromNode(node));
-		}else if(node->type == NodeType_Statement){
-			assemble_statement(StatementFromNode(node));
-		}else if(node->type == NodeType_Scope){
-			assemble_scope(ScopeFromNode(node));
-		}else{ NotImplemented; }
-		if(node->next == scope->node.first_child) break;
+	for_node(scope->node.first_child){
+		switch(it->type){
+			case NodeType_Declaration: assemble_declaration(DeclarationFromNode(it)); break;
+			case NodeType_Statement: assemble_statement(StatementFromNode(it)); break;
+			case NodeType_Scope: assemble_scope(ScopeFromNode(it)); break;
+			default: NotImplemented; break;
+		}
 	}
 }
 
@@ -1156,6 +1137,7 @@ local void
 assemble_function(Function* func){
 	if(func->node.child_count == 0) return;
     assembler.function_returned = false;
+	assembler.label_counter = 1;
     
     asm_pure(func->identifier.str); asm_pure(":\n");
     asm_start_scope();
@@ -1178,9 +1160,8 @@ b32 suAssembler::assemble(Program& program, string& assembly) {
     asm_instruction(".text",               "start of code section");
     asm_instruction(".globl", "main", "marks the function 'main' as being global"); //TODO add entry point to Program
     
-	for(Node* node = program.node.first_child; ;node = node->next){
-		assemble_function(FunctionFromNode(node));
-		if(node->next == program.node.first_child) break;
+	for_node(program.node.first_child){
+		assemble_function(FunctionFromNode(it));
 	}
 	
 	assembly = assembler.output;

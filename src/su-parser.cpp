@@ -133,32 +133,42 @@ Expression*  expression;
 
 Arena arena;
 
-inline Node* new_function(string& identifier) {
+inline Node* new_function(string& identifier, const string& node_str = "") {
 	function = (Function*)arena.add(Function());
 	function->identifier = identifier;
+	function->node.type    = NodeType_Function;
+	function->node.comment = node_str;
 	return &function->node;
 }
 
-inline Node* new_scope() {
+inline Node* new_scope(const string& node_str = "") {
 	scope = (Scope*)arena.add(Scope());
+	scope->node.type    = NodeType_Scope;
+	scope->node.comment = node_str;
 	return &scope->node;
 }
 
-inline Node* new_declaration() {
+inline Node* new_declaration(const string& node_str = "") {
 	declaration = (Declaration*)arena.add(Declaration());
+	declaration->node.type    = NodeType_Declaration;
+	declaration->node.comment = node_str;
 	return &declaration->node;
 }
 
-inline Node* new_statement(StatementType type){
+inline Node* new_statement(StatementType type, const string& node_str = ""){
 	statement = (Statement*)arena.add(Statement());
 	statement->type = type;
+	statement->node.type    = NodeType_Statement;
+	statement->node.comment = node_str;
 	return &statement->node;
 }
 
-inline Node* new_expression(string& str, ExpressionType type, string debug_str = "") {
+inline Node* new_expression(string& str, ExpressionType type, const string& node_str = "") {
 	expression = (Expression*)arena.add(Expression());
 	expression->expstr = str;
-	expression->type = type;
+	expression->type   = type;
+	expression->node.type    = NodeType_Expression;
+	expression->node.comment = node_str;
 	return &expression->node;
 }
 
@@ -198,8 +208,8 @@ Node* parser(ParseState state, Node* node) {
 					token_next();
 					Expect(Token_Identifier){
 						if (next_match(Token_OpenParen)) {
-							new_function(curt.str);
-							NodeInsertChild(node, &function->node, NodeType_Function, "function");
+							new_function(curt.str, toStr("function ", curt.str));
+							insert_last(node, &function->node);
 							parser(psFunction, &function->node);
 						}
 					}
@@ -229,13 +239,13 @@ Node* parser(ParseState state, Node* node) {
 		}break;
 		
 		case psScope: { /////////////////////////////////////////////////////////////////////// @Scope
-			Node* me = new_scope();
-			NodeInsertChild(node, &scope->node, NodeType_Scope, "scope");
+			Node* me = new_scope("scope");
+			insert_last(node, &scope->node);
 			while (!next_match(Token_CloseBrace)) {
 				token_next();
 				ExpectOneOf(typeTokens) {
-					new_declaration();
-					NodeInsertChild(me, &declaration->node, NodeType_Declaration, "decl " + tokens.peek().str);
+					new_declaration("decl " + tokens.peek().str);
+					insert_last(me, &declaration->node);
 					parser(psDeclaration, &declaration->node);
 				}
 				ElseExpect(Token_OpenBrace) {
@@ -256,9 +266,9 @@ Node* parser(ParseState state, Node* node) {
 				declaration->identifier = curt.str;
 				token_next();
 				Expect(Token_Assignment) {
-					new_expression(curt.str, ExpressionGuard_Assignment);
+					new_expression(curt.str, ExpressionGuard_Assignment, ExTypeStrings[ExpressionGuard_Assignment]);
 					token_next();
-					NodeInsertChild(node, &expression->node, NodeType_Expression, ExTypeStrings[ExpressionGuard_Assignment]);
+					insert_last(node, &expression->node);
 					Node* ret = parser(psExpression, &expression->node);
 					token_next();
 					Expect(Token_Semicolon) { return ret; }
@@ -272,8 +282,8 @@ Node* parser(ParseState state, Node* node) {
 		case psStatement: {//////////////////////////////////////////////////////////////////// @Statement
 			switch (curt.type) {
 				case Token_If: {
-					Node* ifno = new_statement(Statement_Conditional);
-					NodeInsertChild(node, ifno, NodeType_Statement, "if statement");
+					Node* ifno = new_statement(Statement_Conditional, "if statement");
+					insert_last(node, ifno);
 					token_next();
 					Expect(Token_OpenParen) {
 						token_next();
@@ -305,16 +315,16 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 				
 				case Token_Else: {
-					new_statement(Statement_Conditional);
-					NodeInsertChild(node, &statement->node, NodeType_Statement, "else statement");
+					new_statement(Statement_Conditional, "else statement");
+					insert_last(node, &statement->node);
 					token_next();
 					parser(psStatement, &statement->node);
 				}break;
 				
 				case Token_Literal:
 				case Token_Identifier: {
-					new_statement(Statement_Expression);
-					NodeInsertChild(node, &statement->node, NodeType_Statement, "exp statement");
+					new_statement(Statement_Expression, "exp statement");
+					insert_last(node, &statement->node);
 					parser(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {} 
@@ -322,8 +332,8 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 				
 				case Token_Return: {
-					new_statement(Statement_Return);
-					NodeInsertChild(node, &statement->node, NodeType_Statement, "return statement");
+					new_statement(Statement_Return, "return statement");
+					insert_last(node, &statement->node);
 					token_next();
 					parser(psExpression, &statement->node);
 					token_next();
@@ -342,20 +352,22 @@ Node* parser(ParseState state, Node* node) {
 			switch (curt.type) {
 				case Token_Identifier: {
 					if (next_match(Token_Assignment)) {
-						new_expression(curt.str, Expression_IdentifierLHS);     
-						NodeInsertChild(node, &expression->node, NodeType_Expression, toStr(ExTypeStrings[Expression_IdentifierLHS], " ", curt.str)); token_next();
-						new_expression(curt.str, Expression_BinaryOpAssignment);
-						NodeInsertChild(node, &expression->node, NodeType_Expression, ExTypeStrings[Expression_BinaryOpAssignment]); token_next();
+						new_expression(curt.str, Expression_IdentifierLHS, toStr(ExTypeStrings[Expression_IdentifierLHS], " ", curt.str));     
+						insert_last(node, &expression->node);
+						token_next();
+						new_expression(curt.str, Expression_BinaryOpAssignment, ExTypeStrings[Expression_BinaryOpAssignment]);
+						insert_last(node, &expression->node);
+						token_next();
 						new_expression(curt.str, ExpressionGuard_Assignment);
 						
 						Node* ret = parser(psExpression, &expression->node);
-						NodeInsertChild(node, ret, ret->type, ret->debug_str);
+						insert_last(node, ret);
 						return ret;
 					}
 					else {
 						new_expression(curt.str, ExpressionGuard_HEAD);
 						Node* ret = parser(psConditional, &expression->node);
-						NodeInsertChild(node, ret, ret->type, ret->debug_str);
+						insert_last(node, ret);
 						return ret;
 					}
 				}break;
@@ -375,10 +387,9 @@ Node* parser(ParseState state, Node* node) {
 				return ret;
 			
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psAdditive, me);
 			while (next_match(Token_QuestionMark)) {
@@ -387,14 +398,14 @@ Node* parser(ParseState state, Node* node) {
 				token_next();
 				//NodeInsertChild(me, &expression->node, NodeType_Expression, ExTypeStrings[Expression_TernaryConditional]); token_next();
 				ret = parser(psExpression, &expression->node);
-				NodeInsertChild(me, ret, ret->type, ret->debug_str);
+				insert_last(me, ret);
 				token_next();
 				Expect(Token_Colon) {
 					token_next();
 					new_expression(curt.str, ExpressionGuard_Conditional);
 					//NodeInsertChild(me, &expression->node, NodeType_Expression, ExTypeStrings[ExpressionGuard_Conditional]);
 					ret = parser(psLogicalOR, &expression->node);
-					NodeInsertChild(me, ret, ret->type, ret->debug_str);
+					insert_last(me, ret);
 				}ExpectFail("Expected : for ternary conditional")
 			}
 			return me;
@@ -406,21 +417,19 @@ Node* parser(ParseState state, Node* node) {
 				return ret;
 			
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psLogicalAND, me);
 			while (next_match(Token_OR)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psLogicalAND, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -432,21 +441,19 @@ Node* parser(ParseState state, Node* node) {
 				return ret;
 			
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psBitwiseOR, me);
 			while (next_match(Token_AND)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psBitwiseOR, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -458,21 +465,19 @@ Node* parser(ParseState state, Node* node) {
 				return ret;
 			
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psBitwiseXOR, me);
 			while (next_match(Token_BitOR)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psBitwiseXOR, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -483,21 +488,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_BitXOR))
 				return ret;
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psBitwiseAND, me);
 			while (next_match(Token_BitXOR)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psBitwiseAND, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -508,21 +511,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_BitAND))
 				return ret;
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psEquality, me);
 			while (next_match(Token_BitAND)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psEquality, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -533,21 +534,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_NotEqual, Token_Equal))
 				return ret;
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psRelational, me);
 			while (next_match(Token_NotEqual, Token_Equal)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psRelational, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -558,21 +557,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_LessThan, Token_GreaterThan, Token_LessThanOrEqual, Token_GreaterThanOrEqual))
 				return ret;
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psBitshift, me);
 			while (next_match(Token_LessThan, Token_GreaterThan, Token_LessThanOrEqual, Token_GreaterThanOrEqual)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psBitshift, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -583,21 +580,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_BitShiftLeft, Token_BitShiftRight))
 				return ret;
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psAdditive, me);
 			while (next_match(Token_BitShiftLeft, Token_BitShiftRight)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psAdditive, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -608,21 +603,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_Plus, Token_Negation))
 				return ret;
 			token_next();
-			Node* me = new_expression(curt.str, *binaryOps.at(curt.type));
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psTerm, me);
 			while (next_match(Token_Plus, Token_Negation)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psTerm, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -633,21 +626,19 @@ Node* parser(ParseState state, Node* node) {
 			if (!next_match(Token_Multiplication, Token_Division, Token_Modulo))
 				return ret;
 			token_next();
-			Node* me  = new_expression(curt.str, *binaryOps.at(curt.type)); 
-			me->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
-			NodeChangeParent(me, ret);
-			NodeInsertChild(node, me, me->type, me->debug_str);
+			Node* me  = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]); 
+			change_parent(me, ret);
+			insert_last(node, me);
 			token_next();
 			ret = parser(psFactor, me);
 			while (next_match(Token_Multiplication, Token_Division, Token_Modulo)) {
 				token_next();
-				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type));
-				me2->debug_str = ExTypeStrings[*binaryOps.at(curt.type)];
+				Node* me2 = new_expression(curt.str, *binaryOps.at(curt.type), ExTypeStrings[*binaryOps.at(curt.type)]);
 				token_next();
 				ret = parser(psFactor, node);
-				NodeChangeParent(me2, me);
-				NodeChangeParent(me2, ret);
-				NodeInsertChild(node, me2);
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
 				me = me2;
 			}
 			return me;
@@ -656,8 +647,8 @@ Node* parser(ParseState state, Node* node) {
 		case psFactor: {/////////////////////////////////////////////////////////////////////// @Factor
 			switch (curt.type) {
 				case Token_Literal: {
-					new_expression(curt.str, Expression_IntegerLiteral);
-					NodeInsertChild(node, &expression->node, NodeType_Expression, toStr(ExTypeStrings[Expression_IntegerLiteral], " ", curt.str));
+					new_expression(curt.str, Expression_IntegerLiteral, toStr(ExTypeStrings[Expression_IntegerLiteral], " ", curt.str));
+					insert_last(node, &expression->node);
 					return &expression->node;
 				}break;
 				
@@ -670,15 +661,15 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 				
 				case Token_Identifier: {
-					new_expression(curt.str, Expression_IdentifierRHS);
-					NodeInsertChild(node, &expression->node, NodeType_Expression, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
+					new_expression(curt.str, Expression_IdentifierRHS, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
+					insert_last(node, &expression->node);
 					return &expression->node;
 				}break;
 				
 				default: {
 					ExpectOneOf(unaryOps) {
-						new_expression(curt.str, *unaryOps.at(curt.type));
-						NodeInsertChild(node, &expression->node, NodeType_Expression, ExTypeStrings[*unaryOps.at(curt.type)]);
+						new_expression(curt.str, *unaryOps.at(curt.type), ExTypeStrings[*unaryOps.at(curt.type)]);
+						insert_last(node, &expression->node);
 						token_next();
 						Node* ret = &expression->node;
 						parser(psFactor, &expression->node);
@@ -703,9 +694,7 @@ b32 suParser::parse(array<token>& tokens_in, Program& mother) {
 	tokens = tokens_in;
 	curt = tokens[0];
 	
-	mother.node.next = mother.node.prev = &mother.node;
-	mother.node.debug_str = "program";
-	
+	mother.node.comment = "program";
 	debugprogramnode = &mother.node;
 	
 	parser(psGlobal, &mother.node);

@@ -11,13 +11,11 @@ void make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 	u32 save = i;
 	u32 colsave = colidx;
 	
-	string send = node->debug_str;
-	
 	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
-	agset(me, "label", send.str);
+	agset(me, "label", node->comment.str);
 	agset(me, "color", to_string(colsave).str);
-
-	for (Node* n = node->first_child; n; n = n->next) {
+	
+	for_node(node->first_child){
 		if (node->first_child->next) {
 			align_to = node;
 			make_dot_file(n, me, node);
@@ -28,7 +26,7 @@ void make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 		colidx = (colidx + 1) % 11 + 1;
 	}
 	agset(me, "group", to_string(align_to).str);
-
+	
 	Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
 	agset(edge, "color", to_string(colsave).str);
 	
@@ -56,8 +54,8 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 	agattr(gvgraph, AGRAPH, "splines",     "true");
 	
 	Agnode_t* prog = agnode(gvgraph, "program", 1);
-
-	for (Node* n = program.node.first_child; n; n = n->next) {
+	
+	for_node(program.node.first_child){
 		make_dot_file(n, prog, n);
 	}
 	

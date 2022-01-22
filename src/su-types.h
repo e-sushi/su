@@ -4,6 +4,8 @@
 
 #include "utils/defines.h"
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// Compile Options
 enum ReturnCode {
 	ReturnCode_Success                = 0,
 	ReturnCode_No_File_Passed         = 1,
@@ -23,6 +25,18 @@ enum OSOut {
 	OSOut_OSX,
 };
 
+struct {
+	u32   warning_level    = 1;
+	b32   verbose_print    = false;
+	b32   supress_warnings = false;
+	b32   supress_errors   = false;
+	b32   supress_messages = false;
+	OSOut osout            = OSOut_Windows;
+} globals;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// Registers
 enum Registers{
 	Register_NULL,
 	
@@ -93,16 +107,9 @@ global_ const char* registers_x64[] = {
 	"%r15", "%r15d", "%r15w", "%r15b",
 };
 
-struct {
-	u32   warning_level    = 1;
-	b32   verbose_print    = false;
-	b32   supress_warnings = false;
-	b32   supress_errors   = false;
-	b32   supress_messages = false;
-	OSOut osout            = OSOut_Windows;
-} globals; 
 
-//data type specifiers
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// Builtin Types
 enum DataType : u32 { 
 	DataType_NotTyped,
 	DataType_Implicit,   // implicitly typed
@@ -117,6 +124,9 @@ enum DataType : u32 {
 	DataType_Structure,  // data type of types and functions
 }; //typedef u32 DataType;
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// Nodes
 enum NodeType : u32 {
 	NodeType_Program,
 	NodeType_Function,
@@ -128,39 +138,48 @@ enum NodeType : u32 {
 
 //abstract node tree struct
 struct Node {
-	string debug_str;
 	Node* next = 0;
 	Node* prev = 0;
-	
 	Node* parent = 0;
 	Node* first_child = 0;
 	Node* last_child = 0;
-	u32 child_count = 0;
+	u32   child_count = 0;
 	
 	NodeType type;
 	
-	
-	Node() { //TODO next,prev dont need to be circular since we can ref parent's children (also simplifies alot of node logic)
-		//next = prev = this;
-	}
+	//debug vars
+	string comment;
 };
 
-#define NodeInsertNext(to,from) ((from)->next=((to)->next?(to)->next:0),(from)->prev=(to),((from)->next?(from)->next->prev=(from):0),(to)->next=(from))
-#define NodeInsertPrev(to,from) ((from)->prev=((to)->prev?(to)->prev:0),(from)->next=(to),((from)->prev?(from)->prev->next=(from):0),(to)->prev=(from))
-#define NodeRemoveHorizontal(node) (((node)->next?(node)->next->prev=(node)->prev:0),((node)->prev?(node)->prev->next=(node)->next:0))
+#define for_node(node) for(Node* it = node; it != 0; it = it->next)
+#define for_node_reverse(node) for(Node* it = node; it != 0; it = it->prev)
 
-void NodeInsertChild(Node* parent, Node* child){
-	if(parent == 0){
-		child->parent = 0;
-		return;
-	}
+inline void insert_after(Node* target, Node* node){
+	if(target->next) target->next->prev = node;
+	node->next = target->next;
+	node->prev = target;
+	target->next = node;
+}
+
+inline void insert_before(Node* target, Node* node){
+	if(target->prev) target->prev->next = node;
+	node->prev = target->prev;
+	node->next = target;
+	target->prev = node;
+}
+
+inline void remove_horizontally(Node* node){
+	if(node->next) node->next->prev = node->prev;
+	if(node->prev) node->prev->next = node->next;
+	node->next = node->prev = 0;
+}
+
+void insert_last(Node* parent, Node* child){
+	if(parent == 0){ child->parent = 0; return; }
 	
 	child->parent = parent;
 	if(parent->first_child){
-		child->next = (parent->last_child->next ? parent->last_child->next : 0);
-		child->prev = parent->last_child;
-		child->next = 0;
-		parent->last_child->next = child;
+		insert_after(parent->last_child, child);
 		parent->last_child = child;
 	}else{
 		parent->first_child = child;
@@ -169,50 +188,26 @@ void NodeInsertChild(Node* parent, Node* child){
 	parent->child_count++;
 }
 
-
-void NodeInsertChildReverse(Node* parent, Node* child) {
-	if (parent == 0) {
-		child->parent = 0;
-		return;
-	}
-
+void insert_first(Node* parent, Node* child){
+	if(parent == 0){ child->parent = 0; return; }
+	
 	child->parent = parent;
-	if (parent->first_child) {
-		NodeInsertPrev(parent->last_child, child);
+	if(parent->first_child){
+		insert_before(parent->first_child, child);
 		parent->first_child = child;
-	}
-	else {
+	}else{
 		parent->first_child = child;
 		parent->last_child = child;
 	}
 	parent->child_count++;
 }
 
-//TODO remove this and move nodetype and debugstr addition to node creation
-FORCE_INLINE void NodeInsertChild(Node* parent, Node* child, NodeType type, string debugstr = "") {
-	child->type = type;
-	child->debug_str = debugstr;
-	NodeInsertChild(parent, child);
-}
-
-//TODO remove this and move nodetype and debugstr addition to node creation
-FORCE_INLINE void NodeInsertChildReverse(Node* parent, Node* child, NodeType type, string debugstr = "") {
-	child->type = type;
-	child->debug_str = debugstr;
-	NodeInsertChildReverse(parent, child);
-}
-
-void NodeRemove(Node* node){
+void remove(Node* node){
 	//remove self from parent
 	if(node->parent){
 		if(node->parent->child_count > 1){
-			Assert(node->next != node && node->prev != node, "node is horizontally pointing to itself even tho its parent has more than one child");
-			if(node == node->parent->first_child){
-				node->parent->first_child = node->next;
-			}
-			if(node == node->parent->last_child){
-				node->parent->last_child = node->prev;
-			}
+			if(node == node->parent->first_child) node->parent->first_child = node->next;
+			if(node == node->parent->last_child)  node->parent->last_child  = node->prev;
 		}else{
 			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
 			node->parent->first_child = 0;
@@ -223,35 +218,27 @@ void NodeRemove(Node* node){
 	
 	//add children to parent (and remove self from children)
 	if(node->child_count > 1){
-		for(Node* child = node->first_child; ;child = child->next){
-			NodeInsertChild(node->parent, child);
-			if(child->next == node->first_child) break;
+		for(Node* child = node->first_child; child != 0; child = child->next){
+			insert_last(node->parent, child);
 		}
 	}
 	
 	//remove self horizontally
-	NodeRemoveHorizontal(node);
+	remove_horizontally(node);
 	
 	//reset self  //TODO not necessary if we are deleting this node, so exclude this logic in another function NodeDelete?
-	node->next = node->prev = node;
 	node->parent = node->first_child = node->last_child = 0;
 	node->child_count = 0;
 }
 
-void NodeChangeParent(Node* new_parent, Node* node){
+void change_parent(Node* new_parent, Node* node){
 	//if old parent, remove self from it 
 	if(node->parent){
 		if(node->parent->child_count > 1){
-			Assert(node->next != node && node->prev != node, "node is horizontally pointing to itself even tho its parent has more than one child");
-			if(node == node->parent->first_child){
-				node->parent->first_child = node->next;
-			}
-			if(node == node->parent->last_child){
-				node->parent->last_child = node->prev;
-			}
+			if(node == node->parent->first_child) node->parent->first_child = node->next;
+			if(node == node->parent->last_child)  node->parent->last_child  = node->prev;
 		}else{
 			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
-			Assert(node->next == node && node->prev == node, "if node is the only child node, it should horizontally point to itself");
 			node->parent->first_child = 0;
 			node->parent->last_child = 0;
 		}
@@ -259,12 +246,15 @@ void NodeChangeParent(Node* new_parent, Node* node){
 	}
 	
 	//remove self horizontally
-	NodeRemoveHorizontal(node);
+	remove_horizontally(node);
 	
 	//add self to new parent
-	NodeInsertChild(new_parent, node);
+	insert_last(new_parent, node);
 }
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// Memory
 struct Arena {
 	u8* data = 0;
 	u8* cursor = 0;
