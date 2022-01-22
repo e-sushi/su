@@ -70,6 +70,7 @@ enum Token_Type {
     Token_Unsigned64,               // u64 
     Token_Float32,                  // f32 
     Token_Float64,                  // f64 
+    Token_Any,                      // any
 };
 
 static const char* tokenStrings[] = {

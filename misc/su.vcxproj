@@ -72,7 +72,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <Profile>true</Profile>
-      <StackReserveSize>20000000</StackReserveSize>
+      <StackReserveSize>104857600</StackReserveSize>
       <AdditionalLibraryDirectories>C:\Program Files\Graphviz\lib;C:\apps\graphviz\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>cgraph.lib;gvc.lib;cdt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>

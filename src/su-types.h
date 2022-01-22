@@ -124,7 +124,6 @@ enum DataType : u32 {
 	DataType_Structure,  // data type of types and functions
 }; //typedef u32 DataType;
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
 enum NodeType : u32 {

@@ -113,6 +113,7 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 							else if (!strncmp("u64",    chunk_start, 3)) tokens.add(token{ "u64",    Token_Unsigned64, lines });
 							else if (!strncmp("f32",    chunk_start, 3)) tokens.add(token{ "f32",    Token_Float32,    lines });
 							else if (!strncmp("f64",    chunk_start, 3)) tokens.add(token{ "f64",    Token_Float64,    lines });
+							else if (!strncmp("any",    chunk_start, 3)) tokens.add(token{ "any",    Token_Any,        lines });
 							else tokens.add(token{ chunkstr, Token_Identifier, lines });
 						}
 						else {
