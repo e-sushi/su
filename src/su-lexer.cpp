@@ -112,20 +112,22 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 					case '=': case '!': case '~': case '&': case '|': case '\t':
 					case '%': case ':': case '?': case '>': case '^': case '\n': {
 						if (isalpha(*chunk_start)) {
-							if      (!strncmp("return", chunk_start, 6)) tokens.add(token{ "return", Token_Return,     Token_ControlKeyword, lines });
-							else if (!strncmp("if",     chunk_start, 2)) tokens.add(token{ "if",     Token_If,         Token_ControlKeyword, lines });
-							else if (!strncmp("else",   chunk_start, 4)) tokens.add(token{ "else",   Token_Else,       Token_ControlKeyword, lines });
-							else if (!strncmp("for",    chunk_start, 3)) tokens.add(token{ "for",    Token_For,        Token_ControlKeyword, lines });
-							else if (!strncmp("while",  chunk_start, 5)) tokens.add(token{ "while",  Token_While,      Token_ControlKeyword, lines });
-							else if (!strncmp("struct", chunk_start, 4)) tokens.add(token{ "struct", Token_Struct,     Token_ControlKeyword, lines });
-							else if (!strncmp("s32",    chunk_start, 3)) tokens.add(token{ "s32",    Token_Signed32,   Token_Typename,       lines });
-							else if (!strncmp("s64",    chunk_start, 3)) tokens.add(token{ "s64",    Token_Signed64,   Token_Typename,       lines });
-							else if (!strncmp("u32",    chunk_start, 3)) tokens.add(token{ "u32",    Token_Unsigned32, Token_Typename,       lines });
-							else if (!strncmp("u64",    chunk_start, 3)) tokens.add(token{ "u64",    Token_Unsigned64, Token_Typename,       lines });
-							else if (!strncmp("f32",    chunk_start, 3)) tokens.add(token{ "f32",    Token_Float32,    Token_Typename,       lines });
-							else if (!strncmp("f64",    chunk_start, 3)) tokens.add(token{ "f64",    Token_Float64,    Token_Typename,       lines });
-							else if (!strncmp("any",    chunk_start, 3)) tokens.add(token{ "any",    Token_Any,        Token_Typename,       lines });
-							else if (!strncmp("str",    chunk_start, 3)) tokens.add(token{ "any",    Token_String,     Token_Typename,       lines });
+							if      (!strncmp("return",   chunk_start, 6)) tokens.add(token{ "return",    Token_Return,     Token_ControlKeyword, lines });
+							else if (!strncmp("if",       chunk_start, 2)) tokens.add(token{ "if",        Token_If,         Token_ControlKeyword, lines });
+							else if (!strncmp("else",     chunk_start, 4)) tokens.add(token{ "else",      Token_Else,       Token_ControlKeyword, lines });
+							else if (!strncmp("for",      chunk_start, 3)) tokens.add(token{ "for",       Token_For,        Token_ControlKeyword, lines });
+							else if (!strncmp("while",    chunk_start, 5)) tokens.add(token{ "while",     Token_While,      Token_ControlKeyword, lines });
+							else if (!strncmp("break",    chunk_start, 5)) tokens.add(token{ "break",     Token_Break,      Token_ControlKeyword, lines });
+							else if (!strncmp("continue", chunk_start, 8)) tokens.add(token{ "continue",  Token_Continue,   Token_ControlKeyword, lines });
+							else if (!strncmp("struct",   chunk_start, 4)) tokens.add(token{ "struct",    Token_Struct,     Token_ControlKeyword, lines });
+							else if (!strncmp("s32",      chunk_start, 3)) tokens.add(token{ "s32",       Token_Signed32,   Token_Typename,       lines });
+							else if (!strncmp("s64",      chunk_start, 3)) tokens.add(token{ "s64",       Token_Signed64,   Token_Typename,       lines });
+							else if (!strncmp("u32",      chunk_start, 3)) tokens.add(token{ "u32",       Token_Unsigned32, Token_Typename,       lines });
+							else if (!strncmp("u64",      chunk_start, 3)) tokens.add(token{ "u64",       Token_Unsigned64, Token_Typename,       lines });
+							else if (!strncmp("f32",      chunk_start, 3)) tokens.add(token{ "f32",       Token_Float32,    Token_Typename,       lines });
+							else if (!strncmp("f64",      chunk_start, 3)) tokens.add(token{ "f64",       Token_Float64,    Token_Typename,       lines });
+							else if (!strncmp("any",      chunk_start, 3)) tokens.add(token{ "any",       Token_Any,        Token_Typename,       lines });
+							else if (!strncmp("str",      chunk_start, 3)) tokens.add(token{ "any",       Token_String,     Token_Typename,       lines });
 							else tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, lines });
 						}
 						else {

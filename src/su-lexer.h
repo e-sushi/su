@@ -10,15 +10,15 @@
 enum Token_Type {
 	Token_ERROR,                    // when something doesnt make sense during lexing
 	Token_EOF,                      // end of file
-	
+
 	Token_Identifier,               // function/variable names                 
-									
+
 	//// literal ////
 	Token_Literal,
-	Token_LiteralFloat,               
+	Token_LiteralFloat,
 	Token_LiteralInteger,
 	Token_LiteralString,
-	
+
 	//// control characters ////
 	Token_ControlCharacter,
 	Token_Semicolon,                // ;
@@ -30,7 +30,7 @@ enum Token_Type {
 	Token_QuestionMark,             // ?
 	Token_Colon,                    // :
 	Token_Dot,                      // .
-	
+
 	//// operators ////
 	Token_Operator,
 	Token_Plus,                     // +
@@ -65,14 +65,16 @@ enum Token_Type {
 	Token_LessThanOrEqual,          // <=
 	Token_GreaterThan,              // >
 	Token_GreaterThanOrEqual,       // >=
-	
+
 	//// control keywords ////
 	Token_ControlKeyword,
 	Token_Return,                   // return
 	Token_If,                       // if
 	Token_Else,                     // else
 	Token_For,                      // for
-	Token_While,                    // while        
+	Token_While,                    // while 
+	Token_Break,                    // break
+	Token_Continue,                 // continue
 	Token_Struct,                   // struct
 
 	

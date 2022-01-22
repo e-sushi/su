@@ -136,7 +136,20 @@ inline Node* new_expression(string& str, ExpressionType type, const string& node
 	return &expression->node;
 }
 
-enum ParseState {
+enum ParseState_ {
+	stNone        = 0,
+	stInFunction  = 1 << 0,
+	stInForLoop   = 1 << 1,
+	stInWhileLoop = 1 << 2, 
+}; typedef u32 ParseState;
+ParseState pState = stNone;
+
+#define StateSet(flag)    AddFlag(pState, flag)
+#define StateUnset(flag)  RemoveFlag(pState, flag)
+#define StateHas(flag)    HasFlag(pState, flag)
+#define StateHasAll(flag) HasAllFlags(pState, flag)
+
+enum ParseStage {
 	psGlobal,      	// <program>       :: = <function>
 	psFunction,		// <function>      :: = "int" <id> "(" ")" <scope>
 	psScope,        // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
@@ -146,7 +159,8 @@ enum ParseState {
 					//                      | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
 					//                      | "for" "(" <declaration> [<exp>] ";" [<exp>] ")" <statement>
 					//                      | "while" "(" <exp> ")" <statement>
-					//                      | "break" 
+					//                      | "break" [<integer>] ";" 
+					//                      | "continue" ";"
 	psExpression,	// <exp>           :: = <id> "=" <exp> | <conditional>
 	psConditional,	// <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
 	psLogicalOR,	// <logical or>    :: = <logical and> { "||" <logical and> } 
@@ -171,19 +185,19 @@ enum ParseState {
 }; 
 
 template<typename... T>
-Node* binopParse(Node* node, Node* ret, ParseState next_state, T... tokcheck) {
+Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 	token_next();
 	Node* me = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 	change_parent(me, ret);
 	insert_last(node, me);
 	token_next();
-	ret = parser(next_state, me);
+	ret = parser(next_stage, me);
 
 	while (next_match(tokcheck...)) {
 		token_next();
 		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 		token_next();
-		ret = parser(next_state, node);
+		ret = parser(next_stage, node);
 		change_parent(me2, me);
 		change_parent(me2, ret);
 		insert_last(node, me2);
@@ -193,7 +207,7 @@ Node* binopParse(Node* node, Node* ret, ParseState next_state, T... tokcheck) {
 }
 
 #define EarlyOut goto emergency_exit
-Node* parser(ParseState state, Node* node) {
+Node* parser(ParseStage state, Node* node) {
 	if (parse_failed) return 0;
 	
 	switch (state) {
@@ -222,6 +236,7 @@ Node* parser(ParseState state, Node* node) {
 		}break;
 		
 		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
+			StateSet(stInFunction);
 			token_next();
 			Expect(Token_OpenParen) { 
 				token_next();
@@ -233,6 +248,7 @@ Node* parser(ParseState state, Node* node) {
 					}ExpectFail("expected {");
 				}ExpectFail("expected )");
 			}ExpectFail("expected (");
+			StateUnset(stInFunction);
 		}break;
 		
 		case psScope: { /////////////////////////////////////////////////////////////////////// @Scope
@@ -314,6 +330,7 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 
 				case Token_For: {
+					StateSet(stInForLoop);
 					Node* me = new_statement(Statement_For, "for statement");
 					insert_last(node, me);
 					token_next();
@@ -355,9 +372,11 @@ Node* parser(ParseState state, Node* node) {
 							}
 						}ExpectFail("expected ) for for loop");
 					}ExpectFail("expected ( after for");
+					StateUnset(stInForLoop);
 				}break;
 
 				case Token_While: {
+					StateSet(stInWhileLoop);
 					Node* me = new_statement(Statement_While, "while statement");
 					insert_last(node, me);
 					token_next();
@@ -380,6 +399,21 @@ Node* parser(ParseState state, Node* node) {
 							}
 						}ExpectFail("expected ) for while");
 					}ExpectFail("expected ( after while");
+					StateUnset(stInWhileLoop);
+				}break;
+
+				case Token_Break: {
+					if (!StateHas(stInWhileLoop | stInForLoop)) { ParseFail("break not allowed outside of while/for loop"); return 0; }
+					Node* me = new_statement(Statement_Break, "break statement");
+					insert_last(node, me);
+					token_next();
+				}break;
+
+				case Token_Continue: {
+					if (!StateHas(stInWhileLoop | stInForLoop)) { ParseFail("continue not allowed outside of while/for loop"); return 0; }
+					Node* me = new_statement(Statement_Continue, "continue statement");
+					insert_last(node, me);
+					token_next();
 				}break;
 				
 				case Token_Return: {

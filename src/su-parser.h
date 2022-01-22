@@ -127,6 +127,8 @@ enum StatementType : u32 {
 	Statement_Scope,
 	Statement_For,
 	Statement_While,
+	Statement_Break,
+	Statement_Continue,
 };
 
 struct Statement {
