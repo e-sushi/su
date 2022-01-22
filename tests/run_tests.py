@@ -1,6 +1,6 @@
 #run_tests.py
 #expected to be run from su/tests
-#TODO add command-line args for su.exe path and tests directory
+#TODO add command-line args for su.exe path and tests filtering
 
 import os,subprocess,enum,ctypes
 
@@ -80,6 +80,8 @@ tests = [
     ["comparison_ops/valid/precedence.su",                          "true"],
     ["comparison_ops/valid/precedence_2.su",                             0],
     ["comparison_ops/valid/precedence_3.su",                        "true"],
+    ["comparison_ops/valid/precedence_4.su",                             0],
+    ["comparison_ops/valid/precedence_5.su",                        "true"],
     ["comparison_ops/valid/skip_on_failure_multi_short_circuit.su", "true"],
     ["comparison_ops/valid/skip_on_failure_short_circuit_and.su",        0],
     ["comparison_ops/valid/skip_on_failure_short_circuit_or.su",         0],
@@ -95,6 +97,7 @@ def main():
     tests_failed = 0;
 
     for path,expected in tests:
+        tests_total += 1;
         path_arr = path.split('/');
         group = path_arr[0];
         type  = path_arr[1];
@@ -116,6 +119,7 @@ def main():
                     subprocess.run(file_exe, capture_output=True, check=True);
                     #print("%-60s%s (E: %d; A: %d)" % (file, "PASSED", expected, 0));
                     print("%-60s%s" % (file, "PASSED"));
+                    tests_passed += 1;
                 except subprocess.CalledProcessError as err:
                     actual = ctypes.c_int32(err.returncode).value;
                     if((actual == expected) or (expected == "true" and actual != 0)):
@@ -131,7 +135,6 @@ def main():
                 print("%-60s%s (compile error: %d)" % (file, "FAILED", actual));
                 tests_failed += 1;
         elif(type == 'invalid'):
-            tests_total += 1;
             try:
                 subprocess.run(compile_cmd, capture_output=True, check=True);
                 
@@ -147,7 +150,9 @@ def main():
                 else:
                     print("%-60s%s (E: %d; A: %d)" % (file, "FAILED", expected, actual));
                     tests_failed += 1;
-    print("tests: %d; passed: %d; failed: %d" % (tests_total, tests_passed, tests_failed));
+        else:
+            print("ERROR: malformed test path: ", path);
+    print("tests: %d; passed: %d; failed: %d;" % (tests_total, tests_passed, tests_failed));
 
 if __name__ == "__main__":
     main()
