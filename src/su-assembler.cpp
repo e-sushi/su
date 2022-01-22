@@ -710,7 +710,8 @@ struct Assembler{
 	string output;
 	b32 function_returned = false;
 	Type sub_expression = 0;
-	u64 label_counter = 1;
+	u32 label_counter = 1;
+	//char label[16] = ".L?";
 } assembler;
 
 
@@ -802,6 +803,8 @@ FORCE_INLINE void assemble_binop_children(Expression* expr){
 
 local void
 assemble_expression(Expression* expr){
+	//if(assembler.write_comments) asm_pure(toStr("# ", expr->node.comment, "\n"));
+	
 	switch(expr->type){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Guards
@@ -823,13 +826,27 @@ assemble_expression(Expression* expr){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Binary Operators
 		case Expression_BinaryOpOR:{
-			assemble_binop_children(expr);
-			//TODO logical or
+			//TODO: optimization, check for false/true literals
+			Assert(expr->node.child_count == 2, "Expression_BinaryOpOR must have two child nodes");
+			
+			string label = toStr(".L",assembler.label_counter++);
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
+			asm_instruction("cmp", "$0,%rax", "check %rax for logical OR");
+			asm_instruction("jnz", label.str, "jump over right side of logical OR if true");
+			assemble_expression(ExpressionFromNode(expr->node.last_child));
+			asm_pure(label.str); asm_pure(":\n");
 		}break;
 		
 		case Expression_BinaryOpAND:{
-			assemble_binop_children(expr);
-			//TODO logical and
+			//TODO: optimization, check for false/true literals
+			Assert(expr->node.child_count == 2, "Expression_BinaryOpAND must have two child nodes");
+			
+			string label = toStr(".L",assembler.label_counter++);
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
+			asm_instruction("cmp", "$0,%rax", "check %rax for logical AND");
+			asm_instruction("jz", label.str, "jump over right side of logical AND if false");
+			assemble_expression(ExpressionFromNode(expr->node.last_child));
+			asm_pure(label.str); asm_pure(":\n");
 		}break;
 		
 		case Expression_BinaryOpBitOR:{
