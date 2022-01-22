@@ -102,15 +102,6 @@ struct {
 	OSOut osout            = OSOut_Windows;
 } globals; 
 
-enum NodeType : u32 {
-	NodeType_Program,
-	NodeType_Function,
-	NodeType_Scope,
-	NodeType_Declaration,
-	NodeType_Statement,
-	NodeType_Expression,
-};
-
 //data type specifiers
 enum DataType : u32 { 
 	DataType_NotTyped,
@@ -126,8 +117,18 @@ enum DataType : u32 {
 	DataType_Structure,  // data type of types and functions
 }; //typedef u32 DataType;
 
+enum NodeType : u32 {
+	NodeType_Program,
+	NodeType_Function,
+	NodeType_Scope,
+	NodeType_Declaration,
+	NodeType_Statement,
+	NodeType_Expression,
+};
+
 //abstract node tree struct
 struct Node {
+	string debug_str;
 	Node* next = 0;
 	Node* prev = 0;
 	
@@ -138,16 +139,15 @@ struct Node {
 	
 	NodeType type;
 	
-	string debug_str;
 	
 	Node() { //TODO next,prev dont need to be circular since we can ref parent's children (also simplifies alot of node logic)
-		next = prev = this;
+		//next = prev = this;
 	}
 };
 
-#define NodeInsertNext(x,node) ((node)->next=(x)->next,(node)->prev=(x),(node)->next->prev=(node),(x)->next=(node))
-#define NodeInsertPrev(x,node) ((node)->prev=(x)->prev,(node)->next=(x),(node)->prev->next=(node),(x)->prev=(node))
-#define NodeRemoveHorizontal(node) ((node)->next->prev=(node)->prev,(node)->prev->next=(node)->next)
+#define NodeInsertNext(to,from) ((from)->next=((to)->next?(to)->next:0),(from)->prev=(to),((from)->next?(from)->next->prev=(from):0),(to)->next=(from))
+#define NodeInsertPrev(to,from) ((from)->prev=((to)->prev?(to)->prev:0),(from)->next=(to),((from)->prev?(from)->prev->next=(from):0),(to)->prev=(from))
+#define NodeRemoveHorizontal(node) (((node)->next?(node)->next->prev=(node)->prev:0),((node)->prev?(node)->prev->next=(node)->next:0))
 
 void NodeInsertChild(Node* parent, Node* child){
 	if(parent == 0){
@@ -157,9 +157,31 @@ void NodeInsertChild(Node* parent, Node* child){
 	
 	child->parent = parent;
 	if(parent->first_child){
-		NodeInsertNext(parent->last_child, child);
+		child->next = (parent->last_child->next ? parent->last_child->next : 0);
+		child->prev = parent->last_child;
+		child->next = 0;
+		parent->last_child->next = child;
 		parent->last_child = child;
 	}else{
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+}
+
+
+void NodeInsertChildReverse(Node* parent, Node* child) {
+	if (parent == 0) {
+		child->parent = 0;
+		return;
+	}
+
+	child->parent = parent;
+	if (parent->first_child) {
+		NodeInsertPrev(parent->last_child, child);
+		parent->first_child = child;
+	}
+	else {
 		parent->first_child = child;
 		parent->last_child = child;
 	}
@@ -171,6 +193,13 @@ FORCE_INLINE void NodeInsertChild(Node* parent, Node* child, NodeType type, stri
 	child->type = type;
 	child->debug_str = debugstr;
 	NodeInsertChild(parent, child);
+}
+
+//TODO remove this and move nodetype and debugstr addition to node creation
+FORCE_INLINE void NodeInsertChildReverse(Node* parent, Node* child, NodeType type, string debugstr = "") {
+	child->type = type;
+	child->debug_str = debugstr;
+	NodeInsertChildReverse(parent, child);
 }
 
 void NodeRemove(Node* node){
