@@ -51,17 +51,6 @@ enum ExpressionType : u32 {
 	ExpressionGuard_Assignment,
 	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations
 	ExpressionGuard_Conditional,
-	ExpressionGuard_LogicalOR,
-	ExpressionGuard_LogicalAND,
-	ExpressionGuard_BitOR,
-	ExpressionGuard_BitXOR,
-	ExpressionGuard_BitAND,
-	ExpressionGuard_Equality,
-	ExpressionGuard_Relational,
-	ExpressionGuard_BitShift,
-	ExpressionGuard_Additive,
-	ExpressionGuard_Term,
-	ExpressionGuard_Factor,
 };
 
 static const char* ExTypeStrings[] = {

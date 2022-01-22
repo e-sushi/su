@@ -710,7 +710,7 @@ struct Assembler{
 	string output;
 	b32 function_returned = false;
 	Type sub_expression = 0;
-	u32 label_counter = 1;
+	u64 label_counter = 1;
 } assembler;
 
 
@@ -792,13 +792,21 @@ asm_pop_stack(u32 reg, const char* comment = 0){
 /////////////////////
 void assemble_expression(Expression* expr);
 
+FORCE_INLINE void assemble_binop_children(Expression* expr){
+	Assert(expr->node.child_count == 2, "Binary operators must have two child nodes");
+	//NOTE right then left because our AST grows left, so we want to push values to be used later onto the stack first
+	assemble_expression(ExpressionFromNode(expr->node.last_child));
+	asm_push_stack(Register_RAX);
+	assemble_expression(ExpressionFromNode(expr->node.first_child));
+}
+
 local void
 assemble_expression(Expression* expr){
 	switch(expr->type){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Guards
 		case ExpressionGuard_Assignment:{
-			
+			//TODO assignment
 		}break;
 		
         case ExpressionGuard_HEAD:{
@@ -809,258 +817,144 @@ assemble_expression(Expression* expr){
 		case ExpressionGuard_Conditional:{
 			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
 			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			//TODO handle ternary expression
-		}break;
-		
-		case ExpressionGuard_LogicalOR:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_LogicalOR must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			//TODO handle logical or
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_LogicalAND:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_LogicalAND must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			//TODO handle logical and
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_BitOR:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_BitOR must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if(assembler.sub_expression == Expression_BinaryOpBitOR){
-				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitwise or");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for bitwise or");
-				asm_instruction("or",  "%rcx,%rax", "bitwise or %rax with %rcx");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_BitXOR:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_BitXOR must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if(assembler.sub_expression == Expression_BinaryOpBitXOR){
-				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitwise xor");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for bitwise xor");
-				asm_instruction("xor", "%rcx,%rax", "bitwise xor %rax with %rcx");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_BitAND:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_BitAND must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if(assembler.sub_expression == Expression_BinaryOpBitAND){
-				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitwise and");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for bitwise and");
-				asm_instruction("and", "%rcx,%rax", "bitwise and %rax with %rcx");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_Equality:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_Equality must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if      (assembler.sub_expression == Expression_BinaryOpEqual){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for equal");
-				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx == %rax");
-				asm_instruction("sete",  "%al",       "set %al if equal");
-			}else if(assembler.sub_expression == Expression_BinaryOpNotEqual){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for not equal");
-				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx != %rax");
-				asm_instruction("setne", "%al",       "set %al if not equal");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_Relational:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_Relational must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if      (assembler.sub_expression == Expression_BinaryOpLessThan){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for less than");
-				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx < %rax");
-				asm_instruction("setl",  "%al",       "set %al if less than");
-			}else if(assembler.sub_expression == Expression_BinaryOpLessThanOrEqual){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for less than/equal");
-				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx <= %rax");
-				asm_instruction("setle", "%al",       "set %al if less than/equal");
-			}else if(assembler.sub_expression == Expression_BinaryOpGreaterThan){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for greater than");
-				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx > %rax");
-				asm_instruction("setg",  "%al",       "set %al if greater than");
-			}else if(assembler.sub_expression == Expression_BinaryOpGreaterThanOrEqual){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for greater than/equal");
-				asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx >= %rax");
-				asm_instruction("setge", "%al",       "set %al if greater than/equal");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_BitShift:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_BitShift must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if      (assembler.sub_expression == Expression_BinaryOpBitShiftLeft){
-				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift left");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for bitshift left");
-				asm_instruction("shl", "%cl,%rax",  "bitshift left %rax by %rcx");
-			}else if(assembler.sub_expression == Expression_BinaryOpBitShiftRight){
-				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift right");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for bitshift right");
-				asm_instruction("shr", "%cl,%rax",  "bitshift right %rax by %rcx");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_Additive:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_Additive must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if      (assembler.sub_expression == Expression_BinaryOpPlus){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for addition");
-				asm_instruction("add", "%rcx,%rax", "add, store result in %rax");
-			}else if(assembler.sub_expression == Expression_BinaryOpMinus){
-				asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for subtraction");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for subtraction");
-				asm_instruction("sub", "%rcx,%rax", "subtract, store result in %rax");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_Term:{
-			Assert(expr->node.child_count == 3, "ExpressionGuard_Term must have three child nodes");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			if      (assembler.sub_expression == Expression_BinaryOpMultiply){
-				asm_pop_stack(Register_RCX, "pop stack into %rcx for multiplication");
-				asm_instruction("imul", "%rcx,%rax", "signed multiply, store result in %rax");
-			}else if(assembler.sub_expression == Expression_BinaryOpDivision){
-				asm_instruction("mov",  "%rax,%rcx", "mov %rax into %rcx for division");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for division");
-				asm_instruction("cqto",              "convert quad in %rax to octo in %rdx:%rax (sign extend)");
-				asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
-			}else if(assembler.sub_expression == Expression_BinaryOpModulo){
-				asm_instruction("mov",  "%rax,%rcx", "mov %rax into %rcx for modulo");
-				asm_pop_stack(Register_RAX, "pop stack into %rax for modulo");
-				asm_instruction("cqto",              "convert quad in %rax to octo in %rdx:%rax (sign extend)");
-				asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
-				asm_instruction("mov",  "%rdx,%rax", "move remainder from %rdx into %rax");
-			}else{ NotImplemented; }
-			assembler.sub_expression = 0;
-		}break;
-		
-		case ExpressionGuard_Factor:{
-			Assert(expr->node.child_count >= 1, "ExpressionGuard_Factor must have at least one child node");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
+			//TODO ternary expression
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Binary Operators
+		case Expression_BinaryOpOR:{
+			assemble_binop_children(expr);
+			//TODO logical or
+		}break;
+		
+		case Expression_BinaryOpAND:{
+			assemble_binop_children(expr);
+			//TODO logical and
+		}break;
+		
 		case Expression_BinaryOpBitOR:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpBitOR must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for bitwise or");
-			assembler.sub_expression = Expression_BinaryOpBitOR;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("or",  "%rcx,%rax", "bitwise or %rax with %rcx");
 		}break;
 		
 		case Expression_BinaryOpBitXOR:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpBitXOR must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for bitwise xor");
-			assembler.sub_expression = Expression_BinaryOpBitXOR;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("xor", "%rcx,%rax", "bitwise xor %rax with %rcx");
 		}break;
 		
 		case Expression_BinaryOpBitAND:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpBitAND must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for bitwise and");
-			assembler.sub_expression = Expression_BinaryOpBitAND;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("and", "%rcx,%rax", "bitwise and %rax with %rcx");
 		}break;
 		
 		case Expression_BinaryOpEqual:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpEqual must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for equal");
-			assembler.sub_expression = Expression_BinaryOpEqual;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx == %rax");
+			asm_instruction("sete",  "%al",       "set %al if equal");
 		}break;
 		
 		case Expression_BinaryOpNotEqual:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpNotEqual must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for not equal");
-			assembler.sub_expression = Expression_BinaryOpNotEqual;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx != %rax");
+			asm_instruction("setne", "%al",       "set %al if not equal");
 		}break;
 		
 		case Expression_BinaryOpLessThan:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpLessThan must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for less than");
-			assembler.sub_expression = Expression_BinaryOpLessThan;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx < %rax");
+			asm_instruction("setl",  "%al",       "set %al if less than");
 		}break;
 		
 		case Expression_BinaryOpLessThanOrEqual:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpLessThanOrEqual must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for less than/equal");
-			assembler.sub_expression = Expression_BinaryOpLessThanOrEqual;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx <= %rax");
+			asm_instruction("setle", "%al",       "set %al if less than/equal");
 		}break;
 		
 		case Expression_BinaryOpGreaterThan:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpGreaterThan must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for greater than");
-			assembler.sub_expression = Expression_BinaryOpGreaterThan;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx > %rax");
+			asm_instruction("setg",  "%al",       "set %al if greater than");
 		}break;
 		
 		case Expression_BinaryOpGreaterThanOrEqual:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpGreaterThanOrEqual must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for greater than/equal");
-			assembler.sub_expression = Expression_BinaryOpGreaterThanOrEqual;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx >= %rax");
+			asm_instruction("setge", "%al",       "set %al if greater than/equal");
 		}break;
 		
 		case Expression_BinaryOpBitShiftLeft:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpBitShiftLeft must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for bitshift left");
-			assembler.sub_expression = Expression_BinaryOpBitShiftLeft;
+			assemble_binop_children(expr);
+			
+			asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift left");
+			asm_pop_stack(Register_RAX);
+			asm_instruction("shl", "%cl,%rax",  "bitshift left %rax by %rcx");
 		}break;
 		
 		case Expression_BinaryOpBitShiftRight:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpBitShiftRight must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for bitshift right");
-			assembler.sub_expression = Expression_BinaryOpBitShiftRight;
+			assemble_binop_children(expr);
+			
+			asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift right");
+			asm_pop_stack(Register_RAX);
+			asm_instruction("shr", "%cl,%rax",  "bitshift right %rax by %rcx");
 		}break;
 		
 		case Expression_BinaryOpPlus:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpPlus must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for addition");
-			assembler.sub_expression = Expression_BinaryOpPlus;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("add", "%rcx,%rax", "add, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpMinus:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpMinus must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for subtraction");
-			assembler.sub_expression = Expression_BinaryOpMinus;
-		}break;
-		
-		//NOTE direct version without guards, last child first so the stack order is correct
-		/*
-		case Expression_BinaryOpMinus:{
-			Assert(expr->node.child_count == 2, "Expression_BinaryOpMinus must have two child nodes");
-			assemble_expression(expr->node.last_child);
-			asm_push_stack(Register_RAX);
-			assemble_expression(expr->node.first_child);
-			asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for subtraction");
-			asm_pop_stack(Register_RAX);
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
 			asm_instruction("sub", "%rcx,%rax", "subtract, store result in %rax");
 		}break;
-		*/
 		
 		case Expression_BinaryOpMultiply:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpMultiply must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for multiplication");
-			assembler.sub_expression = Expression_BinaryOpMultiply;
+			assemble_binop_children(expr);
+			
+			asm_pop_stack(Register_RCX);
+			asm_instruction("imul", "%rcx,%rax", "signed multiply, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpDivision:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpDivision must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for division");
-			assembler.sub_expression = Expression_BinaryOpDivision;
+			assemble_binop_children(expr);
+			
+			asm_instruction("mov",  "%rax,%rcx", "mov %rax into %rcx for division");
+			asm_pop_stack(Register_RAX);
+			asm_instruction("cqto",              "convert quad in %rax to octo in %rdx:%rax (sign extend)");
+			asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 		}break;
 		
 		case Expression_BinaryOpModulo:{
-			Assert(expr->node.child_count == 0, "Expression_BinaryOpModulo must have no children nodes");
-			asm_push_stack(Register_RAX, "push register onto stack for modulo");
-			assembler.sub_expression = Expression_BinaryOpModulo;
+			assemble_binop_children(expr);
+			
+			asm_instruction("mov",  "%rax,%rcx", "mov %rax into %rcx for modulo");
+			asm_pop_stack(Register_RAX);
+			asm_instruction("cqto",              "convert quad in %rax to octo in %rdx:%rax (sign extend)");
+			asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+			asm_instruction("mov",  "%rdx,%rax", "move remainder from %rdx into %rax");
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1137,7 +1031,6 @@ local void
 assemble_function(Function* func){
 	if(func->node.child_count == 0) return;
     assembler.function_returned = false;
-	assembler.label_counter = 1;
     
     asm_pure(func->identifier.str); asm_pure(":\n");
     asm_start_scope();
