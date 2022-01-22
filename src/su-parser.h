@@ -16,12 +16,16 @@ enum ExpressionType : u32 {
 	Expression_IdentifierRHS,
 	
 	//Types
-	Expression_IntegerLiteral,
+	Expression_Literal,
 	
 	//Unary Operators
 	Expression_UnaryOpBitComp,
 	Expression_UnaryOpLogiNOT,
 	Expression_UnaryOpNegate,
+	Expression_IncrementPrefix,
+	Expression_IncrementPostfix,
+	Expression_DecrementPrefix,
+	Expression_DecrementPostfix,
 	
 	//Binary Operators
 	Expression_BinaryOpPlus,
@@ -62,6 +66,10 @@ static const char* ExTypeStrings[] = {
 	"~",
 	"!",
 	"-",
+	"++ pre",
+	"++ post",
+	"-- pre",
+	"-- post",
 	
 	"+",
 	"-",
@@ -117,6 +125,8 @@ enum StatementType : u32 {
 	Statement_If,
 	Statement_Else,
 	Statement_Scope,
+	Statement_For,
+	Statement_While,
 };
 
 struct Statement {

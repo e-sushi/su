@@ -17,13 +17,16 @@ void token_next(u32 count = 1) {
 #define curr_atch(tok) (curt.type == tok)
 
 #define ParseFail(error)\
-std::cout << "\nError: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl;  parse_failed = true;
+(std::cout << "\nError: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl,  parse_failed = true)
 
 #define Expect(Token_Type)\
 if(curt.type == Token_Type) 
 
-#define ExpectOneOf(exp_type)\
-if(exp_type.has(curt.type)) 
+#define ExpectGroup(Token_Type)\
+if(curt.group == Token_Type) 
+
+#define ExpectOneOf(...)\
+if(match_any(curt.type, __VA_ARGS__)) 
 
 #define ElseExpect(Token_Type)\
 else if (curt.type == Token_Type) 
@@ -32,7 +35,7 @@ else if (curt.type == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
-else { ParseFail(error); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
+else { ParseFail(error); /*DebugBreakpoint;*/ } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode)\
 else { failcode }
@@ -74,6 +77,11 @@ template<class... T>
 inline b32 check_signature(T... in) {
 	int i = 0;
 	return ((tokens.peek(i++).type == in) && ...);
+}
+
+template<typename... T, typename A> inline b32
+match_any(A tested, T... in) {
+	return((tested == in) || ...);
 }
 
 template<typename... T> inline b32
@@ -132,8 +140,13 @@ enum ParseState {
 	psGlobal,      	// <program>       :: = <function>
 	psFunction,		// <function>      :: = "int" <id> "(" ")" <scope>
 	psScope,        // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
-	psDeclaration,	// <declaration>   :: = "int" <id> [ = <exp> ] ";"
-	psStatement,	// <statement>     :: = "return" <exp> ";" | <exp> ";" | "(" <exp> ");" | <scope> | "if" "(" <exp> ")" <statement> [ "else" <statement> ] 
+	psDeclaration,	// <declaration>   :: = <type> <id> [ = <exp> ] ";"
+	psStatement,	// <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
+	                //                      | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+					//                      | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
+					//                      | "for" "(" <declaration> [<exp>] ";" [<exp>] ")" <statement>
+					//                      | "while" "(" <exp> ")" <statement>
+					//                      | "break" 
 	psExpression,	// <exp>           :: = <id> "=" <exp> | <conditional>
 	psConditional,	// <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
 	psLogicalOR,	// <logical or>    :: = <logical and> { "||" <logical and> } 
@@ -146,8 +159,15 @@ enum ParseState {
 	psBitshift,		// <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
 	psAdditive,		// <additive>      :: = <term> { ("+" | "-") <term> }
 	psTerm,			// <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
-	psFactor,		// <factor>        :: = "(" <exp> ")" | <unary> <factor> | <int> | <id> | "if"
-	psUnary,        // <unary>         :: = "!" | "~" | "-"
+	psFactor,		// <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> | "if"
+                    // <literal>       :: = <integer> | <float> | <string>
+					// <float>         :: = { <integer> } "." <integer> { <integer> }
+					// <string>        :: = """ { <char> } """
+					// <integer>       :: = (1|2|3|4|5|6|7|8|9|0)      //:)
+					// <char>          :: = you know what chars are
+					// <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
+					// <incdec>        :: = "++" | "--"
+                    // <unary>         :: = "!" | "~" | "-"
 }; 
 
 template<typename... T>
@@ -158,6 +178,7 @@ Node* binopParse(Node* node, Node* ret, ParseState next_state, T... tokcheck) {
 	insert_last(node, me);
 	token_next();
 	ret = parser(next_state, me);
+
 	while (next_match(tokcheck...)) {
 		token_next();
 		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
@@ -179,7 +200,8 @@ Node* parser(ParseState state, Node* node) {
 		
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
-				ExpectOneOf(typeTokens) {
+				if (parse_failed) return 0;
+				ExpectGroup(Token_Typename) {
 					token_next();
 					Expect(Token_Identifier){
 						if (next_match(Token_OpenParen)) {
@@ -218,7 +240,7 @@ Node* parser(ParseState state, Node* node) {
 			insert_last(node, &scope->node);
 			while (!next_match(Token_CloseBrace)) {
 				token_next();
-				ExpectOneOf(typeTokens) {
+				ExpectGroup(Token_Typename) {
 					new_declaration("decl " + tokens.peek().str);
 					insert_last(me, &declaration->node);
 					parser(psDeclaration, &declaration->node);
@@ -262,10 +284,8 @@ Node* parser(ParseState state, Node* node) {
 					token_next();
 					Expect(Token_OpenParen) {
 						token_next();
+						Expect(Token_CloseParen) { ParseFail("missing expression for if statement"); break; }
 						parser(psExpression, ifno);
-						if (!statement->node.first_child) {
-							ParseFail("missing expression for if statement");
-						}
 						token_next();
 						Expect(Token_CloseParen) {
 							token_next();
@@ -273,10 +293,7 @@ Node* parser(ParseState state, Node* node) {
 								parser(psStatement, ifno);
 							}
 							else {
-								ExpectOneOf(typeTokens) {
-									ParseFail("can't declare a variable in an unscoped if statement");
-									return 0;
-								}
+								ExpectGroup(Token_Typename) { ParseFail("can't declare a variable in an unscoped if statement"); return 0; }
 								parser(psStatement, ifno);
 								Expect(Token_Semicolon) { }
 								ExpectFail("expected a ;");
@@ -295,28 +312,74 @@ Node* parser(ParseState state, Node* node) {
 					token_next();
 					parser(psStatement, &statement->node);
 				}break;
-				
-				case Token_Literal:
-				case Token_Identifier: {
-					new_statement(Statement_Expression, "exp statement");
-					insert_last(node, &statement->node);
-					parser(psExpression, &statement->node);
+
+				case Token_For: {
+					Node* me = new_statement(Statement_For, "for statement");
+					insert_last(node, me);
 					token_next();
-					Expect(Token_Semicolon) {} 
-					ExpectFail("Expected a ;");
+					Expect(Token_OpenParen) {
+						token_next();
+						Expect(Token_CloseParen) { ParseFail("missing expression for for statement"); return 0; }
+						ExpectGroup(Token_Typename) {
+							//we are declaring a var for this for loop
+							new_declaration("decl " + tokens.peek().str);
+							insert_last(me, &declaration->node);
+							parser(psDeclaration, &declaration->node);
+						}
+						else {
+							parser(psExpression, me);
+							token_next();
+						}
+						Expect(Token_Semicolon) {
+							token_next(); 
+							parser(psExpression, me);
+							token_next();
+							Expect(Token_Semicolon) {
+								token_next();
+								parser(psExpression, me);
+								token_next();
+							}ExpectFail("missing second ; in for statement");
+						}ExpectFail("missing first ; in for statement");
+						
+						
+						Expect(Token_CloseParen) {
+							token_next();
+							Expect(Token_OpenBrace) {
+								parser(psStatement, me);
+							}
+							else {
+								ExpectGroup(Token_Typename) { ParseFail("can't declare a variable in an unscoped for statement"); return 0; }
+								parser(psStatement, me);
+								Expect(Token_Semicolon) { }
+								ExpectFail("expected a ;");
+							}
+						}ExpectFail("expected ) for for loop");
+					}ExpectFail("expected ( after for");
 				}break;
 
-				case Token_OpenParen: {
-					new_statement(Statement_Expression, "(exp statement)");
-					insert_last(node, &statement->node);
+				case Token_While: {
+					Node* me = new_statement(Statement_While, "while statement");
+					insert_last(node, me);
 					token_next();
-					parser(psExpression, &statement->node);
-					token_next();
-					Expect(Token_CloseParen) {
+					Expect(Token_OpenParen) {
 						token_next();
-						Expect(Token_Semicolon) {}
-						ExpectFail("Expected a ;");
-					}ExpectFail("expected )");
+						Expect(Token_CloseParen) { ParseFail("missing expression for while statement"); return 0; }
+						ExpectGroup(Token_Typename) { ParseFail("declaration not allowed for while condition"); return 0; }
+						parser(psExpression, me);
+						token_next();
+						Expect(Token_CloseParen) {
+							token_next();
+							Expect(Token_OpenBrace) {
+								parser(psStatement, me);
+							}
+							else {
+								ExpectGroup(Token_Typename) { ParseFail("can't declare a variable in an unscoped for statement"); return 0; }
+								parser(psStatement, me);
+								Expect(Token_Semicolon) { }
+								ExpectFail("expected a ;");
+							}
+						}ExpectFail("expected ) for while");
+					}ExpectFail("expected ( after while");
 				}break;
 				
 				case Token_Return: {
@@ -332,6 +395,19 @@ Node* parser(ParseState state, Node* node) {
 				
 				case Token_OpenBrace: {
 					parser(psScope, node);
+				}break;
+
+				case Token_Semicolon: {
+					//eat multiple semicolons
+				}break;
+
+				default: {
+					new_statement(Statement_Expression, "exp statement");
+					insert_last(node, &statement->node);
+					parser(psExpression, &statement->node);
+					token_next();
+					Expect(Token_Semicolon) {}
+					ExpectFail("Expected a ;");
 				}break;
 			}
 		}break;
@@ -363,7 +439,6 @@ Node* parser(ParseState state, Node* node) {
 				default: {
 					new_expression(curt.str, ExpressionGuard_HEAD);
 					Node* ret = parser(psConditional, node);
-					//NodeInsertChild(node, ret, ret->type, ret->debug_str);
 					return ret;
 				}break;
 				
@@ -469,10 +544,19 @@ Node* parser(ParseState state, Node* node) {
 		
 		case psFactor: {/////////////////////////////////////////////////////////////////////// @Factor
 			switch (curt.type) {
-				case Token_Literal: {
-					new_expression(curt.str, Expression_IntegerLiteral, toStr(ExTypeStrings[Expression_IntegerLiteral], " ", curt.str));
+				
+				
+				case Token_LiteralFloat:
+				case Token_LiteralInteger: {
+					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
 					insert_last(node, &expression->node);
-					return &expression->node;
+					return var;
+				}break;
+
+				case Token_LiteralString: {
+					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " \"", curt.str, "\""));
+					insert_last(node, &expression->node);
+					return var;
 				}break;
 				
 				case Token_OpenParen: {
@@ -485,23 +569,55 @@ Node* parser(ParseState state, Node* node) {
 				}break;
 				
 				case Token_Identifier: {
-					new_expression(curt.str, Expression_IdentifierRHS, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
-					insert_last(node, &expression->node);
-					return &expression->node;
+					Node* var = new_expression(curt.str, Expression_IdentifierRHS, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
+					insert_last(node, var);
+					if (next_match(Token_Increment, Token_Decrememnt)) {
+						token_next();
+						new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix), (curt.type == Token_Increment ? "++ post" : "-- post"));
+						insert_last(node, &expression->node);
+						change_parent(&expression->node, var);
+						var = &expression->node;
+					}
+					return var;
 				}break;
 
 				case Token_If: {
 					return parser(psConditional, &expression->node);
 				}break;
 
+				case Token_Increment: {
+					new_expression(curt.str, Expression_IncrementPrefix, "++ pre");
+					insert_last(node, &expression->node);
+					token_next();
+					Node* ret = &expression->node;
+					Expect(Token_Identifier) {
+						parser(psFactor, &expression->node);
+					}ExpectFail("'++' needs l-value");
+					return ret;
+				}break;
+
+				case Token_Decrememnt: {
+					new_expression(curt.str, Expression_DecrementPrefix, "-- pre");
+					insert_last(node, &expression->node);
+					token_next();
+					Node* ret = &expression->node;
+					Expect(Token_Identifier) {
+						parser(psFactor, &expression->node);
+					}ExpectFail("'--' needs l-value");
+					return ret;
+				}break;
+				
+				case Token_Semicolon: {
+					return node;
+				}break;
+
 				default: {
-					ExpectOneOf(tokToExp) {
+					ExpectOneOf(Token_Negation, Token_LogicalNOT, Token_BitNOT) {
 						new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 						insert_last(node, &expression->node);
 						token_next();
 						Node* ret = &expression->node;
 						parser(psFactor, &expression->node);
-						//NodeInsertChild(node, ret, ret->type, ret->debug_str);
 						return ret;
 					}
 					ExpectFail("unexpected token found in factor");
