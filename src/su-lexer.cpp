@@ -6,7 +6,6 @@ enum LexerState_ {
 
 LexerState state = DiscernChar;
 
-
 b32 suLexer::lex(const string& file, array<token>& tokens) {
 	cstring buff{file.str, file.count};
 	u32 lines = 1;

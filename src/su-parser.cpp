@@ -645,16 +645,35 @@ Node* parser(ParseStage state, Node* node) {
 					return node;
 				}break;
 
+				case Token_Negation: {
+					new_expression(curt.str, Expression_UnaryOpNegate, "-");
+					insert_last(node, &expression->node);
+					token_next();
+					Node* ret = &expression->node;
+					parser(psFactor, &expression->node);
+					return ret;
+				}break;
+
+				case Token_LogicalNOT: {
+					new_expression(curt.str, Expression_UnaryOpLogiNOT, "!");
+					insert_last(node, &expression->node);
+					token_next();
+					Node* ret = &expression->node;
+					parser(psFactor, &expression->node);
+					return ret;
+				}break;
+
+				case Token_BitNOT: {
+					new_expression(curt.str, Expression_UnaryOpBitComp, "~");
+					insert_last(node, &expression->node);
+					token_next();
+					Node* ret = &expression->node;
+					parser(psFactor, &expression->node);
+					return ret;
+				}break;
+
 				default: {
-					ExpectOneOf(Token_Negation, Token_LogicalNOT, Token_BitNOT) {
-						new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
-						insert_last(node, &expression->node);
-						token_next();
-						Node* ret = &expression->node;
-						parser(psFactor, &expression->node);
-						return ret;
-					}
-					ExpectFail("unexpected token found in factor");
+					ParseFail("unexpected token found in factor");
 				}break;
 			}
 		}break;
