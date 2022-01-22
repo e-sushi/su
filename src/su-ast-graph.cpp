@@ -18,7 +18,7 @@ void make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 	for_node(node->first_child){
 		if (node->first_child->next) {
 			align_to = node;
-			make_dot_file(n, me, node);
+			make_dot_file(it, me, node);
 		}
 		else {
 			make_dot_file(node->first_child, me, align_to);
@@ -56,7 +56,7 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 	Agnode_t* prog = agnode(gvgraph, "program", 1);
 	
 	for_node(program.node.first_child){
-		make_dot_file(n, prog, n);
+		make_dot_file(it, prog, it);
 	}
 	
 	gvLayout(gvc, gvgraph, "dot");
