@@ -5,7 +5,7 @@ GVC_t* gvc = 0;
 u32 colidx = 1;
 u32 groupid = 0;
 
-Agnode_t* make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
+void make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 	static u32 i = 0;
 	i++;
 	u32 save = i;
@@ -16,48 +16,22 @@ Agnode_t* make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
 	agset(me, "label", send.str);
 	agset(me, "color", to_string(colsave).str);
-	
-	Agnode_t* ret = me;
-	
-	if (node->first_child) {
-		if (node->first_child->next == node->first_child && (node->next != node || node->prev != node)) {
+
+	for (Node* n = node->first_child; n; n = n->next) {
+		if (node->first_child->next) {
 			align_to = node;
-			make_dot_file(node->first_child, me, node);
+			make_dot_file(n, me, node);
 		}
 		else {
 			make_dot_file(node->first_child, me, align_to);
 		}
-		
-		//ret = p.first;
-		//if (node->first_child != node->last_child) {
-		//	ret = me;
-		//	groupid++;
-		//}
-	}
-	if (node->parent && node->next != node->parent->first_child) {
 		colidx = (colidx + 1) % 11 + 1;
-		make_dot_file(node->next, parent, align_to);
 	}
 	agset(me, "group", to_string(align_to).str);
+
+	Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
+	agset(edge, "color", to_string(colsave).str);
 	
-	if (parent) {
-		Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
-		agset(edge, "color", to_string(colsave).str);
-		//if (node->next != node) { 
-		//	agset(edge, "constraint", "false"); 
-		//}
-	}
-	
-	//TODO figure out how to make columns stay in line
-	if (ret != me && node->next != node) {
-		//Agedge_t* edge = agedge(gvgraph, me, ret, "", 1);
-		//agset(edge, "weight", "10");
-		//agset(edge, "style", "invis");
-		//agset(edge, "constraint", "false");
-		
-	}
-	
-	return ret;
 }
 
 void generate_ast_graph_svg(const char* filepath, Program& program){
@@ -81,7 +55,12 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 	agattr(gvgraph, AGRAPH, "concentrate", "true");
 	agattr(gvgraph, AGRAPH, "splines",     "true");
 	
-	make_dot_file(&program.node, 0, 0);
+	Agnode_t* prog = agnode(gvgraph, "program", 1);
+
+	for (Node* n = program.node.first_child; n; n = n->next) {
+		make_dot_file(n, prog, n);
+	}
+	
 	gvLayout(gvc, gvgraph, "dot");
 	gvRenderFilename(gvc, gvgraph, "svg", filepath);
 }
