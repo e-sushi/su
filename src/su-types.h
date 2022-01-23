@@ -59,8 +59,8 @@ enum Registers{
 	
 	//x64 names
 	Register_RAX = Register0_64,  Register_EAX  = Register0_32,  Register_AX   = Register0_16,  Register_AL   = Register0_8,
-	Register_RCX = Register1_64,  Register_ECX  = Register1_32,  Register_CX   = Register1_16,  Register_CL   = Register1_8,
-	Register_RDX = Register2_64,  Register_EDX  = Register2_32,  Register_DX   = Register2_16,  Register_DL   = Register2_8,
+	Register_RDX = Register1_64,  Register_EDX  = Register1_32,  Register_DX   = Register1_16,  Register_DL   = Register1_8,
+	Register_RCX = Register2_64,  Register_ECX  = Register2_32,  Register_CX   = Register2_16,  Register_CL   = Register2_8,
 	Register_RBX = Register3_64,  Register_EBX  = Register3_32,  Register_BX   = Register3_16,  Register_BL   = Register3_8,
 	Register_RSI = Register4_64,  Register_ESI  = Register4_32,  Register_SI   = Register4_16,  Register_SIL  = Register4_8,
 	Register_RDI = Register5_64,  Register_EDI  = Register5_32,  Register_DI   = Register5_16,  Register_DIL  = Register5_8,
@@ -90,8 +90,8 @@ enum Registers{
 global_ const char* registers_x64[] = {
 	"%null",
 	"%rax", "%eax",  "%ax",   "%al",
-	"%rcx", "%ecx",  "%cx",   "%cl",
 	"%rdx", "%edx",  "%dx",   "%dl",
+	"%rcx", "%ecx",  "%cx",   "%cl",
 	"%rbx", "%ebx",  "%bx",   "%bl",
 	"%rsi", "%esi",  "%si",   "%sil",
 	"%rdi", "%edi",  "%di",   "%dil",
