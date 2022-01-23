@@ -14,6 +14,8 @@
 enum ExpressionType : u32 {
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
+
+	Expression_Function_Call,
 	
 	//Types
 	Expression_Literal,
@@ -60,6 +62,8 @@ enum ExpressionType : u32 {
 static const char* ExTypeStrings[] = {
 	"idLHS",
 	"idRHS",
+
+	"fcall",
 	
 	"literal",
 	
@@ -155,6 +159,7 @@ struct Scope {
 struct Function {
 	string identifier = "";
 	DataType type;
+	array<DataType> args;
 	Node node;
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))

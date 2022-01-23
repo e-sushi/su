@@ -31,6 +31,9 @@ if(match_any(curt.type, __VA_ARGS__))
 #define ElseExpect(Token_Type)\
 else if (curt.type == Token_Type) 
 
+#define ElseExpectGroup(Token_Type)\
+else if(curt.group == Token_Type) 
+
 #define ExpectSignature(...) if(check_signature(__VA_ARGS__))
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
@@ -63,6 +66,9 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_LogicalNOT,         Expression_UnaryOpLogiNOT},
 	{Token_Negation,           Expression_UnaryOpNegate},
 };
+
+local map<const char*, Function*> knownFuncs;
+local map<const char*, Variable> knownVars;
 
 DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
@@ -215,7 +221,6 @@ Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 	return me;
 }
 
-#define EarlyOut goto emergency_exit
 Node* parser(ParseStage state, Node* node) {
 	if (parse_failed) return 0;
 	
@@ -246,7 +251,7 @@ Node* parser(ParseStage state, Node* node) {
 			DataType type = dataTypeFromToken(curt.type);
 			token_next();
 			Expect(Token_Identifier) {
-				Node* me = new_function(curt.str, toStr("function ", dataTypeStrs[type], " ", curt.str));
+				Node* me = new_function(curt.str, toStr("func ", dataTypeStrs[type], " ", curt.str));
 				insert_last(node, me);
 				function->type = type;
 				token_next();
@@ -255,16 +260,18 @@ Node* parser(ParseStage state, Node* node) {
 					ExpectGroup(Token_Typename) {
 						parser(psDeclaration, me);
 						ExpectGroup(Token_Typename) { ParseFail("no , separating function parameters"); }
-
+						function->args.add(declaration->type);
 						while (next_match(Token_Comma)) {
 							token_next(); token_next();
 							parser(psDeclaration, me);
+							function->args.add(declaration->type);
 							ExpectGroup(Token_Typename) { ParseFail("no , separating function parameters"); }
 						}
 						token_next();
 					}
 					Expect(Token_Identifier) { ParseFail("untyped identifier in function declaration's arguments"); }
 					Expect(Token_CloseParen) {
+						knownFuncs.add(function->identifier.str, function);
 						token_next();
 						Expect(Token_OpenBrace) {
 							parser(psScope, me);
@@ -292,7 +299,7 @@ Node* parser(ParseStage state, Node* node) {
 				else {
 					parser(psStatement, me);
 				}
-				if (next_match(Token_EOF)) { ParseFail("Unexpected EOF"); EarlyOut; }
+				if (next_match(Token_EOF)) { ParseFail("Unexpected EOF"); return 0; }
 			}
 			token_next();
 		}break;
@@ -485,6 +492,37 @@ Node* parser(ParseStage state, Node* node) {
 						Node* ret = parser(psExpression, &expression->node);
 						insert_last(node, ret);
 						return ret;
+					}
+					else if (next_match(Token_OpenParen)) {
+						if (!knownFuncs.has(curt.str.str)) { ParseFail(toStr("unknown function ", curt.str, " referenced")); return 0; }
+						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
+						insert_last(node, me);
+						Function* callee = *knownFuncs.at(curt.str.str);
+						token_next(); token_next();
+						if (callee->args.count > 0) {
+							//Expect(Token_Identifier) {
+							// This will be for doing func(arg = blah,...)
+							//}
+
+							forI(callee->args.count) {
+								parser(psExpression, me);
+								token_next();
+								if (i != callee->args.count - 1) {
+									Expect(Token_CloseParen) { ParseFail(toStr("Not enough arguments provided for func ", callee->identifier)); return 0; }
+									Expect(Token_Comma) { token_next(); }
+									ExpectFail("no , between function arguments");
+								}
+							}
+							Expect(Token_CloseParen) { }
+							ExpectFail(toStr("expected ) after function call to ", callee->identifier));
+
+							//TODO list what required arguments are missing 
+							//ExpectFail(toStr("expected an identifier or literal as function arg to ", callee->identifier));
+						}
+						else {
+							Expect(Token_CloseParen) {}
+							ExpectFail(toStr("expected ) on function call to ", callee->identifier));
+						}
 					}
 					else {
 						new_expression(curt.str, ExpressionGuard_HEAD);
@@ -700,9 +738,6 @@ Node* parser(ParseStage state, Node* node) {
 			}
 		}break;
 	}
-	
-	
-	emergency_exit: //TODO maybe not necessary
 	return 0;
 }
 

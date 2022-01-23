@@ -146,6 +146,11 @@ const char* dataTypeStrs[] = {
 	"struct", 
 }; 
 
+struct Variable {
+	string identifier;
+	DataType type;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
 enum NodeType : u32 {
