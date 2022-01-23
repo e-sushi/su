@@ -135,7 +135,12 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 						else {
 							b32 valid = 1;
 							b32 isfloat = 0;
-							forI(buff.str - chunk_start) { if (!isnumber(chunk_start[i])) valid = 0; if (chunk_start[i] == '.') isfloat = 1; }
+							forI(buff.str - chunk_start) { 
+								if (chunk_start[i] == '.')
+									isfloat = 1;
+								else if (!isnumber(chunk_start[i])) 
+									valid = 0; 
+								 }
 							if (valid) tokens.add(token{ chunkstr, (isfloat ? Token_LiteralFloat : Token_LiteralInteger), Token_Literal, lines });
 							else {
 								//tokens.add(token{ chunkstr, Token_ERROR, lines });
@@ -158,7 +163,7 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 							tokens.add(token{ ".", Token_Dot, Token_ControlCharacter, lines });
 							advance(&buff);
 						}
-						else {}//float case handled above
+						else { advance(&buff); }//float case handled above
 					}break;
 
 					default: { advance(&buff); }break;
@@ -179,8 +184,6 @@ b32 suLexer::lex(const string& file, array<token>& tokens) {
 					}break;
 					default: { advance(&buff); }break;
 				}
-
-
 			}break;
 
 			case ReadingStructName: {

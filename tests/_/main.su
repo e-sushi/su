@@ -1,8 +1,8 @@
-void add(u32 a, s32 b){
+void add(s32 a, s32 b){
     return 0;
 }
 
 s32 main() {
-    add(2 3);
+    add(1,2);
     return !-3;
 }

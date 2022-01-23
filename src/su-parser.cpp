@@ -68,7 +68,7 @@ local map<Token_Type, ExpressionType> tokToExp{
 };
 
 local map<const char*, Function*> knownFuncs;
-local map<const char*, Variable> knownVars;
+local map<const char*, Variable>  knownVars;
 
 DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
@@ -150,6 +150,55 @@ inline Node* new_expression(string& str, ExpressionType type, const string& node
 	return &expression->node;
 }
 
+b32 type_check(DataType type, Node* n) {
+	Expression* e = ExpressionFromNode(n);
+	
+	switch (e->datatype) {
+		case DataType_Signed32: {
+			switch (type) {
+				case DataType_Signed32: {
+					return true;
+				}break;
+				case DataType_Signed64: {
+					e->datatype = DataType_Signed64;
+					return true;
+				}break;
+				case DataType_Unsigned32: {
+					e->datatype = DataType_Unsigned32;
+					e->expstr = to_string(u32(stoi(e->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
+					return true;
+				}break;
+			}
+		}break;
+	}
+	return false;
+}
+
+b32 type_check(Node* n1, Node* n2) {
+	Expression* e1 = ExpressionFromNode(n1);
+	Expression* e2 = ExpressionFromNode(n2);
+	
+	switch (e1->datatype) {
+		case DataType_Signed32: {
+			switch (e2->datatype) {
+				case DataType_Signed32: {
+					return true;
+				}break;
+				case DataType_Signed64: {
+					e1->datatype = DataType_Signed64;
+					return true;
+				}break;
+				case DataType_Unsigned32: {
+					e1->datatype = DataType_Unsigned32;
+					e1->expstr = to_string(u32(stoi(e1->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
+					return true;
+				}break;
+			}
+		}break;
+	}
+	return false;
+}
+
 enum ParseState_ {
 	stNone        = 0,
 	stInFunction  = 1 << 0,
@@ -176,7 +225,6 @@ enum ParseStage {
 	//                                   | "break" [<integer>] ";" 
 	//                                   | "continue" ";"
 	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional> | <funccall>
-	// <funccall>      :: = <id> "(" [ <exp> {"," <exp>} ] ")"
 	psConditional, // <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
 	psLogicalOR,   // <logical or>    :: = <logical and> { "||" <logical and> } 
 	psLogicalAND,  // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
@@ -188,7 +236,8 @@ enum ParseStage {
 	psBitshift,    // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
 	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
 	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
-	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> | "if"
+	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | "if"
+	// <funccall>      :: = < id> "("[<exp> {"," < exp > }] ")"
 	// <literal>       :: = <integer> | <float> | <string>
 	// <float>         :: = { <integer> } "." <integer> { <integer> }
 	// <string>        :: = """ { <char> } """
@@ -201,6 +250,8 @@ enum ParseStage {
 
 template<typename... T>
 Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
+	Expression* e = ExpressionFromNode(ret);
+	PRINTLN(e->datatype);
 	token_next();
 	Node* me = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 	change_parent(me, ret);
@@ -213,6 +264,8 @@ Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 		token_next();
 		ret = parser(next_stage, node);
+		e = ExpressionFromNode(ret);
+		PRINTLN(e->datatype);
 		change_parent(me2, me);
 		change_parent(me2, ret);
 		insert_last(node, me2);
@@ -229,7 +282,6 @@ Node* parser(ParseStage state, Node* node) {
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
 				if (parse_failed) return 0;
-				
 				
 				ExpectGroup(Token_Typename) {
 					ExpectSignature(1, Token_Identifier, Token_OpenParen) {
@@ -639,16 +691,23 @@ Node* parser(ParseStage state, Node* node) {
 		case psFactor: {/////////////////////////////////////////////////////////////////////// @Factor
 			switch (curt.type) {
 				
-				
-				case Token_LiteralFloat:
+				//TODO implicitly change types here when applicable, or do that where they're returned
+				case Token_LiteralFloat: {
+					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
+					expression->datatype = DataType_Float32;
+					insert_last(node, &expression->node);
+					return var;
+				}break;
 				case Token_LiteralInteger: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
+					expression->datatype = DataType_Signed32;
 					insert_last(node, &expression->node);
 					return var;
 				}break;
 				
 				case Token_LiteralString: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " \"", curt.str, "\""));
+					expression->datatype = DataType_String;
 					insert_last(node, &expression->node);
 					return var;
 				}break;
@@ -663,16 +722,55 @@ Node* parser(ParseStage state, Node* node) {
 				}break;
 				
 				case Token_Identifier: {
-					Node* var = new_expression(curt.str, Expression_IdentifierRHS, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
-					insert_last(node, var);
-					if (next_match(Token_Increment, Token_Decrememnt)) {
-						token_next();
-						new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix), (curt.type == Token_Increment ? "++ post" : "-- post"));
-						insert_last(node, &expression->node);
-						change_parent(&expression->node, var);
-						var = &expression->node;
+					if (next_match(Token_OpenParen)) {
+						if (!knownFuncs.has(curt.str.str)) { ParseFail(toStr("unknown function ", curt.str, " referenced")); return 0; }
+						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
+						insert_last(node, me);
+						Function* callee = *knownFuncs.at(curt.str.str);
+						token_next(); token_next();
+						if (callee->args.count > 0) {
+							//Expect(Token_Identifier) {
+							// This will be for doing func(arg = blah,...)
+							//}
+							
+							forI(callee->args.count) {
+								Node* ret = parser(psExpression, me);
+								//type_check(callee->args[i], ret);
+								if (ExpressionFromNode(ret)->datatype != callee->args[i]) {
+									ParseFail("incorrect type provided for function argument"); return 0;
+								}
+								token_next();
+								if (i != callee->args.count - 1) {
+									Expect(Token_CloseParen) { ParseFail(toStr("Not enough arguments provided for func ", callee->identifier)); return 0; }
+									Expect(Token_Comma) { token_next(); }
+									ExpectFail("no , between function arguments");
+								}
+							}
+							Expect(Token_CloseParen) { }
+							ExpectFail(toStr("expected ) after function call to ", callee->identifier));
+							
+							//TODO list what required arguments are missing 
+							//ExpectFail(toStr("expected an identifier or literal as function arg to ", callee->identifier));
+						}
+						else {
+							Expect(Token_CloseParen) {}
+							ExpectFail(toStr("expected ) on function call to ", callee->identifier));
+						}
+						return me;
 					}
-					return var;
+					else {
+						Node* var = new_expression(curt.str, Expression_IdentifierRHS, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
+						insert_last(node, var);
+						if (next_match(Token_Increment, Token_Decrememnt)) {
+							token_next();
+							new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix), (curt.type == Token_Increment ? "++ post" : "-- post"));
+							insert_last(node, &expression->node);
+							change_parent(&expression->node, var);
+							var = &expression->node;
+						}
+						return var;
+					}
+					
 				}break;
 				
 				case Token_If: {
