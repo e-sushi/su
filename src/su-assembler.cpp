@@ -734,14 +734,14 @@ asm_instruction(const char* instruction, const char* comment){  //'pad instructi
     char* str = 0;
 	upt count = 0;
     if(comment && assembler.write_comments){
-		str   = assembler.output.str + assembler.output.count;
 		count = assembler.padding_width + len_instruction + 2 + strlen(comment) + 1;
 		assembler.output.reserve(assembler.output.count + count);
+		str   = assembler.output.str + assembler.output.count;
         sprintf(str, "%-*s%-*s# %s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction, comment);
     }else{
-		str   = assembler.output.str + assembler.output.count;
 		count = assembler.padding_width + len_instruction + 1;
 		assembler.output.reserve(assembler.output.count + count);
+		str   = assembler.output.str + assembler.output.count;
         sprintf(str, "%-*s%-*s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction);
     }
 	assembler.output.count += count;
@@ -754,14 +754,14 @@ asm_instruction(const char* instruction, const char* args, const char* comment){
     char* str = 0;
 	upt count = 0;
     if(comment && assembler.write_comments){
-		str   = assembler.output.str + assembler.output.count;
 		count = assembler.padding_width + len_instruction + len_args + 2 + strlen(comment) + 2;
 		assembler.output.reserve(assembler.output.count + count);
+		str   = assembler.output.str + assembler.output.count;
         sprintf(str, "%-*s%-*s %-*s# %s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction, (int)len_args, args, comment);
     }else{
-		str   = assembler.output.str + assembler.output.count;
 		count = assembler.padding_width + len_instruction + len_args + 2;
 		assembler.output.reserve(assembler.output.count + count);
+		str   = assembler.output.str + assembler.output.count;
         sprintf(str, "%-*s%-*s %-*s\n", (int)assembler.padding_width, "", (int)len_instruction, instruction, (int)len_args, args);
     }
     assembler.output.count += count;
