@@ -166,6 +166,7 @@ struct token {
 	cstring str; //also used for string literals, but just points to where in the source this token is
 	Token_Type type;
 	Token_Type group;
+	u64 scope = 0;
 	u64 line = 0;
 
 	//the actual value of a literal token
@@ -176,7 +177,6 @@ struct token {
 		s32 integer;
 	};
 
-	u64 already_parsed_offset = 0;
 };
 
 enum TokenGroupType_{
