@@ -1,6 +1,11 @@
 #define logf(tag,fmt,...) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"] "), fmt)), "\n"), __VA_ARGS__)
 #define logfW(tag,fmt,...) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"-warning] "), fmt)), "\n"), __VA_ARGS__)
 #define logfE(tag,fmt,...) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"-error] "), fmt)), "\n"), __VA_ARGS__)
+#define log(tag,fmt,...)  if(globals.verbose_print){ PRINTLN(toStr("[", tag, "]", __VA_ARGS__)); }
+#define logW(tag,level,fmt,...)  if(!globals.supress_warnings && level <= globals.warning_level){ PRINTLN(toStr("[", tag, "-warning-l",level, "] ",__VA_ARGS__));}
+#define logE(tag,fmt,...) if(!globals.supress_errors){PRINTLN(toStr("[", tag, "-error] ", __VA_ARGS__));}
+
+
 
 string load_file(const char* filepath){
 	string result;
