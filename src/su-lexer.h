@@ -195,7 +195,7 @@ struct TokenGroup{
 struct Lexer {
 	//TODO set up an indexing array that determines separate files
 	array<token> tokens;  
-	array<u32> other;
+	array<u32> var_decl;
 	array<u32> func_decl;
 	array<u32> struct_decl; //so that we may parse all struct definitions first
 } lexer;

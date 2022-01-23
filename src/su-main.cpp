@@ -173,41 +173,41 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Lexing
-		if(globals.verbose_print) PRINTLN("lexing started");
+		log("verbose", "lexing started");
 		TIMER_START(timer);
 		if(!suLexer::lex(source)){
 			PRINTLN("ERROR: lexer failed");
 			return ReturnCode_Lexer_Failed;
 		}
-		if(globals.verbose_print) PRINTLN("lexing finished");
-		PRINTLN("lexing took " << TIMER_END(timer) << " ms");
+		log("verbose", "lexing took ", TIMER_END(timer)," ms");
+		log("verbose", "lexing finished");
 
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
-		if(globals.verbose_print) PRINTLN("parsing started");
+		log("verbose", "parsing started");
 		TIMER_RESET(timer);
 		if(suParser::parse(program)){
 			PRINTLN("ERROR: parser failed");
 			return ReturnCode_Parser_Failed;
 		}
-		PRINTLN("parsing took " << TIMER_END(timer) << " ms");
-		if(globals.verbose_print) PRINTLN("parsing finished");
+		log("verbose", "parsing took ", TIMER_END(timer), " ms");
+		log("verbose", "parsing finished");
 
 		string output_graph_path = output_dir + filepath.filename + ".svg";
 		generate_ast_graph_svg(output_graph_path.str, program);
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Assembling
-		if(globals.verbose_print) PRINTLN("assembling started");
+		log("verbose", "assembling started");
 		string assembly;
 		TIMER_RESET(timer);
 		if(!suAssembler::assemble(program, assembly)){
 			PRINTLN("ERROR: assembler failed");
 			return ReturnCode_Assembler_Failed;
 		}
-		PRINTLN("assembling took " << TIMER_END(timer) << " ms");
-		if(globals.verbose_print) PRINTLN("assembling finished");
+		log("verbose", "assembling took ", TIMER_END(timer), " ms");
+		log("verbose", "assembling finished");
 		
 		string output_asm_path = output_dir + filepath.filename + ".s";
 		b32 success = write_file(output_asm_path.str, assembly);

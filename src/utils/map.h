@@ -75,6 +75,11 @@ struct map {
 		count++;
 		return count-1;
 	}
+
+	void remove(const Key& key) {
+		u32 hashed = HashStruct{}(key);
+		forI(hashes.count) { if (hashed == hashes[i]) { data.remove(i); hashes.remove(i); return; } }
+	}
 	
 	void swap(u32 idx1, u32 idx2) {
 		hashes.swap(idx1, idx2);

@@ -1,6 +1,25 @@
 
 
+s32 func1(any a = 2, u32 b){
+    return 1;
+}
+
+s32 func2(){
+    return 0;
+}
+
 s32 main() {
-    u32 a = b = 2 * 3 + 2;
+    a = b = 2 * 3 + 2;
     return !-3;
 }
+
+struct A{
+    s32 a = 0;
+
+    s32 func(){
+       1+2;
+       3+4;
+       return 1+(1 +(1 +(1 +(1 +(1 +(1 +(1 +(1 +(1 +1)))))))));
+    }
+
+};

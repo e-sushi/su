@@ -211,6 +211,7 @@ b32 suLexer::lex(const string& file) {
 	
 	//iterate over all found identifiers and figure out if they match any known struct names
 	//so parser knows when a struct name is being used as a type
+	//TODO find a way to have this only add global declarations of structs/functions/vars
 	forI(idindexes.count) {
 		token& t = lexer.tokens[idindexes[i]];
 		b32 isstruct = 0;
@@ -222,7 +223,7 @@ b32 suLexer::lex(const string& file) {
 				break;
 			}
 		}
-		if (!isstruct && lexer.tokens[idindexes[i]+1].type == Token_OpenParen && match_any(lexer.tokens[idindexes[i]-1].group, Token_Typename)) {
+		if (!isstruct && match_any(lexer.tokens[idindexes[i]-1].group, Token_Typename)) {
 			lexer.func_decl.add(idindexes[i] - 1);
 		}
 	}

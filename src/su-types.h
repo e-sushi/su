@@ -44,6 +44,7 @@ enum NodeType : u32 {
 	NodeType_Declaration,
 	NodeType_Statement,
 	NodeType_Expression,
+	NodeType_Variable,
 };
 
 //abstract node tree struct
@@ -282,7 +283,10 @@ const char* dataTypeStrs[] = {
 struct Variable {
 	cstring identifier;
 	DataType type;
+	Node node;
+	u64 token_idx = 0;
 };
+#define VariableFromNode(node_ptr) ((Variable*)((u8*)(node_ptr) - OffsetOfMember(Variable,node)))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
@@ -422,6 +426,7 @@ struct Declaration {
 	cstring identifier;
 	b32 initialized = false;
 	Node node;
+	u32 token_idx = 0;
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
@@ -434,18 +439,22 @@ struct Scope {
 struct Function {
 	cstring identifier;
 	DataType type;
-	array<Variable> args;
+	//TODO change these to sets of nodes 
+	map<cstring, Variable*> args;
 	Node node;
+	u64 token_idx = 0;
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
-struct Structure {
+struct Struct {
+
 	cstring identifier;
-	array<Variable> member_vars;
-	array<Function> member_funcs;
+	map<cstring, Variable*> member_vars;
+	map<cstring, Function*> member_funcs;
 	Node node;
+	u64 token_idx = 0;
 };
-#define StructureFromNode(node_ptr) ((Structure*)((u8*)(node_ptr) - OffsetOfMember(Structure,node)))
+#define StructFromNode(node_ptr) ((Struct*)((u8*)(node_ptr) - OffsetOfMember(Struct,node)))
 
 
 struct Program {
