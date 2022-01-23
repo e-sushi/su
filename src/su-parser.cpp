@@ -68,7 +68,7 @@ local map<Token_Type, ExpressionType> tokToExp{
 };
 
 local map<const char*, Function*> knownFuncs;
-local map<const char*, Variable> knownVars;
+local map<const char*, Variable>  knownVars;
 
 DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
@@ -229,8 +229,6 @@ Node* parser(ParseStage state, Node* node) {
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
 				if (parse_failed) return 0;
-
-
 				ExpectGroup(Token_Typename) {
 					ExpectSignature(1, Token_Identifier, Token_OpenParen) {
 						parser(psFunction, node);
@@ -505,7 +503,10 @@ Node* parser(ParseStage state, Node* node) {
 							//}
 
 							forI(callee->args.count) {
-								parser(psExpression, me);
+								Node* ret = parser(psExpression, me);
+								if (ExpressionFromNode(ret)->datatype != callee->args[i]) {
+									ParseFail("incorrect type provided for function argument"); return 0;
+								}
 								token_next();
 								if (i != callee->args.count - 1) {
 									Expect(Token_CloseParen) { ParseFail(toStr("Not enough arguments provided for func ", callee->identifier)); return 0; }
@@ -639,16 +640,23 @@ Node* parser(ParseStage state, Node* node) {
 		case psFactor: {/////////////////////////////////////////////////////////////////////// @Factor
 			switch (curt.type) {
 				
-				
-				case Token_LiteralFloat:
+				//TODO implicitly change types here when applicable, or do that where they're returned
+				case Token_LiteralFloat: {
+					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
+					expression->datatype = DataType_Float32;
+					insert_last(node, &expression->node);
+					return var;
+				}break;
 				case Token_LiteralInteger: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
+					expression->datatype = DataType_Signed32;
 					insert_last(node, &expression->node);
 					return var;
 				}break;
 
 				case Token_LiteralString: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " \"", curt.str, "\""));
+					expression->datatype = DataType_String;
 					insert_last(node, &expression->node);
 					return var;
 				}break;
