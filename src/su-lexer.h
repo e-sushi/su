@@ -163,10 +163,20 @@ static const char* tokenStrings[] = {
 //};
 
 struct token {
-	cstring str;
+	cstring str; //also used for string literals, but just points to where in the source this token is
 	Token_Type type;
 	Token_Type group;
 	u64 line = 0;
+
+	//the actual value of a literal token
+	//TODO maybe make it so we store a cstring str here that is the val of string, and leave "" in the str above
+	union {
+		f32 float32;
+		f64 float64;
+		s32 integer;
+	};
+
+	u64 already_parsed_offset = 0;
 };
 
 enum TokenGroupType_{
@@ -182,8 +192,16 @@ struct TokenGroup{
 	u64 end;
 };
 
+struct Lexer {
+	//TODO set up an indexing array that determines separate files
+	array<token> tokens;  
+	array<u32> other;
+	array<u32> func_decl;
+	array<u32> struct_decl; //so that we may parse all struct definitions first
+} lexer;
+
 namespace suLexer {
-	b32 lex(const string& file, array<token>& tokens);
+	b32 lex(const string& file);
 }
 
 #endif //SU_LEXER_H

@@ -57,6 +57,12 @@
     <DisplayString>{str,[count]}</DisplayString>
   </Type>
 
+	<Type Name="cstring">
+		<Intrinsic Name="count" Expression="count" />
+		<Intrinsic Name="data" Expression="str" />
+		<DisplayString>{str,[count]}</DisplayString>
+	</Type>
+
 	<Type Name="Node">
 		<DisplayString>{debug_str.str,[debug_str.count]}</DisplayString>
 	</Type>

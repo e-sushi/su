@@ -1,5 +1,5 @@
 token curt;
-array<token> tokens;
+array<token>& tokens = lexer.tokens;
 
 b32 parse_failed = false;
 
@@ -62,8 +62,9 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Negation,           Expression_UnaryOpNegate},
 };
 
-local map<cstring, Function*> knownFuncs;
-local map<cstring, Variable>  knownVars;
+map<cstring, Function*> knownFuncs;
+map<cstring, Variable>  knownVars;
+map<cstring, Structure> knownStructs;
 
 DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
@@ -208,7 +209,8 @@ ParseState pState = stNone;
 #define StateHasAll(flag) HasAllFlags(pState, flag)
 
 enum ParseStage {
-	psGlobal,      // <program>       :: = { <function> }
+	psGlobal,      // <program>       :: = { ( <function> | <struct> ) }
+	//                <struct>        :: = "struct" <id> "{" { ( <declaraion> | <function> ) } "}" [<id>] ";"
 	psFunction,    // <function>      :: = <type> <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
 	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
 	psDeclaration, // <declaration>   :: = <type> <id> [ = <exp> ] ";"
@@ -219,7 +221,7 @@ enum ParseStage {
 	//                                   | "while" "(" <exp> ")" <statement>
 	//                                   | "break" [<integer>] ";" 
 	//                                   | "continue" ";"
-	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional> | <funccall>
+	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional>
 	psConditional, // <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
 	psLogicalOR,   // <logical or>    :: = <logical and> { "||" <logical and> } 
 	psLogicalAND,  // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
@@ -232,21 +234,19 @@ enum ParseStage {
 	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
 	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
 	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | "if"
-	// <funccall>      :: = < id> "("[<exp> {"," < exp > }] ")"
-	// <literal>       :: = <integer> | <float> | <string>
-	// <float>         :: = { <integer> } "." <integer> { <integer> }
-	// <string>        :: = """ { <char> } """
-	// <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
-	// <char>          :: = you know what chars are
-	// <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
-	// <incdec>        :: = "++" | "--"
-	// <unary>         :: = "!" | "~" | "-"
+	//                <funccall>      :: = < id> "("[<exp> {"," < exp > }] ")"
+	//                <literal>       :: = <integer> | <float> | <string>
+	//                <float>         :: = { <integer> } "." <integer> { <integer> }
+	//                <string>        :: = """ { <char> } """
+	//                <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
+	//                <char>          :: = you know what chars are
+	//                <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
+	//                <incdec>        :: = "++" | "--"
+	//                <unary>         :: = "!" | "~" | "-"
 }; 
 
 template<typename... T>
 Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
-	Expression* e = ExpressionFromNode(ret);
-	PRINTLN(e->datatype);
 	token_next();
 	Node* me = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 	change_parent(me, ret);
@@ -259,8 +259,6 @@ Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 		token_next();
 		ret = parser(next_stage, node);
-		e = ExpressionFromNode(ret);
-		PRINTLN(e->datatype);
 		change_parent(me2, me);
 		change_parent(me2, ret);
 		insert_last(node, me2);
@@ -307,11 +305,11 @@ Node* parser(ParseStage state, Node* node) {
 					ExpectGroup(Token_Typename) {
 						parser(psDeclaration, me);
 						ExpectGroup(Token_Typename) { ParseFail("no , separating function parameters"); }
-						function->args.add(declaration->type);
+						function->args.add(Variable{ declaration->identifier, declaration->type });
 						while (next_match(Token_Comma)) {
 							token_next(); token_next();
 							parser(psDeclaration, me);
-							function->args.add(declaration->type);
+							function->args.add(Variable{ declaration->identifier, declaration->type });
 							ExpectGroup(Token_Typename) { ParseFail("no , separating function parameters"); }
 						}
 						token_next();
@@ -360,11 +358,7 @@ Node* parser(ParseStage state, Node* node) {
 				declaration->identifier = curt.str;
 				declaration->type = type;
 				if(next_match(Token_Assignment)) {
-					token_next();
-					new_expression(curt.str, ExpressionGuard_Assignment, ExTypeStrings[ExpressionGuard_Assignment]);
-					token_next();
-					insert_last(&declaration->node, &expression->node);
-					Node* ret = parser(psExpression, &expression->node);
+					Node* ret = parser(psExpression, &declaration->node);
 					return ret;
 				}
 			}
@@ -528,17 +522,15 @@ Node* parser(ParseStage state, Node* node) {
 			switch (curt.type) {
 				case Token_Identifier: {
 					if (next_match(Token_Assignment)) {
-						new_expression(curt.str, Expression_IdentifierLHS, toStr(ExTypeStrings[Expression_IdentifierLHS], " ", curt.str));     
-						insert_last(node, &expression->node);
+						Node* id = new_expression(curt.str, Expression_IdentifierLHS, toStr(ExTypeStrings[Expression_IdentifierLHS], " ", curt.str));     
 						token_next();
-						new_expression(curt.str, Expression_BinaryOpAssignment, ExTypeStrings[Expression_BinaryOpAssignment]);
-						insert_last(node, &expression->node);
+						Node* me = new_expression(curt.str, Expression_BinaryOpAssignment, ExTypeStrings[Expression_BinaryOpAssignment]);
 						token_next();
-						new_expression(curt.str, ExpressionGuard_Assignment);
-						
-						Node* ret = parser(psExpression, &expression->node);
-						insert_last(node, ret);
-						return ret;
+						change_parent(me, id);
+						Node* ret = parser(psExpression, me);
+						change_parent(me, ret);
+						insert_last(node, me);
+						return me;
 					}
 					else {
 						new_expression(curt.str, ExpressionGuard_HEAD);
@@ -703,7 +695,7 @@ Node* parser(ParseStage state, Node* node) {
 								Node* ret = parser(psExpression, me);
 								Expression* e = ExpressionFromNode(ret);
 								//type_check(callee->args[i], ret);
-								if (ExpressionFromNode(ret)->datatype != callee->args[i]) {
+								if (ExpressionFromNode(ret)->datatype != callee->args[i].type) {
 									ParseFail("incorrect type provided for function argument"); return 0;
 								}
 								token_next();
@@ -806,11 +798,9 @@ Node* parser(ParseStage state, Node* node) {
 	return 0;
 }
 
-// <program> ::= <function>
-b32 suParser::parse(array<token>& tokens_in, Program& mother) {
+b32 suParser::parse(Program& mother) {
 	arena.init(Kilobytes(10));
 	
-	tokens = tokens_in;
 	curt = tokens[0];
 	
 	

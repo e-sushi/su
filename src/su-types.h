@@ -34,6 +34,138 @@ struct {
 	OSOut osout            = OSOut_Windows;
 } globals;
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// Nodes
+enum NodeType : u32 {
+	NodeType_Program,
+	NodeType_Function,
+	NodeType_Scope,
+	NodeType_Declaration,
+	NodeType_Statement,
+	NodeType_Expression,
+};
+
+//abstract node tree struct
+struct Node {
+	Node* next = 0;
+	Node* prev = 0;
+	Node* parent = 0;
+	Node* first_child = 0;
+	Node* last_child = 0;
+	u32   child_count = 0;
+
+	NodeType type;
+
+	//debug vars
+	string comment;
+};
+
+#define for_node(node) for(Node* it = node; it != 0; it = it->next)
+#define for_node_reverse(node) for(Node* it = node; it != 0; it = it->prev)
+
+inline void insert_after(Node* target, Node* node) {
+	if (target->next) target->next->prev = node;
+	node->next = target->next;
+	node->prev = target;
+	target->next = node;
+}
+
+inline void insert_before(Node* target, Node* node) {
+	if (target->prev) target->prev->next = node;
+	node->prev = target->prev;
+	node->next = target;
+	target->prev = node;
+}
+
+inline void remove_horizontally(Node* node) {
+	if (node->next) node->next->prev = node->prev;
+	if (node->prev) node->prev->next = node->next;
+	node->next = node->prev = 0;
+}
+
+void insert_last(Node* parent, Node* child) {
+	if (parent == 0) { child->parent = 0; return; }
+
+	child->parent = parent;
+	if (parent->first_child) {
+		insert_after(parent->last_child, child);
+		parent->last_child = child;
+	}
+	else {
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+}
+
+void insert_first(Node* parent, Node* child) {
+	if (parent == 0) { child->parent = 0; return; }
+
+	child->parent = parent;
+	if (parent->first_child) {
+		insert_before(parent->first_child, child);
+		parent->first_child = child;
+	}
+	else {
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+}
+
+void remove(Node* node) {
+	//remove self from parent
+	if (node->parent) {
+		if (node->parent->child_count > 1) {
+			if (node == node->parent->first_child) node->parent->first_child = node->next;
+			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
+		}
+		else {
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+
+	//add children to parent (and remove self from children)
+	if (node->child_count > 1) {
+		for (Node* child = node->first_child; child != 0; child = child->next) {
+			insert_last(node->parent, child);
+		}
+	}
+
+	//remove self horizontally
+	remove_horizontally(node);
+
+	//reset self  //TODO not necessary if we are deleting this node, so exclude this logic in another function NodeDelete?
+	node->parent = node->first_child = node->last_child = 0;
+	node->child_count = 0;
+}
+
+void change_parent(Node* new_parent, Node* node) {
+	//if old parent, remove self from it 
+	if (node->parent) {
+		if (node->parent->child_count > 1) {
+			if (node == node->parent->first_child) node->parent->first_child = node->next;
+			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
+		}
+		else {
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+
+	//remove self horizontally
+	remove_horizontally(node);
+
+	//add self to new parent
+	insert_last(new_parent, node);
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Registers
@@ -147,137 +279,174 @@ const char* dataTypeStrs[] = {
 }; 
 
 struct Variable {
-	string identifier;
+	cstring identifier;
 	DataType type;
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//// Nodes
-enum NodeType : u32 {
-	NodeType_Program,
-	NodeType_Function,
-	NodeType_Scope,
-	NodeType_Declaration,
-	NodeType_Statement,
-	NodeType_Expression,
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//// Abstract Syntax Tree 
+enum ExpressionType : u32 {
+	Expression_IdentifierLHS,
+	Expression_IdentifierRHS,
+
+	Expression_Function_Call,
+
+	//Types
+	Expression_Literal,
+
+	//Unary Operators
+	Expression_UnaryOpBitComp,
+	Expression_UnaryOpLogiNOT,
+	Expression_UnaryOpNegate,
+	Expression_IncrementPrefix,
+	Expression_IncrementPostfix,
+	Expression_DecrementPrefix,
+	Expression_DecrementPostfix,
+
+	//Binary Operators
+	Expression_BinaryOpPlus,
+	Expression_BinaryOpMinus,
+	Expression_BinaryOpMultiply,
+	Expression_BinaryOpDivision,
+	Expression_BinaryOpAND,
+	Expression_BinaryOpBitAND,
+	Expression_BinaryOpOR,
+	Expression_BinaryOpBitOR,
+	Expression_BinaryOpLessThan,
+	Expression_BinaryOpGreaterThan,
+	Expression_BinaryOpLessThanOrEqual,
+	Expression_BinaryOpGreaterThanOrEqual,
+	Expression_BinaryOpEqual,
+	Expression_BinaryOpNotEqual,
+	Expression_BinaryOpModulo,
+	Expression_BinaryOpBitXOR,
+	Expression_BinaryOpBitShiftLeft,
+	Expression_BinaryOpBitShiftRight,
+	Expression_BinaryOpAssignment,
+
+	//Special ternary conditional expression type
+	Expression_TernaryConditional,
+
+	//Expression Guards
+	ExpressionGuard_Assignment,
+	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations
+	ExpressionGuard_Conditional,
 };
 
-//abstract node tree struct
-struct Node {
-	Node* next = 0;
-	Node* prev = 0;
-	Node* parent = 0;
-	Node* first_child = 0;
-	Node* last_child = 0;
-	u32   child_count = 0;
-	
-	NodeType type;
-	
-	//debug vars
-	string comment;
+static const char* ExTypeStrings[] = {
+	"idLHS",
+	"idRHS",
+
+	"fcall",
+
+	"literal",
+
+	"~",
+	"!",
+	"-",
+	"++ pre",
+	"++ post",
+	"-- pre",
+	"-- post",
+
+	"+",
+	"-",
+	"*",
+	"/",
+	"&&",
+	"&",
+	"||",
+	"|",
+	"<",
+	">",
+	"<=",
+	">=",
+	"==",
+	"!=",
+	"%",
+	"^",
+	"<<",
+	">>",
+	"=",
+
+	"tern cond",
+
+	"assignment",
+	"head",
+	"conditional",
+	"logical or",
+	"logical and",
+	"bit or",
+	"bit xor",
+	"bit and",
+	"equality",
+	"relational",
+	"bit shift",
+	"additive",
+	"term",
+	"factor",
 };
 
-#define for_node(node) for(Node* it = node; it != 0; it = it->next)
-#define for_node_reverse(node) for(Node* it = node; it != 0; it = it->prev)
+struct Expression {
+	cstring expstr;
+	ExpressionType type;
+	Node node;
+	DataType datatype;
+};
+#define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
 
-inline void insert_after(Node* target, Node* node){
-	if(target->next) target->next->prev = node;
-	node->next = target->next;
-	node->prev = target;
-	target->next = node;
-}
+enum StatementType : u32 {
+	Statement_Unknown,
+	Statement_Return,
+	Statement_Expression,
+	Statement_Declaration,
+	Statement_Conditional,
+	Statement_If,
+	Statement_Else,
+	Statement_Scope,
+	Statement_For,
+	Statement_While,
+	Statement_Break,
+	Statement_Continue,
+};
 
-inline void insert_before(Node* target, Node* node){
-	if(target->prev) target->prev->next = node;
-	node->prev = target->prev;
-	node->next = target;
-	target->prev = node;
-}
+struct Statement {
+	StatementType type = Statement_Unknown;
+	Node node;
+};
+#define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
-inline void remove_horizontally(Node* node){
-	if(node->next) node->next->prev = node->prev;
-	if(node->prev) node->prev->next = node->next;
-	node->next = node->prev = 0;
-}
+struct Declaration {
+	DataType type;
+	cstring identifier;
+	b32 initialized = false;
+	Node node;
+};
+#define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
-void insert_last(Node* parent, Node* child){
-	if(parent == 0){ child->parent = 0; return; }
-	
-	child->parent = parent;
-	if(parent->first_child){
-		insert_after(parent->last_child, child);
-		parent->last_child = child;
-	}else{
-		parent->first_child = child;
-		parent->last_child = child;
-	}
-	parent->child_count++;
-}
+//probably doesnt need to be a struct
+struct Scope {
+	Node node;
+};
+#define ScopeFromNode(node_ptr) ((Scope*)((u8*)(node_ptr) - OffsetOfMember(Scope,node)))
 
-void insert_first(Node* parent, Node* child){
-	if(parent == 0){ child->parent = 0; return; }
-	
-	child->parent = parent;
-	if(parent->first_child){
-		insert_before(parent->first_child, child);
-		parent->first_child = child;
-	}else{
-		parent->first_child = child;
-		parent->last_child = child;
-	}
-	parent->child_count++;
-}
+struct Function {
+	cstring identifier;
+	DataType type;
+	array<Variable> args;
+	Node node;
+};
+#define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
-void remove(Node* node){
-	//remove self from parent
-	if(node->parent){
-		if(node->parent->child_count > 1){
-			if(node == node->parent->first_child) node->parent->first_child = node->next;
-			if(node == node->parent->last_child)  node->parent->last_child  = node->prev;
-		}else{
-			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
-			node->parent->first_child = 0;
-			node->parent->last_child = 0;
-		}
-		node->parent->child_count--;
-	}
-	
-	//add children to parent (and remove self from children)
-	if(node->child_count > 1){
-		for(Node* child = node->first_child; child != 0; child = child->next){
-			insert_last(node->parent, child);
-		}
-	}
-	
-	//remove self horizontally
-	remove_horizontally(node);
-	
-	//reset self  //TODO not necessary if we are deleting this node, so exclude this logic in another function NodeDelete?
-	node->parent = node->first_child = node->last_child = 0;
-	node->child_count = 0;
-}
+struct Program {
+	Node node;
+};
 
-void change_parent(Node* new_parent, Node* node){
-	//if old parent, remove self from it 
-	if(node->parent){
-		if(node->parent->child_count > 1){
-			if(node == node->parent->first_child) node->parent->first_child = node->next;
-			if(node == node->parent->last_child)  node->parent->last_child  = node->prev;
-		}else{
-			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
-			node->parent->first_child = 0;
-			node->parent->last_child = 0;
-		}
-		node->parent->child_count--;
-	}
-	
-	//remove self horizontally
-	remove_horizontally(node);
-	
-	//add self to new parent
-	insert_last(new_parent, node);
-}
-
+struct Structure {
+	cstring identifier;
+	array<Variable> member_vars;
+	array<Function> member_funcs;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Memory

@@ -173,10 +173,9 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Lexing
-		array<token> tokens;
 		if(globals.verbose_print) PRINTLN("lexing started");
 		TIMER_START(timer);
-		if(!suLexer::lex(source, tokens)){
+		if(!suLexer::lex(source)){
 			PRINTLN("ERROR: lexer failed");
 			return ReturnCode_Lexer_Failed;
 		}
@@ -188,7 +187,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		Program program;
 		if(globals.verbose_print) PRINTLN("parsing started");
 		TIMER_RESET(timer);
-		if(suParser::parse(tokens, program)){
+		if(suParser::parse(program)){
 			PRINTLN("ERROR: parser failed");
 			return ReturnCode_Parser_Failed;
 		}
@@ -196,7 +195,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		if(globals.verbose_print) PRINTLN("parsing finished");
 
 		string output_graph_path = output_dir + filepath.filename + ".svg";
-		//generate_ast_graph_svg(output_graph_path.str, program);
+		generate_ast_graph_svg(output_graph_path.str, program);
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Assembling
