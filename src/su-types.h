@@ -294,7 +294,7 @@ struct Arena {
 	
 	template<typename T>
 		void* add(const T& in) {
-		if (cursor - data < sizeof(T) + size) {
+		if (cursor - (data + size) > -spt(sizeof(T))) {
 			data = (u8*)calloc(1, size); 
 			cursor = data;
 		}
