@@ -8,6 +8,7 @@
 
 
 enum Token_Type {
+	Token_Null,
 	Token_ERROR,                    // when something doesnt make sense during lexing
 	Token_EOF,                      // end of file
 
@@ -75,11 +76,12 @@ enum Token_Type {
 	Token_While,                    // while 
 	Token_Break,                    // break
 	Token_Continue,                 // continue
-	Token_Struct,                   // struct
+	Token_StructDecl,               // struct
 
 	
 	//// type keywords ////
 	Token_Typename,
+	Token_Void,                     // void
 	Token_Signed8,                  // s8
 	Token_Signed32,                 // s32 
 	Token_Signed64,                 // s64
@@ -90,6 +92,7 @@ enum Token_Type {
 	Token_Float64,                  // f64 
 	Token_String,                   // str
 	Token_Any,                      // any
+	Token_Struct,                   // user defined type
 };
 
 static const char* tokenStrings[] = {

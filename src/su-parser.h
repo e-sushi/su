@@ -113,6 +113,7 @@ struct Expression {
 	string expstr;
 	ExpressionType type;
 	Node node;
+	DataType datatype;
 };
 #define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
 
@@ -138,7 +139,7 @@ struct Statement {
 #define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
 struct Declaration {
-	Token_Type type;
+	DataType type;
 	string identifier = "";
 	b32 initialized = false;
 	Node node;

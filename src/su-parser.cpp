@@ -64,19 +64,27 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Negation,           Expression_UnaryOpNegate},
 };
 
-local array<Token_Type> typeTokens{
-	Token_Signed32,
-	Token_Signed64,
-	Token_Unsigned32,
-	Token_Unsigned64,
-	Token_Float32,
-	Token_Float64,
-};
+DataType dataTypeFromToken(Token_Type type) {
+	switch (type) {
+		case Token_Void      : {return DataType_Void;}
+		case Token_Signed8   : {return DataType_Signed8;}        
+		case Token_Signed32  : {return DataType_Signed32;}     
+		case Token_Signed64  : {return DataType_Signed64;}    
+		case Token_Unsigned8 : {return DataType_Unsigned8;}  
+		case Token_Unsigned32: {return DataType_Unsigned32;}
+		case Token_Unsigned64: {return DataType_Unsigned64; }
+		case Token_Float32   : {return DataType_Float32;}     
+		case Token_Float64   : {return DataType_Float64;}   
+		case Token_String    : {return DataType_String;}    
+		case Token_Any       : {return DataType_Any;}
+		case Token_Struct    : {return DataType_Structure;}    
+		default: {PRINTLN("given token type is not a data type"); }
+	}
+}
 
 template<class... T>
-inline b32 check_signature(T... in) {
-	int i = 0;
-	return ((tokens.peek(i++).type == in) && ...);
+inline b32 check_signature(u32 offset, T... in) {
+	return ((tokens.peek(offset++).type == in) && ...);
 }
 
 template<typename... T, typename A> inline b32
@@ -150,8 +158,8 @@ ParseState pState = stNone;
 #define StateHasAll(flag) HasAllFlags(pState, flag)
 
 enum ParseStage {
-	psGlobal,      	// <program>       :: = <function>
-	psFunction,		// <function>      :: = "int" <id> "(" ")" <scope>
+	psGlobal,      	// <program>       :: = { <function> }
+	psFunction,		// <function>      :: = <type> <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
 	psScope,        // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
 	psDeclaration,	// <declaration>   :: = <type> <id> [ = <exp> ] ";"
 	psStatement,	// <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
@@ -161,7 +169,8 @@ enum ParseStage {
 					//                      | "while" "(" <exp> ")" <statement>
 					//                      | "break" [<integer>] ";" 
 					//                      | "continue" ";"
-	psExpression,	// <exp>           :: = <id> "=" <exp> | <conditional>
+	psExpression,	// <exp>           :: = <id> "=" <exp> | <conditional> | <funccall>
+					// <funccall>      :: = <id> "(" [ <exp> {"," <exp>} ] ")"
 	psConditional,	// <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
 	psLogicalOR,	// <logical or>    :: = <logical and> { "||" <logical and> } 
 	psLogicalAND,	// <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
@@ -177,7 +186,7 @@ enum ParseStage {
                     // <literal>       :: = <integer> | <float> | <string>
 					// <float>         :: = { <integer> } "." <integer> { <integer> }
 					// <string>        :: = """ { <char> } """
-					// <integer>       :: = (1|2|3|4|5|6|7|8|9|0)      //:)
+					// <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
 					// <char>          :: = you know what chars are
 					// <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
 					// <incdec>        :: = "++" | "--"
@@ -215,18 +224,15 @@ Node* parser(ParseStage state, Node* node) {
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
 				if (parse_failed) return 0;
+
+
 				ExpectGroup(Token_Typename) {
-					token_next();
+					ExpectSignature(1, Token_Identifier, Token_OpenParen) {
+						parser(psFunction, node);
+					}
 					Expect(Token_Identifier){
 						if (next_match(Token_OpenParen)) {
-							new_function(curt.str, toStr("function ", curt.str));
-							insert_last(node, &function->node);
-							parser(psFunction, &function->node);
-						}
-					}
-					Expect(Token_Identifier) {
-						token_next();
-						Expect(Token_OpenParen) {
+							
 							
 						}
 					}
@@ -237,17 +243,35 @@ Node* parser(ParseStage state, Node* node) {
 		
 		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
 			StateSet(stInFunction);
+			DataType type = dataTypeFromToken(curt.type);
 			token_next();
-			Expect(Token_OpenParen) { 
+			Expect(Token_Identifier) {
+				Node* me = new_function(curt.str, toStr("function ", dataTypeStrs[type], " ", curt.str));
+				insert_last(node, me);
+				function->type = type;
 				token_next();
-				//function parameter checking will go here
-				Expect(Token_CloseParen) {
+				Expect(Token_OpenParen) {
 					token_next();
-					Expect(Token_OpenBrace) {
-						parser(psScope, node);
-					}ExpectFail("expected {");
-				}ExpectFail("expected )");
-			}ExpectFail("expected (");
+					ExpectGroup(Token_Typename) {
+						parser(psDeclaration, me);
+						ExpectGroup(Token_Typename) { ParseFail("no , separating function parameters"); }
+
+						while (next_match(Token_Comma)) {
+							token_next(); token_next();
+							parser(psDeclaration, me);
+							ExpectGroup(Token_Typename) { ParseFail("no , separating function parameters"); }
+						}
+						token_next();
+					}
+					Expect(Token_Identifier) { ParseFail("untyped identifier in function declaration's arguments"); }
+					Expect(Token_CloseParen) {
+						token_next();
+						Expect(Token_OpenBrace) {
+							parser(psScope, me);
+						}ExpectFail("expected {");
+					}ExpectFail("expected )");
+				}ExpectFail("expected (");
+			}
 			StateUnset(stInFunction);
 		}break;
 		
@@ -257,9 +281,10 @@ Node* parser(ParseStage state, Node* node) {
 			while (!next_match(Token_CloseBrace)) {
 				token_next();
 				ExpectGroup(Token_Typename) {
-					new_declaration("decl " + tokens.peek().str);
-					insert_last(me, &declaration->node);
 					parser(psDeclaration, &declaration->node);
+					token_next();
+					Expect(Token_Semicolon) {}
+					ExpectFail("missing ; after variable assignment")
 				}
 				ElseExpect(Token_OpenBrace) {
 					parser(psScope, me);
@@ -273,22 +298,21 @@ Node* parser(ParseStage state, Node* node) {
 		}break;
 		
 		case psDeclaration: {////////////////////////////////////////////////////////////////// @Declaration
-			Token_Type type = curt.type;
+			DataType type = dataTypeFromToken(curt.type);
 			token_next();
+			new_declaration(toStr("decl ", dataTypeStrs[type], " ", curt.str));
+			insert_last(node, &declaration->node);
 			Expect(Token_Identifier) {
 				declaration->identifier = curt.str;
-				token_next();
-				Expect(Token_Assignment) {
+				declaration->type = type;
+				if(next_match(Token_Assignment)) {
+					token_next();
 					new_expression(curt.str, ExpressionGuard_Assignment, ExTypeStrings[ExpressionGuard_Assignment]);
 					token_next();
 					insert_last(node, &expression->node);
 					Node* ret = parser(psExpression, &expression->node);
-					token_next();
-					Expect(Token_Semicolon) { return ret; }
-					ExpectFail("missing ; after variable assignment")
+					return ret;
 				}
-				ElseExpect(Token_Semicolon) {}
-				ExpectFail("missing semicolon or assignment after variable declaration");
 			}
 		}break;
 		
@@ -475,7 +499,6 @@ Node* parser(ParseStage state, Node* node) {
 					Node* ret = parser(psConditional, node);
 					return ret;
 				}break;
-				
 			}
 		}break;
 		
@@ -509,7 +532,6 @@ Node* parser(ParseStage state, Node* node) {
 			Node* ret = parser(psLogicalAND, node);
 			if (!next_match(Token_OR))
 				return ret;
-			
 			return binopParse(node, ret, psLogicalAND, Token_OR);
 		}break;
 		

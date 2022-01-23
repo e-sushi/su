@@ -112,17 +112,39 @@ global_ const char* registers_x64[] = {
 //// Builtin Types
 enum DataType : u32 { 
 	DataType_NotTyped,
+	DataType_Void,       // void
 	DataType_Implicit,   // implicitly typed
+	DataType_Signed8,    // s8
 	DataType_Signed32,   // s32 
-	DataType_Signed64,   // s64 
+	DataType_Signed64,   // s64
+	DataType_Unsigned8,  // u8
 	DataType_Unsigned32, // u32 
 	DataType_Unsigned64, // u64 
 	DataType_Float32,    // f32 
 	DataType_Float64,    // f64 
 	DataType_String,     // str
 	DataType_Pointer,    // type*
+	DataType_Any,
 	DataType_Structure,  // data type of types and functions
 }; //typedef u32 DataType;
+
+const char* dataTypeStrs[] = {
+	"notype",
+	"void",
+	"impl",  
+	"s8",   
+	"s32",  
+	"s64",  
+	"u8", 
+	"u32",
+	"u64",
+	"f32",   
+	"f64",   
+	"str",    
+	"ptr",   
+	"any",
+	"struct", 
+}; 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
