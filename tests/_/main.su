@@ -3,6 +3,6 @@ void add(s32 a, s32 b){
 }
 
 s32 main() {
-    add(2, 3);
+    add(1,2);
     return !-3;
 }
