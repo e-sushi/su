@@ -18,7 +18,7 @@ b32 suLexer::lex(const string& file) {
 #define chunksiz buff.str - chunk_start
 #define chunkcmp chunk_start, chunksiz
 #define chunkstr cstring{chunk_start, u32(buff.str - chunk_start)}
-#define cstr(count) cstring{buff.str, count}
+#define cstr(count) cstring{chunk_start, count}
 
 	while (buff.count) {
 		switch (state) {
@@ -123,7 +123,7 @@ b32 suLexer::lex(const string& file) {
 							else if (!strncmp("while",    chunk_start, 5)) { lexer.tokens.add(token{ cstr(5), Token_While,      Token_ControlKeyword, lines });}
 							else if (!strncmp("break",    chunk_start, 5)) { lexer.tokens.add(token{ cstr(5), Token_Break,      Token_ControlKeyword, lines });}
 							else if (!strncmp("continue", chunk_start, 8)) { lexer.tokens.add(token{ cstr(8), Token_Continue,   Token_ControlKeyword, lines });}
-							else if (!strncmp("struct",   chunk_start, 4)) { lexer.tokens.add(token{ cstr(4), Token_StructDecl, Token_ControlKeyword, lines }); lexer.struct_decl.add(lexer.tokens.count-1); grab_structname = 1;}
+							else if (!strncmp("struct",   chunk_start, 6)) { lexer.tokens.add(token{ cstr(6), Token_StructDecl, Token_ControlKeyword, lines }); lexer.struct_decl.add(lexer.tokens.count-1); grab_structname = 1;}
 							else if (!strncmp("void",     chunk_start, 4)) { lexer.tokens.add(token{ cstr(4), Token_Void,       Token_Typename,       lines });}
 							else if (!strncmp("s32",      chunk_start, 3)) { lexer.tokens.add(token{ cstr(3), Token_Signed32,   Token_Typename,       lines });}
 							else if (!strncmp("s64",      chunk_start, 3)) { lexer.tokens.add(token{ cstr(3), Token_Signed64,   Token_Typename,       lines });}
