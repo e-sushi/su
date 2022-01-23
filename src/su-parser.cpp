@@ -62,8 +62,8 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Negation,           Expression_UnaryOpNegate},
 };
 
-local map<const char*, Function*> knownFuncs;
-local map<const char*, Variable>  knownVars;
+local map<cstring, Function*> knownFuncs;
+local map<cstring, Variable>  knownVars;
 
 DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
@@ -318,7 +318,7 @@ Node* parser(ParseStage state, Node* node) {
 					}
 					Expect(Token_Identifier) { ParseFail("untyped identifier in function declaration's arguments"); }
 					Expect(Token_CloseParen) {
-						knownFuncs.add(function->identifier.str, function);
+						knownFuncs.add(function->identifier, function);
 						token_next();
 						Expect(Token_OpenBrace) {
 							parser(psScope, me);
@@ -540,37 +540,6 @@ Node* parser(ParseStage state, Node* node) {
 						insert_last(node, ret);
 						return ret;
 					}
-					else if (next_match(Token_OpenParen)) {
-						if (!knownFuncs.has(curt.str.str)) { ParseFail(toStr("unknown function ", curt.str, " referenced")); return 0; }
-						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
-						insert_last(node, me);
-						Function* callee = *knownFuncs.at(curt.str.str);
-						token_next(); token_next();
-						if (callee->args.count > 0) {
-							//Expect(Token_Identifier) {
-							// This will be for doing func(arg = blah,...)
-							//}
-							
-							forI(callee->args.count) {
-								parser(psExpression, me);
-								token_next();
-								if (i != callee->args.count - 1) {
-									Expect(Token_CloseParen) { ParseFail(toStr("Not enough arguments provided for func ", callee->identifier)); return 0; }
-									Expect(Token_Comma) { token_next(); }
-									ExpectFail("no , between function arguments");
-								}
-							}
-							Expect(Token_CloseParen) { }
-							ExpectFail(toStr("expected ) after function call to ", callee->identifier));
-							
-							//TODO list what required arguments are missing 
-							//ExpectFail(toStr("expected an identifier or literal as function arg to ", callee->identifier));
-						}
-						else {
-							Expect(Token_CloseParen) {}
-							ExpectFail(toStr("expected ) on function call to ", callee->identifier));
-						}
-					}
 					else {
 						new_expression(curt.str, ExpressionGuard_HEAD);
 						Node* ret = parser(psConditional, &expression->node);
@@ -719,10 +688,10 @@ Node* parser(ParseStage state, Node* node) {
 				
 				case Token_Identifier: {
 					if (next_match(Token_OpenParen)) {
-						if (!knownFuncs.has(curt.str.str)) { ParseFail(toStr("unknown function ", curt.str, " referenced")); return 0; }
+						if (!knownFuncs.has(curt.str)) { ParseFail(toStr("unknown function ", curt.str, " referenced")); return 0; }
 						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
 						insert_last(node, me);
-						Function* callee = *knownFuncs.at(curt.str.str);
+						Function* callee = *knownFuncs.at(curt.str);
 						expression->datatype = callee->type;
 						token_next(); token_next();
 						if (callee->args.count > 0) {

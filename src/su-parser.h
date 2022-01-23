@@ -114,7 +114,7 @@ static const char* ExTypeStrings[] = {
 };
 
 struct Expression {
-	string expstr;
+	cstring expstr;
 	ExpressionType type;
 	Node node;
 	DataType datatype;
@@ -144,7 +144,7 @@ struct Statement {
 
 struct Declaration {
 	DataType type;
-	string identifier = "";
+	cstring identifier;
 	b32 initialized = false;
 	Node node;
 };
@@ -157,7 +157,7 @@ struct Scope {
 #define ScopeFromNode(node_ptr) ((Scope*)((u8*)(node_ptr) - OffsetOfMember(Scope,node)))
 
 struct Function {
-	string identifier = "";
+	cstring identifier;
 	DataType type;
 	array<DataType> args;
 	Node node;

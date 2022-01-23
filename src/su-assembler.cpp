@@ -1105,6 +1105,7 @@ assemble_function(Function* func){
 	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "a function only has one child and it has to be a scope");
 	assemble_scope(ScopeFromNode(func->node.first_child));
     if(!assembler.function_returned){
+		//TODO check if the functions return is void before doing this
 		logfW("assembler", "Function '%s' is missing a return statement, automatically inserting 'return 0' at the end", func->identifier.str);
 		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");
         asm_end_scope();

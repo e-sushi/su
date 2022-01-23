@@ -163,7 +163,7 @@ static const char* tokenStrings[] = {
 //};
 
 struct token {
-	string str;
+	cstring str;
 	Token_Type type;
 	Token_Type group;
 	u64 line = 0;
