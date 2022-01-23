@@ -7,8 +7,8 @@
     <LocalDebuggerCommandArguments>-v -i main.su</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerWorkingDirectory>$(SolutionDir)</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)\tests\_</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-cur_console</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-i main.su -v</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

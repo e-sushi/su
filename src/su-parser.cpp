@@ -1,14 +1,9 @@
-//master token
 token curt;
 array<token> tokens;
 
 b32 parse_failed = false;
 
-//These defines are mostly for conveinence and clarity as to what im doing
-//#define token_next() curt = tokens.next()
-#define token_last curt = tokens.prev()
-
-void token_next(u32 count = 1) {
+inline void token_next(u32 count = 1) {
 	curt = tokens.next(count);
 }
 
@@ -84,7 +79,7 @@ DataType dataTypeFromToken(Token_Type type) {
 		case Token_String    : {return DataType_String;}    
 		case Token_Any       : {return DataType_Any;}
 		case Token_Struct    : {return DataType_Structure;}    
-		default: {PRINTLN("given token type is not a data type"); }
+		default: {PRINTLN("given token type is not a data type");}
 	}
 }
 
@@ -111,7 +106,7 @@ Expression*  expression;
 
 Arena arena;
 
-inline Node* new_function(string& identifier, const string& node_str = "") {
+inline Node* new_function(cstring& identifier, const string& node_str = "") {
 	function = (Function*)arena.add(Function());
 	function->identifier = identifier;
 	function->node.type    = NodeType_Function;
@@ -141,7 +136,7 @@ inline Node* new_statement(StatementType type, const string& node_str = ""){
 	return &statement->node;
 }
 
-inline Node* new_expression(string& str, ExpressionType type, const string& node_str = "") {
+inline Node* new_expression(cstring& str, ExpressionType type, const string& node_str = "") {
 	expression = (Expression*)arena.add(Expression());
 	expression->expstr = str;
 	expression->type   = type;
@@ -165,7 +160,7 @@ b32 type_check(DataType type, Node* n) {
 				}break;
 				case DataType_Unsigned32: {
 					e->datatype = DataType_Unsigned32;
-					e->expstr = to_string(u32(stoi(e->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
+					//e->expstr = to_string(u32(stoi(e->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
 					return true;
 				}break;
 			}
@@ -189,7 +184,7 @@ b32 type_check(Node* n1, Node* n2) {
 				}break;
 				case DataType_Unsigned32: {
 					e1->datatype = DataType_Unsigned32;
-					e1->expstr = to_string(u32(stoi(e1->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
+					//e1->expstr = to_string(u32(stoi(e1->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
 					return true;
 				}break;
 			}
@@ -545,6 +540,7 @@ Node* parser(ParseStage state, Node* node) {
 					else {
 						new_expression(curt.str, ExpressionGuard_HEAD);
 						Node* ret = parser(psConditional, &expression->node);
+						if (!ret) return 0;
 						insert_last(node, ret);
 						return ret;
 					}
@@ -693,6 +689,7 @@ Node* parser(ParseStage state, Node* node) {
 						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
 						insert_last(node, me);
 						Function* callee = *knownFuncs.at(curt.str.str);
+						expression->datatype = callee->type;
 						token_next(); token_next();
 						if (callee->args.count > 0) {
 							//Expect(Token_Identifier) {
@@ -701,6 +698,7 @@ Node* parser(ParseStage state, Node* node) {
 
 							forI(callee->args.count) {
 								Node* ret = parser(psExpression, me);
+								Expression* e = ExpressionFromNode(ret);
 								//type_check(callee->args[i], ret);
 								if (ExpressionFromNode(ret)->datatype != callee->args[i]) {
 									ParseFail("incorrect type provided for function argument"); return 0;

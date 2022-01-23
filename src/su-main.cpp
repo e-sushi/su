@@ -54,16 +54,9 @@ subuild files:
 
 General TODOs
 
-convert the assembler to take in instruction and register enums and then decide what instruction to put
-based on what architecture we're compiling for
-
-add the bonus operators in https://norasandler.com/2018/01/08/Write-a-Compiler-5.html
-
-detect if we're checking a variable against a value when doing equal/not-equal checks, you can 
-just compare the location on the stack with the value directly instead of still having
-to store its value first like you would if comparing 2 numbers
-
 Hash things like struct names, function signatures, and such to prevent tons of string comparing
+
+Maybe count the the amount of tokens of each node type we have as we lex, so we can estimate how much storage parser will need to allocate
 
 */
 
@@ -83,6 +76,11 @@ Hash things like struct names, function signatures, and such to prevent tons of 
 
 //libs
 #include <iostream>
+#include <chrono>
+
+#define TIMER_START(name) std::chrono::time_point<std::chrono::high_resolution_clock> name = std::chrono::high_resolution_clock::now()
+#define TIMER_RESET(name) name = std::chrono::high_resolution_clock::now()
+#define TIMER_END(name) std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - name).count()
 
 //headers
 #include "su-lexer.h"
@@ -177,33 +175,39 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//// Lexing
 		array<token> tokens;
 		if(globals.verbose_print) PRINTLN("lexing started");
+		TIMER_START(timer);
 		if(!suLexer::lex(source, tokens)){
 			PRINTLN("ERROR: lexer failed");
 			return ReturnCode_Lexer_Failed;
 		}
 		if(globals.verbose_print) PRINTLN("lexing finished");
-		
+		PRINTLN("lexing took " << TIMER_END(timer) << " ms");
+
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
 		if(globals.verbose_print) PRINTLN("parsing started");
+		TIMER_RESET(timer);
 		if(suParser::parse(tokens, program)){
 			PRINTLN("ERROR: parser failed");
 			return ReturnCode_Parser_Failed;
 		}
+		PRINTLN("parsing took " << TIMER_END(timer) << " ms");
 		if(globals.verbose_print) PRINTLN("parsing finished");
-		
+
 		string output_graph_path = output_dir + filepath.filename + ".svg";
-		generate_ast_graph_svg(output_graph_path.str, program);
+		//generate_ast_graph_svg(output_graph_path.str, program);
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Assembling
 		if(globals.verbose_print) PRINTLN("assembling started");
 		string assembly;
+		TIMER_RESET(timer);
 		if(!suAssembler::assemble(program, assembly)){
 			PRINTLN("ERROR: assembler failed");
 			return ReturnCode_Assembler_Failed;
 		}
+		PRINTLN("assembling took " << TIMER_END(timer) << " ms");
 		if(globals.verbose_print) PRINTLN("assembling finished");
 		
 		string output_asm_path = output_dir + filepath.filename + ".s";
