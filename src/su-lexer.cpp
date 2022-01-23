@@ -222,6 +222,9 @@ b32 suLexer::lex(const string& file) {
 				break;
 			}
 		}
+		if (!isstruct && lexer.tokens[idindexes[i]+1].type == Token_OpenParen && match_any(lexer.tokens[idindexes[i]-1].group, Token_Typename)) {
+			lexer.func_decl.add(idindexes[i] - 1);
+		}
 	}
 
 	return true;

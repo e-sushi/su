@@ -38,6 +38,7 @@ struct {
 //// Nodes
 enum NodeType : u32 {
 	NodeType_Program,
+	NodeType_Structure,
 	NodeType_Function,
 	NodeType_Scope,
 	NodeType_Declaration,
@@ -438,15 +439,20 @@ struct Function {
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
-struct Program {
-	Node node;
-};
-
 struct Structure {
 	cstring identifier;
 	array<Variable> member_vars;
 	array<Function> member_funcs;
+	Node node;
 };
+#define StructureFromNode(node_ptr) ((Structure*)((u8*)(node_ptr) - OffsetOfMember(Structure,node)))
+
+
+struct Program {
+	Node node;
+};
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Memory

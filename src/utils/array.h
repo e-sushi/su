@@ -77,6 +77,7 @@ struct array{
 	//returns the value of iter and decrements it by one
 	T* prevptr();
 	T* lookbackptr(u32 i = 1);
+	void setiter(u32 i);
 	
 	//begin/end functions for for-each loops
 	inline T* begin(){ return &data[0]; }
@@ -445,7 +446,7 @@ peek(u32 i){
 
 template<typename T> inline T& array<T>::
 prev(){
-	if(first - iter + 1 >= 0) return *iter--;
+	if(iter - first + 1 >= 0) return *--iter;
 }
 
 template<typename T> inline T& array<T>::
@@ -476,6 +477,11 @@ template<typename T> inline T* array<T>::
 lookbackptr(u32 i){
 	if(iter - 1 - first >= 0) return iter - i;
 	else return nullptr;
+}
+
+template<typename T> inline void array<T>::
+setiter(u32 i) {
+	iter = data + i;
 }
 
 #endif //DESHI_ARRAY_H

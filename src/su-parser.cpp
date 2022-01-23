@@ -12,7 +12,8 @@ inline void token_next(u32 count = 1) {
 #define curr_atch(tok) (curt.type == tok)
 
 #define ParseFail(error)\
-(std::cout << "\nError: " << error << "\n caused by token '" << curt.str << "' on line " << curt.line << std::endl,  parse_failed = true)
+{logE("parser", error, "\n caused by token '", curt.str, "' on line ", curt.line); parse_failed = true;}
+
 
 #define Expect(Token_Type)\
 if(curt.type == Token_Type) 
@@ -62,9 +63,9 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Negation,           Expression_UnaryOpNegate},
 };
 
-map<cstring, Function*> knownFuncs;
-map<cstring, Variable>  knownVars;
-map<cstring, Structure> knownStructs;
+map<cstring, Function*>  knownFuncs; //TODO move these so that assembler can access them
+map<cstring, Variable>   knownVars;  //TODO make these pointers into the arena
+map<cstring, Structure*> knownStructs;
 
 DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
@@ -89,16 +90,12 @@ inline b32 check_signature(u32 offset, T... in) {
 	return ((tokens.peek(offset++).type == in) && ...);
 }
 
-template<typename... T, typename A> inline b32
-match_any(A tested, T... in) {
-	return((tested == in) || ...);
-}
-
 template<typename... T> inline b32
 next_match(T... in) {
 	return ((tokens.peek(1).type == in) || ...);
 }
 
+Structure*   structure;
 Function*    function;
 Scope*       scope;
 Declaration* declaration;
@@ -107,9 +104,17 @@ Expression*  expression;
 
 Arena arena;
 
+inline Node* new_structure(cstring& identifier, const string& node_str = "") {
+	structure = (Structure*)arena.add(Structure());
+	structure->identifier   = identifier;
+	structure->node.type    = NodeType_Structure;
+	structure->node.comment = node_str;
+	return &structure->node;
+}
+
 inline Node* new_function(cstring& identifier, const string& node_str = "") {
 	function = (Function*)arena.add(Function());
-	function->identifier = identifier;
+	function->identifier   = identifier;
 	function->node.type    = NodeType_Function;
 	function->node.comment = node_str;
 	return &function->node;
@@ -210,7 +215,7 @@ ParseState pState = stNone;
 
 enum ParseStage {
 	psGlobal,      // <program>       :: = { ( <function> | <struct> ) }
-	//                <struct>        :: = "struct" <id> "{" { ( <declaraion> | <function> ) } "}" [<id>] ";"
+	psStruct,      // <struct>        :: = "struct" <id> "{" { ( <declaraion> | <function> ) } "}" [<id>] ";"
 	psFunction,    // <function>      :: = <type> <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
 	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
 	psDeclaration, // <declaration>   :: = <type> <id> [ = <exp> ] ";"
@@ -267,10 +272,26 @@ Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 	return me;
 }
 
-Node* parser(ParseStage state, Node* node) {
+//gathers all function, struct, and global var signatures in the program
+void gather_signatures(Node* program) {
+	//TODO overloaded functions have different signatures
+	for (u32 i : lexer.func_decl) {
+		token& t = tokens[i];
+		ExpectGroup(Token_Typename) {
+			DataType dtype = dataTypeFromToken(t.type);
+			token_next();
+			Expect(Token_Identifier) {
+				new_function(curt.str, toStr("func ", curt.str));
+
+			}
+		}
+	}
+}
+
+Node* parser(ParseStage stage, Node* node) {
 	if (parse_failed) return 0;
 	
-	switch (state) {
+	switch (stage) {
 		
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
@@ -289,6 +310,47 @@ Node* parser(ParseStage state, Node* node) {
 				}ExpectFail("yeah i dont know right now");
 				token_next();
 			}
+		}break;
+
+		case psStruct: {
+			//save idx so we may skip however many tokens this struct is later
+			u32 tokidx = tokens.iter - tokens.data;
+			token_next();
+			Expect(Token_Identifier) {
+				Node* me = new_structure(curt.str, toStr("struct ", curt.str));
+				insert_last(node, me);
+				token_next();
+				Expect(Token_OpenBrace) {
+					while (match_any(tokens.peek().group, Token_Typename)) {
+						token_next();
+						DataType dtype = dataTypeFromToken(curt.type);
+						token_next();
+						Expect(Token_Identifier) {
+							token_next();
+							Expect(Token_OpenParen) {
+								//function
+								curt = tokens.prev();
+								curt = tokens.prev();
+								Node* ret = parser(psFunction, me);
+							}
+							ExpectOneOf(Token_Semicolon, Token_Assignment) {
+								//must be variable decl
+								curt = tokens.prev();
+								curt = tokens.prev();
+								Node* ret = parser(psDeclaration, me);
+								token_next();
+								Expect(Token_Semicolon) {}
+								ExpectFail("missing ; after variable declaration");
+							}
+						}
+						
+					}
+
+				}ExpectFail("expected {");
+				tokens[tokidx].already_parsed_offset = (tokens.iter - tokens.data) - tokidx;
+				return me;
+			}ExpectFail("expected identifier for struct declaration");
+			
 		}break;
 		
 		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
@@ -803,9 +865,17 @@ b32 suParser::parse(Program& mother) {
 	
 	curt = tokens[0];
 	
-	
+	//we parse all struct declarations first 
+	forI(lexer.struct_decl.count) {
+		tokens.setiter(lexer.struct_decl[i]);
+		curt = tokens[lexer.struct_decl[i]];
+		parser(psStruct, &mother.node);
+	}
+
 	mother.node.comment = "program";
 	
+	tokens.setiter(0);
+	curt = tokens[0];
 	parser(psGlobal, &mother.node);
 	
 	return 0;//parse_failed;
