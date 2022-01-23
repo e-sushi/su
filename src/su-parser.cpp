@@ -84,7 +84,7 @@ DataType dataTypeFromToken(Token_Type type) {
 		case Token_String    : {return DataType_String;}    
 		case Token_Any       : {return DataType_Any;}
 		case Token_Struct    : {return DataType_Structure;}    
-		default: {PRINTLN("given token type is not a data type"); }
+		default: {PRINTLN("given token type is not a data type"); return DataType_Void;}
 	}
 }
 
@@ -164,39 +164,39 @@ ParseState pState = stNone;
 #define StateHasAll(flag) HasAllFlags(pState, flag)
 
 enum ParseStage {
-	psGlobal,      	// <program>       :: = { <function> }
-	psFunction,		// <function>      :: = <type> <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
-	psScope,        // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
-	psDeclaration,	// <declaration>   :: = <type> <id> [ = <exp> ] ";"
-	psStatement,	// <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
-	                //                      | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
-					//                      | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
-					//                      | "for" "(" <declaration> [<exp>] ";" [<exp>] ")" <statement>
-					//                      | "while" "(" <exp> ")" <statement>
-					//                      | "break" [<integer>] ";" 
-					//                      | "continue" ";"
-	psExpression,	// <exp>           :: = <id> "=" <exp> | <conditional> | <funccall>
-					// <funccall>      :: = <id> "(" [ <exp> {"," <exp>} ] ")"
-	psConditional,	// <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
-	psLogicalOR,	// <logical or>    :: = <logical and> { "||" <logical and> } 
-	psLogicalAND,	// <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
-	psBitwiseOR,	// <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
-	psBitwiseXOR,	// <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
-	psBitwiseAND,	// <bitwise and>   :: = <equality> { "&" <equality> }
-	psEquality,		// <equality>      :: = <relational> { ("!=" | "==") <relational> }
-	psRelational,	// <relational>    :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
-	psBitshift,		// <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
-	psAdditive,		// <additive>      :: = <term> { ("+" | "-") <term> }
-	psTerm,			// <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
-	psFactor,		// <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> | "if"
-                    // <literal>       :: = <integer> | <float> | <string>
-					// <float>         :: = { <integer> } "." <integer> { <integer> }
-					// <string>        :: = """ { <char> } """
-					// <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
-					// <char>          :: = you know what chars are
-					// <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
-					// <incdec>        :: = "++" | "--"
-                    // <unary>         :: = "!" | "~" | "-"
+	psGlobal,      // <program>       :: = { <function> }
+	psFunction,    // <function>      :: = <type> <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
+	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
+	psDeclaration, // <declaration>   :: = <type> <id> [ = <exp> ] ";"
+	psStatement,   // <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
+	//                                   | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+	//                                   | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
+	//                                   | "for" "(" <declaration> [<exp>] ";" [<exp>] ")" <statement>
+	//                                   | "while" "(" <exp> ")" <statement>
+	//                                   | "break" [<integer>] ";" 
+	//                                   | "continue" ";"
+	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional> | <funccall>
+	// <funccall>      :: = <id> "(" [ <exp> {"," <exp>} ] ")"
+	psConditional, // <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
+	psLogicalOR,   // <logical or>    :: = <logical and> { "||" <logical and> } 
+	psLogicalAND,  // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
+	psBitwiseOR,   // <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
+	psBitwiseXOR,  // <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
+	psBitwiseAND,  // <bitwise and>   :: = <equality> { "&" <equality> }
+	psEquality,    // <equality>      :: = <relational> { ("!=" | "==") <relational> }
+	psRelational,  // <relational>    :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
+	psBitshift,    // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
+	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
+	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
+	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> | "if"
+	// <literal>       :: = <integer> | <float> | <string>
+	// <float>         :: = { <integer> } "." <integer> { <integer> }
+	// <string>        :: = """ { <char> } """
+	// <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
+	// <char>          :: = you know what chars are
+	// <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
+	// <incdec>        :: = "++" | "--"
+	// <unary>         :: = "!" | "~" | "-"
 }; 
 
 template<typename... T>
@@ -207,7 +207,7 @@ Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 	insert_last(node, me);
 	token_next();
 	ret = parser(next_stage, me);
-
+	
 	while (next_match(tokcheck...)) {
 		token_next();
 		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
@@ -229,8 +229,8 @@ Node* parser(ParseStage state, Node* node) {
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
 			while (!(curt.type == Token_EOF || next_match(Token_EOF))) {
 				if (parse_failed) return 0;
-
-
+				
+				
 				ExpectGroup(Token_Typename) {
 					ExpectSignature(1, Token_Identifier, Token_OpenParen) {
 						parser(psFunction, node);
@@ -288,7 +288,7 @@ Node* parser(ParseStage state, Node* node) {
 			while (!next_match(Token_CloseBrace)) {
 				token_next();
 				ExpectGroup(Token_Typename) {
-					parser(psDeclaration, &declaration->node);
+					parser(psDeclaration, me);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("missing ; after variable assignment")
@@ -316,7 +316,7 @@ Node* parser(ParseStage state, Node* node) {
 					token_next();
 					new_expression(curt.str, ExpressionGuard_Assignment, ExTypeStrings[ExpressionGuard_Assignment]);
 					token_next();
-					insert_last(node, &expression->node);
+					insert_last(&declaration->node, &expression->node);
 					Node* ret = parser(psExpression, &expression->node);
 					return ret;
 				}
@@ -359,7 +359,7 @@ Node* parser(ParseStage state, Node* node) {
 					token_next();
 					parser(psStatement, &statement->node);
 				}break;
-
+				
 				case Token_For: {
 					StateSet(stInForLoop);
 					Node* me = new_statement(Statement_For, "for statement");
@@ -405,7 +405,7 @@ Node* parser(ParseStage state, Node* node) {
 					}ExpectFail("expected ( after for");
 					StateUnset(stInForLoop);
 				}break;
-
+				
 				case Token_While: {
 					StateSet(stInWhileLoop);
 					Node* me = new_statement(Statement_While, "while statement");
@@ -432,14 +432,14 @@ Node* parser(ParseStage state, Node* node) {
 					}ExpectFail("expected ( after while");
 					StateUnset(stInWhileLoop);
 				}break;
-
+				
 				case Token_Break: {
 					if (!StateHas(stInWhileLoop | stInForLoop)) { ParseFail("break not allowed outside of while/for loop"); return 0; }
 					Node* me = new_statement(Statement_Break, "break statement");
 					insert_last(node, me);
 					token_next();
 				}break;
-
+				
 				case Token_Continue: {
 					if (!StateHas(stInWhileLoop | stInForLoop)) { ParseFail("continue not allowed outside of while/for loop"); return 0; }
 					Node* me = new_statement(Statement_Continue, "continue statement");
@@ -461,11 +461,11 @@ Node* parser(ParseStage state, Node* node) {
 				case Token_OpenBrace: {
 					parser(psScope, node);
 				}break;
-
+				
 				case Token_Semicolon: {
 					//eat multiple semicolons
 				}break;
-
+				
 				default: {
 					new_statement(Statement_Expression, "exp statement");
 					insert_last(node, &statement->node);
@@ -503,7 +503,7 @@ Node* parser(ParseStage state, Node* node) {
 							//Expect(Token_Identifier) {
 							// This will be for doing func(arg = blah,...)
 							//}
-
+							
 							forI(callee->args.count) {
 								parser(psExpression, me);
 								token_next();
@@ -515,7 +515,7 @@ Node* parser(ParseStage state, Node* node) {
 							}
 							Expect(Token_CloseParen) { }
 							ExpectFail(toStr("expected ) after function call to ", callee->identifier));
-
+							
 							//TODO list what required arguments are missing 
 							//ExpectFail(toStr("expected an identifier or literal as function arg to ", callee->identifier));
 						}
@@ -531,7 +531,7 @@ Node* parser(ParseStage state, Node* node) {
 						return ret;
 					}
 				}break;
-
+				
 				default: {
 					new_expression(curt.str, ExpressionGuard_HEAD);
 					Node* ret = parser(psConditional, node);
@@ -646,7 +646,7 @@ Node* parser(ParseStage state, Node* node) {
 					insert_last(node, &expression->node);
 					return var;
 				}break;
-
+				
 				case Token_LiteralString: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " \"", curt.str, "\""));
 					insert_last(node, &expression->node);
@@ -674,11 +674,11 @@ Node* parser(ParseStage state, Node* node) {
 					}
 					return var;
 				}break;
-
+				
 				case Token_If: {
 					return parser(psConditional, &expression->node);
 				}break;
-
+				
 				case Token_Increment: {
 					new_expression(curt.str, Expression_IncrementPrefix, "++ pre");
 					insert_last(node, &expression->node);
@@ -689,7 +689,7 @@ Node* parser(ParseStage state, Node* node) {
 					}ExpectFail("'++' needs l-value");
 					return ret;
 				}break;
-
+				
 				case Token_Decrememnt: {
 					new_expression(curt.str, Expression_DecrementPrefix, "-- pre");
 					insert_last(node, &expression->node);
@@ -704,7 +704,7 @@ Node* parser(ParseStage state, Node* node) {
 				case Token_Semicolon: {
 					return node;
 				}break;
-
+				
 				case Token_Negation: {
 					new_expression(curt.str, Expression_UnaryOpNegate, "-");
 					insert_last(node, &expression->node);
@@ -713,7 +713,7 @@ Node* parser(ParseStage state, Node* node) {
 					parser(psFactor, &expression->node);
 					return ret;
 				}break;
-
+				
 				case Token_LogicalNOT: {
 					new_expression(curt.str, Expression_UnaryOpLogiNOT, "!");
 					insert_last(node, &expression->node);
@@ -722,7 +722,7 @@ Node* parser(ParseStage state, Node* node) {
 					parser(psFactor, &expression->node);
 					return ret;
 				}break;
-
+				
 				case Token_BitNOT: {
 					new_expression(curt.str, Expression_UnaryOpBitComp, "~");
 					insert_last(node, &expression->node);
@@ -731,7 +731,7 @@ Node* parser(ParseStage state, Node* node) {
 					parser(psFactor, &expression->node);
 					return ret;
 				}break;
-
+				
 				default: {
 					ParseFail("unexpected token found in factor");
 				}break;
@@ -747,7 +747,7 @@ b32 suParser::parse(array<token>& tokens_in, Program& mother) {
 	
 	tokens = tokens_in;
 	curt = tokens[0];
-
+	
 	
 	mother.node.comment = "program";
 	

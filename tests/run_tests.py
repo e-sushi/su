@@ -97,6 +97,24 @@ tests = [
     ["comparison_ops/invalid/missing_mid_op.su",    ReturnCode_Parser_Failed],
     ["comparison_ops/invalid/missing_second_op.su", ReturnCode_Parser_Failed],
     ["comparison_ops/invalid/missing_semicolon.su", ReturnCode_Parser_Failed],
+    
+    ["variables/valid/assign.su",         2],
+    ["variables/valid/assign_val.su",     4],
+    ["variables/valid/exp_return_val.su", 1],
+    ["variables/valid/initialize.su",     0],
+    ["variables/valid/missing_return.su", 0],
+    ["variables/valid/multiple_vars.su",  3],
+    ["variables/valid/no_initialize.su",  0],
+    ["variables/valid/refer.su",          2],
+    ["variables/valid/unused_exp.su",     0],
+    ["variables/invalid/redefine.su",                ReturnCode_Assembler_Failed],
+    ["variables/invalid/syntax_err_bad_decl.su",     ReturnCode_Parser_Failed],
+    ["variables/invalid/syntax_err_bad_decl_2.su",   ReturnCode_Parser_Failed],
+    ["variables/invalid/syntax_err_bad_lvalue.su",   ReturnCode_Parser_Failed],
+    ["variables/invalid/syntax_err_bad_lvalue_2.su", ReturnCode_Parser_Failed],
+    ["variables/invalid/syntax_err_no_semicolon.su", ReturnCode_Parser_Failed],
+    ["variables/invalid/undeclared_var.su",          ReturnCode_Assembler_Failed],
+    ["variables/invalid/var_declared_lat.su",        ReturnCode_Assembler_Failed],
 ];
 
 def main():

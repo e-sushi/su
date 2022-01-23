@@ -708,10 +708,19 @@ struct Assembler{
 	
 	//state
 	string output;
+	
+	b32 failed = false;
 	b32 function_returned = false;
+	b32 function_error = false; //TODO statement as well
+	
 	Type sub_expression = 0;
+	
 	u32 label_counter = 1;
 	//char label[16] = ".L?";
+	
+	Declaration* active_decl = 0;
+	u32 stack_offset = 0;
+	map<string,u32> var_map; //TODO use cstring, allow for local shadowing, use an arena
 } assembler;
 
 
@@ -770,12 +779,12 @@ asm_instruction(const char* instruction, const char* args, const char* comment){
 local FORCE_INLINE void
 asm_start_scope(){
     asm_instruction("push", "%rbp",      "save base pointer to stack (start scope)");
-    asm_instruction("mov",  "%rsp,%rbp", "put the previous stack pointer into the base pointer");
+    asm_instruction("mov",  "%rsp,%rbp", "save the current stack pointer as the base pointer");
 }
 
 local FORCE_INLINE void
 asm_end_scope(){
-    asm_instruction("leave", "undo stack pointer move and push (end scope)");
+    asm_instruction("leave", "restore the previous stack pointer and base pointers (end scope)");
 }
 
 local FORCE_INLINE void
@@ -804,23 +813,59 @@ FORCE_INLINE void assemble_binop_children(Expression* expr){
 local void
 assemble_expression(Expression* expr){
 	//if(assembler.write_comments) asm_pure(toStr("# ", expr->node.comment, "\n"));
+	if(assembler.function_error) return;
 	
 	switch(expr->type){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
-		//// Guards
-		case ExpressionGuard_Assignment:{
-			//TODO assignment
+		//// Identifiers
+		case Expression_IdentifierLHS:{
+			u32* offset = assembler.var_map.at(expr->expstr);
+			if(offset){
+				asm_instruction("mov", toStr("%rax,-",*offset,"(%rbp)").str, "store the value at %rax in the var");
+			}else{
+				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
+				assembler.function_error = true;
+			}
 		}break;
 		
-        case ExpressionGuard_HEAD:{
-			Assert(expr->node.child_count == 1, "ExpressionGuard_HEAD must have only one child node");
-			assemble_expression(ExpressionFromNode(expr->node.first_child)); //TODO why does HEAD exist if its just a pass-thru?
+		case Expression_IdentifierRHS:{
+			u32* offset = assembler.var_map.at(expr->expstr);
+			if(offset){
+				asm_instruction("mov", toStr("-",*offset,"(%rbp),%rax").str, "store value of the var in %rax");
+			}else{
+				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
+				assembler.function_error = true;
+			}
 		}break;
 		
-		case ExpressionGuard_Conditional:{
-			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			//TODO ternary expression
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Literals
+		case Expression_Literal:{
+			//string args = toStr("$",expr->integer_literal.value,",%rax");
+			string args = "$" + expr->expstr + ",%rax";
+			asm_instruction("mov", args.str, "move integer literal into %rax");
+		}break;
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Unary Operators
+		case Expression_UnaryOpBitComp:{
+			Assert(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
+			asm_instruction("not", "%rax", "perform bitwise complement");
+		}break;
+		
+		case Expression_UnaryOpLogiNOT:{
+			Assert(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
+			asm_instruction("cmp",  "$0,%rax", "perform logical not");
+			asm_instruction("mov",  "$0,%rax", "");
+			asm_instruction("sete", "%al",     "");
+		}break;
+		
+		case Expression_UnaryOpNegate:{
+			Assert(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
+			asm_instruction("neg", "%rax", "perform artihmetic negation");
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -852,107 +897,107 @@ assemble_expression(Expression* expr){
 		case Expression_BinaryOpBitOR:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("or",  "%rcx,%rax", "bitwise or %rax with %rcx");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("or",  "%rdx,%rax", "bitwise or %rax with %rdx");
 		}break;
 		
 		case Expression_BinaryOpBitXOR:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("xor", "%rcx,%rax", "bitwise xor %rax with %rcx");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("xor", "%rdx,%rax", "bitwise xor %rax with %rdx");
 		}break;
 		
 		case Expression_BinaryOpBitAND:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("and", "%rcx,%rax", "bitwise and %rax with %rcx");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("and", "%rdx,%rax", "bitwise and %rax with %rdx");
 		}break;
 		
 		case Expression_BinaryOpEqual:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx == %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("cmp",   "%rax,%rdx", "perform comparison, %rdx == %rax");
 			asm_instruction("sete",  "%al",       "set %al if equal");
 		}break;
 		
 		case Expression_BinaryOpNotEqual:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("cmp",   "%rax,%rcx", "perform comparison, %rcx != %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("cmp",   "%rax,%rdx", "perform comparison, %rdx != %rax");
 			asm_instruction("setne", "%al",       "set %al if not equal");
 		}break;
 		
 		case Expression_BinaryOpLessThan:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx < %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx < %rax");
 			asm_instruction("setl",  "%al",       "set %al if less than");
 		}break;
 		
 		case Expression_BinaryOpLessThanOrEqual:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx <= %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx <= %rax");
 			asm_instruction("setle", "%al",       "set %al if less than/equal");
 		}break;
 		
 		case Expression_BinaryOpGreaterThan:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx > %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx > %rax");
 			asm_instruction("setg",  "%al",       "set %al if greater than");
 		}break;
 		
 		case Expression_BinaryOpGreaterThanOrEqual:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("cmp",   "%rcx,%rax", "perform comparison, %rcx >= %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx >= %rax");
 			asm_instruction("setge", "%al",       "set %al if greater than/equal");
 		}break;
 		
 		case Expression_BinaryOpBitShiftLeft:{
 			assemble_binop_children(expr);
 			
-			asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift left");
+			asm_instruction("mov", "%rax,%rdx", "mov %rax into %rdx for bitshift left");
 			asm_pop_stack(Register_RAX);
-			asm_instruction("shl", "%cl,%rax",  "bitshift left %rax by %rcx");
+			asm_instruction("shl", "%cl,%rax",  "bitshift left %rax by %rdx");
 		}break;
 		
 		case Expression_BinaryOpBitShiftRight:{
 			assemble_binop_children(expr);
 			
-			asm_instruction("mov", "%rax,%rcx", "mov %rax into %rcx for bitshift right");
+			asm_instruction("mov", "%rax,%rdx", "mov %rax into %rdx for bitshift right");
 			asm_pop_stack(Register_RAX);
-			asm_instruction("shr", "%cl,%rax",  "bitshift right %rax by %rcx");
+			asm_instruction("shr", "%cl,%rax",  "bitshift right %rax by %rdx");
 		}break;
 		
 		case Expression_BinaryOpPlus:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("add", "%rcx,%rax", "add, store result in %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("add", "%rdx,%rax", "add, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpMinus:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("sub", "%rcx,%rax", "subtract, store result in %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("sub", "%rdx,%rax", "subtract, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpMultiply:{
 			assemble_binop_children(expr);
 			
-			asm_pop_stack(Register_RCX);
-			asm_instruction("imul", "%rcx,%rax", "signed multiply, store result in %rax");
+			asm_pop_stack(Register_RDX);
+			asm_instruction("imul", "%rdx,%rax", "signed multiply, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpDivision:{
@@ -974,34 +1019,27 @@ assemble_expression(Expression* expr){
 			asm_instruction("mov",  "%rdx,%rax", "move remainder from %rdx into %rax");
 		}break;
 		
-		/////////////////////////////////////////////////////////////////////////////////////////////////
-		//// Unary Operators
-		case Expression_UnaryOpBitComp:{
-			Assert(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
-			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("not", "%rax", "perform bitwise complement");
-		}break;
-		
-		case Expression_UnaryOpLogiNOT:{
-			Assert(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
-			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("cmp",  "$0,%rax", "perform logical not");
-			asm_instruction("mov",  "$0,%rax", "");
-			asm_instruction("sete", "%al",     "");
-		}break;
-		
-		case Expression_UnaryOpNegate:{
-			Assert(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
-			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("neg", "%rax", "perform artihmetic negation");
+		case Expression_BinaryOpAssignment:{
+			//TODO make identifier the first child and expressions the last child
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
-		//// Literals
-		case Expression_Literal:{
-			//string args = toStr("$",expr->integer_literal.value,",%rax");
-			string args = "$" + expr->expstr + ",%rax";
-			asm_instruction("mov", args.str, "move integer literal into %rax");
+		//// Guards
+		case ExpressionGuard_Assignment:{ //NOTE this only exists as a child to Declaration
+			Assert(assembler.active_decl, "There must be an active declaration for ExpressionGuard_Assignment");
+			for_node_reverse(expr->node.last_child) assemble_expression(ExpressionFromNode(it));
+			asm_instruction("mov", toStr("%rax,-",assembler.stack_offset,"(%rbp)").str, "store the value at %rax in the var");
+		}break;
+		
+        case ExpressionGuard_HEAD:{
+			Assert(expr->node.child_count == 1, "ExpressionGuard_HEAD must have only one child node");
+			assemble_expression(ExpressionFromNode(expr->node.first_child)); //TODO why does HEAD exist if its just a pass-thru?
+		}break;
+		
+		case ExpressionGuard_Conditional:{
+			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
+			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
+			//TODO ternary expression
 		}break;
 		
 		default:{
@@ -1014,22 +1052,35 @@ local void
 assemble_statement(Statement* stmt){
     switch(stmt->type){
         case Statement_Return:{
-			for_node(stmt->node.first_child){
-				assemble_expression(ExpressionFromNode(it));
-			}
+			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
 			
             asm_end_scope();
             asm_instruction("ret", "return code pointer back to func call site");
             assembler.function_returned = true;
         }break;
+		
+		case Statement_Expression:{
+			//NOTE right then left because assignment currently uses this
+			for_node_reverse(stmt->node.last_child) assemble_expression(ExpressionFromNode(it));
+		}break;
     }
 }
 
 local void
 assemble_declaration(Declaration* decl){
-	for_node(decl->node.first_child){
-		assemble_expression(ExpressionFromNode(it));
+	if(decl->type != DataType_Signed32){
+		logfE("assembler", "Variable '%s' declared with type '%s' which is unhandled currently", decl->identifier.str, dataTypeStrs[decl->type]);
+		return;
 	}
+	
+	//TODO get type size from declaration
+	//TODO need sizing information overall to call the correct registers
+	assembler.stack_offset += 8; //sizeof(s64) == 4
+	assembler.var_map.add(decl->identifier, assembler.stack_offset);
+	
+	assembler.active_decl = decl;
+	for_node(decl->node.first_child) assemble_expression(ExpressionFromNode(it));
+	assembler.active_decl = 0;
 }
 
 local void
@@ -1049,15 +1100,22 @@ assemble_function(Function* func){
 	if(func->node.child_count == 0) return;
     assembler.function_returned = false;
     
-    asm_pure(func->identifier.str); asm_pure(":\n");
+    asm_pure(func->identifier); asm_pure(":\n");
     asm_start_scope();
 	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "a function only has one child and it has to be a scope");
 	assemble_scope(ScopeFromNode(func->node.first_child));
     if(!assembler.function_returned){
+		logfW("assembler", "Function '%s' is missing a return statement, automatically inserting 'return 0' at the end", func->identifier.str);
 		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");
         asm_end_scope();
         asm_instruction("ret",            "return code pointer back to func call site");
     }
+	
+	if(assembler.function_error){
+		logfE("assembler", "Function '%s' failed to compile due to internal errors", func->identifier.str);
+		assembler.failed = true;
+		assembler.function_error = false;
+	}
 }
 
 ////////////////////
@@ -1072,6 +1130,11 @@ b32 suAssembler::assemble(Program& program, string& assembly) {
     
 	for_node(program.node.first_child){
 		assemble_function(FunctionFromNode(it));
+	}
+	
+	if(assembler.failed){
+		logfE("assembler", "Program '' failed to compile due to internal errors");
+		return false;
 	}
 	
 	assembly = assembler.output;

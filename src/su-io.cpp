@@ -1,3 +1,7 @@
+#define logf(tag,fmt,...) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"] "), fmt)), "\n"), __VA_ARGS__)
+#define logfW(tag,fmt,...) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"-warning] "), fmt)), "\n"), __VA_ARGS__)
+#define logfE(tag,fmt,...) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"-error] "), fmt)), "\n"), __VA_ARGS__)
+
 string load_file(const char* filepath){
 	string result;
 	

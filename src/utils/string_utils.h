@@ -38,6 +38,11 @@ to_string(char* str){
 }
 
 global_ string 
+to_string(const char* str){ 
+	return string(str); 
+}
+
+global_ string 
 to_string(const string& str){ 
 	return str; 
 }
@@ -48,7 +53,7 @@ to_string(const std::string& str){
 }
 
 global_ string 
-to_string(const char* fmt, ...){
+stringf(const char* fmt, ...){
 	va_list argptr;
 	va_start(argptr, fmt);
 	string s;
