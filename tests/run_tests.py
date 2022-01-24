@@ -122,6 +122,7 @@ def main():
     tests_dir = os.path.dirname(__file__)
     su_exe_path = os.path.join(tests_dir, "..\\build\\debug\\su.exe")
     test_filter = "*"
+    print_errors = False
 
     arg_index = 1;
     for _ in range(len(sys.argv)):
@@ -149,6 +150,8 @@ def main():
             else:
                 test_filter = sys.argv[arg_index+1];
                 arg_index += 1;
+        elif(sys.argv[arg_index] == "--p"):
+            print_errors = True
         else:
             print("ERROR: unknown flag: ", sys.argv[arg_index]);
             return;
@@ -189,7 +192,7 @@ def main():
         
         if(type == 'valid'): #valid tests should return errorlevel 0 from su.exe
             try:
-                subprocess.run(compile_cmd, capture_output=True, check=True);
+                subprocess.run(compile_cmd, capture_output=True, check=True, encoding="utf-8");
                 subprocess.run("gcc "+"-m64 "+file_s+" -o "+file_exe);
                 if not(os.path.exists(file_exe)):
                     print("%s %s (link error)" % (path.ljust(60, '_'), "FAILED"));
@@ -197,7 +200,7 @@ def main():
                     continue;
                 
                 try:
-                    subprocess.run(file_exe, capture_output=True, check=True);
+                    subprocess.run(file_exe, capture_output=True, check=True, encoding="utf-8");
                     #print("%-60s %s (E: %d; A: %d)" % (path, "PASSED", expected, 0));
                     print("%-60s %s" % (path, "PASSED"));
                     tests_passed += 1;
@@ -208,16 +211,18 @@ def main():
                         print("%-60s %s" % (path, "PASSED"));
                         tests_passed += 1;
                     else:
+                        if(print_errors): print(err.stdout);
                         print("%s %s (E: %d; A: %d)" % (path.ljust(60, '_'), "FAILED", expected, actual));
                         tests_failed += 1;
                 os.remove(file_exe);
             except subprocess.CalledProcessError as err:
                 actual = ctypes.c_int32(err.returncode).value;
+                if(print_errors): print(err.stdout);
                 print("%s %s (compile error: %d)" % (path.ljust(60, '_'), "FAILED", actual));
                 tests_failed += 1;
         elif(type == 'invalid'):
             try:
-                subprocess.run(compile_cmd, capture_output=True, check=True);
+                subprocess.run(compile_cmd, capture_output=True, check=True, encoding="utf-8");
                 
                 os.remove(file_s);
                 print("%s %s (no compile error)" % (path.ljust(60, '_'), "FAILED"));
@@ -229,6 +234,7 @@ def main():
                     print("%-60s %s" % (path, "PASSED"));
                     tests_passed += 1;
                 else:
+                    if(print_errors): print(err.stdout);
                     print("%s %s (E: %d; A: %d)" % (path.ljust(60, '_'), "FAILED", expected, actual));
                     tests_failed += 1;
         else:
