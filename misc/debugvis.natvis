@@ -75,7 +75,7 @@
   </Type>
 	
   <Type Name="token">
-    <DisplayString> {type} {str} </DisplayString>
+    <DisplayString> {type} {str} {scope}</DisplayString>
     <Expand>
       <Item Name="str">str</Item>
       <Item Name="type">type</Item>

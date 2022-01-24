@@ -44,7 +44,6 @@ enum NodeType : u32 {
 	NodeType_Declaration,
 	NodeType_Statement,
 	NodeType_Expression,
-	NodeType_Variable,
 };
 
 //abstract node tree struct
@@ -280,13 +279,6 @@ const char* dataTypeStrs[] = {
 	"struct", 
 }; 
 
-struct Variable {
-	cstring identifier;
-	DataType type;
-	Node node;
-	u64 token_idx = 0;
-};
-#define VariableFromNode(node_ptr) ((Variable*)((u8*)(node_ptr) - OffsetOfMember(Variable,node)))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
@@ -413,6 +405,7 @@ enum StatementType : u32 {
 	Statement_While,
 	Statement_Break,
 	Statement_Continue,
+	Statement_Struct,
 };
 
 struct Statement {
@@ -422,11 +415,11 @@ struct Statement {
 #define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
 struct Declaration {
-	DataType type;
 	cstring identifier;
-	b32 initialized = false;
+	DataType type;
 	Node node;
-	u32 token_idx = 0;
+	b32 initialized = 0;
+	u64 token_idx = 0;
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
@@ -440,7 +433,7 @@ struct Function {
 	cstring identifier;
 	DataType type;
 	//TODO change these to sets of nodes 
-	map<cstring, Variable*> args;
+	map<cstring, Declaration*> args;
 	Node node;
 	u64 token_idx = 0;
 };
@@ -449,7 +442,7 @@ struct Function {
 struct Struct {
 
 	cstring identifier;
-	map<cstring, Variable*> member_vars;
+	map<cstring, Declaration*> member_vars;
 	map<cstring, Function*> member_funcs;
 	Node node;
 	u64 token_idx = 0;

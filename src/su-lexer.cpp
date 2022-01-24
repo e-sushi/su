@@ -7,6 +7,7 @@ enum LexerState_ {
 LexerState state = DiscernChar;
 
 array<u32> idindexes;
+array<u32> globalids;
 array<cstring> structnames;
 
 b32 suLexer::lex(const string& file) {
@@ -38,62 +39,62 @@ b32 suLexer::lex(const string& file) {
 					case '.': { lexer.tokens.add(token{ cstrb(1), Token_Dot,          Token_ControlCharacter, scope, lines }); advance(&buff); }break;
 					
 					case '+': {
-						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2),Token_PlusAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else if (buff[1] == '+') { lexer.tokens.add(token{ cstrb(2),Token_Increment, Token_Operator, lines }); advance(&buff, 2); }
-						else                     { lexer.tokens.add(token{ cstrb(1),Token_Plus, Token_Operator, lines }); advance(&buff); }
+						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2),Token_PlusAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '+') { lexer.tokens.add(token{ cstrb(2),Token_Increment,      Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                     { lexer.tokens.add(token{ cstrb(1),Token_Plus,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '-': {
-						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_NegationAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else if (buff[1] == '-') { lexer.tokens.add(token{ cstrb(2), Token_Decrememnt, Token_Operator, lines }); advance(&buff, 2); }
-						else                     { lexer.tokens.add(token{ cstrb(1), Token_Negation, Token_Operator, lines }); advance(&buff); }
+						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_NegationAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '-') { lexer.tokens.add(token{ cstrb(2), Token_Decrememnt,         Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                     { lexer.tokens.add(token{ cstrb(1), Token_Negation,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '*': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_MultiplicationAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_Multiplication, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_MultiplicationAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_Multiplication,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '/': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_DivisionAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_Division, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_DivisionAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_Division,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '~': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitNOTAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_BitNOT, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitNOTAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_BitNOT,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '&': {
-						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitANDAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else if (buff[1] == '&') { lexer.tokens.add(token{ cstrb(2), Token_AND, Token_Operator, lines }); advance(&buff, 2); }
-						else                     { lexer.tokens.add(token{ cstrb(1), Token_BitAND, Token_Operator, lines }); advance(&buff); }
+						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitANDAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '&') { lexer.tokens.add(token{ cstrb(2), Token_AND,              Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                     { lexer.tokens.add(token{ cstrb(1), Token_BitAND,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '|': {
-						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitORAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else if (buff[1] == '|') { lexer.tokens.add(token{ cstrb(2), Token_OR, Token_Operator, lines }); advance(&buff, 2); }
-						else                     { lexer.tokens.add(token{ cstrb(1), Token_BitOR, Token_Operator, lines }); advance(&buff); }
+						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitORAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '|') { lexer.tokens.add(token{ cstrb(2), Token_OR,              Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                     { lexer.tokens.add(token{ cstrb(1), Token_BitOR,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '^': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitXORAssignment, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_BitXOR, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitXORAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_BitXOR,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '%': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_Equal, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_Modulo, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_Equal,  Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_Modulo, Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '=': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_Equal, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_Assignment, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_Equal,      Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_Assignment, Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '!': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_NotEqual, Token_Operator, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_LogicalNOT, Token_Operator, lines }); advance(&buff); }
+						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_NotEqual,   Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                { lexer.tokens.add(token{ cstrb(1), Token_LogicalNOT, Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '<': {
-						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_LessThanOrEqual, Token_Operator, lines }); advance(&buff, 2); }
-						else if (buff[1] == '<') { lexer.tokens.add(token{ cstrb(2), Token_BitShiftLeft, Token_Operator, lines }); advance(&buff, 2); }
-						else                     { lexer.tokens.add(token{ cstrb(1), Token_LessThan, Token_Operator, lines }); advance(&buff); }
+						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_LessThanOrEqual, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '<') { lexer.tokens.add(token{ cstrb(2), Token_BitShiftLeft,    Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                     { lexer.tokens.add(token{ cstrb(1), Token_LessThan,        Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '>': {
-						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_GreaterThanOrEqual, Token_Operator, lines }); advance(&buff, 2); }
-						else if (buff[1] == '>') { lexer.tokens.add(token{ cstrb(2), Token_BitShiftRight, Token_Operator, lines }); advance(&buff, 2); }
-						else                     { lexer.tokens.add(token{ cstrb(1), Token_GreaterThan, Token_Operator, lines }); advance(&buff); }
+						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_GreaterThanOrEqual, Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '>') { lexer.tokens.add(token{ cstrb(2), Token_BitShiftRight,      Token_Operator, scope, lines }); advance(&buff, 2); }
+						else                     { lexer.tokens.add(token{ cstrb(1), Token_GreaterThan,        Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '\n': { lines++; advance(&buff); }break;
 					case '\t':
@@ -119,32 +120,35 @@ b32 suLexer::lex(const string& file) {
 					case '%': case ':': case '?': case '>': case '^': case '\n': {
 						state = DiscernChar;
 						if (isalpha(*chunk_start)) {
-							if      (!strncmp("return",   chunk_start, 6)) { lexer.tokens.add(token{ cstrc(6), Token_Return,     Token_ControlKeyword, lines });}
-							else if (!strncmp("if",       chunk_start, 2)) { lexer.tokens.add(token{ cstrc(2), Token_If,         Token_ControlKeyword, lines });}
-							else if (!strncmp("else",     chunk_start, 4)) { lexer.tokens.add(token{ cstrc(4), Token_Else,       Token_ControlKeyword, lines });}
-							else if (!strncmp("for",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_For,        Token_ControlKeyword, lines });}
-							else if (!strncmp("while",    chunk_start, 5)) { lexer.tokens.add(token{ cstrc(5), Token_While,      Token_ControlKeyword, lines });}
-							else if (!strncmp("break",    chunk_start, 5)) { lexer.tokens.add(token{ cstrc(5), Token_Break,      Token_ControlKeyword, lines });}
-							else if (!strncmp("continue", chunk_start, 8)) { lexer.tokens.add(token{ cstrc(8), Token_Continue,   Token_ControlKeyword, lines });}
-							else if (!strncmp("struct",   chunk_start, 6)) { lexer.tokens.add(token{ cstrc(6), Token_StructDecl, Token_ControlKeyword, lines }); lexer.struct_decl.add(lexer.tokens.count-1); grab_structname = 1;}
-							else if (!strncmp("void",     chunk_start, 4)) { lexer.tokens.add(token{ cstrc(4), Token_Void,       Token_Typename,       lines });}
-							else if (!strncmp("s32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed32,   Token_Typename,       lines });}
-							else if (!strncmp("s64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed64,   Token_Typename,       lines });}
-							else if (!strncmp("u32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned32, Token_Typename,       lines });}
-							else if (!strncmp("u64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned64, Token_Typename,       lines });}
-							else if (!strncmp("f32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Float32,    Token_Typename,       lines });}
-							else if (!strncmp("f64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Float64,    Token_Typename,       lines });}
-							else if (!strncmp("any",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Any,        Token_Typename,       lines });}
-							else if (!strncmp("str",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_String,     Token_Typename,       lines });}
+							if      (!strncmp("return",   chunk_start, 6)) { lexer.tokens.add(token{ cstrc(6), Token_Return,     Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("if",       chunk_start, 2)) { lexer.tokens.add(token{ cstrc(2), Token_If,         Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("else",     chunk_start, 4)) { lexer.tokens.add(token{ cstrc(4), Token_Else,       Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("for",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_For,        Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("while",    chunk_start, 5)) { lexer.tokens.add(token{ cstrc(5), Token_While,      Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("break",    chunk_start, 5)) { lexer.tokens.add(token{ cstrc(5), Token_Break,      Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("continue", chunk_start, 8)) { lexer.tokens.add(token{ cstrc(8), Token_Continue,   Token_ControlKeyword, scope, lines });}
+							else if (!strncmp("struct",   chunk_start, 6)) { lexer.tokens.add(token{ cstrc(6), Token_StructDecl, Token_ControlKeyword, scope, lines }); grab_structname = 1;}
+							else if (!strncmp("void",     chunk_start, 4)) { lexer.tokens.add(token{ cstrc(4), Token_Void,       Token_Typename,       scope, lines });}
+							else if (!strncmp("s32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed32,   Token_Typename,       scope, lines });}
+							else if (!strncmp("s64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed64,   Token_Typename,       scope, lines });}
+							else if (!strncmp("u32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned32, Token_Typename,       scope, lines });}
+							else if (!strncmp("u64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned64, Token_Typename,       scope, lines });}
+							else if (!strncmp("f32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Float32,    Token_Typename,       scope, lines });}
+							else if (!strncmp("f64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Float64,    Token_Typename,       scope, lines });}
+							else if (!strncmp("any",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Any,        Token_Typename,       scope, lines });}
+							else if (!strncmp("str",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_String,     Token_Typename,       scope, lines });}
 							else { 
-								lexer.tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, lines });
+								lexer.tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, scope, lines });
 								if (grab_structname) {
 									structnames.add(chunkstr);
 									grab_structname = 0;
 								}
-								else {
-									idindexes.add(lexer.tokens.count - 1);
+								
+								idindexes.add(lexer.tokens.count - 1);
+								if (!lexer.tokens.last->scope) {
+									globalids.add(lexer.tokens.count - 1);
 								}
+
 							}
 						}
 						else {
@@ -157,7 +161,7 @@ b32 suLexer::lex(const string& file) {
 									valid = 0; 
 								 }
 							if (valid) { 
-								lexer.tokens.add(token{ chunkstr, (isfloat ? Token_LiteralFloat : Token_LiteralInteger), Token_Literal, lines });
+								lexer.tokens.add(token{ chunkstr, (isfloat ? Token_LiteralFloat : Token_LiteralInteger), Token_Literal, scope, lines });
 								if (isfloat) {
 									lexer.tokens.last->float32 = stod(chunkstr);
 								}
@@ -182,8 +186,8 @@ b32 suLexer::lex(const string& file) {
 						if (isalpha(*chunk_start)) {
 							//must be member access period (i hope)
 							//TODO maybe add checks here that its not a keyword
-							lexer.tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, lines });
-							lexer.tokens.add(token{ cstr_lit("."), Token_Dot, Token_ControlCharacter, lines });
+							lexer.tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, scope, lines });
+							lexer.tokens.add(token{ cstr_lit("."), Token_Dot, Token_ControlCharacter, scope, lines });
 							advance(&buff);
 						}
 						else { advance(&buff); }//float case handled above
@@ -197,7 +201,7 @@ b32 suLexer::lex(const string& file) {
 			case ReadingStringLiteral: {
 				switch (buff[0]) {
 					case '"': {
-						lexer.tokens.add(token{ chunkstr, Token_LiteralString, Token_Literal, lines });
+						lexer.tokens.add(token{ chunkstr, Token_LiteralString, Token_Literal, scope, lines });
 						state = DiscernChar;
 						advance(&buff);
 					}break;
@@ -210,14 +214,18 @@ b32 suLexer::lex(const string& file) {
 			}break;
 		}
 	}
-	lexer.tokens.add(token{ cstr_lit(""), Token_EOF, Token_EOF, lines});
+	lexer.tokens.add(token{ cstr_lit(""), Token_EOF, Token_EOF, scope, lines});
 	
+	//not very helpful
+	if (scope) logE("lexer", "unbalanced {} somewhere in code");
+
 	//iterate over all found identifiers and figure out if they match any known struct names
 	//so parser knows when a struct name is being used as a type
 	//TODO find a good way to only add identifiers that are in the global scope 
-	forI(idindexes.count) {
-		token& t = lexer.tokens[idindexes[i]];
-		if (!t.scope) {
+	forI(Max(idindexes.count, globalids.count)) {
+		b32 isstruct = 0;
+		if (i < idindexes.count && lexer.tokens[idindexes[i] - 1].type != Token_StructDecl) {
+			token& t = lexer.tokens[idindexes[i]];
 			b32 isstruct = 0;
 			for (cstring& str : structnames) {
 				if (equals(str, t.str)) {
@@ -227,10 +235,22 @@ b32 suLexer::lex(const string& file) {
 					break;
 				}
 			}
-			if (!isstruct && lexer.tokens[idindexes[i] + 1].type == Token_OpenParen && match_any(lexer.tokens[idindexes[i] - 1].group, Token_Typename)) {
-				lexer.func_decl.add(idindexes[i] - 1);
-			}
+			
 		}
+		if(i < globalids.count) {
+			if (lexer.tokens[globalids[i] - 1].type == Token_StructDecl) {
+				lexer.struct_decl.add(globalids[i] - 1);
+			}
+			else if (match_any(lexer.tokens[globalids[i] - 1].group, Token_Typename)) {
+				if (lexer.tokens[globalids[i] + 1].type == Token_OpenParen) {
+					lexer.func_decl.add(globalids[i] - 1);
+				}
+				else {
+					lexer.var_decl.add(globalids[i] - 1);
+				}
+			} 
+		}
+		
 	}
 
 	return true;

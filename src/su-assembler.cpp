@@ -1069,7 +1069,7 @@ assemble_statement(Statement* stmt){
 local void
 assemble_declaration(Declaration* decl){
 	if(decl->type != DataType_Signed32){
-		logfE("assembler", "Variable '%s' declared with type '%s' which is unhandled currently", decl->identifier.str, dataTypeStrs[decl->type]);
+		logfE("assembler", "Declaration '%s' declared with type '%s' which is unhandled currently", decl->identifier.str, dataTypeStrs[decl->type]);
 		return;
 	}
 	

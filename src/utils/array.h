@@ -68,7 +68,7 @@ struct array{
 	//returns the value of iter + some value and doesn't increment it 
 	T& peek(u32 i = 1);
 	//returns the value of iter and decrements it by one
-	T& prev();
+	T& prev(u32 count = 0);
 	T& lookback(u32 i = 1);
 	//iterator functions that return pou32ers if the object isnt already one
 	T* nextptr();
@@ -432,8 +432,7 @@ at(u32 i){
 template<typename T> inline T& array<T>::
 next(u32 count){
 	if (last - iter + 1 >= 0) {
-		iter += count;
-		return *iter;
+		return iter += count, *iter;
 	}
 	return *iter;
 }
@@ -445,8 +444,11 @@ peek(u32 i){
 }
 
 template<typename T> inline T& array<T>::
-prev(){
-	if(iter - first + 1 >= 0) return *--iter;
+prev(u32 count){
+	if (iter - first + 1 >= 0) {
+		return iter -= count, *iter;
+	}
+	return *--iter;
 }
 
 template<typename T> inline T& array<T>::

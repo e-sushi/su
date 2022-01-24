@@ -5,13 +5,6 @@
 #include "su-lexer.h"
 #include "su-types.h"
 
-
-
-
-struct Parser {
-	//TODO make parser obj	
-};
-
 namespace suParser {
 	b32 parse(Program& mother);
 }
