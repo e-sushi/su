@@ -101,6 +101,8 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
+
+	memset(enabledWC, 1, sizeof(b32) * WC_COUNT);
 		
 	//make this not array and string later maybe 
 	array<string> filepaths;

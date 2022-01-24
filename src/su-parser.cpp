@@ -881,6 +881,7 @@ Node* define(ParseStage stage, Node* node) {
 						expsend.resize(f->args.count);
 
 						u32 positional_args_given = 0;
+						u32 named_positional_args_given = 0;
 						while (!next_match(Token_CloseParen)) {
 							token_next();
 							b32 namedarg = 0;
@@ -892,8 +893,10 @@ Node* define(ParseStage stage, Node* node) {
 									u32 argidx = f->args.findkey(id);
 									if (argidx == npos)   { ParseFail("unidentified named argument, ", id, " (or you wanted to use ==?)"); return 0; }
 									if (expsend[argidx]) { ParseFail("attempt to use named arg on argument who has already been set: ", id); return 0; }
+									//if (argidx <= f->positional_args) named_positional_args_given++;
 									token_next();
 									expsend[argidx] = define(psExpression, node);
+									if (!expsend[argidx]) return 0;
 									token_next();
 								}
 								else {
@@ -902,7 +905,11 @@ Node* define(ParseStage stage, Node* node) {
 							}
 							if (!namedarg) {
 								//TODO handle too many args given
-								expsend[positional_args_given++] = define(psExpression, node);
+								//check if a positional arg was already filled by a named arg
+								while (expsend[positional_args_given]) positional_args_given++;
+								expsend[positional_args_given] = define(psExpression, node);
+								if (!expsend[positional_args_given++]) return 0;
+
 								token_next();
 							}
 
@@ -914,15 +921,15 @@ Node* define(ParseStage stage, Node* node) {
 						if (positional_args_given < f->positional_args) {
 							ParseFail("func ", f->identifier, " requires ", f->positional_args, " positional args but ", (positional_args_given ? "only " : ""), positional_args_given, (positional_args_given == 1 ? " was " : " were "), "given.");
 							logE("parser", "missing args are: ");
-							for (u32 i = positional_args_given; i < f->positional_args; i++) {
-								logE("parser", f->args[i]->identifier, " of type ", dataTypeStrs[f->args[i]->type]);
+							for (u32 i = 0; i < f->positional_args; i++) {
+								if(!expsend[i])
+									logE("parser", f->args[i]->identifier, " of type ", dataTypeStrs[f->args[i]->type]);
 							}
 							return 0;
 						}
 
 						for (u32 i = 0; i < expsend.count; i++) {
 							if (!expsend[i]) {
-								//this may not be right
 								insert_last(me, f->args[i]->node.first_child->last_child);
 							}
 							else {
