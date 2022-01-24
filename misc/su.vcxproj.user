@@ -4,11 +4,11 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)\tests\_</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>-v -i main.su</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-v -dw 0 1 -i main.su </LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)\tests\_</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-i main.su -v</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-i main.su -v -dw 0</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

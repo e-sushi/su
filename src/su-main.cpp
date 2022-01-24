@@ -30,11 +30,16 @@ command line arguments:
 				  :  linux
 				  :  osx
 
--o [str] default: working directory
-directory to output the .asm (and other output) files to
+		-o [str] default: working directory
+				  directory to output the .asm (and other output) files to
 
 		-ep [str] default: main 
-				set the name of the entry point function of the program; 
+				  set the name of the entry point function of the program; 
+
+		-dw [int] default: none
+				  disable certain warnings from appearing while compiling
+				  list of warnings is in su-types.h
+				  this can take multiple ints 
 
 		-sw       suppress warnings
 		-se       suppress errors
@@ -111,7 +116,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		char* arg = argv[i];
 		//// @-i files to compile ////
 		if (!strcmp("-i", arg)) {
-			i++; arg = argv[i];
+			arg = argv[++i];
 			if (str_ends_with(arg, ".su")) {
 				filepaths.add(argv[i]);
 				//TODO block .subuild files after finding a .su
@@ -128,13 +133,13 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 		//// @-wl warning level ////
 		else if (!strcmp("-wl", arg)) {
-			i++; arg = argv[i];
+			arg = argv[++i];
 			globals.warning_level = stoi(argv[i]);
 			//TODO handle invalid arg here
 		}
 		//// @-os output OS ////
 		else if (!strcmp("-os", arg)) {
-			i++; arg = argv[i];
+			arg = argv[++i];
 			if      (!strcmp("windows", arg)) { globals.osout = OSOut_Windows; }
 			else if (!strcmp("linux",   arg)) { globals.osout = OSOut_Linux; }
 			else if (!strcmp("osx",     arg)) { globals.osout = OSOut_OSX; }
@@ -145,7 +150,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 		//// @-o output directory ////
 		else if (!strcmp("-o", arg)) {
-			i++; arg = argv[i];
+			arg = argv[++i];
 			output_dir = arg;
 			if(output_dir[output_dir.count-1] != '\\' && output_dir[output_dir.count-1] != '/'){
 				output_dir += "/";
@@ -153,6 +158,15 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 		else if (!strcmp("-v", arg)) {
 			globals.verbose_print = true;
+		}
+		else if (!strcmp("-dw", arg)) {
+			arg = argv[++i];
+			while (1) {
+				enabledWC[stoi(arg)] = false;
+				if (i == argc - 1) break;
+				arg = argv[++i];
+				if (!isnumber(arg[0])) { i--; break; }
+			}
 		}
 		else {
 			PRINTLN("ERROR: invalid argument: '" << arg << "'");

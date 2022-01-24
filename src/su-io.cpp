@@ -1,11 +1,12 @@
 //TODO make another log for messages
 #define logf(tag,fmt,...) if(globals.verbose_print)printf(GLUE(GLUE("[",GLUE(GLUE(tag,"] "), fmt)), "\n"), __VA_ARGS__)
 #define logfW(tag,level,fmt,...) if(!globals.supress_warnings && level <= globals.warning_level)printf(GLUE(GLUE("[",GLUE(GLUE(tag,"-warning] "), fmt)), "\n"), __VA_ARGS__)
+#define logfWC(tag,level,code,fmt,...) if(enabledWC[code]) logfW(tag,level,fmt,__VA_ARGS__)
 #define logfE(tag,fmt,...)  if(!globals.supress_errors) printf(GLUE(GLUE("[",GLUE(GLUE(tag,"-error] "), fmt)), "\n"), __VA_ARGS__)
 #define log(tag,...)  if(globals.verbose_print){ PRINTLN(toStr("[", tag, "]", __VA_ARGS__)); }
 #define logW(tag,level,...)  if(!globals.supress_warnings && level <= globals.warning_level){ PRINTLN(toStr("[", tag, "-warning-l",level, "] ",__VA_ARGS__));}
+#define logWC(tag,level,code,...) if(enabledWC[code]) logW(tag,level,__VA_ARGS__)
 #define logE(tag,...) if(!globals.supress_errors){PRINTLN(toStr("[", tag, "-error] ", __VA_ARGS__));}
-
 
 
 string load_file(const char* filepath){

@@ -19,6 +19,13 @@ enum ReturnCode {
 	ReturnCode_Assembler_Failed       = 9,
 };
 
+enum WarningCodes {
+	WC_Implicit_Narrowing_Conversion = 0,
+	WC_No_Return_Type                = 1,
+	WC_COUNT
+};
+b32 enabledWC[WC_COUNT];
+
 enum OSOut {
 	OSOut_Windows,
 	OSOut_Linux,
@@ -33,6 +40,8 @@ struct {
 	b32   supress_messages = false;
 	OSOut osout            = OSOut_Windows;
 } globals;
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
