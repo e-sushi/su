@@ -39,7 +39,7 @@ else if(curt.group == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
-else { ParseFail(error); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
+else { ParseFail(error); /*DebugBreakpoint;*/ } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode, error)\
 else { ParseFail(error); failcode }
@@ -875,8 +875,6 @@ Node* define(ParseStage stage, Node* node) {
 						Function* f = FunctionFromNode(*knownFuncs.at(curt.str));
 						parser.expression->datatype = f->type;
 						token_next();
-
-
 						
 						//to order arguments correctly 
 						array<Node*> expsend;
@@ -914,7 +912,7 @@ Node* define(ParseStage stage, Node* node) {
 						}
 
 						if (positional_args_given < f->positional_args) {
-							ParseFail("func ", f->identifier, " requires ", f->positional_args, " positional args but only ", positional_args_given, (positional_args_given == 1 ? " was " : " were "), "given.");
+							ParseFail("func ", f->identifier, " requires ", f->positional_args, " positional args but ", (positional_args_given ? "only " : ""), positional_args_given, (positional_args_given == 1 ? " was " : " were "), "given.");
 							logE("parser", "missing args are: ");
 							for (u32 i = positional_args_given; i < f->positional_args; i++) {
 								logE("parser", f->args[i]->identifier, " of type ", dataTypeStrs[f->args[i]->type]);
