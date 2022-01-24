@@ -17,9 +17,8 @@ inline void token_prev(u32 count = 1) {
 #define curr_atch(tok) (curt.type == tok)
 #define setTokenIdx(i) tokens.setiter(i), curt = *tokens.iter
 
-#define ParseFail(error)\
-{logE("parser", error, "\n caused by token '", curt.str, "' on line ", curt.line); parse_failed = true;}
-
+#define ParseFail(...)\
+{logE("parser", __VA_ARGS__, "\n caused by token '", curt.str, "' on line ", curt.line); parse_failed = true;}
 
 #define Expect(Token_Type)\
 if(curt.type == Token_Type) 
@@ -40,7 +39,7 @@ else if(curt.group == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
-else { ParseFail(error); /*DebugBreakpoint;*/ } //TODO make it so this breakpoint only happens in debug mode or whatever
+else { ParseFail(error); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode, error)\
 else { ParseFail(error); failcode }
@@ -182,7 +181,7 @@ b32 type_check(DataType type, Node* n) {
 				}break;
 				case DataType_Unsigned32: {
 					e->datatype = DataType_Unsigned32;
-					//e->expstr = to_string(u32(stoi(e->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
+					
 					return true;
 				}break;
 			}
@@ -190,8 +189,6 @@ b32 type_check(DataType type, Node* n) {
 	}
 	return false;
 }
-
-
 
 b32 type_check(Node* n1, Node* n2) {
 	Expression* e1 = ExpressionFromNode(n1);
@@ -258,7 +255,7 @@ enum ParseStage {
 	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
 	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
 	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | "if"
-	//                <funccall>      :: = < id> "("[<exp> {"," < exp > }] ")"
+	//                <funccall>      :: = < id> "("[( <exp> | <id> = <exp> ) {"," ( <exp> | <id> = <exp> ) }] ")"
 	//                <literal>       :: = <integer> | <float> | <string>
 	//                <float>         :: = { <integer> } "." <integer> { <integer> }
 	//                <string>        :: = """ { <char> } """
@@ -297,7 +294,7 @@ Node* declare(Node* node, NodeType type) {
 	switch (type) {
 		case NodeType_Function: {
 			//TODO check for redefinition
-
+			string* funclabel = (string*)parser.arena.add(string());
 			ExpectGroup(Token_Typename) {
 				DataType dtype = dataTypeFromToken(curt.type);
 				token_next();
@@ -305,17 +302,27 @@ Node* declare(Node* node, NodeType type) {
 					Node* me = new_function(curt.str, toStr("func ", dataTypeStrs[dtype], " ", curt.str));
 					insert_last(node, me);
 					parser.function->type = dtype;
+					*funclabel = toStr(curt.str, "@", dataTypeStrs[dtype], "@");
 					token_next();
 					Expect(Token_OpenParen) {
 						while (next_match_group(Token_Typename)) {
 							token_next();
-							declare(me, NodeType_Declaration);
+							Declaration* ret = DeclarationFromNode(declare(me, NodeType_Declaration));
+							*funclabel += toStr(dataTypeStrs[ret->type], ",");
+							parser.function->positional_args++;
 							while (!next_match(Token_Comma, Token_CloseParen)) token_next();
 							token_next();
 						}
+						//not really necessary, so remove if u want
+						if (funclabel->endsWith("@")) *funclabel += "void";
+						else if (funclabel->endsWith(",")) (*funclabel)--;
 						//HACK
 						if (next_match(Token_CloseParen)) token_next();
-						Expect(Token_CloseParen) { knownFuncs.add(parser.function->identifier, me); parser.function->token_idx = currtokidx + 1; }
+						Expect(Token_CloseParen) { 
+							knownFuncs.add(parser.function->identifier, me);
+							parser.function->token_idx = currtokidx + 1; 
+							parser.function->internal_label = cstring{ funclabel->str, funclabel->count };
+						}
 						ExpectFail("expected a ) for func decl ", parser.function->identifier);
 						return me;
 					}ExpectFail("expected ( for function declaration of ", function->identifier);
@@ -360,7 +367,7 @@ Node* declare(Node* node, NodeType type) {
 										while (open_count) {
 											if (next_match(Token_OpenBrace))  open_count++;
 											else if (next_match(Token_CloseBrace)) open_count--;
-											else if (next_match(Token_EOF)) ParseFail("unexpected EOF while parsing function ", parser.structure->identifier, "::", f->identifier);
+											else if (next_match(Token_EOF)) ParseFail("unexpected EOF while parsing function ", parser.structure->identifier, "::", FunctionFromNode(f)->identifier);
 											token_next();
 										}
 										Expect(Token_CloseBrace) { parser.structure->member_funcs.add(id, FunctionFromNode(f)); }
@@ -456,8 +463,15 @@ Node* define(ParseStage stage, Node* node) {
 			StateSet(stInFunction);
 			if (node->type == NodeType_Function) {
 				Function* f = FunctionFromNode(node);
-				tokens.setiter(f->token_idx);
-				curt = *tokens.iter;
+				setTokenIdx(f->token_idx);
+				
+				for (Declaration* d : f->args) {
+					if (define(psDeclaration, &d->node)) {
+						f->positional_args--;
+					}
+				}
+				token_next(2);
+
 				Expect(Token_OpenBrace) {
 					define(psScope, node);
 				}ExpectFail("expected {");
@@ -858,38 +872,69 @@ Node* define(ParseStage stage, Node* node) {
 						if (!knownFuncs.has(curt.str)) { ParseFail(toStr("unknown function ", curt.str, " referenced")); return 0; }
 						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
 						insert_last(node, me);
-						Function* callee = FunctionFromNode(*knownFuncs.at(curt.str));
-						parser.expression->datatype = callee->type;
-						token_next(); token_next();
-						if (callee->args.count > 0) {
-							//Expect(Token_Identifier) {
-							// This will be for doing func(arg = blah,...)
-							//}
-							
-							forI(callee->args.count) {
-								Node* ret = define(psExpression, me);
-								Expression* e = ExpressionFromNode(ret);
-								//type_check(callee->args[i], ret);
-								if (ExpressionFromNode(ret)->datatype != (*(callee->args.atIdx(i)))->type) {
-									ParseFail("incorrect type provided for function argument"); return 0;
-								}
+						Function* f = FunctionFromNode(*knownFuncs.at(curt.str));
+						parser.expression->datatype = f->type;
+						token_next();
+
+
+						
+						//to order arguments correctly 
+						array<Node*> expsend;
+						expsend.resize(f->args.count);
+
+						u32 positional_args_given = 0;
+						while (!next_match(Token_CloseParen)) {
+							token_next();
+							b32 namedarg = 0;
+							Expect(Token_Identifier) {
+								cstring id = curt.str;
 								token_next();
-								if (i != callee->args.count - 1) {
-									Expect(Token_CloseParen) { ParseFail(toStr("Not enough arguments provided for func ", callee->identifier)); return 0; }
-									Expect(Token_Comma) { token_next(); }
-									ExpectFail("no , between function arguments");
+								Expect(Token_Assignment) {
+									namedarg = 1;
+									u32 argidx = f->args.findkey(id);
+									if (argidx == npos)   { ParseFail("unidentified named argument, ", id, " (or you wanted to use ==?)"); return 0; }
+									if (expsend[argidx]) { ParseFail("attempt to use named arg on argument who has already been set: ", id); return 0; }
+									token_next();
+									expsend[argidx] = define(psExpression, node);
+									token_next();
+								}
+								else {
+									token_prev();
 								}
 							}
-							Expect(Token_CloseParen) { }
-							ExpectFail(toStr("expected ) after function call to ", callee->identifier));
-							
-							//TODO list what required arguments are missing 
-							//ExpectFail(toStr("expected an identifier or literal as parser.function arg to ", callee->identifier));
+							if (!namedarg) {
+								//TODO handle too many args given
+								expsend[positional_args_given++] = define(psExpression, node);
+								token_next();
+							}
+
+							Expect(Token_Comma){}
+							ElseExpect(Token_CloseParen) { break; }
+							ExpectFail("no , separating function arguments");
 						}
-						else {
-							Expect(Token_CloseParen) {}
-							ExpectFail(toStr("expected ) on function call to ", callee->identifier));
+
+						if (positional_args_given < f->positional_args) {
+							ParseFail("func ", f->identifier, " requires ", f->positional_args, " positional args but only ", positional_args_given, (positional_args_given == 1 ? " was " : " were "), "given.");
+							logE("parser", "missing args are: ");
+							for (u32 i = positional_args_given; i < f->positional_args; i++) {
+								logE("parser", f->args[i]->identifier, " of type ", dataTypeStrs[f->args[i]->type]);
+							}
+							return 0;
 						}
+
+						for (u32 i = 0; i < expsend.count; i++) {
+							if (!expsend[i]) {
+								//this may not be right
+								insert_last(me, f->args[i]->node.first_child->last_child);
+							}
+							else {
+								change_parent(me, expsend[i]);
+							}
+						}
+
+						Expect(Token_CloseParen) {}
+
+						
 						return me;
 					}
 					else {
@@ -1005,5 +1050,5 @@ b32 suParser::parse(Program& mother) {
 	curt = tokens[0];
 	//parser(psGlobal, &mother.node);
 	
-	return 0;//parse_failed;
+	return parse_failed;
 }

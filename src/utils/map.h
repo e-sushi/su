@@ -28,6 +28,10 @@ struct map {
 			add(p.first, p.second);
 		}
 	}
+
+	Value& operator [](u32 idx) {
+		return data[idx];
+	}
 	
 	void clear() {
 		hashes.clear();
@@ -65,6 +69,13 @@ struct map {
 		data.add(Value());
 		count++;
 		return count-1;
+	}
+
+	//returns index of key if it exists
+	u32 findkey(const Key& key) {
+		u32 hashed = HashStruct{}(key);
+		forI(hashes.count) { if (hashed == hashes[i]) { return i; } }
+		return npos;
 	}
 	
 	u32 add(const Key& key, const Value& value){

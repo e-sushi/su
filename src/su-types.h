@@ -431,8 +431,9 @@ struct Scope {
 
 struct Function {
 	cstring identifier;
+	cstring internal_label;
 	DataType type;
-	//TODO change these to sets of nodes 
+	u32 positional_args = 0;
 	map<cstring, Declaration*> args;
 	Node node;
 	u64 token_idx = 0;
@@ -440,7 +441,6 @@ struct Function {
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
 struct Struct {
-
 	cstring identifier;
 	map<cstring, Declaration*> member_vars;
 	map<cstring, Function*> member_funcs;
