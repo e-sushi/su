@@ -39,7 +39,7 @@ else if(curt.group == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(error)\
-else { ParseFail(error); /*DebugBreakpoint;*/ } //TODO make it so this breakpoint only happens in debug mode or whatever
+else { ParseFail(error); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode, error)\
 else { ParseFail(error); failcode }
@@ -470,7 +470,8 @@ Node* define(ParseStage stage, Node* node) {
 						f->positional_args--;
 					}
 				}
-				token_next(2);
+				if(curt.type != Token_OpenBrace)
+					token_next(2);
 
 				Expect(Token_OpenBrace) {
 					define(psScope, node);
@@ -937,7 +938,7 @@ Node* define(ParseStage stage, Node* node) {
 							}
 						}
 
-						Expect(Token_CloseParen) {}
+						Expect(Token_CloseParen) { token_next(); }
 
 						
 						return me;

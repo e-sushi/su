@@ -42,7 +42,6 @@ struct {
 } globals;
 
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
 enum NodeType : u32 {
@@ -432,7 +431,6 @@ struct Declaration {
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
-//probably doesnt need to be a struct
 struct Scope {
 	Node node;
 };
