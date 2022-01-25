@@ -714,6 +714,7 @@ struct Assembler{
 	b32 function_error = false; //TODO statement as well
 	
 	Type sub_expression = 0;
+	s32  if_nesting = 0; //s32 so we dont underflow on errors
 	
 	u32 label_counter = 1;
 	//char label[16] = ".L?";
@@ -729,15 +730,10 @@ struct Assembler{
 ////////////////
 //TODO setup args for function / start function / end function
 
-local FORCE_INLINE void
-asm_pure(const char* str){
-    assembler.output += str;
-}
-
-local FORCE_INLINE void
-asm_pure(const string& str){
-	assembler.output += str;
-}
+local FORCE_INLINE void asm_pure(const char* str)   { assembler.output += str; }
+local FORCE_INLINE void asm_pure(const string& str) { assembler.output += str; }
+local FORCE_INLINE void asm_label(const char* str)  { assembler.output += str; assembler.output += ":\n"; }
+local FORCE_INLINE void asm_label(const string& str){ assembler.output += str; assembler.output += ":\n"; }
 
 local void
 asm_instruction(const char* instruction, const char* comment){  //'pad instruction # comment\n'
@@ -934,7 +930,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("cmpq", "$0,%rax", "check %rax for logical OR");
 			asm_instruction("jnz", label.str,  "jump over right side of logical OR if true");
 			assemble_expression(ExpressionFromNode(expr->node.last_child));
-			asm_pure(label.str); asm_pure(":\n");
+			asm_label(label);
 		}break;
 		
 		case Expression_BinaryOpAND:{
@@ -946,7 +942,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("cmpq", "$0,%rax", "check %rax for logical AND");
 			asm_instruction("jz", label.str,   "jump over right side of logical AND if false");
 			assemble_expression(ExpressionFromNode(expr->node.last_child));
-			asm_pure(label.str); asm_pure(":\n");
+			asm_label(label);
 		}break;
 		
 		case Expression_BinaryOpBitOR:{
@@ -1092,38 +1088,78 @@ assemble_expression(Expression* expr){
 			//TODO ternary expression
 		}break;
 		
-		default:{ NotImplemented; }break;
+		default:{ NotImplemented; assembler.failed = true; }break;
 	}
 }
 
+local void assemble_scope(Scope* scope);
 local void
 assemble_statement(Statement* stmt){
+	if(assembler.function_error) return;
+	
     switch(stmt->type){
         case Statement_Return:{
 			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
 			
 			asm_instruction("leave", "restore the previous stack pointer and base pointers (end scope)");
-            asm_instruction("ret", "return code pointer back to func call site");
+            asm_instruction("ret",   "return code pointer back to func call site");
             assembler.function_returned = true;
         }break;
 		
 		case Statement_Expression:{
-			//NOTE right then left because assignment currently uses this
-			for_node_reverse(stmt->node.last_child) assemble_expression(ExpressionFromNode(it));
+			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
 		}break;
 		
-		case Statement_If:{
+		case Statement_Conditional:{
+			Assert(stmt->node.child_count >= 1, "Statement_If must have at least 1 child node");
+			
+			assembler.if_nesting += 1;
+			
 			//first arg is boolean expression
-			//last arg is possibly else statement
-			log("assembler", "Statement_If not implemented yet");
+			string skip_else_label;
+			string skip_if_label = toStr(".L",assembler.label_counter++);
+			assemble_expression(ExpressionFromNode(stmt->node.first_child));
+			asm_instruction("cmpq", "$0,%rax",       "compare %rax against zero");
+			asm_instruction("jz", skip_if_label.str, "jump over if body if false");
+			
+			//if body
+			b32 else_encountered = false;
+			for(Node* it = stmt->node.first_child->next; it != 0; it = it->next){ //start from second child
+				if(it->type == NodeType_Statement){
+					Statement* child = StatementFromNode(it);
+					if(child->type == Statement_Else){
+						else_encountered = true;
+						skip_else_label = toStr(".L",assembler.label_counter++);
+						asm_instruction("jmp", skip_else_label.str, "jump over else body if true");
+						break; //don't assemble it yet, we will do that below
+					}
+					
+					assemble_statement(child);
+				}else if(it->type == NodeType_Scope){
+					assemble_scope(ScopeFromNode(it));
+				}else{ NotImplemented; assembler.failed = true; }
+			}
+			
+			asm_label(skip_if_label);
+			//else body
+			if(else_encountered){
+				Assert(stmt->node.last_child->type == NodeType_Statement && StatementFromNode(stmt->node.last_child)->type == Statement_Else, "If there is an else statement as a child node to an if statement, it must be the last node");
+				assemble_statement(StatementFromNode(stmt->node.last_child));
+				asm_label(skip_else_label);
+			}else{
+				assembler.if_nesting -= 1;
+			}
 		}break;
 		
 		case Statement_Else:{
-			log("assembler", "Statement_Else not implemented yet");
-		}break;
-		
-		case Statement_Scope:{
-			log("assembler", "Statement_Scope not implemented yet");
+			if(assembler.if_nesting <= 0){
+				logfE("assembler", "Else statement has no matching if statement"); //TODO catch this in the parser
+				assembler.function_error = true;
+				return;
+			}
+			
+			for_node(stmt->node.first_child) assemble_statement(StatementFromNode(it));
+			assembler.if_nesting -= 1;
 		}break;
 		
 		case Statement_For:{
@@ -1145,11 +1181,15 @@ assemble_statement(Statement* stmt){
 		case Statement_Struct:{
 			log("assembler", "Statement_Struct not implemented yet");
 		}break;
+		
+		default:{ NotImplemented; assembler.failed = true; }break;
     }
 }
 
 local void
 assemble_declaration(Declaration* decl){
+	if(assembler.function_error) return;
+	
 	//TODO get type size from declaration
 	//TODO need sizing information overall to call the correct registers
 	if(decl->type != DataType_Signed32){
@@ -1168,12 +1208,14 @@ assemble_declaration(Declaration* decl){
 
 local void
 assemble_scope(Scope* scope){
+	if(assembler.function_error) return;
+	
 	for_node(scope->node.first_child){
 		switch(it->type){
 			case NodeType_Declaration: assemble_declaration(DeclarationFromNode(it)); break;
 			case NodeType_Statement: assemble_statement(StatementFromNode(it)); break;
 			case NodeType_Scope: assemble_scope(ScopeFromNode(it)); break;
-			default: NotImplemented; break;
+			default:{ NotImplemented; assembler.failed = true; }break;
 		}
 	}
 }
@@ -1183,12 +1225,12 @@ assemble_function(Function* func){
 	//TODO func either has to have a return statement or an else with a return statement
 	if(func->node.child_count == 0) return;
 	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "A function only has one child and it has to be a scope if its a definition");
+	
     assembler.function_returned = false;
     
-    asm_pure(func->identifier); asm_pure(":\n");
+	asm_label(func->identifier);
 	asm_instruction("pushq", "%rbp",      "save base pointer to stack (start function)");
     asm_instruction("movq",  "%rsp,%rbp", "save the current stack pointer as the base pointer");
-	assemble_scope(ScopeFromNode(func->node.first_child));
 	
 	for_node(ScopeFromNode(func->node.first_child)->node.first_child){ //NOTE manually handle scope to check for returns
 		switch(it->type){
@@ -1201,11 +1243,11 @@ assemble_function(Function* func){
 			case NodeType_Scope:{
 				assemble_scope(ScopeFromNode(it));
 			}break;
-			default: NotImplemented; break;
+			default:{ NotImplemented; assembler.failed = true; }break;
 		}
 	}
 	
-    if(func->type != DataType_Void && !assembler.function_returned){
+    if(func->type != DataType_Void && !assembler.function_returned && !equals(func->identifier, cstr_lit("main"))){
 		log_warning(WC_Not_All_Paths_Return, func->identifier.str);
 		if(globals.warnings_as_errors) assembler.function_error = true;
 		

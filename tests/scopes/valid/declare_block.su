@@ -1,6 +1,6 @@
 s32 main() {
     if (5) {
-        s32 i = 0;
+        s32 i = 1;
         return i;
     }
 }

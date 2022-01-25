@@ -1,5 +1,6 @@
 #run_tests.py
 #this file is expected to be in su/tests, but can be run from anywhere
+#delle preset: python3 tests\run_tests.py --k --p -t 2 -f *
 #_______________________
 #Command Line Arguments:
 #-e [str]
@@ -9,10 +10,20 @@
 #-f [str]
 #  test filter
 #  default: "*"
+#
+#-t [int]
+#  timeout (in seconds)
+#  default: 3
+#
+#--k
+#  keep the .exe's
+#
+#--p
+#  print su output on error
 #_______________________
 #TODOs:
 
-import sys,os,subprocess,enum,ctypes
+import sys,os,subprocess,ctypes
 
 ReturnCode_Success                = 0
 ReturnCode_No_File_Passed         = 1
@@ -131,7 +142,30 @@ tests = [
     ["inc_dec/invalid/unknown_inc_post.su", ReturnCode_Parser_Failed],
     ["inc_dec/invalid/unknown_inc_pre.su",  ReturnCode_Parser_Failed],
     
+    ["if_else/valid/declare_statement.su", 3],
+    ["if_else/valid/else.su",              2],
+    ["if_else/valid/if_nested.su",         1],
+    ["if_else/valid/if_nested_2.su",       2],
+    ["if_else/valid/if_nested_3.su",       3],
+    ["if_else/valid/if_nested_4.su",       4],
+    ["if_else/valid/if_nested_5.su",       1],
+    ["if_else/valid/if_not_taken.su",      0],
+    ["if_else/valid/if_taken.su",          1],
+    ["if_else/valid/multiple_if.su",       8],
+    ["if_else/invalid/mismatched_nesting.su", ReturnCode_Assembler_Failed],
     
+    ["scopes/valid/consecutive_blocks.su",       1],
+    ["scopes/valid/consecutive_declarations.su", 3],
+    ["scopes/valid/declare_after_block.su",      3],
+    ["scopes/valid/declare_block.su",            1],
+    ["scopes/valid/declare_late.su",             3],
+    ["scopes/valid/multi_nesting.su",            3],
+    ["scopes/valid/nested_if.su",                4],
+    ["scopes/valid/nested_scope.su",             4],
+    ["scopes/invalid/double_define.su",            ReturnCode_Parser_Failed],
+    ["scopes/invalid/out_of_scope.su",             ReturnCode_Parser_Failed],
+    ["scopes/invalid/syntax_err_extra_brace.su",   ReturnCode_Parser_Failed],
+    ["scopes/invalid/syntax_err_missing_brace.su", ReturnCode_Parser_Failed],
 ];
 
 def main():
@@ -140,6 +174,8 @@ def main():
     su_exe_path = os.path.join(tests_dir, "..\\build\\debug\\su.exe")
     test_filter = "*"
     print_errors = False
+    keep_exes = False
+    test_timeout = 3
 
     arg_index = 1;
     for _ in range(len(sys.argv)):
@@ -167,8 +203,20 @@ def main():
             else:
                 test_filter = sys.argv[arg_index+1];
                 arg_index += 1;
+        elif(sys.argv[arg_index] == "-t"):
+            if(arg_index+1 >= len(sys.argv)):
+                print("ERROR: no argument passed to -t");
+                return;
+            elif(sys.argv[arg_index+1].startswith("-")):
+                print("ERROR: invalid argument for -t:", sys.argv[arg_index+1]);
+                return;
+            else:
+                test_timeout = int(sys.argv[arg_index+1]);
+                arg_index += 1;
         elif(sys.argv[arg_index] == "--p"):
             print_errors = True
+        elif(sys.argv[arg_index] == "--k"):
+            keep_exes = True
         else:
             print("ERROR: unknown flag: ", sys.argv[arg_index]);
             return;
@@ -209,15 +257,21 @@ def main():
         
         if(type == 'valid'): #valid tests should return errorlevel 0 from su.exe
             try:
-                subprocess.run(compile_cmd, capture_output=True, check=True, encoding="utf-8");
-                subprocess.run("gcc "+"-m64 "+file_s+" -o "+file_exe);
-                if not(os.path.exists(file_exe)):
+                subprocess.run(compile_cmd, capture_output=True, check=True, encoding="utf-8", timeout=test_timeout);
+                
+                try:
+                    subprocess.run("gcc "+"-m64 "+file_s+" -o "+file_exe, timeout=test_timeout);
+                except subprocess.CalledProcessError as err:
                     print("%s %s (link error)" % (path.ljust(60, '_'), "FAILED"));
+                    tests_failed += 1;
+                    continue;
+                except subprocess.TimeoutExpired as err:
+                    print("%s %s (linking took longer than %d seconds)" % (path.ljust(60, '_'), "FAILED", test_timeout));
                     tests_failed += 1;
                     continue;
                 
                 try:
-                    subprocess.run(file_exe, capture_output=True, check=True, encoding="utf-8");
+                    subprocess.run(file_exe, capture_output=True, check=True, encoding="utf-8", timeout=test_timeout);
                     #print("%-60s %s (E: %d; A: %d)" % (path, "PASSED", expected, 0));
                     print("%-60s %s" % (path, "PASSED"));
                     tests_passed += 1;
@@ -231,15 +285,21 @@ def main():
                         if(print_errors): print(err.stdout);
                         print("%s %s (E: %d; A: %d)" % (path.ljust(60, '_'), "FAILED", expected, actual));
                         tests_failed += 1;
-                os.remove(file_exe);
+                except subprocess.TimeoutExpired as err:
+                    print("%s %s (test took longer than %d seconds)" % (path.ljust(60, '_'), "FAILED", test_timeout));
+                    tests_failed += 1;
+                if not(keep_exes): os.remove(file_exe);
             except subprocess.CalledProcessError as err:
                 actual = ctypes.c_int32(err.returncode).value;
                 if(print_errors): print(err.stdout);
                 print("%s %s (compile error: %d)" % (path.ljust(60, '_'), "FAILED", actual));
                 tests_failed += 1;
+            except subprocess.TimeoutExpired as err:
+                print("%s %s (compilation took longer than %d seconds)" % (path.ljust(60, '_'), "FAILED", test_timeout));
+                tests_failed += 1;
         elif(type == 'invalid'):
             try:
-                subprocess.run(compile_cmd, capture_output=True, check=True, encoding="utf-8");
+                subprocess.run(compile_cmd, capture_output=True, check=True, encoding="utf-8", timeout=test_timeout);
                 
                 os.remove(file_s);
                 print("%s %s (no compile error)" % (path.ljust(60, '_'), "FAILED"));
@@ -254,6 +314,8 @@ def main():
                     if(print_errors): print(err.stdout);
                     print("%s %s (E: %d; A: %d)" % (path.ljust(60, '_'), "FAILED", expected, actual));
                     tests_failed += 1;
+            except subprocess.TimeoutExpired as err:
+                print("%s %s (compilation took longer than %d seconds)" % (path.ljust(60, '_'), "FAILED", test_timeout));
         else:
             print("ERROR: test path did not match format 'group/validity/name.su': ", path);
     print("tests: %d; passed: %d; failed: %d;" % (tests_total, tests_passed, tests_failed));
