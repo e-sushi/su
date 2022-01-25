@@ -404,7 +404,6 @@ Node* declare(Node* node, NodeType type) {
 					Node* var = new_declaration(curt.str, dtype, toStr("var ", dataTypeStrs[dtype], " ", curt.str));
 					parser.declaration->token_idx = currtokidx;
 					change_parent(node, var);
-					parser.function->args.add(curt.str, parser.declaration);
 					knownVars.add(curt.str, var);
 					//eat any possible default var stuff
 					return var;
