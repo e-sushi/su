@@ -39,10 +39,12 @@ else if(curt.group == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(...)\
-else { ParseFail(__VA_ARGS__); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
+else { ParseFail(__VA_ARGS__); } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode, error)\
 else { ParseFail(error); failcode }
+
+#define expstr(type) ExTypeStrings[type]
 
 local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Multiplication,     Expression_BinaryOpMultiply},
@@ -72,7 +74,7 @@ map<cstring, Node*> knownFuncs;
 map<cstring, Node*> knownVars;  
 map<cstring, Node*> knownStructs;
 
-DataType dataTypeFromToken(Token_Type type) {
+inline DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
 		case Token_Void      : {return DataType_Void;}
 		case Token_Signed8   : {return DataType_Signed8;}        
@@ -153,7 +155,8 @@ inline Node* new_expression(cstring& str, ExpressionType type, const string& nod
 	parser.expression->expstr = str;
 	parser.expression->type   = type;
 	parser.expression->node.type    = NodeType_Expression;
-	parser.expression->node.comment = node_str;
+	if(!node_str.count) parser.expression->node.comment = ExTypeStrings[type];
+	else parser.expression->node.comment = node_str;
 	return &parser.expression->node;
 }
 
@@ -254,9 +257,10 @@ enum ParseStage {
 	psBitshift,    // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
 	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
 	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
-	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | "if"
+	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | <memberaccess> | "if"
 	//                <funccall>      :: = < id> "("[( <exp> | <id> = <exp> ) {"," ( <exp> | <id> = <exp> ) }] ")"
 	//                <literal>       :: = <integer> | <float> | <string>
+	//				  <memberaccess>  :: = <id> "." <id> { "." <id> }
 	//                <float>         :: = { <integer> } "." <integer> { <integer> }
 	//                <string>        :: = """ { <char> } """
 	//                <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
@@ -299,7 +303,7 @@ Node* declare(Node* node, NodeType type) {
 				DataType dtype = dataTypeFromToken(curt.type);
 				token_next();
 				Expect(Token_Identifier) {
-					Node* me = new_function(curt.str, toStr("func ", dataTypeStrs[dtype], " ", curt.str));
+					Node* me = new_function(curt.str, toStr("func: ", dataTypeStrs[dtype], " ", curt.str));
 					insert_last(node, me);
 					parser.function->type = dtype;
 					*funclabel = toStr(curt.str, "@", dataTypeStrs[dtype], "@");
@@ -334,7 +338,7 @@ Node* declare(Node* node, NodeType type) {
 			Expect(Token_StructDecl) {
 				token_next();
 				Expect(Token_Identifier) {
-					Node* me = new_structure(curt.str, toStr("struct ", curt.str));
+					Node* me = new_structure(curt.str, toStr("struct: ", curt.str));
 					insert_last(node, me);
 					token_next();
 					parser.structure->token_idx = currtokidx;
@@ -365,7 +369,7 @@ Node* declare(Node* node, NodeType type) {
 										//TODO this can go wrong with certain kind of syntax errors 
 										//TODO maybe theres a better way to do this?
 										while (open_count) {
-											if (next_match(Token_OpenBrace))  open_count++;
+											if      (next_match(Token_OpenBrace))  open_count++;
 											else if (next_match(Token_CloseBrace)) open_count--;
 											else if (next_match(Token_EOF)) ParseFail("unexpected EOF while parsing function ", parser.structure->identifier, "::", FunctionFromNode(f)->identifier);
 											token_next();
@@ -401,7 +405,10 @@ Node* declare(Node* node, NodeType type) {
 				DataType dtype = dataTypeFromToken(curt.type);
 				token_next();
 				Expect(Token_Identifier) {
-					Node* var = new_declaration(curt.str, dtype, toStr("var ", dataTypeStrs[dtype], " ", curt.str));
+					string typestr;
+					if (dtype == DataType_Structure) { typestr = tokens[currtokidx - 1].str; }
+					else typestr = dataTypeStrs[dtype];
+					Node* var = new_declaration(curt.str, dtype, toStr("var: ", typestr, " ", curt.str));
 					parser.declaration->token_idx = currtokidx;
 					change_parent(node, var);
 					knownVars.add(curt.str, var);
@@ -505,6 +512,10 @@ Node* define(ParseStage stage, Node* node) {
 			else 
 				declare(node, NodeType_Declaration);
 			
+			//if (parser.declaration.type == DataType_Structure) {
+			//  //TODO hash struct type on declaration definition
+			//}
+
 			if (next_match(Token_Assignment)) {
 				Node* ret = define(psExpression, &parser.declaration->node);
 				return ret;
@@ -905,6 +916,13 @@ Node* define(ParseStage stage, Node* node) {
 						
 						return me;
 					}
+					else if (next_match(Token_Dot)) {
+						//member access
+						if (!knownVars.at(curt.str)) { ParseFail("attempt to access a member of an undeclared variable"); return 0; }
+						Node* me = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
+						token_next();
+						return define(psFactor, me);
+					}
 					else {
 						if (!knownVars.has(curt.str)) { ParseFail("unknown var '", curt.str, "' referenced"); return 0; }
 						Declaration* d = DeclarationFromNode(*knownVars.at(curt.str));
@@ -913,7 +931,7 @@ Node* define(ParseStage stage, Node* node) {
 						parser.expression->datatype = d->type;
 						if (next_match(Token_Increment, Token_Decrememnt)) {
 							token_next();
-							new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix), (curt.type == Token_Increment ? "++ post" : "-- post"));
+							new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix));
 							insert_last(node, &parser.expression->node);
 							change_parent(&parser.expression->node, var);
 							var = &parser.expression->node;
@@ -928,7 +946,7 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Increment: {
-					new_expression(curt.str, Expression_IncrementPrefix, "++ pre");
+					new_expression(curt.str, Expression_IncrementPrefix);
 					insert_last(node, &parser.expression->node);
 					token_next();
 					Node* ret = &parser.expression->node;
@@ -939,7 +957,7 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Decrememnt: {
-					new_expression(curt.str, Expression_DecrementPrefix, "-- pre");
+					new_expression(curt.str, Expression_DecrementPrefix);
 					insert_last(node, &parser.expression->node);
 					token_next();
 					Node* ret = &parser.expression->node;
@@ -954,7 +972,7 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Negation: {
-					new_expression(curt.str, Expression_UnaryOpNegate, "-");
+					new_expression(curt.str, Expression_UnaryOpNegate);
 					insert_last(node, &parser.expression->node);
 					token_next();
 					Node* ret = &parser.expression->node;
@@ -963,7 +981,7 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_LogicalNOT: {
-					new_expression(curt.str, Expression_UnaryOpLogiNOT, "!");
+					new_expression(curt.str, Expression_UnaryOpLogiNOT);
 					insert_last(node, &parser.expression->node);
 					token_next();
 					Node* ret = &parser.expression->node;
@@ -972,12 +990,39 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_BitNOT: {
-					new_expression(curt.str, Expression_UnaryOpBitComp, "~");
+					new_expression(curt.str, Expression_UnaryOpBitComp);
 					insert_last(node, &parser.expression->node);
 					token_next();
 					Node* ret = &parser.expression->node;
 					define(psFactor, &parser.expression->node);
 					return ret;
+				}break;
+
+				case Token_Dot: {
+					Node* me = new_expression(curt.str, Expression_BinaryOpMemberAccess);
+					token_next();
+					Expect(Token_Identifier) {
+						//TODO this needs to check that the var is a member of the structure we are referencing 
+						if (!knownVars.at(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
+						Node* me2 = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
+						change_parent(me, me2);
+						change_parent(me, node);
+						//TODO merge this while loop up
+						while (next_match(Token_Dot)) {
+							token_next();
+							me2 = new_expression(curt.str, Expression_BinaryOpMemberAccess);
+							token_next();
+							Expect(Token_Identifier) {
+								Node* next = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
+								if (!knownVars.at(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
+								change_parent(me2, next);
+								change_parent(me2, me);
+								me = me2;
+							}ExpectFail("expected identifier following member access dot");
+
+						}
+					}ExpectFail("expected identifier following member access dot");
+					return me;
 				}break;
 				
 				default: {

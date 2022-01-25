@@ -189,6 +189,7 @@ b32 suLexer::lex(const string& file) {
 							//TODO maybe add checks here that its not a keyword
 							lexer.tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, scope, lines });
 							lexer.tokens.add(token{ cstr_lit("."), Token_Dot, Token_ControlCharacter, scope, lines });
+							state = DiscernChar;
 							advance(&buff);
 						}
 						else { advance(&buff); }//float case handled above
