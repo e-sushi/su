@@ -38,8 +38,8 @@ else if(curt.group == Token_Type)
 #define ExpectSignature(...) if(check_signature(__VA_ARGS__))
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
-#define ExpectFail(error)\
-else { ParseFail(error); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
+#define ExpectFail(...)\
+else { ParseFail(__VA_ARGS__); DebugBreakpoint; } //TODO make it so this breakpoint only happens in debug mode or whatever
 
 #define ExpectFailCode(failcode, error)\
 else { ParseFail(error); failcode }
@@ -112,9 +112,9 @@ struct Parser {
 	Declaration* declaration;
 	Statement*   statement;
 	Expression*  expression;
-
+	
 	Arena arena;
-
+	
 } parser;
 
 inline Node* new_structure(cstring& identifier, const string& node_str = "") {
@@ -325,11 +325,11 @@ Node* declare(Node* node, NodeType type) {
 						}
 						ExpectFail("expected a ) for func decl ", parser.function->identifier);
 						return me;
-					}ExpectFail("expected ( for function declaration of ", function->identifier);
+					}ExpectFail("expected ( for function declaration of ", parser.function->identifier);
 				}ExpectFail("expected identifier for function declaration");
 			}ExpectFail("expected typename for function declaration");
 		}break;
-
+		
 		case NodeType_Structure: {
 			Expect(Token_StructDecl) {
 				token_next();
@@ -371,9 +371,9 @@ Node* declare(Node* node, NodeType type) {
 											token_next();
 										}
 										Expect(Token_CloseBrace) { parser.structure->member_funcs.add(id, FunctionFromNode(f)); }
-
+										
 									}
-
+									
 								}
 								else ExpectOneOf(Token_Semicolon, Token_Assignment) {
 									token_prev(2);
@@ -395,7 +395,7 @@ Node* declare(Node* node, NodeType type) {
 				}ExpectFail("expected an identifier for struct decl");
 			}ExpectFail("expected 'struct' keyword for struck declaration (somehow 'declare' was called without this?)");
 		}break;
-
+		
 		case NodeType_Declaration: {
 			ExpectGroup(Token_Typename) {
 				DataType dtype = dataTypeFromToken(curt.type);
@@ -438,7 +438,7 @@ Node* define(ParseStage stage, Node* node) {
 				token_next();
 			}
 		}break;
-
+		
 		case psStruct: {
 			if (node->type == NodeType_Structure) 
 				parser.structure = StructFromNode(node), setTokenIdx(parser.structure->token_idx);
@@ -456,7 +456,7 @@ Node* define(ParseStage stage, Node* node) {
 			token_next(2);
 			Expect(Token_Semicolon) { token_next(); }
 			ExpectFail("expected ; after struct definition");
-
+			
 		}break;
 		
 		case psFunction: { //////////////////////////////////////////////////////////////////// @Function
@@ -472,7 +472,7 @@ Node* define(ParseStage stage, Node* node) {
 				}
 				if(curt.type != Token_OpenBrace)
 					token_next(2);
-
+				
 				Expect(Token_OpenBrace) {
 					define(psScope, node);
 				}ExpectFail("expected {");
@@ -511,7 +511,7 @@ Node* define(ParseStage stage, Node* node) {
 				}
 			}
 			StateUnset(stInFunction);
-
+			
 		}break;
 		
 		case psScope: { /////////////////////////////////////////////////////////////////////// @Scope
@@ -692,7 +692,7 @@ Node* define(ParseStage stage, Node* node) {
 					define(psStruct, me);
 					insert_last(node, me);
 				}break;
-
+				
 				case Token_Semicolon: {
 					//eat multiple semicolons
 				}break;
@@ -880,7 +880,7 @@ Node* define(ParseStage stage, Node* node) {
 						//to order arguments correctly 
 						array<Node*> expsend;
 						expsend.resize(f->args.count);
-
+						
 						u32 positional_args_given = 0;
 						u32 named_positional_args_given = 0;
 						while (!next_match(Token_CloseParen)) {
@@ -910,15 +910,15 @@ Node* define(ParseStage stage, Node* node) {
 								while (expsend[positional_args_given]) positional_args_given++;
 								expsend[positional_args_given] = define(psExpression, node);
 								if (!expsend[positional_args_given++]) return 0;
-
+								
 								token_next();
 							}
-
+							
 							Expect(Token_Comma){}
 							ElseExpect(Token_CloseParen) { break; }
 							ExpectFail("no , separating function arguments");
 						}
-
+						
 						if (positional_args_given < f->positional_args) {
 							ParseFail("func ", f->identifier, " requires ", f->positional_args, " positional args but ", (positional_args_given ? "only " : ""), positional_args_given, (positional_args_given == 1 ? " was " : " were "), "given.");
 							logE("parser", "missing args are: ");
@@ -928,7 +928,7 @@ Node* define(ParseStage stage, Node* node) {
 							}
 							return 0;
 						}
-
+						
 						for (u32 i = 0; i < expsend.count; i++) {
 							if (!expsend[i]) {
 								insert_last(me, f->args[i]->node.first_child->last_child);
@@ -937,9 +937,9 @@ Node* define(ParseStage stage, Node* node) {
 								change_parent(me, expsend[i]);
 							}
 						}
-
+						
 						Expect(Token_CloseParen) { token_next(); }
-
+						
 						
 						return me;
 					}
@@ -1039,17 +1039,17 @@ b32 suParser::parse(Program& mother) {
 		declare(&mother.node, NodeType_Structure);
 	}
 	if (parse_failed) return 1;
-
+	
 	//TODO make a nice way to find all global parser.declarations
 	
 	for (Node* n : knownStructs) {
 		define(psStruct, n);
 	}
-
+	
 	for (Node* n : knownFuncs) {
 		define(psFunction, n);
 	}
-
+	
 	mother.node.comment = "program";
 	
 	tokens.setiter(0);

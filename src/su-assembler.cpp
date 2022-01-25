@@ -821,7 +821,11 @@ assemble_expression(Expression* expr){
 		case Expression_IdentifierLHS:{
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
-				asm_instruction("mov", toStr("%rax,-",*offset,"(%rbp)").str, "store the value at %rax in the var");
+				if(assembler.active_decl){
+					asm_instruction("mov", toStr("%rax,-",*offset,"(%rbp)").str, toStr("store the value at %rax in var ", assembler.active_decl->identifier).str);
+				}else{
+					asm_instruction("mov", toStr("%rax,-",*offset,"(%rbp)").str, "store the value at %rax in a var");
+				}
 			}else{
 				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
 				assembler.function_error = true;
@@ -831,7 +835,7 @@ assemble_expression(Expression* expr){
 		case Expression_IdentifierRHS:{
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
-				asm_instruction("mov", toStr("-",*offset,"(%rbp),%rax").str, "store value of the var in %rax");
+				asm_instruction("mov", toStr("-",*offset,"(%rbp),%rax").str, toStr("store value of var ",expr->expstr," in %rax").str);
 			}else{
 				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
 				assembler.function_error = true;
@@ -990,7 +994,7 @@ assemble_expression(Expression* expr){
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("sub", "%rdx,%rax", "subtract, store result in %rax");
+			asm_instruction("sub", "%rdx,%rax", "subtract %rax - %rdx, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpMultiply:{
@@ -1003,34 +1007,29 @@ assemble_expression(Expression* expr){
 		case Expression_BinaryOpDivision:{
 			assemble_binop_children(expr);
 			
-			asm_instruction("mov",  "%rax,%rcx", "mov %rax into %rcx for division");
-			asm_pop_stack(Register_RAX);
-			asm_instruction("cqto",              "convert quad in %rax to octo in %rdx:%rax (sign extend)");
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cqto",              "sign extend %rax into %rdx:%rax");
 			asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 		}break;
 		
 		case Expression_BinaryOpModulo:{
 			assemble_binop_children(expr);
 			
-			asm_instruction("mov",  "%rax,%rcx", "mov %rax into %rcx for modulo");
-			asm_pop_stack(Register_RAX);
-			asm_instruction("cqto",              "convert quad in %rax to octo in %rdx:%rax (sign extend)");
+			asm_pop_stack(Register_RCX);
+			asm_instruction("cqto",              "sign extend %rax into %rdx:%rax");
 			asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 			asm_instruction("mov",  "%rdx,%rax", "move remainder from %rdx into %rax");
 		}break;
 		
 		case Expression_BinaryOpAssignment:{
-			//TODO make identifier the first child and expressions the last child
+			Assert(expr->node.child_count == 2, "Expression_BinaryOpAssignment must have only two child nodes");
+			
+			assemble_expression(ExpressionFromNode(expr->node.last_child));
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Guards
-		case ExpressionGuard_Assignment:{ //NOTE this only exists as a child to Declaration
-			Assert(assembler.active_decl, "There must be an active declaration for ExpressionGuard_Assignment");
-			for_node_reverse(expr->node.last_child) assemble_expression(ExpressionFromNode(it));
-			asm_instruction("mov", toStr("%rax,-",assembler.stack_offset,"(%rbp)").str, "store the value at %rax in the var");
-		}break;
-		
         case ExpressionGuard_HEAD:{
 			Assert(expr->node.child_count == 1, "ExpressionGuard_HEAD must have only one child node");
 			assemble_expression(ExpressionFromNode(expr->node.first_child)); //TODO why does HEAD exist if its just a pass-thru?
@@ -1079,6 +1078,7 @@ assemble_declaration(Declaration* decl){
 	assembler.var_map.add(decl->identifier, assembler.stack_offset);
 	
 	assembler.active_decl = decl;
+	asm_instruction("push", "$0", toStr("init var ", decl->identifier, " to zero").str);
 	for_node(decl->node.first_child) assemble_expression(ExpressionFromNode(it));
 	assembler.active_decl = 0;
 }
