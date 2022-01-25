@@ -331,10 +331,12 @@ enum ExpressionType : u32 {
 };
 
 static const char* ExTypeStrings[] = {
-	"idLHS: ",
+	"idLHS: ",     
 	"idRHS: ",
 	
 	"fcall: ",
+
+	"tern: ",
 	
 	"literal: ",
 	
@@ -366,23 +368,6 @@ static const char* ExTypeStrings[] = {
 	">>",
 	"=",
 	"accessor",
-	
-	"tern cond",
-	
-	"assignment",
-	"head",
-	"conditional",
-	"logical or",
-	"logical and",
-	"bit or",
-	"bit xor",
-	"bit and",
-	"equality",
-	"relational",
-	"bit shift",
-	"additive",
-	"term",
-	"factor",
 };
 
 struct Struct;
@@ -417,8 +402,9 @@ struct Statement {
 
 struct Declaration {
 	cstring identifier;
+	cstring type_id; //used for storing the name of the struct this decalaration is made with, this is necessary to allow for global structs being used everywhere
 	DataType type;
-	Struct* struct_type;
+	Struct* struct_type = 0;
 	Node node;
 	b32 initialized = 0;
 	u64 token_idx = 0;

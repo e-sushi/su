@@ -1,3 +1,7 @@
 #define Expect(Token_Type) if(curt.type == Token_Type) {
 #define ExpectFail(error) }else { ParseFail(error); } 
 #define token_next curt = tokens.next()
+#define PointerDifference(a,b) ((u8*)(a) - (u8*)(b))
+#define PointerAsInt(a) PointerDifference(a,0)
+#define OffsetOfMember(structName,memberName) PointerAsInt(&(((structName*)0)->memberName))
+#define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
