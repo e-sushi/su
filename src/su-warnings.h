@@ -76,7 +76,7 @@ const char* WarningCodes_Names[WarningCodes_COUNT] = {
 /////////////////// //NOTE we append "%s" to the end of strings for call-site formatting
 //// @Messages ////
 ///////////////////
-#define MSG(warning,msg) "[%s%d] "msg"\n%s"
+#define MSG(warning,msg) "[%s%d] " msg "\n%s"
 const char* WarningCodes_Messages[WarningCodes_COUNT] = {
 	"null", //WarningCodes_Null
 	//-///////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@ int warning_level_mapping[] = { WarningCodes_Level1_Start-1, WarningCodes_Level2
 if(   (!globals.supress_warnings) \
 && (warning <= warning_level_mapping[globals.warning_level]) \
 && (!disabledWC.test(warning))){ \
-printf(WarningCodes_Messages[warning], ((globals.warnings_as_errors) ? "WX" : "W"), warning, __VA_ARGS__, ""); \
+printf(WarningCodes_Messages[warning], ((globals.warnings_as_errors) ? "WX" : "W"), warning, ##__VA_ARGS__, ""); \
 }
 
 

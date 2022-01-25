@@ -1,9 +1,6 @@
-struct a{
-	u32 b = 0;
-};
-
 s32 main(){
-	a var;
-	a var2;
-	return var.b.var2.b.var;
+	s32 a; s32 b; s32 c;
+	c=2;
+	2+2;
+	return (if(if(a) a else b) if(a) b else c else if(b) a else c);
 }

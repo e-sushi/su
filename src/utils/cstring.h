@@ -4,6 +4,7 @@
 
 #include "defines.h"
 #include <cstring> //strncmp, memcpy
+#include <wchar.h>
 
 global_ inline void
 advance(cstring* s, upt count = 1){

@@ -94,6 +94,19 @@ to_string(u32 x){
 	return s;
 }
 
+#if COMPILER_GCC && !defined(OS_WINDOWS)
+global_ string
+to_string(u64 x) {
+	string s;
+	s.count = snprintf(nullptr, 0, "%llu", x);
+	s.str = (char*)s.allocator->reserve(s.count + 1); Assert(s.str, "Failed to allocate memory");
+	s.allocator->commit(s.str, s.count + 1);
+	s.space = s.count + 1;
+	snprintf(s.str, s.count + 1, "%d", x);
+	return s;
+}
+#endif
+
 global_ string 
 to_string(f32 x, bool trunc = true){
 	string s;
@@ -159,7 +172,7 @@ template<class... T> global_ string
 ToString(T... args){
 	string str;
 	constexpr auto arg_count{sizeof...(T)};
-	string arr[arg_count] = {to_string(std::forward<T>(args))...};
+	string arr[arg_count] = {to_string(args)...};
 	forI(arg_count) str += arr[i];
 	return str;
 }

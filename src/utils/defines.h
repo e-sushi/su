@@ -51,8 +51,9 @@
 //// GCC Compiler //// (used for linux)
 #elif defined(__GNUC__) || defined(__GNUG__) //__clang__
 #  define COMPILER_GCC 1
-
-#  if defined(__gnu_linux__)
+#  if   defined(__MINGW64__)
+#    define OS_WINDOWS 1
+#  elif defined(__gnu_linux__)
 #    define OS_LINUX 1
 #  else //__gnu_linux__
 #    error "unhandled compiler/platform combo"
@@ -115,6 +116,12 @@
 #include <cstdlib> //malloc, calloc, free
 #include <cstring> //memcpy, memset, strcpy, strlen, etc
 
+#if COMPILER_GCC
+#include "math.h"
+#undef M_PI
+#undef M_E
+#endif
+
 ///////////////////////
 //// static macros ////
 ///////////////////////
@@ -136,7 +143,7 @@
 #  define ByteSwap64(x) _byteswap_uint64(x)
 #elif COMPILER_CLANG || COMPILER_GCC //COMPILER_CL
 #  define FORCE_INLINE inline __attribute__((always_inline))
-#  error "unhandled debug breakpoint; look at: https://github.com/scottt/debugbreak"
+//#  error "unhandled debug breakpoint; look at: https://github.com/scottt/debugbreak"
 #  define ByteSwap16(x) __builtin_bswap16(x)
 #  define ByteSwap32(x) __builtin_bswap32(x)
 #  define ByteSwap64(x) __builtin_bswap64(x)

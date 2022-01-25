@@ -65,7 +65,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/F 200000000 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>C:\Program Files\Graphviz\include\;C:\apps\graphviz\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\src\graphviz\include\;C:\apps\graphviz\include</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -73,7 +73,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <Profile>true</Profile>
       <StackReserveSize>104857600</StackReserveSize>
-      <AdditionalLibraryDirectories>C:\Program Files\Graphviz\lib;C:\apps\graphviz\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\src\graphviz\lib;C:\apps\graphviz\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>cgraph.lib;gvc.lib;cdt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

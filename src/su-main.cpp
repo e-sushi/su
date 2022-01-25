@@ -20,7 +20,7 @@ list input .su files
 				  :  utf8
 				  :  utf16
 				  :  utf32
-:  ucs2
+				  :  ucs2
 
 		-os [str] default: current OS
 				  set the platform/OS to compile for
@@ -28,12 +28,12 @@ list input .su files
 				  :  linux
 				  :  osx
 
-TODO -arch [str] default: current architecture
-set the CPU architecture to compile for
-:  x64 | amd64
-:  x86 | i386
-:  arm64
-:  arm32
+		TODO -arch [str] default: current architecture
+				  set the CPU architecture to compile for
+				  :  x64 | amd64
+				  :  x86 | i386
+				  :  arm64
+				  :  arm32
 
 		-o [str] default: working directory
 				  directory to output the assembly (and other output) files to
@@ -54,7 +54,7 @@ command line arguments without options
 		--sa       suppress all printing
 		--v        verbose printing of internal actions (actual compiler steps, not warnings, errors, etc. for debugging the compiler)
 		TODO --gv       generate graphviz graph of the AST tree (output as .svg)
-TODO --wx       treat warnings as errors
+        TODO --wx       treat warnings as errors
 
 General TODOs
 -------------
