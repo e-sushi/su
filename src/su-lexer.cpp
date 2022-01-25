@@ -12,7 +12,7 @@ array<cstring> structnames;
 
 b32 suLexer::lex(const string& file) {
 	cstring buff{file.str, file.count};
-	u32 lines = 1;
+	u32 lines = 0;
 	b32 readingstring = 0;
 	b32 grab_structname = 0;
 	u32 scope = 0;
@@ -29,7 +29,7 @@ b32 suLexer::lex(const string& file) {
 			case DiscernChar: {
 				switch (buff[0]) {
 					case ';': { lexer.tokens.add(token{ cstrb(1), Token_Semicolon,    Token_ControlCharacter, scope, lines }); advance(&buff); }break;
-					case '{': { lexer.tokens.add(token{ cstrb(1), Token_OpenBrace,    Token_ControlCharacter, scope, lines }); advance(&buff); scope++; }break;
+					case '{': { scope++; lexer.tokens.add(token{ cstrb(1), Token_OpenBrace,    Token_ControlCharacter, scope, lines }); advance(&buff); }break;
 					case '}': { lexer.tokens.add(token{ cstrb(1), Token_CloseBrace,   Token_ControlCharacter, scope, lines }); advance(&buff); scope--; }break;
 					case '(': { lexer.tokens.add(token{ cstrb(1), Token_OpenParen,    Token_ControlCharacter, scope, lines }); advance(&buff); }break;
 					case ')': { lexer.tokens.add(token{ cstrb(1), Token_CloseParen,   Token_ControlCharacter, scope, lines }); advance(&buff); }break;
@@ -177,6 +177,7 @@ b32 suLexer::lex(const string& file) {
 						}
 
 						if (buff[0] == '\n') {
+							advance(&buff);
 							lines++;
 						}
 						
@@ -188,6 +189,7 @@ b32 suLexer::lex(const string& file) {
 							//TODO maybe add checks here that its not a keyword
 							lexer.tokens.add(token{ chunkstr, Token_Identifier, Token_Identifier, scope, lines });
 							lexer.tokens.add(token{ cstr_lit("."), Token_Dot, Token_ControlCharacter, scope, lines });
+							state = DiscernChar;
 							advance(&buff);
 						}
 						else { advance(&buff); }//float case handled above

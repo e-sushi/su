@@ -328,6 +328,7 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpBitShiftLeft,
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
+	Expression_BinaryOpMemberAccess,
 
 	//Special ternary conditional expression type
 	Expression_TernaryConditional,
@@ -339,12 +340,12 @@ enum ExpressionType : u32 {
 };
 
 static const char* ExTypeStrings[] = {
-	"idLHS",
-	"idRHS",
+	"idLHS: ",
+	"idRHS: ",
 
-	"fcall",
+	"fcall: ",
 
-	"literal",
+	"literal: ",
 
 	"~",
 	"!",
@@ -373,6 +374,7 @@ static const char* ExTypeStrings[] = {
 	"<<",
 	">>",
 	"=",
+	"accessor",
 
 	"tern cond",
 
@@ -397,6 +399,7 @@ struct Expression {
 	ExpressionType type;
 	Node node;
 	DataType datatype;
+	Struct* struct_type;
 };
 #define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
 
@@ -425,9 +428,11 @@ struct Statement {
 struct Declaration {
 	cstring identifier;
 	DataType type;
+	Struct* struct_type;
 	Node node;
 	b32 initialized = 0;
 	u64 token_idx = 0;
+
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
@@ -442,6 +447,8 @@ struct Function {
 	DataType type;
 	u32 positional_args = 0;
 	map<cstring, Declaration*> args;
+	//TODO do this with a binary tree sort of thing instead later
+	array<Function*> overloads;
 	Node node;
 	u64 token_idx = 0;
 };
