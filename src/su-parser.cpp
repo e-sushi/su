@@ -403,16 +403,17 @@ Node* declare(Node* node, NodeType type) {
 		case NodeType_Declaration: {
 			ExpectGroup(Token_Typename) {
 				DataType dtype = dataTypeFromToken(curt.type);
+				cstring type_id = curt.str;
 				token_next();
 				Expect(Token_Identifier) {
 					string typestr;
-					if (dtype == DataType_Structure) { typestr = tokens[currtokidx - 1].str; }
+					if (dtype == DataType_Structure) typestr = type_id;
 					else typestr = dataTypeStrs[dtype];
 					Node* var = new_declaration(curt.str, dtype, toStr("var: ", typestr, " ", curt.str));
 					parser.declaration->token_idx = currtokidx;
+					parser.declaration->type_id = type_id;
 					change_parent(node, var);
 					knownVars.add(curt.str, var);
-					//eat any possible default var stuff
 					return var;
 				}
 			}
@@ -519,9 +520,10 @@ Node* define(ParseStage stage, Node* node) {
 			else 
 				declare(node, NodeType_Declaration);
 			
-			//if (parser.declaration.type == DataType_Structure) {
-			//  //TODO hash struct type on declaration definition
-			//}
+			if (parser.declaration->type == DataType_Structure) {
+				if (!knownStructs.has(parser.declaration->type_id)) { ParseFail("variable declared with unknown struct '", parser.declaration->type_id, "'"); return 0; }
+				parser.declaration->struct_type = StructFromNode(*knownStructs.at(parser.declaration->type_id));
+			}
 			
 			if (next_match(Token_Assignment)) {
 				Node* ret = define(psExpression, &parser.declaration->node);
@@ -925,10 +927,12 @@ Node* define(ParseStage stage, Node* node) {
 					}
 					else if (next_match(Token_Dot)) {
 						//member access
-						if (!knownVars.at(curt.str)) { ParseFail("attempt to access a member of an undeclared variable"); return 0; }
-						Node* me = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
-						token_next();
-						return define(psFactor, me);
+						if (Node** var = knownVars.at(curt.str); var) { 
+							Node* me = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
+							ExpressionFromNode(me)->struct_type = DeclarationFromNode(*var)->struct_type;
+							token_next();
+							return define(psFactor, me);
+						} else { ParseFail("attempt to access a member of an undeclared variable"); return 0; }
 					}
 					else {
 						if (!knownVars.has(curt.str)) { ParseFail("unknown var '", curt.str, "' referenced"); return 0; }
@@ -1006,24 +1010,30 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Dot: {
+					Expression* nodeexp = ExpressionFromNode(node);
+					Struct* nodestruct = nodeexp->struct_type;
 					Node* me = new_expression(curt.str, Expression_BinaryOpMemberAccess);
 					token_next();
 					Expect(Token_Identifier) {
-						//TODO this needs to check that the var is a member of the structure we are referencing 
-						if (!knownVars.at(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
+						if (!nodeexp->struct_type->member_vars.has(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
 						Node* me2 = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
-						change_parent(me, me2);
+						nodeexp = parser.expression;
+						nodeexp->struct_type = (*nodestruct->member_vars.at(curt.str))->struct_type;
+						nodestruct = nodeexp->struct_type;
 						change_parent(me, node);
-						//TODO merge this while loop up
+						change_parent(me, me2);
 						while (next_match(Token_Dot)) {
 							token_next();
 							me2 = new_expression(curt.str, Expression_BinaryOpMemberAccess);
 							token_next();
 							Expect(Token_Identifier) {
+								if (!nodestruct->member_vars.has(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
 								Node* next = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
-								if (!knownVars.at(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
-								change_parent(me2, next);
+								nodeexp = parser.expression;
+								nodeexp->struct_type = (*nodestruct->member_vars.at(curt.str))->struct_type;
+								nodestruct = nodeexp->struct_type;
 								change_parent(me2, me);
+								change_parent(me2, next);
 								me = me2;
 							}ExpectFail("expected identifier following member access dot");
 							

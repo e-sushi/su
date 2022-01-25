@@ -32,6 +32,8 @@
 
 #  if defined(__APPLE__) && defined(__MACH__)
 #    define OS_MAC 1
+#  elif defined(__gnu_linux__)
+#    define OS_LINUX
 #  else //__APPLE__ || __MACH__
 #    error "unhandled compiler/platform combo"
 #  endif //__APPLE__ || __MACH__

@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 			return ReturnCode_Invalid_Argument;
 		}
 	}
-	
+
 	//check that a file was passed
 	if(filepaths.count == 0){
 		PRINTLN("ERROR: no files passed");
