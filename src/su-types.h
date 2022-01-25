@@ -442,6 +442,8 @@ struct Function {
 	DataType type;
 	u32 positional_args = 0;
 	map<cstring, Declaration*> args;
+	//TODO do this with a binary tree sort of thing instead later
+	array<Function*> overloads;
 	Node node;
 	u64 token_idx = 0;
 };
