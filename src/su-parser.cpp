@@ -547,7 +547,7 @@ Node* define(ParseStage stage, Node* node) {
 								define(psStatement, ifno);
 							}
 							else {
-								ExpectGroup(Token_Typename) { ParseFail("can't declare a declaration in an unscoped if statement"); return 0; }
+								ExpectGroup(Token_Typename) { ParseFail("can't declare a declaration in an unscoped if statement"); return 0; } //TODO there's no reason this cant be vali, just warn when it happens
 								define(psStatement, ifno);
 								Expect(Token_Semicolon) { }
 								ExpectFail("expected a ;");
@@ -561,7 +561,7 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Else: {
-					new_statement(Statement_Conditional, "else statement");
+					new_statement(Statement_Else, "else statement");
 					insert_last(node, &parser.statement->node);
 					token_next();
 					define(psStatement, &parser.statement->node);
