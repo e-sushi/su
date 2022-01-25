@@ -727,6 +727,8 @@ struct Assembler{
 ////////////////
 //// @utils //// //NOTE assembly is in AT&T syntax: instr src,dest #comment
 ////////////////
+//TODO setup args for function / start function / end function
+
 local FORCE_INLINE void
 asm_pure(const char* str){
     assembler.output += str;
@@ -778,8 +780,8 @@ asm_instruction(const char* instruction, const char* args, const char* comment){
 
 local FORCE_INLINE void
 asm_start_scope(){
-    asm_instruction("push", "%rbp",      "save base pointer to stack (start scope)");
-    asm_instruction("mov",  "%rsp,%rbp", "save the current stack pointer as the base pointer");
+    asm_instruction("pushq", "%rbp",      "save base pointer to stack (start scope)");
+    asm_instruction("movq",  "%rsp,%rbp", "save the current stack pointer as the base pointer");
 }
 
 local FORCE_INLINE void
@@ -789,12 +791,12 @@ asm_end_scope(){
 
 local FORCE_INLINE void
 asm_push_stack(u32 reg, const char* comment = 0){
-	asm_instruction("push", registers_x64[reg], (comment) ? comment : "push register onto stack");
+	asm_instruction("pushq", registers_x64[reg], (comment) ? comment : "push register onto stack");
 }
 
 local FORCE_INLINE void
 asm_pop_stack(u32 reg, const char* comment = 0){
-	asm_instruction("pop",  registers_x64[reg], (comment) ? comment : "pop stack into register");
+	asm_instruction("popq",  registers_x64[reg], (comment) ? comment : "pop stack into register");
 }
 
 /////////////////////
@@ -822,9 +824,9 @@ assemble_expression(Expression* expr){
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
 				if(assembler.active_decl){
-					asm_instruction("mov", toStr("%rax,-",*offset,"(%rbp)").str, toStr("store the value at %rax in var ", assembler.active_decl->identifier).str);
+					asm_instruction("movq", toStr("%rax,-",*offset,"(%rbp)").str, toStr("copy the value at %rax in var ", assembler.active_decl->identifier).str);
 				}else{
-					asm_instruction("mov", toStr("%rax,-",*offset,"(%rbp)").str, "store the value at %rax in a var");
+					asm_instruction("movq", toStr("%rax,-",*offset,"(%rbp)").str, "copy the value at %rax in a var");
 				}
 			}else{
 				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
@@ -835,7 +837,7 @@ assemble_expression(Expression* expr){
 		case Expression_IdentifierRHS:{
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
-				asm_instruction("mov", toStr("-",*offset,"(%rbp),%rax").str, toStr("store value of var ",expr->expstr," in %rax").str);
+				asm_instruction("movq", toStr("-",*offset,"(%rbp),%rax").str, toStr("copy value of var ",expr->expstr," in %rax").str);
 			}else{
 				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
 				assembler.function_error = true;
@@ -847,7 +849,7 @@ assemble_expression(Expression* expr){
 		case Expression_Literal:{
 			//string args = toStr("$",expr->integer_literal.value,",%rax");
 			string args = "$" + expr->expstr + ",%rax";
-			asm_instruction("mov", args.str, "move integer literal into %rax");
+			asm_instruction("movq", args.str, "copy integer literal into %rax");
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -855,21 +857,81 @@ assemble_expression(Expression* expr){
 		case Expression_UnaryOpBitComp:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("not", "%rax", "perform bitwise complement");
+			asm_instruction("notq", "%rax", "perform bitwise complement");
 		}break;
 		
 		case Expression_UnaryOpLogiNOT:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("cmp",  "$0,%rax", "perform logical not");
-			asm_instruction("mov",  "$0,%rax", "");
+			asm_instruction("cmpq", "$0,%rax", "perform logical not");
+			asm_instruction("movq", "$0,%rax", "");
 			asm_instruction("sete", "%al",     "");
 		}break;
 		
 		case Expression_UnaryOpNegate:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("neg", "%rax", "perform artihmetic negation");
+			asm_instruction("negq", "%rax", "perform artihmetic negation");
+		}break;
+		
+		case Expression_IncrementPrefix:{
+			Assert(expr->node.child_count == 1, "Expression_IncrementPrefix must have only one child node");
+			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPrefix child must be Expression_IdentifierRHS");
+			
+			Expression* var = ExpressionFromNode(expr->node.first_child);
+			u32* offset = assembler.var_map.at(var->expstr);
+			if(offset){
+				asm_instruction("incq", toStr("-",*offset,"(%rbp)").str,      toStr("increment value of var ",var->expstr).str);
+				asm_instruction("movq", toStr("-",*offset,"(%rbp),%rax").str, toStr("copy value of var ",var->expstr," in %rax").str);
+			}else{
+				logfE("assembler", "Attempted to reference an undeclared variable: %s", var->expstr.str);
+				assembler.function_error = true;
+			}
+		}break;
+		
+		case Expression_IncrementPostfix:{
+			Assert(expr->node.child_count == 1, "Expression_IncrementPostfix must have only one child node");
+			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPostfix child must be Expression_IdentifierRHS");
+			
+			Expression* var = ExpressionFromNode(expr->node.first_child);
+			u32* offset = assembler.var_map.at(var->expstr);
+			if(offset){
+				asm_instruction("movq", toStr("-",*offset,"(%rbp),%rax").str, toStr("copy value of var ",var->expstr," in %rax").str);
+				asm_instruction("incq", toStr("-",*offset,"(%rbp)").str,      toStr("increment value of var ",var->expstr).str);
+			}else{
+				logfE("assembler", "Attempted to reference an undeclared variable: %s", var->expstr.str);
+				assembler.function_error = true;
+			}
+		}break;
+		
+		case Expression_DecrementPrefix:{
+			Assert(expr->node.child_count == 1, "Expression_DecrementPrefix must have only one child node");
+			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPrefix child must be Expression_IdentifierRHS");
+			
+			Expression* var = ExpressionFromNode(expr->node.first_child);
+			u32* offset = assembler.var_map.at(var->expstr);
+			if(offset){
+				asm_instruction("decq", toStr("-",*offset,"(%rbp)").str,      toStr("decrement value of var ",var->expstr).str);
+				asm_instruction("movq", toStr("-",*offset,"(%rbp),%rax").str, toStr("copy value of var ",var->expstr," in %rax").str);
+			}else{
+				logfE("assembler", "Attempted to reference an undeclared variable: %s", var->expstr.str);
+				assembler.function_error = true;
+			}
+		}break;
+		
+		case Expression_DecrementPostfix:{
+			Assert(expr->node.child_count == 1, "Expression_DecrementPostfix must have only one child node");
+			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPostfix child must be Expression_IdentifierRHS");
+			
+			Expression* var = ExpressionFromNode(expr->node.first_child);
+			u32* offset = assembler.var_map.at(var->expstr);
+			if(offset){
+				asm_instruction("movq", toStr("-",*offset,"(%rbp),%rax").str, toStr("copy value of var ",var->expstr," in %rax").str);
+				asm_instruction("decq", toStr("-",*offset,"(%rbp)").str, toStr("decrement value of var ",var->expstr).str);
+			}else{
+				logfE("assembler", "Attempted to reference an undeclared variable: %s", var->expstr.str);
+				assembler.function_error = true;
+			}
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -880,8 +942,8 @@ assemble_expression(Expression* expr){
 			
 			string label = toStr(".L",assembler.label_counter++);
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("cmp", "$0,%rax", "check %rax for logical OR");
-			asm_instruction("jnz", label.str, "jump over right side of logical OR if true");
+			asm_instruction("cmpq", "$0,%rax", "check %rax for logical OR");
+			asm_instruction("jnz", label.str,  "jump over right side of logical OR if true");
 			assemble_expression(ExpressionFromNode(expr->node.last_child));
 			asm_pure(label.str); asm_pure(":\n");
 		}break;
@@ -892,8 +954,8 @@ assemble_expression(Expression* expr){
 			
 			string label = toStr(".L",assembler.label_counter++);
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
-			asm_instruction("cmp", "$0,%rax", "check %rax for logical AND");
-			asm_instruction("jz", label.str, "jump over right side of logical AND if false");
+			asm_instruction("cmpq", "$0,%rax", "check %rax for logical AND");
+			asm_instruction("jz", label.str,   "jump over right side of logical AND if false");
 			assemble_expression(ExpressionFromNode(expr->node.last_child));
 			asm_pure(label.str); asm_pure(":\n");
 		}break;
@@ -902,36 +964,36 @@ assemble_expression(Expression* expr){
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("or",  "%rdx,%rax", "bitwise or %rax with %rdx");
+			asm_instruction("orq",  "%rdx,%rax", "bitwise or %rax with %rdx");
 		}break;
 		
 		case Expression_BinaryOpBitXOR:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("xor", "%rdx,%rax", "bitwise xor %rax with %rdx");
+			asm_instruction("xorq", "%rdx,%rax", "bitwise xor %rax with %rdx");
 		}break;
 		
 		case Expression_BinaryOpBitAND:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("and", "%rdx,%rax", "bitwise and %rax with %rdx");
+			asm_instruction("andq", "%rdx,%rax", "bitwise and %rax with %rdx");
 		}break;
 		
 		case Expression_BinaryOpEqual:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("cmp",   "%rax,%rdx", "perform comparison, %rdx == %rax");
-			asm_instruction("sete",  "%al",       "set %al if equal");
+			asm_instruction("cmpq", "%rax,%rdx", "perform comparison, %rdx == %rax");
+			asm_instruction("sete", "%al",       "set %al if equal");
 		}break;
 		
 		case Expression_BinaryOpNotEqual:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("cmp",   "%rax,%rdx", "perform comparison, %rdx != %rax");
+			asm_instruction("cmpq",  "%rax,%rdx", "perform comparison, %rdx != %rax");
 			asm_instruction("setne", "%al",       "set %al if not equal");
 		}break;
 		
@@ -939,15 +1001,15 @@ assemble_expression(Expression* expr){
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx < %rax");
-			asm_instruction("setl",  "%al",       "set %al if less than");
+			asm_instruction("cmpq", "%rdx,%rax", "perform comparison, %rdx < %rax");
+			asm_instruction("setl", "%al",       "set %al if less than");
 		}break;
 		
 		case Expression_BinaryOpLessThanOrEqual:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx <= %rax");
+			asm_instruction("cmpq",  "%rdx,%rax", "perform comparison, %rdx <= %rax");
 			asm_instruction("setle", "%al",       "set %al if less than/equal");
 		}break;
 		
@@ -955,70 +1017,70 @@ assemble_expression(Expression* expr){
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx > %rax");
-			asm_instruction("setg",  "%al",       "set %al if greater than");
+			asm_instruction("cmpq", "%rdx,%rax", "perform comparison, %rdx > %rax");
+			asm_instruction("setg", "%al",       "set %al if greater than");
 		}break;
 		
 		case Expression_BinaryOpGreaterThanOrEqual:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("cmp",   "%rdx,%rax", "perform comparison, %rdx >= %rax");
+			asm_instruction("cmpq",  "%rdx,%rax", "perform comparison, %rdx >= %rax");
 			asm_instruction("setge", "%al",       "set %al if greater than/equal");
 		}break;
 		
 		case Expression_BinaryOpBitShiftLeft:{
 			assemble_binop_children(expr);
 			
-			asm_instruction("mov", "%rax,%rdx", "mov %rax into %rdx for bitshift left");
+			asm_instruction("movq", "%rax,%rdx", "copy %rax into %rdx for bitshift left");
 			asm_pop_stack(Register_RAX);
-			asm_instruction("shl", "%cl,%rax",  "bitshift left %rax by %rdx");
+			asm_instruction("shlq", "%cl,%rax",  "bitshift left %rax by %rdx");
 		}break;
 		
 		case Expression_BinaryOpBitShiftRight:{
 			assemble_binop_children(expr);
 			
-			asm_instruction("mov", "%rax,%rdx", "mov %rax into %rdx for bitshift right");
+			asm_instruction("movq", "%rax,%rdx", "copy %rax into %rdx for bitshift right");
 			asm_pop_stack(Register_RAX);
-			asm_instruction("shr", "%cl,%rax",  "bitshift right %rax by %rdx");
+			asm_instruction("shrq", "%cl,%rax",  "bitshift right %rax by %rdx");
 		}break;
 		
 		case Expression_BinaryOpPlus:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("add", "%rdx,%rax", "add, store result in %rax");
+			asm_instruction("addq", "%rdx,%rax", "add, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpMinus:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("sub", "%rdx,%rax", "subtract %rax - %rdx, store result in %rax");
+			asm_instruction("subq", "%rdx,%rax", "subtract %rax - %rdx, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpMultiply:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
-			asm_instruction("imul", "%rdx,%rax", "signed multiply, store result in %rax");
+			asm_instruction("imulq", "%rdx,%rax", "signed multiply, store result in %rax");
 		}break;
 		
 		case Expression_BinaryOpDivision:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RCX);
-			asm_instruction("cqto",              "sign extend %rax into %rdx:%rax");
-			asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+			asm_instruction("cqto",          "sign extend %rax into %rdx:%rax");
+			asm_instruction("idivq", "%rcx", "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 		}break;
 		
 		case Expression_BinaryOpModulo:{
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RCX);
-			asm_instruction("cqto",              "sign extend %rax into %rdx:%rax");
-			asm_instruction("idiv", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
-			asm_instruction("mov",  "%rdx,%rax", "move remainder from %rdx into %rax");
+			asm_instruction("cqto",               "sign extend %rax into %rdx:%rax");
+			asm_instruction("idivq", "%rcx",      "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
+			asm_instruction("movq",  "%rdx,%rax", "copy remainder from %rdx into %rax");
 		}break;
 		
 		case Expression_BinaryOpAssignment:{
@@ -1078,7 +1140,7 @@ assemble_declaration(Declaration* decl){
 	assembler.var_map.add(decl->identifier, assembler.stack_offset);
 	
 	assembler.active_decl = decl;
-	asm_instruction("push", "$0", toStr("init var ", decl->identifier, " to zero").str);
+	asm_instruction("pushq", "$0", toStr("init var ", decl->identifier, " to zero").str);
 	for_node(decl->node.first_child) assemble_expression(ExpressionFromNode(it));
 	assembler.active_decl = 0;
 }

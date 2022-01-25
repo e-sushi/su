@@ -115,6 +115,21 @@ tests = [
     ["variables/invalid/syntax_err_no_semicolon.su", ReturnCode_Parser_Failed],
     ["variables/invalid/undeclared_var.su",          ReturnCode_Assembler_Failed],
     ["variables/invalid/var_declared_lat.su",        ReturnCode_Assembler_Failed],
+    
+    ["inc_dec/valid/decrement_post.su",        9],
+    ["inc_dec/valid/decrement_pre.su",         8],
+    ["inc_dec/valid/increment_post.su",       11],
+    ["inc_dec/valid/increment_post_return.su", 5],
+    ["inc_dec/valid/increment_pre.su",        12],
+    ["inc_dec/valid/increment_pre_return.su",  6],
+    ["inc_dec/invalid/literal_dec_post.su", ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/literal_dec_pre.su",  ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/literal_inc_post.su", ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/literal_inc_pre.su",  ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/unknown_dec_post.su", ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/unknown_dec_pre.su",  ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/unknown_inc_post.su", ReturnCode_Parser_Failed],
+    ["inc_dec/invalid/unknown_inc_pre.su",  ReturnCode_Parser_Failed],
 ];
 
 def main():
