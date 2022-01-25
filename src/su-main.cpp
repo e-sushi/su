@@ -1,67 +1,68 @@
 ﻿/*
+Return codes are listed in su-types.h
 
-
-Return codes are listen in su-types.h
-
-.subuild files are detailed below, however if you're using one, the following flags do not need to be specified
- on the command line and can be done in the build file
-
-command line arguments:
-		-i        input files; either a collection of .su files or a .subuild file
+command line arguments with options
+-----------------------------------
+		-i [str...]
+list input .su files
 		
 		-wl [int] default: 1
-		          set warning level:
+		          set warning level
 				  :  0: disable all warnings
 				  :  1: arthmatic errors; logic errors
 				  :  2: saftey errors
-				  :  3: idk yet
+				  :  3: often intentional but could be considered a warning
 				  :  4: all warnings
 
-		-defstr [option] default: utf8
+		TODO -defstr [option] default: utf8
 			      set the default type of str 
 				  :  ascii
 				  :  utf8
 				  :  utf16
 				  :  utf32
+:  ucs2
 
-		-os [str] default: auto-detected
-				  set the platform/OS to compile for; 
-				  :  windows //maybe need options for different releases?
+		-os [str] default: current OS
+				  set the platform/OS to compile for
+				  :  windows
 				  :  linux
 				  :  osx
 
+TODO -arch [str] default: current architecture
+set the CPU architecture to compile for
+:  x64 | amd64
+:  x86 | i386
+:  arm64
+:  arm32
+
 		-o [str] default: working directory
-				  directory to output the .asm (and other output) files to
+				  directory to output the assembly (and other output) files to
 
-		-ep [str] default: main 
-				  set the name of the entry point function of the program; 
+		TODO -ep [str] default: main
+				  set the name of the entry point function of the program;
 
-		-dw [int] default: none
+		-dw [int...]
 				  disable certain warnings from appearing while compiling
-				  list of warnings is in su-types.h
-				  this can take multiple ints 
+				  list of warnings is in su-warnings.h
+				  this can take multiple unsigned ints
 
-		-sw       suppress warnings
-		-se       suppress errors
-		-sm       suppress messages
-		-sa       suppress all printing
-		-v        verbose printing of internal actions (actual compiler steps, not warnings, errors, etc. for debugging the compiler)
-		-gv       generate graphviz graph of the AST tree (output as .svg)
-
-.subuild specific
-		-conf [str] default: none
-				  use a specific configuration specified in a subuild file 
-
-subuild files:
-	TODO write about this when we have it :)
-
-
+command line arguments without options
+-----------------------------------
+		--sw       suppress warnings
+		--se       suppress errors
+		--sm       suppress messages
+		--sa       suppress all printing
+		--v        verbose printing of internal actions (actual compiler steps, not warnings, errors, etc. for debugging the compiler)
+		TODO --gv       generate graphviz graph of the AST tree (output as .svg)
+TODO --wx       treat warnings as errors
 
 General TODOs
+-------------
+hash things like struct names, function signatures, and such to prevent tons of string comparing
 
-Hash things like struct names, function signatures, and such to prevent tons of string comparing
+maybe count the the amount of tokens of each node type we have as we lex, so we can estimate how much storage parser will need to allocate
 
-Maybe count the the amount of tokens of each node type we have as we lex, so we can estimate how much storage parser will need to allocate
+maybe require -defstr to specify OS versions and distros
 
 */
 
@@ -88,10 +89,8 @@ Maybe count the the amount of tokens of each node type we have as we lex, so we 
 #define TIMER_END(name) std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - name).count()
 
 //headers
+#include "su-warnings.h"
 #include "su-types.h"
-#include "su-lexer.h"
-#include "su-parser.h"
-#include "su-assembler.h"
 
 //source
 #include "su-io.cpp"
@@ -107,8 +106,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
-	
-	memset(enabledWC, 1, sizeof(b32) * WC_COUNT);
 	
 	//make this not array and string later maybe 
 	array<string> filepaths;
@@ -157,17 +154,43 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				output_dir += "/";
 			}
 		}
-		else if (!strcmp("-v", arg)) {
-			globals.verbose_print = true;
-		}
+		//// @-dw disable warnings ////
 		else if (!strcmp("-dw", arg)) {
 			arg = argv[++i];
 			while (1) {
-				enabledWC[stoi(arg)] = false;
+				int warning = stoi(arg);
+				if(warning > 0 && warning < WarningCodes_COUNT){
+					disabledWC.set(warning);
+				}else{
+					printf("su : invalid -dw value : There is no warning with code '%d'.\n", warning);
+					return ReturnCode_Invalid_Argument;
+				}
 				if (i == argc - 1) break;
 				arg = argv[++i];
 				if (!isnumber(arg[0])) { i--; break; }
 			}
+		}
+		//// @--v verbose printing ////
+		else if (!strcmp("--v", arg)) {
+			globals.verbose_print = true;
+		}
+		//// @--sw supress warnings ////
+		else if (!strcmp("--sw", arg)) {
+			globals.supress_warnings = true;
+		}
+		//// @--se supress errors ////
+		else if (!strcmp("--se", arg)) {
+			globals.supress_errors = true;
+		}
+		//// @--sm supress messages ////
+		else if (!strcmp("--sm", arg)) {
+			globals.supress_messages = true;
+		}
+		//// @--sa supress all printing ////
+		else if (!strcmp("--sa", arg)) {
+			globals.supress_warnings = true;
+			globals.supress_errors = true;
+			globals.supress_messages = true;
 		}
 		else {
 			PRINTLN("ERROR: invalid argument: '" << arg << "'");
@@ -192,7 +215,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//// Lexing
 		log("verbose", "lexing started");
 		TIMER_START(timer);
-		if(!suLexer::lex(source)){
+		if(!lex_file(source)){
 			PRINTLN("ERROR: lexer failed");
 			return ReturnCode_Lexer_Failed;
 		}
@@ -204,7 +227,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		Program program;
 		log("verbose", "parsing started");
 		TIMER_RESET(timer);
-		if(suParser::parse(program)){
+		if(parse_program(program)){
 			PRINTLN("ERROR: parser failed");
 			return ReturnCode_Parser_Failed;
 		}
@@ -219,7 +242,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		log("verbose", "assembling started");
 		string assembly;
 		TIMER_RESET(timer);
-		if(!suAssembler::assemble(program, assembly)){
+		if(!assemble_program(program, assembly)){
 			PRINTLN("ERROR: assembler failed");
 			return ReturnCode_Assembler_Failed;
 		}

@@ -10,7 +10,7 @@ array<u32> idindexes;
 array<u32> globalids;
 array<cstring> structnames;
 
-b32 suLexer::lex(const string& file) {
+b32 lex_file(const string& file) {
 	cstring buff{file.str, file.count};
 	u32 lines = 0;
 	b32 readingstring = 0;
@@ -22,8 +22,8 @@ b32 suLexer::lex(const string& file) {
 #define chunkstr cstring{chunk_start, u32(buff.str - chunk_start)}
 #define cstrc(count) cstring{chunk_start, count}
 #define cstrb(count) cstring{buff.str, count}
-
-
+	
+	
 	while (buff.count) {
 		switch (state) {
 			case DiscernChar: {
@@ -148,7 +148,7 @@ b32 suLexer::lex(const string& file) {
 								if (!lexer.tokens.last->scope) {
 									globalids.add(lexer.tokens.count - 1);
 								}
-
+								
 							}
 						}
 						else {
@@ -159,7 +159,7 @@ b32 suLexer::lex(const string& file) {
 									isfloat = 1;
 								else if (!isnumber(chunk_start[i])) 
 									valid = 0; 
-								 }
+							}
 							if (valid) { 
 								lexer.tokens.add(token{ chunkstr, (isfloat ? Token_LiteralFloat : Token_LiteralInteger), Token_Literal, scope, lines });
 								if (isfloat) {
@@ -175,14 +175,14 @@ b32 suLexer::lex(const string& file) {
 							}
 							// TODO error out of the program here
 						}
-
+						
 						if (buff[0] == '\n') {
 							advance(&buff);
 							lines++;
 						}
 						
 					}break;
-
+					
 					case '.': {
 						if (isalpha(*chunk_start)) {
 							//must be member access period (i hope)
@@ -194,11 +194,11 @@ b32 suLexer::lex(const string& file) {
 						}
 						else { advance(&buff); }//float case handled above
 					}break;
-
+					
 					default: { advance(&buff); }break;
 				}
 			}break;
-
+			
 			//TODO setup escape character stuff
 			case ReadingStringLiteral: {
 				switch (buff[0]) {
@@ -220,7 +220,7 @@ b32 suLexer::lex(const string& file) {
 	
 	//not very helpful
 	if (scope) logE("lexer", "unbalanced {} somewhere in code");
-
+	
 	//iterate over all found identifiers and figure out if they match any known struct names
 	//so parser knows when a struct name is being used as a type
 	//TODO find a good way to only add identifiers that are in the global scope 
@@ -254,6 +254,6 @@ b32 suLexer::lex(const string& file) {
 		}
 		
 	}
-
+	
 	return true;
 }

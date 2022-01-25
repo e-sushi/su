@@ -61,7 +61,7 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_NotEqual,           Expression_BinaryOpNotEqual},
 	{Token_BitAND,             Expression_BinaryOpBitAND},
 	{Token_BitOR,              Expression_BinaryOpBitOR},
-	{Token_BitXOR,		       Expression_BinaryOpBitXOR},
+	{Token_BitXOR,             Expression_BinaryOpBitXOR},
 	{Token_BitShiftLeft,       Expression_BinaryOpBitShiftLeft},
 	{Token_BitShiftRight,      Expression_BinaryOpBitShiftRight},
 	{Token_Modulo,             Expression_BinaryOpModulo},
@@ -154,9 +154,9 @@ inline Node* new_expression(cstring& str, ExpressionType type, const string& nod
 	parser.expression = (Expression*)parser.arena.add(Expression());
 	parser.expression->expstr = str;
 	parser.expression->type   = type;
-	parser.expression->node.type    = NodeType_Expression;
+	parser.expression->node.type = NodeType_Expression;
 	if(!node_str.count) parser.expression->node.comment = ExTypeStrings[type];
-	else parser.expression->node.comment = node_str;
+	else                parser.expression->node.comment = node_str;
 	return &parser.expression->node;
 }
 
@@ -238,7 +238,7 @@ enum ParseStage {
 	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
 	psDeclaration, // <declaration>   :: = <type> <id> [ = <exp> ]
 	psStatement,   // <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
-	//                                   | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+	//                                   | "if" "(" <exp> ")" <statement> | <declaration> [ "else" <statement> | <declaration> ]
 	//                                   | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
 	//                                   | "for" "(" <declaration> ";" [<exp>] ";" [<exp>] ")" <statement>
 	//                                   | "while" "(" <exp> ")" <statement>
@@ -260,7 +260,7 @@ enum ParseStage {
 	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | <memberaccess> | "if"
 	//                <funccall>      :: = < id> "("[( <exp> | <id> = <exp> ) {"," ( <exp> | <id> = <exp> ) }] ")"
 	//                <literal>       :: = <integer> | <float> | <string>
-	//				  <memberaccess>  :: = <id> "." <id> { "." <id> }
+	//                <memberaccess>  :: = <id> "." <id> { "." <id> }
 	//                <float>         :: = { <integer> } "." <integer> { <integer> }
 	//                <string>        :: = """ { <char> } """
 	//                <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
@@ -470,7 +470,7 @@ Node* define(ParseStage stage, Node* node) {
 				}
 				if(curt.type != Token_OpenBrace)
 					token_next(2);
-
+				
 				setTokenIdx(f->token_idx);
 				Expect(Token_OpenBrace) {
 					define(psScope, node);
@@ -488,6 +488,11 @@ Node* define(ParseStage stage, Node* node) {
 			Node* me = new_scope("scope");
 			insert_last(node, &parser.scope->node);
 			while (!next_match(Token_CloseBrace)) {
+				if(parser.scope->has_return_statement){
+					log_warning(WC_Unreachable_Code_After_Return);
+					if(globals.warnings_as_errors) break;
+				}
+				
 				token_next();
 				ExpectGroup(Token_Typename) {
 					define(psDeclaration, me);
@@ -496,7 +501,9 @@ Node* define(ParseStage stage, Node* node) {
 					ExpectFail("missing ; after declaration assignment")
 				}
 				ElseExpect(Token_OpenBrace) {
+					Scope* scope = parser.scope;
 					define(psScope, me);
+					parser.scope = scope;
 				}
 				else {
 					define(psStatement, me);
@@ -515,7 +522,7 @@ Node* define(ParseStage stage, Node* node) {
 			//if (parser.declaration.type == DataType_Structure) {
 			//  //TODO hash struct type on declaration definition
 			//}
-
+			
 			if (next_match(Token_Assignment)) {
 				Node* ret = define(psExpression, &parser.declaration->node);
 				return ret;
@@ -647,6 +654,8 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Return: {
+					parser.scope->has_return_statement = true;
+					
 					new_statement(Statement_Return, "return statement");
 					insert_last(node, &parser.statement->node);
 					token_next();
@@ -654,7 +663,6 @@ Node* define(ParseStage stage, Node* node) {
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("expected a ;");
-					
 				}break;
 				
 				case Token_OpenBrace: {
@@ -850,11 +858,11 @@ Node* define(ParseStage stage, Node* node) {
 						Function* f = FunctionFromNode(*knownFuncs.at(curt.str));
 						parser.expression->datatype = f->type;
 						token_next();
-
+						
 						//to order arguments correctly 
 						array<Node*> expsend;
 						array<cstring> named_args;
-
+						
 						expsend.resize(f->args.count);
 						
 						u32 positional_args_given = 0;
@@ -910,7 +918,7 @@ Node* define(ParseStage stage, Node* node) {
 								change_parent(me, expsend[i]);
 							}
 						}
-
+						
 						Expect(Token_CloseParen) {}
 						
 						
@@ -997,7 +1005,7 @@ Node* define(ParseStage stage, Node* node) {
 					define(psFactor, &parser.expression->node);
 					return ret;
 				}break;
-
+				
 				case Token_Dot: {
 					Node* me = new_expression(curt.str, Expression_BinaryOpMemberAccess);
 					token_next();
@@ -1019,7 +1027,7 @@ Node* define(ParseStage stage, Node* node) {
 								change_parent(me2, me);
 								me = me2;
 							}ExpectFail("expected identifier following member access dot");
-
+							
 						}
 					}ExpectFail("expected identifier following member access dot");
 					return me;
@@ -1034,7 +1042,7 @@ Node* define(ParseStage stage, Node* node) {
 	return 0;
 }
 
-b32 suParser::parse(Program& mother) {
+b32 parse_program(Program& mother) {
 	parser.arena.init(Kilobytes(10));
 	
 	for (u32 i : lexer.func_decl) {

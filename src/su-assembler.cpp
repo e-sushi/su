@@ -779,17 +779,6 @@ asm_instruction(const char* instruction, const char* args, const char* comment){
 }
 
 local FORCE_INLINE void
-asm_start_scope(){
-    asm_instruction("pushq", "%rbp",      "save base pointer to stack (start scope)");
-    asm_instruction("movq",  "%rsp,%rbp", "save the current stack pointer as the base pointer");
-}
-
-local FORCE_INLINE void
-asm_end_scope(){
-    asm_instruction("leave", "restore the previous stack pointer and base pointers (end scope)");
-}
-
-local FORCE_INLINE void
 asm_push_stack(u32 reg, const char* comment = 0){
 	asm_instruction("pushq", registers_x64[reg], (comment) ? comment : "push register onto stack");
 }
@@ -1103,9 +1092,7 @@ assemble_expression(Expression* expr){
 			//TODO ternary expression
 		}break;
 		
-		default:{
-			NotImplemented;
-		}break;
+		default:{ NotImplemented; }break;
 	}
 }
 
@@ -1115,7 +1102,7 @@ assemble_statement(Statement* stmt){
         case Statement_Return:{
 			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
 			
-            asm_end_scope();
+			asm_instruction("leave", "restore the previous stack pointer and base pointers (end scope)");
             asm_instruction("ret", "return code pointer back to func call site");
             assembler.function_returned = true;
         }break;
@@ -1124,18 +1111,52 @@ assemble_statement(Statement* stmt){
 			//NOTE right then left because assignment currently uses this
 			for_node_reverse(stmt->node.last_child) assemble_expression(ExpressionFromNode(it));
 		}break;
+		
+		case Statement_If:{
+			//first arg is boolean expression
+			//last arg is possibly else statement
+			log("assembler", "Statement_If not implemented yet");
+		}break;
+		
+		case Statement_Else:{
+			log("assembler", "Statement_Else not implemented yet");
+		}break;
+		
+		case Statement_Scope:{
+			log("assembler", "Statement_Scope not implemented yet");
+		}break;
+		
+		case Statement_For:{
+			log("assembler", "Statement_For not implemented yet");
+		}break;
+		
+		case Statement_While:{
+			log("assembler", "Statement_While not implemented yet");
+		}break;
+		
+		case Statement_Break:{
+			log("assembler", "Statement_Break not implemented yet");
+		}break;
+		
+		case Statement_Continue:{
+			log("assembler", "Statement_Continue not implemented yet");
+		}break;
+		
+		case Statement_Struct:{
+			log("assembler", "Statement_Struct not implemented yet");
+		}break;
     }
 }
 
 local void
 assemble_declaration(Declaration* decl){
+	//TODO get type size from declaration
+	//TODO need sizing information overall to call the correct registers
 	if(decl->type != DataType_Signed32){
 		logfE("assembler", "Declaration '%s' declared with type '%s' which is unhandled currently", decl->identifier.str, dataTypeStrs[decl->type]);
 		return;
 	}
 	
-	//TODO get type size from declaration
-	//TODO need sizing information overall to call the correct registers
 	assembler.stack_offset += 8; //sizeof(s64) == 4
 	assembler.var_map.add(decl->identifier, assembler.stack_offset);
 	
@@ -1159,32 +1180,47 @@ assemble_scope(Scope* scope){
 
 local void
 assemble_function(Function* func){
+	//TODO func either has to have a return statement or an else with a return statement
 	if(func->node.child_count == 0) return;
+	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "A function only has one child and it has to be a scope if its a definition");
     assembler.function_returned = false;
     
     asm_pure(func->identifier); asm_pure(":\n");
-    asm_start_scope();
-	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "a function only has one child and it has to be a scope");
+	asm_instruction("pushq", "%rbp",      "save base pointer to stack (start function)");
+    asm_instruction("movq",  "%rsp,%rbp", "save the current stack pointer as the base pointer");
 	assemble_scope(ScopeFromNode(func->node.first_child));
-    if(!assembler.function_returned){
-		//TODO check if the functions return is void before doing this
-		logfWC("assembler", 1, WC_No_Return_Type, "Function '%s' is missing a return statement, automatically inserting 'return 0' at the end", func->identifier.str);
+	
+	for_node(ScopeFromNode(func->node.first_child)->node.first_child){ //NOTE manually handle scope to check for returns
+		switch(it->type){
+			case NodeType_Declaration:{
+				assemble_declaration(DeclarationFromNode(it));
+			}break;
+			case NodeType_Statement:{
+				assemble_statement(StatementFromNode(it));
+			}break;
+			case NodeType_Scope:{
+				assemble_scope(ScopeFromNode(it));
+			}break;
+			default: NotImplemented; break;
+		}
+	}
+	
+    if(func->type != DataType_Void && !assembler.function_returned){
+		log_warning(WC_Not_All_Paths_Return, func->identifier.str);
+		if(globals.warnings_as_errors) assembler.function_error = true;
+		
 		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");
-        asm_end_scope();
-        asm_instruction("ret",            "return code pointer back to func call site");
+		asm_instruction("leave",          "restore the previous stack pointer and base pointers");
+        asm_instruction("ret",            "return code pointer back to func call site (end function)");
     }
 	
 	if(assembler.function_error){
-		logfE("assembler", "Function '%s' failed to compile due to internal errors", func->identifier.str);
 		assembler.failed = true;
 		assembler.function_error = false;
 	}
 }
 
-////////////////////
-//// @interface ////
-////////////////////
-b32 suAssembler::assemble(Program& program, string& assembly) {
+b32 assemble_program(Program& program, string& assembly) {
     assembler.output.reserve(1024);
     //string filename(program->name); filename = "\"" + filename + "\""; //TODO add filename to Program
     //asm_instruction(".file", filename.str, "start of this file");
