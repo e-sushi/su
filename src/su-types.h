@@ -62,9 +62,9 @@ struct Node {
 	Node* first_child = 0;
 	Node* last_child = 0;
 	u32   child_count = 0;
-
+	
 	NodeType type;
-
+	
 	//debug vars
 	string comment;
 };
@@ -94,7 +94,7 @@ inline void remove_horizontally(Node* node) {
 
 void insert_last(Node* parent, Node* child) {
 	if (parent == 0) { child->parent = 0; return; }
-
+	
 	child->parent = parent;
 	if (parent->first_child) {
 		insert_after(parent->last_child, child);
@@ -109,7 +109,7 @@ void insert_last(Node* parent, Node* child) {
 
 void insert_first(Node* parent, Node* child) {
 	if (parent == 0) { child->parent = 0; return; }
-
+	
 	child->parent = parent;
 	if (parent->first_child) {
 		insert_before(parent->first_child, child);
@@ -136,17 +136,17 @@ void remove(Node* node) {
 		}
 		node->parent->child_count--;
 	}
-
+	
 	//add children to parent (and remove self from children)
 	if (node->child_count > 1) {
 		for (Node* child = node->first_child; child != 0; child = child->next) {
 			insert_last(node->parent, child);
 		}
 	}
-
+	
 	//remove self horizontally
 	remove_horizontally(node);
-
+	
 	//reset self  //TODO not necessary if we are deleting this node, so exclude this logic in another function NodeDelete?
 	node->parent = node->first_child = node->last_child = 0;
 	node->child_count = 0;
@@ -166,10 +166,10 @@ void change_parent(Node* new_parent, Node* node) {
 		}
 		node->parent->child_count--;
 	}
-
+	
 	//remove self horizontally
 	remove_horizontally(node);
-
+	
 	//add self to new parent
 	insert_last(new_parent, node);
 }
@@ -293,12 +293,12 @@ const char* dataTypeStrs[] = {
 enum ExpressionType : u32 {
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
-
+	
 	Expression_Function_Call,
-
+	
 	//Types
 	Expression_Literal,
-
+	
 	//Unary Operators
 	Expression_UnaryOpBitComp,
 	Expression_UnaryOpLogiNOT,
@@ -307,7 +307,7 @@ enum ExpressionType : u32 {
 	Expression_IncrementPostfix,
 	Expression_DecrementPrefix,
 	Expression_DecrementPostfix,
-
+	
 	//Binary Operators
 	Expression_BinaryOpPlus,
 	Expression_BinaryOpMinus,
@@ -329,10 +329,10 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
 	Expression_BinaryOpMemberAccess,
-
+	
 	//Special ternary conditional expression type
 	Expression_TernaryConditional,
-
+	
 	//Expression Guards
 	ExpressionGuard_Assignment,
 	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations
@@ -342,11 +342,11 @@ enum ExpressionType : u32 {
 static const char* ExTypeStrings[] = {
 	"idLHS: ",
 	"idRHS: ",
-
+	
 	"fcall: ",
-
+	
 	"literal: ",
-
+	
 	"~",
 	"!",
 	"-",
@@ -354,7 +354,7 @@ static const char* ExTypeStrings[] = {
 	"++ post",
 	"-- pre",
 	"-- post",
-
+	
 	"+",
 	"-",
 	"*",
@@ -375,9 +375,9 @@ static const char* ExTypeStrings[] = {
 	">>",
 	"=",
 	"accessor",
-
+	
 	"tern cond",
-
+	
 	"assignment",
 	"head",
 	"conditional",
@@ -394,6 +394,7 @@ static const char* ExTypeStrings[] = {
 	"factor",
 };
 
+struct Struct;
 struct Expression {
 	cstring expstr;
 	ExpressionType type;
@@ -432,7 +433,7 @@ struct Declaration {
 	Node node;
 	b32 initialized = 0;
 	u64 token_idx = 0;
-
+	
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 

@@ -107,14 +107,14 @@ tests = [
     ["variables/valid/no_initialize.su",  0],
     ["variables/valid/refer.su",          2],
     ["variables/valid/unused_exp.su",     0],
-    ["variables/invalid/redefine.su",                ReturnCode_Assembler_Failed],
+    ["variables/invalid/redefine.su",                ReturnCode_Parser_Failed],
     ["variables/invalid/syntax_err_bad_decl.su",     ReturnCode_Parser_Failed],
     ["variables/invalid/syntax_err_bad_decl_2.su",   ReturnCode_Parser_Failed],
     ["variables/invalid/syntax_err_bad_lvalue.su",   ReturnCode_Parser_Failed],
     ["variables/invalid/syntax_err_bad_lvalue_2.su", ReturnCode_Parser_Failed],
     ["variables/invalid/syntax_err_no_semicolon.su", ReturnCode_Parser_Failed],
-    ["variables/invalid/undeclared_var.su",          ReturnCode_Assembler_Failed],
-    ["variables/invalid/var_declared_lat.su",        ReturnCode_Assembler_Failed],
+    ["variables/invalid/undeclared_var.su",          ReturnCode_Parser_Failed],
+    ["variables/invalid/var_declared_late.su",       ReturnCode_Parser_Failed],
     
     ["inc_dec/valid/decrement_post.su",        9],
     ["inc_dec/valid/decrement_pre.su",         8],
@@ -130,6 +130,8 @@ tests = [
     ["inc_dec/invalid/unknown_dec_pre.su",  ReturnCode_Parser_Failed],
     ["inc_dec/invalid/unknown_inc_post.su", ReturnCode_Parser_Failed],
     ["inc_dec/invalid/unknown_inc_pre.su",  ReturnCode_Parser_Failed],
+    
+    
 ];
 
 def main():

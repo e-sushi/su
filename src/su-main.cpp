@@ -88,6 +88,7 @@ Maybe count the the amount of tokens of each node type we have as we lex, so we 
 #define TIMER_END(name) std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - name).count()
 
 //headers
+#include "su-types.h"
 #include "su-lexer.h"
 #include "su-parser.h"
 #include "su-assembler.h"
@@ -106,9 +107,9 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
-
+	
 	memset(enabledWC, 1, sizeof(b32) * WC_COUNT);
-		
+	
 	//make this not array and string later maybe 
 	array<string> filepaths;
 	string output_dir = "";
@@ -197,7 +198,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 		log("verbose", "lexing took ", TIMER_END(timer)," ms");
 		log("verbose", "lexing finished");
-
+		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
@@ -209,7 +210,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 		log("verbose", "parsing took ", TIMER_END(timer), " ms");
 		log("verbose", "parsing finished");
-
+		
 		string output_graph_path = output_dir + filepath.filename + ".svg";
 		generate_ast_graph_svg(output_graph_path.str, program);
 		
