@@ -705,7 +705,7 @@ Node* define(ParseStage stage, Node* node) {
 						return me;
 					}
 					else {
-						new_expression(curt.str, ExpressionGuard_HEAD);
+						new_expression(curt.str, Expression_IdentifierLHS);
 						Node* ret = define(psConditional, &parser.expression->node);
 						if (!ret) return 0;
 						insert_last(node, ret);
@@ -714,7 +714,6 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				default: {
-					new_expression(curt.str, ExpressionGuard_HEAD);
 					Node* ret = define(psConditional, node);
 					return ret;
 				}break;

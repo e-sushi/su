@@ -292,6 +292,9 @@ enum ExpressionType : u32 {
 	
 	Expression_Function_Call,
 	
+	//Special ternary conditional expression type
+	Expression_TernaryConditional,
+	
 	//Types
 	Expression_Literal,
 	
@@ -325,14 +328,6 @@ enum ExpressionType : u32 {
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
 	Expression_BinaryOpMemberAccess,
-	
-	//Special ternary conditional expression type
-	Expression_TernaryConditional,
-	
-	//Expression Guards
-	ExpressionGuard_Assignment,
-	ExpressionGuard_HEAD, //to align expression guards correctly with their evaluations
-	ExpressionGuard_Conditional,
 };
 
 static const char* ExTypeStrings[] = {

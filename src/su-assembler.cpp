@@ -830,8 +830,33 @@ assemble_expression(Expression* expr){
 		}break;
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
+		//// Ternary
+		case Expression_TernaryConditional:{
+			Assert(expr->node.child_count == 3, "Expression_TernaryConditional must have three child nodes");
+			
+			string skip_if_label = toStr(".L",assembler.label_counter++);
+			assemble_expression(ExpressionFromNode(expr->node.first_child));
+			asm_instruction("cmpq", "$0,%rax",       "compare %rax against zero");
+			asm_instruction("jz", skip_if_label.str, "jump over if body if false");
+			
+			//if true
+			assemble_expression(ExpressionFromNode(expr->node.first_child->next));
+			string skip_else_label = toStr(".L",assembler.label_counter++);
+			asm_instruction("jmp", skip_else_label.str, "jump over else body if true");
+			
+			//if false
+			asm_label(skip_if_label);
+			assemble_expression(ExpressionFromNode(expr->node.last_child));
+			
+			//return to normal
+			asm_label(skip_else_label);
+		}break;
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Literals
 		case Expression_Literal:{
+			Assert(expr->node.child_count == 0, "Expression_Literal must not have any child nodes");
+			
 			//string args = toStr("$",expr->integer_literal.value,",%rax");
 			string args = "$" + expr->expstr + ",%rax";
 			asm_instruction("movq", args.str, "copy integer literal into %rax");
@@ -841,12 +866,14 @@ assemble_expression(Expression* expr){
 		//// Unary Operators
 		case Expression_UnaryOpBitComp:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
+			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("notq", "%rax", "perform bitwise complement");
 		}break;
 		
 		case Expression_UnaryOpLogiNOT:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
+			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("cmpq", "$0,%rax", "perform logical not");
 			asm_instruction("movq", "$0,%rax", "");
@@ -855,6 +882,7 @@ assemble_expression(Expression* expr){
 		
 		case Expression_UnaryOpNegate:{
 			Assert(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
+			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("negq", "%rax", "perform artihmetic negation");
 		}break;
@@ -1075,19 +1103,6 @@ assemble_expression(Expression* expr){
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 		}break;
 		
-		/////////////////////////////////////////////////////////////////////////////////////////////////
-		//// Guards
-        case ExpressionGuard_HEAD:{
-			Assert(expr->node.child_count == 1, "ExpressionGuard_HEAD must have only one child node");
-			assemble_expression(ExpressionFromNode(expr->node.first_child)); //TODO why does HEAD exist if its just a pass-thru?
-		}break;
-		
-		case ExpressionGuard_Conditional:{
-			Assert(expr->node.child_count >= 1, "ExpressionGuard_Conditional must have at least one child node");
-			for_node(expr->node.first_child) assemble_expression(ExpressionFromNode(it));
-			//TODO ternary expression
-		}break;
-		
 		default:{ NotImplemented; assembler.failed = true; }break;
 	}
 }
@@ -1111,7 +1126,7 @@ assemble_statement(Statement* stmt){
 		}break;
 		
 		case Statement_Conditional:{
-			Assert(stmt->node.child_count >= 1, "Statement_If must have at least 1 child node");
+			Assert(stmt->node.child_count >= 1, "Statement_Conditional must have at least 1 child node");
 			
 			assembler.if_nesting += 1;
 			
