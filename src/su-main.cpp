@@ -199,6 +199,64 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 	}
 
+	    alpha_add_str(cstr_lit("multiply"	  ));
+		alpha_add_str(cstr_lit("wisecrack"  ));
+		alpha_add_str(cstr_lit("orbit"	  ));
+		alpha_add_str(cstr_lit("help"		  ));
+		alpha_add_str(cstr_lit("text"		  ));
+		alpha_add_str(cstr_lit("serve"	  ));
+		alpha_add_str(cstr_lit("creed"	  ));
+		alpha_add_str(cstr_lit("sympathetic"));
+		alpha_add_str(cstr_lit("hallway"	  ));
+		alpha_add_str(cstr_lit("worm"		  ));
+		alpha_add_str(cstr_lit("kidney"	  ));
+		alpha_add_str(cstr_lit("pace"		  ));
+		alpha_add_str(cstr_lit("nonsense"	  ));
+		alpha_add_str(cstr_lit("current"	  ));
+		alpha_add_str(cstr_lit("mushroom"	  ));
+		alpha_add_str(cstr_lit("cow"		  ));
+		alpha_add_str(cstr_lit("comment"	  ));
+		alpha_add_str(cstr_lit("privacy"	  ));
+		alpha_add_str(cstr_lit("compound"	  ));
+		alpha_add_str(cstr_lit("apparatus"  ));
+		alpha_add_str(cstr_lit("accessible" ));
+		alpha_add_str(cstr_lit("joystick"	  ));
+		alpha_add_str(cstr_lit("separate"	  ));
+		alpha_add_str(cstr_lit("shadow"	  ));
+		alpha_add_str(cstr_lit("raid"		  ));
+		alpha_add_str(cstr_lit("captain"	  ));
+		alpha_add_str(cstr_lit("personality"));
+		alpha_add_str(cstr_lit("disgrace"	  ));
+		alpha_add_str(cstr_lit("bark"		  ));
+		alpha_add_str(cstr_lit("sweat"	  ));
+		alpha_add_str(cstr_lit("realism"	  ));
+		alpha_add_str(cstr_lit("nun"		  ));
+		alpha_add_str(cstr_lit("bomber"	  ));
+		alpha_add_str(cstr_lit("sum"		  ));
+		alpha_add_str(cstr_lit("straight"	  ));
+		alpha_add_str(cstr_lit("sunshine"	  ));
+		alpha_add_str(cstr_lit("north"	  ));
+		alpha_add_str(cstr_lit("carriage"	  ));
+		alpha_add_str(cstr_lit("medium"	  ));
+		alpha_add_str(cstr_lit("deprive"	  ));
+		alpha_add_str(cstr_lit("progress"	  ));
+		alpha_add_str(cstr_lit("member"	  ));
+		alpha_add_str(cstr_lit("adopt"	  ));
+		alpha_add_str(cstr_lit("store"	  ));
+		alpha_add_str(cstr_lit("weigh"	  ));
+		alpha_add_str(cstr_lit("theft"	  ));
+		alpha_add_str(cstr_lit("disaster"	  ));
+		alpha_add_str(cstr_lit("suspect"	  ));
+		alpha_add_str(cstr_lit("restrict"	  ));
+		alpha_add_str(cstr_lit("excuse"     ));
+
+
+
+	generate_alpha_graph(&anode);
+
+
+
+	
 	//check that a file was passed
 	if(filepaths.count == 0){
 		PRINTLN("ERROR: no files passed");

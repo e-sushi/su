@@ -66,9 +66,16 @@ struct Node {
 	string comment;
 };
 
-struct AlphaNode : public Node {
+struct AlphaNode {
 	//TODO node type that indexes an alphabetically sorted array of strings(for var/func names and what not)
 	//maybe even generalize it to work on several data types
+
+	AlphaNode* nodes[62];
+	char debug[62];
+	
+
+	AlphaNode() { memset(this, 0, sizeof(AlphaNode)); }
+
 };
 
 #define for_node(node) for(Node* it = node; it != 0; it = it->next)

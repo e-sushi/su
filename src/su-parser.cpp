@@ -74,6 +74,30 @@ map<cstring, Node*> knownFuncs;
 map<cstring, Node*> knownVars;  
 map<cstring, Node*> knownStructs;
 
+Arena alphanodes;
+AlphaNode anode;
+
+void alpha_add_str(cstring str) {
+	if (!alphanodes.data) alphanodes.init(Kilobytes(9));
+
+	AlphaNode* working = &anode;
+	for (u32 i = 0; i < str.count; i++) {
+		u32 index = 0;
+		u8 ch = str.str[i];
+		if      (ch > 47 && ch <  58) index = ch - 48;
+		else if (ch > 64 && ch <  91) index = ch - 55;
+		else if (ch > 96 && ch < 123) index = ch - 61;
+
+		if (!working->nodes[index]) {
+			working->nodes[index] = (AlphaNode*)alphanodes.add(AlphaNode());
+
+		}
+		working->debug[index] = ch;
+		working = working->nodes[index];
+	}
+}
+
+
 inline DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
 		case Token_Void      : {return DataType_Void;}
