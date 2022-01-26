@@ -1,5 +1,6 @@
 s32 main(){
-  u32 a = 5;
-  u32 b = a--;
-  return a + b;
+	s32 a = 214748370000;
+	s16 b = a;
+	s8 c = b;
+	return b;
 }

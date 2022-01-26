@@ -77,10 +77,12 @@ map<cstring, Node*> knownStructs;
 inline DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
 		case Token_Void      : {return DataType_Void;}
-		case Token_Signed8   : {return DataType_Signed8;}        
+		case Token_Signed8   : {return DataType_Signed8;}  
+		case Token_Signed16  : {return DataType_Signed16; }
 		case Token_Signed32  : {return DataType_Signed32;}     
 		case Token_Signed64  : {return DataType_Signed64;}    
 		case Token_Unsigned8 : {return DataType_Unsigned8;}  
+		case Token_Unsigned16: {return DataType_Unsigned16;}  
 		case Token_Unsigned32: {return DataType_Unsigned32;}
 		case Token_Unsigned64: {return DataType_Unsigned64; }
 		case Token_Float32   : {return DataType_Float32;}     
@@ -89,6 +91,25 @@ inline DataType dataTypeFromToken(Token_Type type) {
 		case Token_Any       : {return DataType_Any;}
 		case Token_Struct    : {return DataType_Structure;}    
 		default: {PRINTLN("given token type is not a data type"); return DataType_Void;}
+	}
+}
+
+inline upt dataTypeSizes(DataType type) {
+	switch (type) {
+		case DataType_Void       : {return    0;}
+		case DataType_Signed8    : {return    1;}
+		case DataType_Signed16   : {return    2;}
+		case DataType_Signed32	 : {return    4;}
+		case DataType_Signed64	 : {return    8;}
+		case DataType_Unsigned8	 : {return    1;}
+		case DataType_Unsigned16 : {return    2;}
+		case DataType_Unsigned32 : {return    4;}
+		case DataType_Unsigned64 : {return    8;}
+		case DataType_Float32	 : {return    4;}
+		case DataType_Float64	 : {return    8;}
+		case DataType_String	 : {return    0;} //TODO size of string
+		case DataType_Any		 : {return    0;} //most likely determined at compile or runtime
+		case DataType_Structure	 : {return npos;} //should always be determined at compile time
 	}
 }
 
@@ -169,53 +190,65 @@ inline Node* new_declaration(cstring& identifier, DataType type, const string& n
 	return &parser.declaration->node;
 }
 
-b32 type_check(DataType type, Node* n) {
-	Expression* e = ExpressionFromNode(n);
-	
-	switch (e->datatype) {
-		case DataType_Signed32: {
-			switch (type) {
-				case DataType_Signed32: {
-					return true;
-				}break;
-				case DataType_Signed64: {
-					e->datatype = DataType_Signed64;
-					return true;
-				}break;
-				case DataType_Unsigned32: {
-					e->datatype = DataType_Unsigned32;
-					
-					return true;
-				}break;
-			}
-		}break;
+#define ConvertWarnIfOverflow(actualtype, type1, type2) actualtype og = sec->type1; sec->type2 = og; if (og != sec->type2) { log_warning(WC_Overflow, toStr("from " STRINGIZE(type1) " to " STRINGIZE(type2) " caused overflow. value went from ", og, " to ", sec->type2).str); } DebugPrintConversions(type1, type2);
+#define DebugPrintConversions(type1, type2) log("DebugConversionPrint", STRINGIZE(type1), " was converted to ", STRINGIZE(type2));
+
+
+#define ConvertGroup(a,b) \
+switch (pri->datatype) {                                                                   \
+	case DataType_Signed8:    { ConvertWarnIfOverflow(a, b,    int8); return true; } \
+	case DataType_Signed16:   { ConvertWarnIfOverflow(a, b,   int16); return true; } \
+	case DataType_Signed32:   { ConvertWarnIfOverflow(a, b,   int32); return true; } \
+	case DataType_Signed64:   { ConvertWarnIfOverflow(a, b,   int32); return true; } \
+	case DataType_Unsigned8:  { ConvertWarnIfOverflow(a, b,   uint8); return true; } \
+	case DataType_Unsigned16: { ConvertWarnIfOverflow(a, b,  uint16); return true; } \
+	case DataType_Unsigned32: { ConvertWarnIfOverflow(a, b,  uint32); return true; } \
+	case DataType_Unsigned64: { ConvertWarnIfOverflow(a, b,  uint64); return true; } \
+	case DataType_Float32:    { ConvertWarnIfOverflow(a, b, float32); return true; } \
+	case DataType_Float64:    { ConvertWarnIfOverflow(a, b, float64); return true; } \
+	case DataType_Structure:  { NotImplemented; }										   \
+}
+
+//secn is casted to match prin if possible
+b32 type_check(Node* prin, Node* secn) {
+	Expression* pri = ExpressionFromNode(prin);
+	Expression* sec = ExpressionFromNode(secn);
+
+	switch (sec->datatype) {
+		case DataType_Signed8:    { ConvertGroup( s8,    int8); }break;
+		case DataType_Signed16:   { ConvertGroup(s16,   int16); }break;
+		case DataType_Signed32:   { ConvertGroup(s32,   int32); }break;
+		case DataType_Signed64:   { ConvertGroup(s64,   int64); }break;
+		case DataType_Unsigned8:  { ConvertGroup( u8,   uint8); }break;
+		case DataType_Unsigned16: { ConvertGroup(u16,  uint16); }break;
+		case DataType_Unsigned32: { ConvertGroup(u32,  uint32); }break;
+		case DataType_Unsigned64: { ConvertGroup(u64,  uint64); }break;
+		case DataType_Float32:    { ConvertGroup(f32, float32); }break;
+		case DataType_Float64:    { ConvertGroup(f64, float64); }break;
+		case DataType_Structure:  { NotImplemented; }break;
 	}
 	return false;
 }
 
-b32 type_check(Node* n1, Node* n2) {
-	Expression* e1 = ExpressionFromNode(n1);
-	Expression* e2 = ExpressionFromNode(n2);
-	
-	switch (e1->datatype) {
-		case DataType_Signed32: {
-			switch (e2->datatype) {
-				case DataType_Signed32: {
-					return true;
-				}break;
-				case DataType_Signed64: {
-					e1->datatype = DataType_Signed64;
-					return true;
-				}break;
-				case DataType_Unsigned32: {
-					e1->datatype = DataType_Unsigned32;
-					//e1->expstr = to_string(u32(stoi(e1->expstr))); //TODO maybe just do a cast node, and handle it in assembly?
-					return true;
-				}break;
-			}
-		}break;
+void set_expression_type_from_declaration(Node* exp, Node* decl) {
+	Declaration* d = DeclarationFromNode(decl);
+	Expression* e = ExpressionFromNode(exp);
+	switch (d->type) {
+		case DataType_Void       : {                                 e->datatype=DataType_Void;      }break;
+		case DataType_Signed8    : {e->int8        = d->int8;        e->datatype=DataType_Signed8;   }break;
+		case DataType_Signed16   : {e->int16       = d->int16;       e->datatype=DataType_Signed16;  }break;
+		case DataType_Signed32	 : {e->int32       = d->int32;       e->datatype=DataType_Signed32;  }break;
+		case DataType_Signed64	 : {e->int64       = d->int64;       e->datatype=DataType_Signed64;  }break;
+		case DataType_Unsigned8	 : {e->uint8       = d->uint8;       e->datatype=DataType_Unsigned8; }break;
+		case DataType_Unsigned16 : {e->uint16      = d->uint16;      e->datatype=DataType_Unsigned16;}break;
+		case DataType_Unsigned32 : {e->uint32      = d->uint32;      e->datatype=DataType_Unsigned32;}break;
+		case DataType_Unsigned64 : {e->uint64      = d->uint64;      e->datatype=DataType_Unsigned64;}break;
+		case DataType_Float32	 : {e->float32     = d->float32;     e->datatype=DataType_Float32;   }break;
+		case DataType_Float64	 : {e->float64     = d->float64;     e->datatype=DataType_Float64;   }break;
+		case DataType_String	 : {e->str         = d->str;         e->datatype=DataType_String;    }break; 
+		case DataType_Structure	 : {e->struct_type = d->struct_type; e->datatype=DataType_Structure; }break;  
+		case DataType_Any		 : {/*TODO any type stuff*/         }break;
 	}
-	return false;
 }
 
 enum ParseState_ {
@@ -597,7 +630,6 @@ Node* define(ParseStage stage, Node* node) {
 							}ExpectFail("missing second ; in for statement");
 						}ExpectFail("missing first ; in for statement");
 						
-						
 						Expect(Token_CloseParen) {
 							token_next();
 							Expect(Token_OpenBrace) {
@@ -696,15 +728,19 @@ Node* define(ParseStage stage, Node* node) {
 			switch (curt.type) {
 				case Token_Identifier: {
 					if (next_match(Token_Assignment)) {
-						Node* id = new_expression(curt.str, Expression_IdentifierLHS, toStr(ExTypeStrings[Expression_IdentifierLHS], " ", curt.str));     
-						token_next();
-						Node* me = new_expression(curt.str, Expression_BinaryOpAssignment, ExTypeStrings[Expression_BinaryOpAssignment]);
-						token_next();
-						change_parent(me, id);
-						Node* ret = define(psExpression, me);
-						change_parent(me, ret);
-						insert_last(node, me);
-						return me;
+						if (Node** n = knownVars.at(curt.str); n) {
+							Node* id = new_expression(curt.str, Expression_IdentifierLHS, toStr(ExTypeStrings[Expression_IdentifierLHS], " ", curt.str));
+							set_expression_type_from_declaration(id, *n);
+							token_next();
+							Node* me = new_expression(curt.str, Expression_BinaryOpAssignment, ExTypeStrings[Expression_BinaryOpAssignment]);
+							token_next();
+							change_parent(me, id);
+							Node* ret = define(psExpression, me);
+							type_check(id, ret);
+							change_parent(me, ret);
+							insert_last(node, me);
+							return me;
+						}else{ParseFail("unknown var '", curt.str, " referenced"); return 0; }
 					}
 					else {
 						new_expression(curt.str, Expression_IdentifierLHS);
@@ -825,12 +861,14 @@ Node* define(ParseStage stage, Node* node) {
 				case Token_LiteralFloat: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
 					parser.expression->datatype = DataType_Float32;
+					parser.expression->float32 = curt.float64; //TODO detect f64
 					insert_last(node, &parser.expression->node);
 					return var;
 				}break;
 				case Token_LiteralInteger: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
-					parser.expression->datatype = DataType_Signed32;
+					parser.expression->datatype = DataType_Signed64;
+					parser.expression->int64 = curt.integer;
 					insert_last(node, &parser.expression->node);
 					return var;
 				}break;
@@ -838,6 +876,7 @@ Node* define(ParseStage stage, Node* node) {
 				case Token_LiteralString: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " \"", curt.str, "\""));
 					parser.expression->datatype = DataType_String;
+					parser.expression->str = curt.str;
 					insert_last(node, &parser.expression->node);
 					return var;
 				}break;
@@ -921,8 +960,6 @@ Node* define(ParseStage stage, Node* node) {
 						}
 						
 						Expect(Token_CloseParen) {}
-						
-						
 						return me;
 					}
 					else if (next_match(Token_Dot)) {
@@ -936,10 +973,9 @@ Node* define(ParseStage stage, Node* node) {
 					}
 					else {
 						if (!knownVars.has(curt.str)) { ParseFail("unknown var '", curt.str, "' referenced"); return 0; }
-						Declaration* d = DeclarationFromNode(*knownVars.at(curt.str));
 						Node* var = new_expression(curt.str, Expression_IdentifierRHS, toStr(ExTypeStrings[Expression_IdentifierRHS], " ", curt.str));
 						insert_last(node, var);
-						parser.expression->datatype = d->type;
+						set_expression_type_from_declaration(var, *knownVars.at(curt.str));
 						if (next_match(Token_Increment, Token_Decrememnt)) {
 							token_next();
 							new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix));
@@ -1036,7 +1072,6 @@ Node* define(ParseStage stage, Node* node) {
 								change_parent(me2, next);
 								me = me2;
 							}ExpectFail("expected identifier following member access dot");
-							
 						}
 					}ExpectFail("expected identifier following member access dot");
 					return me;

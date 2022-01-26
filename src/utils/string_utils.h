@@ -13,9 +13,16 @@
 //// @stox ////
 ///////////////
 global_ s32
-stoi(const string& s) {
-	u32 x;
+stoi(const string& s) { //TODO make cstring overloads of these
+	s32 x;
 	(void)sscanf(s.str, "%d", &x);
+	return x;
+}
+
+global_ s64
+stolli(const string& s){
+	s64 x;
+	(void)sscanf(s.str, "%lli", &x);
 	return x;
 }
 
@@ -80,6 +87,17 @@ to_string(s32 x){
 	s.allocator->commit(s.str, s.count+1);
 	s.space = s.count+1;
 	snprintf(s.str, s.count+1, "%d", x);
+	return s;
+}
+
+global_ string
+to_string(s64 x) {
+	string s;
+	s.count = snprintf(nullptr, 0, "%lli", x);
+	s.str = (char*)s.allocator->reserve(s.count + 1); Assert(s.str, "Failed to allocate memory");
+	s.allocator->commit(s.str, s.count + 1);
+	s.space = s.count + 1;
+	snprintf(s.str, s.count + 1, "%lli", x);
 	return s;
 }
 

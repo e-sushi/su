@@ -66,6 +66,11 @@ struct Node {
 	string comment;
 };
 
+struct AlphaNode : public Node {
+	//TODO node type that indexes an alphabetically sorted array of strings(for var/func names and what not)
+	//maybe even generalize it to work on several data types
+};
+
 #define for_node(node) for(Node* it = node; it != 0; it = it->next)
 #define for_node_reverse(node) for(Node* it = node; it != 0; it = it->prev)
 
@@ -252,9 +257,11 @@ enum DataType : u32 {
 	DataType_Void,       // void
 	DataType_Implicit,   // implicitly typed
 	DataType_Signed8,    // s8
+	DataType_Signed16,   // s16
 	DataType_Signed32,   // s32 
 	DataType_Signed64,   // s64
 	DataType_Unsigned8,  // u8
+	DataType_Unsigned16, // u16
 	DataType_Unsigned32, // u32 
 	DataType_Unsigned64, // u64 
 	DataType_Float32,    // f32 
@@ -269,10 +276,12 @@ const char* dataTypeStrs[] = {
 	"notype",
 	"void",
 	"impl",  
-	"s8",   
+	"s8",  
+	"s16",
 	"s32",  
 	"s64",  
 	"u8", 
+	"u16",
 	"u32",
 	"u64",
 	"f32",   
@@ -377,6 +386,19 @@ struct Expression {
 	Node node;
 	DataType datatype;
 	Struct* struct_type;
+	union {
+		f32 float32;
+		f64 float64;
+		s8  int8;
+		s16 int16;
+		s32 int32;
+		s64 int64;
+		u8  uint8;
+		u16 uint16;
+		u32 uint32;
+		u64 uint64;
+		cstring str;
+	};
 };
 #define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
 
@@ -408,7 +430,20 @@ struct Declaration {
 	Node node;
 	b32 initialized = 0;
 	u64 token_idx = 0;
-	
+	u32 type_size = npos;
+	union {
+		f32 float32;
+		f64 float64;
+		s8  int8;
+		s16 int16;
+		s32 int32;
+		s64 int64;
+		u8  uint8;
+		u16 uint16;
+		u32 uint32;
+		u64 uint64;
+		cstring str;
+	};
 };
 #define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
 
@@ -435,8 +470,12 @@ struct Struct {
 	cstring identifier;
 	map<cstring, Declaration*> member_vars;
 	map<cstring, Function*> member_funcs;
+	//this kind of sucks! do it better with like trees or sumn later man 
+	map<DataType, Function*> podConverters; //stores functions that convert this struct to built in types
+	map<cstring, Function*> structConverters; //stores functions that converts this struct to other structs
 	Node node;
 	u64 token_idx = 0;
+	u32 struct_size = npos;
 };
 #define StructFromNode(node_ptr) ((Struct*)((u8*)(node_ptr) - OffsetOfMember(Struct,node)))
 
@@ -522,9 +561,11 @@ enum Token_Type {
 	Token_Typename,
 	Token_Void,                     // void
 	Token_Signed8,                  // s8
+	Token_Signed16,                 // s16 
 	Token_Signed32,                 // s32 
 	Token_Signed64,                 // s64
 	Token_Unsigned8,                // u8
+	Token_Unsigned16,               // u16
 	Token_Unsigned32,               // u32 
 	Token_Unsigned64,               // u64 
 	Token_Float32,                  // f32 
@@ -613,7 +654,7 @@ struct token {
 	union {
 		f32 float32;
 		f64 float64;
-		s32 integer;
+		s64 integer; //TODO support u64 literals 
 	};
 };
 

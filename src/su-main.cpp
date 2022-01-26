@@ -42,6 +42,7 @@ list input .su files
 				  set the name of the entry point function of the program;
 
 		-dw [int...]
+				//TODO to make the named array useful, maybe also allow taking in warning names, and maybe give warning simple names
 				  disable certain warnings from appearing while compiling
 				  list of warnings is in su-warnings.h
 				  this can take multiple unsigned ints

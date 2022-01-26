@@ -129,8 +129,12 @@ b32 lex_file(const string& file) {
 							else if (!strncmp("continue", chunk_start, 8)) { lexer.tokens.add(token{ cstrc(8), Token_Continue,   Token_ControlKeyword, scope, lines });}
 							else if (!strncmp("struct",   chunk_start, 6)) { lexer.tokens.add(token{ cstrc(6), Token_StructDecl, Token_ControlKeyword, scope, lines }); grab_structname = 1;}
 							else if (!strncmp("void",     chunk_start, 4)) { lexer.tokens.add(token{ cstrc(4), Token_Void,       Token_Typename,       scope, lines });}
+							else if (!strncmp("s8",       chunk_start, 2)) { lexer.tokens.add(token{ cstrc(2), Token_Signed8,    Token_Typename,       scope, lines });}
+							else if (!strncmp("s16",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed16,   Token_Typename,       scope, lines });}
 							else if (!strncmp("s32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed32,   Token_Typename,       scope, lines });}
 							else if (!strncmp("s64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Signed64,   Token_Typename,       scope, lines });}
+							else if (!strncmp("u8",       chunk_start, 2)) { lexer.tokens.add(token{ cstrc(2), Token_Unsigned8,  Token_Typename,       scope, lines });}
+							else if (!strncmp("u16",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned16, Token_Typename,       scope, lines });}
 							else if (!strncmp("u32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned32, Token_Typename,       scope, lines });}
 							else if (!strncmp("u64",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Unsigned64, Token_Typename,       scope, lines });}
 							else if (!strncmp("f32",      chunk_start, 3)) { lexer.tokens.add(token{ cstrc(3), Token_Float32,    Token_Typename,       scope, lines });}
@@ -163,10 +167,10 @@ b32 lex_file(const string& file) {
 							if (valid) { 
 								lexer.tokens.add(token{ chunkstr, (isfloat ? Token_LiteralFloat : Token_LiteralInteger), Token_Literal, scope, lines });
 								if (isfloat) {
-									lexer.tokens.last->float32 = stod(chunkstr);
+									lexer.tokens.last->float64 = stod(chunkstr);
 								}
 								else {
-									lexer.tokens.last->integer = stoi(chunkstr);
+									lexer.tokens.last->integer = stolli(chunkstr);
 								}
 							}
 							else {

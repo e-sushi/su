@@ -1205,6 +1205,7 @@ local void
 assemble_declaration(Declaration* decl){
 	if(assembler.function_error) return;
 	
+	//NOTE a structure size of 'npos' means that it got past parser without being defined properly
 	//TODO get type size from declaration
 	//TODO need sizing information overall to call the correct registers
 	if(decl->type != DataType_Signed32){
