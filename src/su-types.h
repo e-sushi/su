@@ -66,17 +66,7 @@ struct Node {
 	string comment;
 };
 
-struct AlphaNode {
-	//TODO node type that indexes an alphabetically sorted array of strings(for var/func names and what not)
-	//maybe even generalize it to work on several data types
-	// this also has a decently large size 
-	AlphaNode* nodes[62];
-	char debug[62];
-	
 
-	AlphaNode() { memset(this, 0, sizeof(AlphaNode)); }
-
-};
 
 #define for_node(node) for(Node* it = node; it != 0; it = it->next)
 #define for_node_reverse(node) for(Node* it = node; it != 0; it = it->prev)
@@ -711,5 +701,55 @@ struct Arena {
 		return cursor - sizeof(T);
 	}
 };
+
+//TODO maybe optimize for fun later
+struct AlphaNode {
+	//AlphaNode* nodes[62];
+	//char debug[62];
+	s16 offsets[64];
+
+	AlphaNode() { memset(this, 0, sizeof(AlphaNode)); }
+};
+
+Arena alphanodes;
+AlphaNode* anode;
+
+void alpha_add_str(const string& str) {
+	if (!alphanodes.data) { alphanodes.init(Kilobytes(1)); anode = (AlphaNode*)alphanodes.add(AlphaNode()); }
+	AlphaNode* working = anode;
+	AlphaNode* next = 0;
+	for (u32 i = 0; i < str.count; i++) {
+		u32 index = 0;
+		u8 ch = str.str[i];
+		if (ch > 47 && ch < 58) index = ch - 48;
+		else if (ch > 64 && ch < 91) index = ch - 55;
+		else if (ch > 96 && ch < 123) index = ch - 61;
+
+		if (!working->offsets[index]) {
+			next = (AlphaNode*)alphanodes.add(AlphaNode());
+			working->offsets[index] = (next - working);
+			log("", working->offsets[index]);
+		}
+		//working->debug[index] = ch;
+		working += working->offsets[index];
+	}
+}
+
+AlphaNode* alpha_match_str(const string& str) {
+	AlphaNode* working = anode;
+	forI(str.count) {
+		u32 index = 0;
+		u8 ch = str.str[i];
+		if (ch > 47 && ch < 58)  index = ch - 48;
+		else if (ch > 64 && ch < 91)  index = ch - 55;
+		else if (ch > 96 && ch < 123) index = ch - 61;
+		if (!working->offsets[index]) return 0;
+		else working += working->offsets[index] * sizeof(AlphaNode);
+	}
+	return working;
+}
+
+
+
 
 #endif //SU_TYPES_H
