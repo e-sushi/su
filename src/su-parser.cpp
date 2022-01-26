@@ -74,8 +74,6 @@ map<cstring, Node*> knownFuncs;
 map<cstring, Node*> knownVars;  
 map<cstring, Node*> knownStructs;
 
-
-
 inline DataType dataTypeFromToken(Token_Type type) {
 	switch (type) {
 		case Token_Void      : {return DataType_Void;}
@@ -196,12 +194,13 @@ inline Node* new_declaration(cstring& identifier, DataType type, const string& n
 #define DebugPrintConversions(type1, type2) log("DebugConversionPrint", STRINGIZE(type1), " was converted to ", STRINGIZE(type2));
 
 
+//TODO make nice way to not do a convertion if they're the same type w/o copy pasting this code 200000 times 
 #define ConvertGroup(a,b) \
 switch (pri->datatype) {                                                                   \
 	case DataType_Signed8:    { ConvertWarnIfOverflow(a, b,    int8); return true; } \
 	case DataType_Signed16:   { ConvertWarnIfOverflow(a, b,   int16); return true; } \
 	case DataType_Signed32:   { ConvertWarnIfOverflow(a, b,   int32); return true; } \
-	case DataType_Signed64:   { ConvertWarnIfOverflow(a, b,   int32); return true; } \
+	case DataType_Signed64:   { ConvertWarnIfOverflow(a, b,   int64); return true; } \
 	case DataType_Unsigned8:  { ConvertWarnIfOverflow(a, b,   uint8); return true; } \
 	case DataType_Unsigned16: { ConvertWarnIfOverflow(a, b,  uint16); return true; } \
 	case DataType_Unsigned32: { ConvertWarnIfOverflow(a, b,  uint32); return true; } \
@@ -266,6 +265,31 @@ ParseState pState = stNone;
 #define StateHas(flag)    HasFlag(pState, flag)
 #define StateHasAll(flag) HasAllFlags(pState, flag)
 
+template<typename T>
+T compile_time_binop(ExpressionType type, T a, T b) {
+	switch (type) {
+		case Expression_BinaryOpPlus:				{return a +  b;}break;
+		case Expression_BinaryOpMinus:				{return a -  b;}break;
+		case Expression_BinaryOpMultiply:			{return a *  b;}break;
+		case Expression_BinaryOpDivision:			{return a /  b;}break;
+		case Expression_BinaryOpAND:				{return a && b;}break;
+		case Expression_BinaryOpBitAND:				{return a &  b;}break;
+		case Expression_BinaryOpOR:					{return a || b;}break;
+		case Expression_BinaryOpBitOR:				{return a |  b;}break;
+		case Expression_BinaryOpLessThan:			{return a <  b;}break;
+		case Expression_BinaryOpGreaterThan:		{return a >  b;}break;
+		case Expression_BinaryOpLessThanOrEqual:	{return a <= b;}break;
+		case Expression_BinaryOpGreaterThanOrEqual: {return a >= b;}break;
+		case Expression_BinaryOpEqual:			    {return a == b;}break;
+		case Expression_BinaryOpNotEqual:			{return a != b;}break;
+		case Expression_BinaryOpModulo:				{return a %  b;}break;
+		case Expression_BinaryOpBitXOR:				{return a ^  b;}break;
+		case Expression_BinaryOpBitShiftLeft:		{return a << b;}break;
+		case Expression_BinaryOpBitShiftRight:		{return a >> b;}break;
+	
+	}
+}
+
 enum ParseStage {
 	psGlobal,      // <program>       :: = { ( <function> | <struct> ) }
 	psStruct,      // <struct>        :: = "struct" <id> "{" { ( <declaration> ";" | <function> ) } "}" [<id>] ";"
@@ -305,24 +329,73 @@ enum ParseStage {
 	//                <unary>         :: = "!" | "~" | "-"
 }; 
 
+//node is the parent of the binop operation, ret is what was returned from outside of this function
+//this function generalizes the binop parsing done throughout define
+//TODO add a way to choose left vs right assoviativity maybe
+
 template<typename... T>
 Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
+	Node* ret0 = ret; //save for type checking and removing if we do compile time exp
 	token_next();
 	Node* me = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 	change_parent(me, ret);
 	insert_last(node, me);
 	token_next();
 	ret = define(next_stage, me);
-	
+	type_check(ret0, ret);
+	Expression* meexp = ExpressionFromNode(me);
+
+	auto docomptime = [&](Expression* exp, ExpressionType type, Node* a, Node* b) {
+		switch (ExpressionFromNode(ret0)->datatype) {
+			case DataType_Signed8:    {exp->int8    = compile_time_binop< s8>(type, ExpressionFromNode(a)->int8,    ExpressionFromNode(b)->int8    ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int8  )); return true;}break;
+			case DataType_Signed16:   {exp->int16   = compile_time_binop<s16>(type, ExpressionFromNode(a)->int16,   ExpressionFromNode(b)->int16   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int16 )); return true;}break;
+			case DataType_Signed32:   {exp->int32   = compile_time_binop<s32>(type, ExpressionFromNode(a)->int32,   ExpressionFromNode(b)->int32   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int32 )); return true;}break;
+			case DataType_Signed64:   {exp->int64   = compile_time_binop<s64>(type, ExpressionFromNode(a)->int64,   ExpressionFromNode(b)->int64   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int64 )); return true;}break;
+			case DataType_Unsigned8:  {exp->uint8   = compile_time_binop< u8>(type, ExpressionFromNode(a)->uint8,   ExpressionFromNode(b)->uint8   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint8 )); return true;}break;
+			case DataType_Unsigned16: {exp->uint16  = compile_time_binop<u16>(type, ExpressionFromNode(a)->uint16,  ExpressionFromNode(b)->uint16  ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint16)); return true;}break;
+			case DataType_Unsigned32: {exp->uint32  = compile_time_binop<u32>(type, ExpressionFromNode(a)->uint32,  ExpressionFromNode(b)->uint32  ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint32)); return true;}break;
+			case DataType_Unsigned64: {exp->uint64  = compile_time_binop<u64>(type, ExpressionFromNode(a)->uint64,  ExpressionFromNode(b)->uint64  ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint64)); return true;}break;
+			//TODO these need special case for not doing integer based ops case DataType_Float32:    {ExpressionFromNode(me)->float32 = compile_time_binop<f32>(ExpressionFromNode(me)->type, ExpressionFromNode(ret0)->float32, ExpressionFromNode(ret)->float32 );}break;
+			//TODO these need special case for not doing integer based ops case DataType_Float64:    {ExpressionFromNode(me)->float64 = compile_time_binop<f64>(ExpressionFromNode(me)->type, ExpressionFromNode(ret0)->float64, ExpressionFromNode(ret)->float64 );}break;
+			//TODO case DataType_String:     {compile_time_binop<>(ExpressionFromNode(ret0)-> , ExpressionFromNode(ret)-> )}break;
+			//TODO case DataType_Pointer:    {compile_time_binop<>(ExpressionFromNode(ret0)-> , ExpressionFromNode(ret)-> )}break;
+			default: return false;
+		}
+	};
+
+	if (ExpressionFromNode(ret0)->type == Expression_Literal && ExpressionFromNode(ret)->type == Expression_Literal) {
+		if (docomptime(meexp, meexp->type, ret0, ret)) {
+			change_parent(0, ret);
+			change_parent(0, ret0);
+			meexp->type = Expression_Literal;
+			meexp->datatype = ExpressionFromNode(ret0)->datatype;
+		}
+		
+	}
 	while (next_match(tokcheck...)) {
 		token_next();
 		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
 		token_next();
+		ret0 = me;
 		ret = define(next_stage, node);
-		change_parent(me2, me);
-		change_parent(me2, ret);
-		insert_last(node, me2);
-		me = me2;
+		type_check(ret0, ret);
+		Expression* me2exp = ExpressionFromNode(me2);
+		Expression* deb2 = ExpressionFromNode(ret0);
+
+		Expression* deb = ExpressionFromNode(ret);
+		if (ExpressionFromNode(ret0)->type == Expression_Literal && ExpressionFromNode(ret)->type == Expression_Literal) {
+			if (docomptime(meexp, meexp->type, ret0, ret)) {
+				docomptime(meexp, me2exp->type, ret0, ret);
+				change_parent(0, ret);
+				change_parent(0, ret0);
+			}
+		}
+		else {
+			change_parent(me2, me);
+			change_parent(me2, ret);
+			insert_last(node, me2);
+			me = me2;
+		}
 	}
 	return me;
 }

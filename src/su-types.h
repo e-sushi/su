@@ -378,9 +378,9 @@ static const char* ExTypeStrings[] = {
 
 struct Struct;
 struct Expression {
+	Node node;
 	cstring expstr;
 	ExpressionType type;
-	Node node;
 	DataType datatype;
 	Struct* struct_type;
 	union {
@@ -420,11 +420,11 @@ struct Statement {
 #define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
 struct Declaration {
+	Node node; 
 	cstring identifier;
 	cstring type_id; //used for storing the name of the struct this decalaration is made with, this is necessary to allow for global structs being used everywhere
 	DataType type;
 	Struct* struct_type = 0;
-	Node node;
 	b32 initialized = 0;
 	u64 token_idx = 0;
 	u32 type_size = npos;
@@ -451,6 +451,7 @@ struct Scope {
 #define ScopeFromNode(node_ptr) ((Scope*)((u8*)(node_ptr) - OffsetOfMember(Scope,node)))
 
 struct Function {
+	Node node;
 	cstring identifier;
 	cstring internal_label;
 	DataType type;
@@ -458,19 +459,18 @@ struct Function {
 	map<cstring, Declaration*> args;
 	//TODO do this with a binary tree sort of thing instead later
 	array<Function*> overloads;
-	Node node;
 	u64 token_idx = 0;
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
 struct Struct {
+	Node node;
 	cstring identifier;
 	map<cstring, Declaration*> member_vars;
 	map<cstring, Function*> member_funcs;
 	//this kind of sucks! do it better with like trees or sumn later man 
 	map<DataType, Function*> podConverters; //stores functions that convert this struct to built in types
 	map<cstring, Function*> structConverters; //stores functions that converts this struct to other structs
-	Node node;
 	u64 token_idx = 0;
 	u32 struct_size = npos;
 };
@@ -728,7 +728,7 @@ void alpha_add_str(const string& str) {
 		if (!working->offsets[index]) {
 			next = (AlphaNode*)alphanodes.add(AlphaNode());
 			working->offsets[index] = (next - working);
-			log("", working->offsets[index]);
+			//log("", working->offsets[index]);
 		}
 		//working->debug[index] = ch;
 		working += working->offsets[index];

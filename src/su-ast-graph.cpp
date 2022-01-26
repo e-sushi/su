@@ -11,6 +11,10 @@ void make_dot_file(Node* node, Agnode_t* parent, Node* align_to) {
 	u32 colsave = colidx;
 	
 	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
+
+	//DEBUG
+	//if(node->type == NodeType_Expression)agset(me, "label", dataTypeStrs[ExpressionFromNode(node)->datatype]);
+	//else agset(me, "label", node->comment.str);
 	agset(me, "label", node->comment.str);
 	agset(me, "color", to_string(colsave).str);
 	
