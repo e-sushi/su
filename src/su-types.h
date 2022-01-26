@@ -69,7 +69,7 @@ struct Node {
 struct AlphaNode {
 	//TODO node type that indexes an alphabetically sorted array of strings(for var/func names and what not)
 	//maybe even generalize it to work on several data types
-
+	// this also has a decently large size 
 	AlphaNode* nodes[62];
 	char debug[62];
 	

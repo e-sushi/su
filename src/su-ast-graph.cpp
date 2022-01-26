@@ -66,16 +66,22 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 void make_alpha_graph(AlphaNode* node, Agnode_t* parent, char deb) {
 	static u32 i = 0;
 	i++;
+	u32 colsave = colidx;
 
 	Agnode_t* me = agnode(gvgraph, to_string(i).str, 1);
 	agset(me, "label", toStr(deb).str);
+	agset(me, "color", to_string(colsave).str);
+
 
 	forX(ni, 62) {
 		if(node->nodes[ni])
-			make_alpha_graph(node->nodes[ni], me, node->debug[ni]);
+			make_alpha_graph(node->nodes[ni], me, node->debug[ni]), colidx = (colidx + 1) % 11 + 1;
+
 	}
 
 	Agedge_t* edge = agedge(gvgraph, parent, me, "", 1);
+	agset(edge, "color", to_string(colsave).str);
+
 }
 
 
@@ -97,6 +103,7 @@ void generate_alpha_graph(AlphaNode* start) {
 	agattr(gvgraph, AGEDGE, "penwidth", "0.5");
 	agattr(gvgraph, AGEDGE, "constraint", "true");
 	agattr(gvgraph, AGRAPH, "bgcolor", "grey12");
+	agattr(gvgraph, AGRAPH, "concentrate", "true");
 	agattr(gvgraph, AGRAPH, "splines", "true");
 
 	Agnode_t* top = agnode(gvgraph, "alpha", 1);
