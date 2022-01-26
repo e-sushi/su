@@ -19,12 +19,13 @@ enum WarningCodes{
 	
 	WC_Not_All_Paths_Return,
 	//WC_Implicit_Narrowing_Conversion,
+	WC_Overflow,
 	
 	
 	WarningCodes_Level1_End,
 	//-///////////////////////////////////////////////////////////////////////////////////////////////
 	//// @Level2 (all the other warnings)
-	WarningCodes_Level2_Start = WarningCodes_Level1_End-1,
+	WarningCodes_Level2_Start = WarningCodes_Level1_End,
 	
 	
 	
@@ -33,7 +34,7 @@ enum WarningCodes{
 	WarningCodes_Level2_End,
 	//-///////////////////////////////////////////////////////////////////////////////////////////////
 	//// @Level3 (warnings you might want to be aware of, but are valid in most cases)
-	WarningCodes_Level3_Start = WarningCodes_Level2_End-1,
+	WarningCodes_Level3_Start = WarningCodes_Level2_End,
 	
 	
 	WC_Unreachable_Code_After_Return,
@@ -57,6 +58,7 @@ const char* WarningCodes_Names[WarningCodes_COUNT] = {
 	
 	NAME(WC_Not_All_Paths_Return),
 	//NAME(WC_Implicit_Narrowing_Conversion),
+	NAME(WC_Overflow),
 	
 	//-///////////////////////////////////////////////////////////////////////////////////////////////
 	//// @Level2 (all the other warnings)
@@ -84,7 +86,8 @@ const char* WarningCodes_Messages[WarningCodes_COUNT] = {
 	
 	MSG(WC_Not_All_Paths_Return, "Not all code paths in the non-void function '%s' return a value. Auto-inserting a return 0 at the end of the function."),
 	//MSG(WC_Implicit_Narrowing_Conversion, ""),
-	
+	MSG(WC_Overflow, "overflow in conversion "),
+
 	//-///////////////////////////////////////////////////////////////////////////////////////////////
 	//// @Level2 (all the other warnings)
 	
@@ -114,7 +117,7 @@ int warning_level_mapping[] = { WarningCodes_Level1_Start-1, WarningCodes_Level2
 if(   (!globals.supress_warnings) \
 && (warning <= warning_level_mapping[globals.warning_level]) \
 && (!disabledWC.test(warning))){ \
-printf(WarningCodes_Messages[warning], ((globals.warnings_as_errors) ? "WX" : "W"), warning, ##__VA_ARGS__, ""); \
+printf(WarningCodes_Messages[warning], ((globals.warnings_as_errors) ? "WX" : "W"), warning, ##__VA_ARGS__, "\n"); \
 }
 
 
