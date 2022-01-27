@@ -1,0 +1,67 @@
+//meta programming prototype. building a custom for each loop AST node, based on C++'s for each
+//we do this by using the built in for statement type, just altering it to declare a variable and have it represent the current item in the array
+//this would be one of the uses of a metaprogramming system, most things used here would ideally be a subset of the things you can use with #meta
+
+//meta directive followed by AST indicate that the following code is to be read as something that modifies the AST tree
+//this creates the meta variable <AST> and <Parser>
+#meta AST
+
+//names the keyword that triggers the custom AST 'foreach'
+//this creates the meta variable <keyword>
+#meta keyword foreach
+
+//declares that this custom AST node is to be looked for in the statement stage of parsing
+//this is only usable after declaring #meta AST (maybe)
+#meta stage statement
+
+//defines the syntax that this custom keyword will be used with
+//this uses the meta varaible <keyword>
+//this uses the predefined meta types 'declaration' and 'id'
+//declaration indicates that the parser will look for a varaible declaration here, of any time (:*: wildcard type) and will name the declaration "decl" for later use
+//id indicates that the parser will look for an identifier (already declared variable) of whatever type decl was found to be, and names this identifier "array" for later use
+//statement indicates that the next thing the parser should look for is a statement, since statements dont have type the next : is just a variable name 
+#meta syntax <keyword> "(" <declaration:*:decl> ":" <id:(decl::type)[]:array> ")" <statement:state>
+
+//any following code will be considered what is done with the delcared meta stuff above when the keyword 'foreach' is found
+//you can stop this by using #meta end or using an unrelated directive
+
+
+//this tells the parser to run through the #meta syntax automatically
+//this would of course be optional
+<Parser>::ParseMetaSyntax();
+
+//we now have the vars decl, array, and state, so now we tell the parser how the AST tree will be made
+//we use the generic loop node. this node has 3 children, a condition, code to run each loop, and the actual body of the loop
+//the second child is "code" that is not accessible to the body of the loop, so it can be freely used as a middle man
+//the loop node includes a built in index var as well
+
+LoopNode* ln = <Parser>::InsertNode(NT_LoopNode);
+
+ln.eachloopcode = <Parser>::MakeTreeFromCode[
+	decl = array[index++];
+]
+
+ln.condition = <Parser>::MakeTreeFromCode[
+	index <= array.count;
+]
+
+ln.body = <Parser>::MakeTreeFromStatement(state);
+
+<Parser>::AddNode(ln);
+
+
+
+
+
+
+////////////////
+//then in code you could do
+
+
+u32[100] arr = randarray(100);
+
+foreach(u32 i : arr){
+	println(i);
+}
+
+
