@@ -66,6 +66,37 @@ void generate_ast_graph_svg(const char* filepath, Program& program){
 	gvRenderFilename(gvc, gvgraph, "svg", filepath);
 }
 
+void generate_ast_graph_svg(const char* filepath, Node* program) {
+	gvc = gvContext();
+	gvgraph = agopen("ast tree", Agdirected, 0);
+	agattr(gvgraph, AGNODE, "fontcolor", "white");
+	agattr(gvgraph, AGNODE, "color", "1");
+	agattr(gvgraph, AGNODE, "shape", "box");
+	agattr(gvgraph, AGNODE, "margins", "0.08");
+	agattr(gvgraph, AGNODE, "group", "0");
+	agattr(gvgraph, AGNODE, "width", "0");
+	agattr(gvgraph, AGNODE, "height", "0");
+	agattr(gvgraph, AGNODE, "colorscheme", "rdylbu11");
+	agattr(gvgraph, AGEDGE, "color", "white");
+	agattr(gvgraph, AGEDGE, "colorscheme", "rdylbu11");
+	agattr(gvgraph, AGEDGE, "style", "");
+	agattr(gvgraph, AGEDGE, "arrowhead", "none");
+	agattr(gvgraph, AGEDGE, "penwidth", "0.5");
+	agattr(gvgraph, AGEDGE, "constraint", "true");
+	agattr(gvgraph, AGRAPH, "bgcolor", "grey12");
+	agattr(gvgraph, AGRAPH, "concentrate", "true");
+	agattr(gvgraph, AGRAPH, "splines", "true");
+
+	Agnode_t* prog = agnode(gvgraph, "program", 1);
+
+	for_node(program->first_child) {
+		make_dot_file(it, prog, it);
+	}
+
+	gvLayout(gvc, gvgraph, "dot");
+	gvRenderFilename(gvc, gvgraph, "svg", filepath);
+}
+
 
 void make_alpha_graph(AlphaNode* node, Agnode_t* parent, char deb) {
 	//static u32 i = 0;

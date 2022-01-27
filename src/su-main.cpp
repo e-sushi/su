@@ -237,6 +237,8 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		
 		string output_graph_path = output_dir + filepath.filename + ".svg";
 		generate_ast_graph_svg(output_graph_path.str, program);
+		generate_ast_graph_svg("parserdebugtree.svg", &ParserDebugTree);
+
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Assembling

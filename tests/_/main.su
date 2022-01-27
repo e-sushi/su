@@ -1,4 +1,4 @@
 s32 main(){
-	s8 a = a + (1 << (16 / 2) + 1) ;
-	return 1 + 2;
+	s8 a = 0;
+	return 1;
 }

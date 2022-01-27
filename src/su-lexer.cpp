@@ -57,8 +57,7 @@ b32 lex_file(const string& file) {
 						else                { lexer.tokens.add(token{ cstrb(1), Token_Division,           Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '~': {
-						if (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitNOTAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
-						else                { lexer.tokens.add(token{ cstrb(1), Token_BitNOT,           Token_Operator, scope, lines }); advance(&buff); }
+						lexer.tokens.add(token{ cstrb(1), Token_BitNOT,           Token_Operator, scope, lines }); advance(&buff); 
 					}break;
 					case '&': {
 						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_BitANDAssignment, Token_Operator, scope, lines }); advance(&buff, 2); }
@@ -88,12 +87,17 @@ b32 lex_file(const string& file) {
 					}break;
 					case '<': {
 						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_LessThanOrEqual, Token_Operator, scope, lines }); advance(&buff, 2); }
-						else if (buff[1] == '<') { lexer.tokens.add(token{ cstrb(2), Token_BitShiftLeft,    Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '<') { 
+							if(buff[2] == '='){ lexer.tokens.add(token{ cstrb(3), Token_BitShiftLeftAssignment,    Token_Operator, scope, lines }); advance(&buff, 3); }
+							else { lexer.tokens.add(token{ cstrb(2), Token_BitShiftLeft,    Token_Operator, scope, lines }); advance(&buff, 2); }
+						}
 						else                     { lexer.tokens.add(token{ cstrb(1), Token_LessThan,        Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '>': {
 						if      (buff[1] == '=') { lexer.tokens.add(token{ cstrb(2), Token_GreaterThanOrEqual, Token_Operator, scope, lines }); advance(&buff, 2); }
-						else if (buff[1] == '>') { lexer.tokens.add(token{ cstrb(2), Token_BitShiftRight,      Token_Operator, scope, lines }); advance(&buff, 2); }
+						else if (buff[1] == '>') { 
+							if(buff[2] == '=') { lexer.tokens.add(token{ cstrb(3), Token_BitShiftRightAssignment,      Token_Operator, scope, lines }); advance(&buff, 3); }
+							else {lexer.tokens.add(token{ cstrb(2), Token_BitShiftRight,      Token_Operator, scope, lines }); advance(&buff, 2); }}
 						else                     { lexer.tokens.add(token{ cstrb(1), Token_GreaterThan,        Token_Operator, scope, lines }); advance(&buff); }
 					}break;
 					case '\n': { lines++; advance(&buff); }break;

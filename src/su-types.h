@@ -51,6 +51,8 @@ enum NodeType : u32 {
 	NodeType_Expression,
 };
 
+
+
 //abstract node tree struct
 struct Node {
 	Node* next = 0;
@@ -521,7 +523,6 @@ enum Token_Type {
 	Token_Division,                 // /
 	Token_DivisionAssignment,       // /=
 	Token_BitNOT,                   // ~
-	Token_BitNOTAssignment,         // ~=
 	Token_BitAND,                   // &
 	Token_BitANDAssignment,         // &=
 	Token_AND,                      // &&
@@ -531,7 +532,9 @@ enum Token_Type {
 	Token_BitXOR,                   // ^
 	Token_BitXORAssignment,         // ^=
 	Token_BitShiftLeft,             // <<
+	Token_BitShiftLeftAssignment,   // <<=
 	Token_BitShiftRight,            // >>
+	Token_BitShiftRightAssignment,  // >>=
 	Token_Modulo,                   // %
 	Token_ModuloAssignment,         // %=
 	Token_Assignment,               // =
