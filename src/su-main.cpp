@@ -96,6 +96,7 @@ maybe require -defstr to specify OS versions and distros
 //source
 #include "su-io.cpp"
 #include "su-lexer.cpp"
+#include "su-preprocessor.cpp"
 #include "su-parser.cpp"
 #include "su-assembler.cpp"
 #include "su-ast-graph.cpp"
@@ -216,19 +217,21 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//// Lexing
 		log("verbose", "lexing started");
 		TIMER_START(timer);
-		if(!lex_file(source)){
+		if(!lex_file(source, filepath.filename)){
 			PRINTLN("ERROR: lexer failed");
 			return ReturnCode_Lexer_Failed;
 		}
 		log("verbose", "lexing took ", TIMER_END(timer)," ms");
 		log("verbose", "lexing finished");
 		
+		preprocessor.preprocess();
+
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
 		log("verbose", "parsing started");
 		TIMER_RESET(timer);
-		if(parse_program(program)){
+		if(parser.parse_program(program)){
 			PRINTLN("ERROR: parser failed");
 			return ReturnCode_Parser_Failed;
 		}

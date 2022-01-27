@@ -1,21 +1,7 @@
-token curt;
-array<token>& tokens = lexer.tokens;
+
+//array<token>& tokens = lexer.tokens;
 
 b32 parse_failed = false;
-
-inline void token_next(u32 count = 1) {
-	curt = tokens.next(count);
-}
-
-inline void token_prev(u32 count = 1) {
-	curt = tokens.prev(count);
-}
-#define currtokidx u64(tokens.iter - tokens.data)
-
-#define token_peek tokens.peek()
-#define token_look_back(i) tokens.lookback(i)
-#define curr_atch(tok) (curt.type == tok)
-#define setTokenIdx(i) tokens.setiter(i), curt = *tokens.iter
 
 #define ParseFail(...)\
 {logE("parser", __VA_ARGS__, "\n caused by token '", curt.str, "' on line ", curt.line); parse_failed = true;}
@@ -39,14 +25,12 @@ else if(curt.group == Token_Type)
 #define ElseExpectSignature(...)  else if(check_signature(__VA_ARGS__))
 
 #define ExpectFail(...)\
-else { ParseFail(__VA_ARGS__); } //TODO make it so this breakpoint only happens in debug mode or whatever
+else { ParseFail(__VA_ARGS__); }
 
 #define ExpectFailCode(failcode, error)\
 else { ParseFail(error); failcode }
 
 #define expstr(type) ExTypeStrings[type]
-
-
 
 local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Multiplication,     Expression_BinaryOpMultiply},
@@ -119,82 +103,7 @@ inline upt dataTypeSizes(DataType type) {
 	}
 }
 
-template<class... T>
-inline b32 check_signature(u32 offset, T... in) {
-	return ((tokens.peek(offset++).type == in) && ...);
-}
 
-template<typename... T> inline b32
-next_match(T... in) {
-	return ((tokens.peek(1).type == in) || ...);
-}
-
-template<typename... T> inline b32
-next_match_group(T... in) {
-	return ((tokens.peek(1).group == in) || ...);
-}
-
-struct Parser {
-	Struct*      structure;
-	Function*    function;
-	Scope*       scope;
-	Declaration* declaration;
-	Statement*   statement;
-	Expression*  expression;
-	
-	Arena arena;
-	
-} parser;
-
-inline Node* new_structure(cstring& identifier, const string& node_str = "") {
-	parser.structure = (Struct*)parser.arena.add(Struct());
-	parser.structure->identifier   = identifier;
-	parser.structure->node.type    = NodeType_Structure;
-	parser.structure->node.comment = node_str;
-	return &parser.structure->node;
-}
-
-inline Node* new_function(cstring& identifier, const string& node_str = "") {
-	parser.function = (Function*)parser.arena.add(Function());
-	parser.function->identifier   = identifier;
-	parser.function->node.type    = NodeType_Function;
-	parser.function->node.comment = node_str;
-	return &parser.function->node;
-}
-
-inline Node* new_scope(const string& node_str = "") {
-	parser.scope = (Scope*)parser.arena.add(Scope());
-	parser.scope->node.type    = NodeType_Scope;
-	parser.scope->node.comment = node_str;
-	return &parser.scope->node;
-}
-
-inline Node* new_statement(StatementType type, const string& node_str = ""){
-	parser.statement = (Statement*)parser.arena.add(Statement());
-	parser.statement->type = type;
-	parser.statement->node.type    = NodeType_Statement;
-	parser.statement->node.comment = node_str;
-	return &parser.statement->node;
-}
-
-inline Node* new_expression(cstring& str, ExpressionType type, const string& node_str = "") {
-	parser.expression = (Expression*)parser.arena.add(Expression());
-	parser.expression->expstr = str;
-	parser.expression->type   = type;
-	parser.expression->node.type = NodeType_Expression;
-	if(!node_str.count) parser.expression->node.comment = ExTypeStrings[type];
-	else                parser.expression->node.comment = node_str;
-	return &parser.expression->node;
-}
-
-inline Node* new_declaration(cstring& identifier, DataType type, const string& node_str = "") {
-	parser.declaration = (Declaration*)parser.arena.add(Declaration());
-	parser.declaration->identifier = identifier;
-	parser.declaration->node.type = NodeType_Declaration;
-	parser.declaration->type = type;
-	parser.declaration->node.comment = node_str;
-	return &parser.declaration->node;
-}
 
 #define ConvertWarnIfOverflow(actualtype, type1, type2) actualtype og = sec->type1; sec->type2 = og; if (og != sec->type2) { log_warning(WC_Overflow, toStr("from " STRINGIZE(type1) " to " STRINGIZE(type2) " caused overflow. value went from ", og, " to ", sec->type2).str); } DebugPrintConversions(type1, type2);
 #define DebugPrintConversions(type1, type2) log("DebugConversionPrint", STRINGIZE(type1), " was converted to ", STRINGIZE(type2));
@@ -295,116 +204,13 @@ T compile_time_binop(ExpressionType type, T a, T b) {
 	}
 }
 
-enum ParseStage {
-	psGlobal,      // <program>       :: = { ( <function> | <struct> ) }
-	psStruct,      // <struct>        :: = "struct" <id> "{" { ( <declaration> ";" | <function> ) } "}" [<id>] ";"
-	psFunction,    // <function>      :: = <type> ( [ "[" [<integer>] "]" ] | "*" ) <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
-	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
-	psDeclaration, // <declaration>   :: = <type> ( [ "[" [<integer>] "]" ] | "*" ) <id> [ = <exp> ]
-	psStatement,   // <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
-	//                                   | "if" "(" <exp> ")" <statement> | <declaration> [ "else" <statement> | <declaration> ]
-	//                                   | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
-	//                                   | "for" "(" <declaration> ";" [<exp>] ";" [<exp>] ")" <statement>
-	//                                   | "while" "(" <exp> ")" <statement>
-	//                                   | "break" [<integer>] ";" 
-	//                                   | "continue" ";"
-	//                                   | <struct>
-	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional>
-	psConditional, // <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
-	psLogicalOR,   // <logical or>    :: = <logical and> { "||" <logical and> } 
-	psLogicalAND,  // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
-	psBitwiseOR,   // <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
-	psBitwiseXOR,  // <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
-	psBitwiseAND,  // <bitwise and>   :: = <equality> { "&" <equality> }
-	psEquality,    // <equality>      :: = <relational> { ("!=" | "==") <relational> }
-	psRelational,  // <relational>    :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
-	psBitshift,    // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
-	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
-	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
-	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | <memberaccess> | "if"
-	//                <funccall>      :: = < id> "("[( <exp> | <id> = <exp> ) {"," ( <exp> | <id> = <exp> ) }] ")"
-	//                <literal>       :: = <integer> | <float> | <string>
-	//                <memberaccess>  :: = <id> "." <id> { "." <id> }
-	//                <float>         :: = { <integer> } "." <integer> { <integer> }
-	//                <string>        :: = """ { <char> } """
-	//                <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
-	//                <char>          :: = you know what chars are
-	//                <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
-	//                <incdec>        :: = "++" | "--"
-	//                <unary>         :: = "!" | "~" | "-"
-}; 
+
 
 //node is the parent of the binop operation, ret is what was returned from outside of this function
 //this function generalizes the binop parsing done throughout define
 //TODO add a way to choose left vs right assoviativity maybe
 
-template<typename... T>
-Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
-	Node* ret0 = ret; //save for type checking and removing if we do compile time exp
-	token_next();
-	Node* me = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
-	change_parent(me, ret);
-	insert_last(node, me);
-	token_next();
-	ret = define(next_stage, me);
-	type_check(ret0, ret);
-	Expression* meexp = ExpressionFromNode(me);
-	//TODO fix the bug that happens when you do something like a + 30 * 2 || 9 / 3 * 4;
-	auto docomptime = [&](Expression* exp, ExpressionType type, Node* a, Node* b) {
-		switch (ExpressionFromNode(ret0)->datatype) {
-			case DataType_Signed8:    {exp->int8    = compile_time_binop< s8>(type, ExpressionFromNode(a)->int8,    ExpressionFromNode(b)->int8    ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int8  )); return true;}break;
-			case DataType_Signed16:   {exp->int16   = compile_time_binop<s16>(type, ExpressionFromNode(a)->int16,   ExpressionFromNode(b)->int16   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int16 )); return true;}break;
-			case DataType_Signed32:   {exp->int32   = compile_time_binop<s32>(type, ExpressionFromNode(a)->int32,   ExpressionFromNode(b)->int32   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int32 )); return true;}break;
-			case DataType_Signed64:   {exp->int64   = compile_time_binop<s64>(type, ExpressionFromNode(a)->int64,   ExpressionFromNode(b)->int64   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int64 )); return true;}break;
-			case DataType_Unsigned8:  {exp->uint8   = compile_time_binop< u8>(type, ExpressionFromNode(a)->uint8,   ExpressionFromNode(b)->uint8   ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint8 )); return true;}break;
-			case DataType_Unsigned16: {exp->uint16  = compile_time_binop<u16>(type, ExpressionFromNode(a)->uint16,  ExpressionFromNode(b)->uint16  ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint16)); return true;}break;
-			case DataType_Unsigned32: {exp->uint32  = compile_time_binop<u32>(type, ExpressionFromNode(a)->uint32,  ExpressionFromNode(b)->uint32  ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint32)); return true;}break;
-			case DataType_Unsigned64: {exp->uint64  = compile_time_binop<u64>(type, ExpressionFromNode(a)->uint64,  ExpressionFromNode(b)->uint64  ); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint64)); return true;}break;
-			//TODO these need special case for not doing integer based ops case DataType_Float32:    {ExpressionFromNode(me)->float32 = compile_time_binop<f32>(ExpressionFromNode(me)->type, ExpressionFromNode(ret0)->float32, ExpressionFromNode(ret)->float32 );}break;
-			//TODO these need special case for not doing integer based ops case DataType_Float64:    {ExpressionFromNode(me)->float64 = compile_time_binop<f64>(ExpressionFromNode(me)->type, ExpressionFromNode(ret0)->float64, ExpressionFromNode(ret)->float64 );}break;
-			//TODO case DataType_String:     {compile_time_binop<>(ExpressionFromNode(ret0)-> , ExpressionFromNode(ret)-> )}break;
-			//TODO case DataType_Pointer:    {compile_time_binop<>(ExpressionFromNode(ret0)-> , ExpressionFromNode(ret)-> )}break;
-			default: return false;
-		}
-	};
 
-	if (ExpressionFromNode(ret0)->type == Expression_Literal && ExpressionFromNode(ret)->type == Expression_Literal) {
-		if (docomptime(meexp, meexp->type, ret0, ret)) {
-			change_parent(0, ret);
-			change_parent(0, ret0);
-			meexp->type = Expression_Literal;
-			meexp->datatype = ExpressionFromNode(ret0)->datatype;
-
-		}
-		
-	}
-	while (next_match(tokcheck...)) {
-		token_next();
-		Node* me2 = new_expression(curt.str, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
-		token_next();
-		ret0 = me;
-		ret = define(next_stage, node);
-		type_check(ret0, ret);
-		Expression* me2exp = ExpressionFromNode(me2);
-		Expression* deb2 = ExpressionFromNode(ret0);
-
-		Expression* deb = ExpressionFromNode(ret);
-		if (ExpressionFromNode(ret0)->type == Expression_Literal && ExpressionFromNode(ret)->type == Expression_Literal) {
-			if (docomptime(meexp, meexp->type, ret0, ret)) {
-				docomptime(meexp, me2exp->type, ret0, ret);
-				change_parent(0, ret);
-				change_parent(0, ret0);
-			}
-		}
-		else {
-			change_parent(me2, me);
-			change_parent(me2, ret);
-			insert_last(node, me2);
-			me = me2;
-		}
-	}
-	return me;
-}
 
 #define Define(stage, node) define(stage, node)//debug_define(stage, node)
 
@@ -476,19 +282,19 @@ auto debug_define = [&](ParseStage stage, Node* node) -> Node* {
 };
 
 //declares a node of a given type and returns it 
-Node* declare(Node* node, NodeType type) {
-	//TODO overloaded parser.functions have different signatures
+Node* Parser::declare(Node* node, NodeType type) {
+	//TODO overloaded functions have different signatures
 	switch (type) {
 		case NodeType_Function: {
 			//TODO check for redefinition
-			string* funclabel = (string*)parser.arena.add(string());
+			string* funclabel = (string*)arena.add(string());
 			ExpectGroup(Token_Typename) {
 				DataType dtype = dataTypeFromToken(curt.type);
 				token_next();
 				Expect(Token_Identifier) {
 					Node* me = new_function(curt.str, toStr("func: ", dataTypeStrs[dtype], " ", curt.str));
 					insert_last(node, me);
-					parser.function->type = dtype;
+					function->type = dtype;
 					*funclabel = toStr(curt.str, "@", dataTypeStrs[dtype], "@");
 					token_next();
 					Expect(Token_OpenParen) {
@@ -496,7 +302,7 @@ Node* declare(Node* node, NodeType type) {
 							token_next();
 							Declaration* ret = DeclarationFromNode(declare(me, NodeType_Declaration));
 							*funclabel += toStr(dataTypeStrs[ret->type], ",");
-							parser.function->positional_args++;
+							function->positional_args++;
 							while (!next_match(Token_Comma, Token_CloseParen)) token_next();
 							token_next();
 						}
@@ -506,13 +312,13 @@ Node* declare(Node* node, NodeType type) {
 						//HACK
 						if (next_match(Token_CloseParen)) token_next();
 						Expect(Token_CloseParen) { 
-							knownFuncs.add(parser.function->identifier, me);
-							parser.function->token_idx = currtokidx + 1; 
-							parser.function->internal_label = cstring{ funclabel->str, funclabel->count };
+							knownFuncs.add(function->identifier, me);
+							function->token_idx = currTokIdx() + 1; 
+							function->internal_label = cstring{ funclabel->str, funclabel->count };
 						}
-						ExpectFail("expected a ) for func decl ", parser.function->identifier);
+						ExpectFail("expected a ) for func decl ", function->identifier);
 						return me;
-					}ExpectFail("expected ( for function declaration of ", parser.function->identifier);
+					}ExpectFail("expected ( for function declaration of ", function->identifier);
 				}ExpectFail("expected identifier for function declaration");
 			}ExpectFail("expected typename for function declaration");
 		}break;
@@ -524,9 +330,9 @@ Node* declare(Node* node, NodeType type) {
 					Node* me = new_structure(curt.str, toStr("struct: ", curt.str));
 					insert_last(node, me);
 					token_next();
-					parser.structure->token_idx = currtokidx;
+					structure->token_idx = currTokIdx();
 					Expect(Token_OpenBrace) {
-						while (match_any(tokens.peek().group, Token_Typename)) {
+						while (match_any(tokens->peek().group, Token_Typename)) {
 							token_next();
 							DataType dtype = dataTypeFromToken(curt.type);
 							token_next();
@@ -554,10 +360,10 @@ Node* declare(Node* node, NodeType type) {
 										while (open_count) {
 											if      (next_match(Token_OpenBrace))  open_count++;
 											else if (next_match(Token_CloseBrace)) open_count--;
-											else if (next_match(Token_EOF)) ParseFail("unexpected EOF while parsing function ", parser.structure->identifier, "::", FunctionFromNode(f)->identifier);
+											else if (next_match(Token_EOF)) ParseFail("unexpected EOF while parsing function ", structure->identifier, "::", FunctionFromNode(f)->identifier);
 											token_next();
 										}
-										Expect(Token_CloseBrace) { parser.structure->member_funcs.add(id, FunctionFromNode(f)); }
+										Expect(Token_CloseBrace) { structure->member_funcs.add(id, FunctionFromNode(f)); }
 										
 									}
 									
@@ -565,7 +371,7 @@ Node* declare(Node* node, NodeType type) {
 								else ExpectOneOf(Token_Semicolon, Token_Assignment) {
 									token_prev(2);
 									declare(me, NodeType_Declaration);
-									parser.structure->member_vars.add(curt.str, parser.declaration);
+									structure->member_vars.add(curt.str, declaration);
 									//eat any possible default var stuff
 									while (!next_match(Token_Semicolon)) token_next();
 									token_next();
@@ -575,10 +381,10 @@ Node* declare(Node* node, NodeType type) {
 						token_next();
 						Expect(Token_CloseBrace) {
 							token_next();
-							Expect(Token_Semicolon) { knownStructs.add(parser.structure->identifier, me); return me; }
-							ExpectFail("expected ; for struct decl ", parser.structure->identifier);
-						}ExpectFail("expected } for struct decl ", parser.structure->identifier);
-					}ExpectFail("expected{after struct identifier ", parser.structure->identifier);
+							Expect(Token_Semicolon) { knownStructs.add(structure->identifier, me); return me; }
+							ExpectFail("expected ; for struct decl ", structure->identifier);
+						}ExpectFail("expected } for struct decl ", structure->identifier);
+					}ExpectFail("expected{after struct identifier ", structure->identifier);
 				}ExpectFail("expected an identifier for struct decl");
 			}ExpectFail("expected 'struct' keyword for struck declaration (somehow 'declare' was called without this?)");
 		}break;
@@ -593,8 +399,8 @@ Node* declare(Node* node, NodeType type) {
 					if (dtype == DataType_Structure) typestr = type_id;
 					else typestr = dataTypeStrs[dtype];
 					Node* var = new_declaration(curt.str, dtype, toStr("var: ", typestr, " ", curt.str));
-					parser.declaration->token_idx = currtokidx;
-					parser.declaration->type_id = type_id;
+					declaration->token_idx = currTokIdx();
+					declaration->type_id = type_id;
 					change_parent(node, var);
 					knownVars.add(curt.str, var);
 					return var;
@@ -605,7 +411,7 @@ Node* declare(Node* node, NodeType type) {
 	return 0;
 }
 
-Node* define(ParseStage stage, Node* node) {
+Node* Parser::define(ParseStage stage, Node* node) {
 	if (parse_failed) return 0;
 	
 	switch (stage) {
@@ -624,14 +430,14 @@ Node* define(ParseStage stage, Node* node) {
 		
 		case psStruct: {
 			if (node->type == NodeType_Structure) 
-				parser.structure = StructFromNode(node), setTokenIdx(parser.structure->token_idx);
+				structure = StructFromNode(node), setTokenIdx(structure->token_idx);
 			else 
 				declare(node, NodeType_Structure);
 			
-			for (Declaration* v : parser.structure->member_vars) {
+			for (Declaration* v : structure->member_vars) {
 				Define(psDeclaration, &v->node);
 			}
-			for (Function* f : parser.structure->member_funcs) {
+			for (Function* f : structure->member_funcs) {
 				Define(psFunction, &f->node);
 			}
 			Expect(Token_Semicolon) { return 0; /*empty struct*/ }
@@ -670,9 +476,9 @@ Node* define(ParseStage stage, Node* node) {
 		
 		case psScope: { /////////////////////////////////////////////////////////////////////// @Scope
 			Node* me = new_scope("scope");
-			insert_last(node, &parser.scope->node);
+			insert_last(node, &scope->node);
 			while (!next_match(Token_CloseBrace)) {
-				if(parser.scope->has_return_statement){
+				if(scope->has_return_statement){
 					log_warning(WC_Unreachable_Code_After_Return);
 					if(globals.warnings_as_errors) break;
 				}
@@ -685,9 +491,9 @@ Node* define(ParseStage stage, Node* node) {
 					ExpectFail("missing ; after declaration assignment")
 				}
 				ElseExpect(Token_OpenBrace) {
-					Scope* scope = parser.scope;
+					Scope* scope = this->scope;
 					Define(psScope, me);
-					parser.scope = scope;
+					this->scope = scope;
 				}
 				else {
 					Define(psStatement, me);
@@ -699,17 +505,17 @@ Node* define(ParseStage stage, Node* node) {
 		
 		case psDeclaration: {////////////////////////////////////////////////////////////////// @Declaration
 			if (node->type == NodeType_Declaration)
-				parser.declaration = DeclarationFromNode(node), setTokenIdx(parser.declaration->token_idx);
+				declaration = DeclarationFromNode(node), setTokenIdx(declaration->token_idx);
 			else 
 				declare(node, NodeType_Declaration);
 			
-			if (parser.declaration->type == DataType_Structure) {
-				if (!knownStructs.has(parser.declaration->type_id)) { ParseFail("variable declared with unknown struct '", parser.declaration->type_id, "'"); return 0; }
-				parser.declaration->struct_type = StructFromNode(*knownStructs.at(parser.declaration->type_id));
+			if (declaration->type == DataType_Structure) {
+				if (!knownStructs.has(declaration->type_id)) { ParseFail("variable declared with unknown struct '", declaration->type_id, "'"); return 0; }
+				declaration->struct_type = StructFromNode(*knownStructs.at(declaration->type_id));
 			}
 			
 			if (next_match(Token_Assignment)) {
-				Node* ret = Define(psExpression, &parser.declaration->node);
+				Node* ret = Define(psExpression, &declaration->node);
 				return ret;
 			}
 			
@@ -747,9 +553,9 @@ Node* define(ParseStage stage, Node* node) {
 				
 				case Token_Else: {
 					new_statement(Statement_Else, "else statement");
-					insert_last(node, &parser.statement->node);
+					insert_last(node, &statement->node);
 					token_next();
-					Define(psStatement, &parser.statement->node);
+					Define(psStatement, &statement->node);
 				}break;
 				
 				case Token_For: {
@@ -763,7 +569,7 @@ Node* define(ParseStage stage, Node* node) {
 						ExpectGroup(Token_Typename) {
 							//we are declaring a var for this for loop
 							declare(me, NodeType_Declaration);
-							Define(psDeclaration, &parser.declaration->node);
+							Define(psDeclaration, &declaration->node);
 						}
 						else {
 							Define(psExpression, me);
@@ -838,12 +644,11 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_Return: {
-					parser.scope->has_return_statement = true;
-					
+					scope->has_return_statement = true;
 					new_statement(Statement_Return, "return statement");
-					insert_last(node, &parser.statement->node);
+					insert_last(node, &statement->node);
 					token_next();
-					Define(psExpression, &parser.statement->node);
+					Define(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("expected a ;");
@@ -865,8 +670,8 @@ Node* define(ParseStage stage, Node* node) {
 				
 				default: {
 					new_statement(Statement_Expression, "exp statement");
-					insert_last(node, &parser.statement->node);
-					Define(psExpression, &parser.statement->node);
+					insert_last(node, &statement->node);
+					Define(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("Expected a ;");
@@ -1009,7 +814,7 @@ Node* define(ParseStage stage, Node* node) {
 						}
 						else {
 							new_expression(curt.str, Expression_IdentifierLHS);
-							Node* ret = Define(psConditional, &parser.expression->node);
+							Node* ret = Define(psConditional, &expression->node);
 							if (!ret) return 0;
 							insert_last(node, ret);
 							return ret;
@@ -1127,30 +932,30 @@ Node* define(ParseStage stage, Node* node) {
 				//TODO implicitly change types here when applicable, or do that where they're returned
 				case Token_LiteralFloat: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
-					parser.expression->datatype = DataType_Float32;
-					parser.expression->float32 = curt.float64; //TODO detect f64
-					insert_last(node, &parser.expression->node);
+					expression->datatype = DataType_Float32;
+					expression->float32 = curt.float64; //TODO detect f64
+					insert_last(node, &expression->node);
 					return var;
 				}break;
 				case Token_LiteralInteger: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " ", curt.str));
-					parser.expression->datatype = DataType_Signed64;
-					parser.expression->int64 = curt.integer;
-					insert_last(node, &parser.expression->node);
+					expression->datatype = DataType_Signed64;
+					expression->int64 = curt.integer;
+					insert_last(node, &expression->node);
 					return var;
 				}break;
 				
 				case Token_LiteralString: {
 					Node* var = new_expression(curt.str, Expression_Literal, toStr(ExTypeStrings[Expression_Literal], " \"", curt.str, "\""));
-					parser.expression->datatype = DataType_String;
-					parser.expression->str = curt.str;
-					insert_last(node, &parser.expression->node);
+					expression->datatype = DataType_String;
+					expression->str = curt.str;
+					insert_last(node, &expression->node);
 					return var;
 				}break;
 				
 				case Token_OpenParen: {
 					token_next();
-					Node* ret = Define(psExpression, &parser.expression->node);
+					Node* ret = Define(psExpression, &expression->node);
 					change_parent(node, ret);
 					token_next();
 					Expect(Token_CloseParen) { return ret; }
@@ -1163,7 +968,7 @@ Node* define(ParseStage stage, Node* node) {
 						Node* me = new_expression(curt.str, Expression_Function_Call, toStr(ExTypeStrings[Expression_Function_Call], " ", curt.str));
 						insert_last(node, me);
 						Function* f = FunctionFromNode(*knownFuncs.at(curt.str));
-						parser.expression->datatype = f->type;
+						expression->datatype = f->type;
 						token_next();
 						
 						//to order arguments correctly 
@@ -1246,9 +1051,9 @@ Node* define(ParseStage stage, Node* node) {
 						if (next_match(Token_Increment, Token_Decrememnt)) {
 							token_next();
 							new_expression(curt.str, (curt.type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix));
-							insert_last(node, &parser.expression->node);
-							change_parent(&parser.expression->node, var);
-							var = &parser.expression->node;
+							insert_last(node, &expression->node);
+							change_parent(&expression->node, var);
+							var = &expression->node;
 						}
 						return var;
 					}
@@ -1256,27 +1061,27 @@ Node* define(ParseStage stage, Node* node) {
 				}break;
 				
 				case Token_If: {
-					return Define(psConditional, &parser.expression->node);
+					return Define(psConditional, &expression->node);
 				}break;
 				
 				case Token_Increment: {
 					new_expression(curt.str, Expression_IncrementPrefix);
-					insert_last(node, &parser.expression->node);
+					insert_last(node, &expression->node);
 					token_next();
-					Node* ret = &parser.expression->node;
+					Node* ret = &expression->node;
 					Expect(Token_Identifier) {
-						Define(psFactor, &parser.expression->node);
+						Define(psFactor, &expression->node);
 					}ExpectFail("'++' needs l-value");
 					return ret;
 				}break;
 				
 				case Token_Decrememnt: {
 					new_expression(curt.str, Expression_DecrementPrefix);
-					insert_last(node, &parser.expression->node);
+					insert_last(node, &expression->node);
 					token_next();
-					Node* ret = &parser.expression->node;
+					Node* ret = &expression->node;
 					Expect(Token_Identifier) {
-						Define(psFactor, &parser.expression->node);
+						Define(psFactor, &expression->node);
 					}ExpectFail("'--' needs l-value");
 					return ret;
 				}break;
@@ -1287,28 +1092,28 @@ Node* define(ParseStage stage, Node* node) {
 				
 				case Token_Negation: {
 					new_expression(curt.str, Expression_UnaryOpNegate);
-					insert_last(node, &parser.expression->node);
+					insert_last(node, &expression->node);
 					token_next();
-					Node* ret = &parser.expression->node;
-					Define(psFactor, &parser.expression->node);
+					Node* ret = &expression->node;
+					Define(psFactor, &expression->node);
 					return ret;
 				}break;
 				
 				case Token_LogicalNOT: {
 					new_expression(curt.str, Expression_UnaryOpLogiNOT);
-					insert_last(node, &parser.expression->node);
+					insert_last(node, &expression->node);
 					token_next();
-					Node* ret = &parser.expression->node;
-					Define(psFactor, &parser.expression->node);
+					Node* ret = &expression->node;
+					Define(psFactor, &expression->node);
 					return ret;
 				}break;
 				
 				case Token_BitNOT: {
 					new_expression(curt.str, Expression_UnaryOpBitComp);
-					insert_last(node, &parser.expression->node);
+					insert_last(node, &expression->node);
 					token_next();
-					Node* ret = &parser.expression->node;
-					Define(psFactor, &parser.expression->node);
+					Node* ret = &expression->node;
+					Define(psFactor, &expression->node);
 					return ret;
 				}break;
 				
@@ -1318,9 +1123,9 @@ Node* define(ParseStage stage, Node* node) {
 					Node* me = new_expression(curt.str, Expression_BinaryOpMemberAccess);
 					token_next();
 					Expect(Token_Identifier) {
-						if (!nodeexp->struct_type->member_vars.has(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
+						if (!nodeexp->struct_type->member_vars.has(curt.str)) { ParseFail("attempt to access undefined member of var ", (*tokens)[currTokIdx() - 2].str); return 0; }
 						Node* me2 = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
-						nodeexp = parser.expression;
+						nodeexp = expression;
 						nodeexp->struct_type = (*nodestruct->member_vars.at(curt.str))->struct_type;
 						nodestruct = nodeexp->struct_type;
 						change_parent(me, node);
@@ -1330,9 +1135,9 @@ Node* define(ParseStage stage, Node* node) {
 							me2 = new_expression(curt.str, Expression_BinaryOpMemberAccess);
 							token_next();
 							Expect(Token_Identifier) {
-								if (!nodestruct->member_vars.has(curt.str)) { ParseFail("attempt to access undefined member of var ", tokens[currtokidx - 2].str); return 0; }
+								if (!nodestruct->member_vars.has(curt.str)) { ParseFail("attempt to access undefined member of var ", (*tokens)[currTokIdx() - 2].str); return 0; }
 								Node* next = new_expression(curt.str, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.str));
-								nodeexp = parser.expression;
+								nodeexp = expression;
 								nodeexp->struct_type = (*nodestruct->member_vars.at(curt.str))->struct_type;
 								nodestruct = nodeexp->struct_type;
 								change_parent(me2, me);
@@ -1343,6 +1148,11 @@ Node* define(ParseStage stage, Node* node) {
 					}ExpectFail("expected identifier following member access dot");
 					return me;
 				}break;
+
+				case Token_This: {
+					//TODO when we set up pointers
+				}break;
+
 				
 				default: {
 					ParseFail("unexpected token found in factor");
@@ -1353,23 +1163,22 @@ Node* define(ParseStage stage, Node* node) {
 	return 0;
 }
 
-b32 parse_program(Program& mother) {
-	parser.arena.init(Kilobytes(10));
-	
-	for (u32 i : lexer.func_decl) {
-		tokens.setiter(i);
-		curt = *tokens.iter;
+b32 Parser::parse_program(Program& mother) {
+	arena.init(Kilobytes(10));
+	mother.node.comment = "program";
+	tokens = &preprocessor.tokens;
+
+
+	for (u32 i : preprocessor.func_decl) {
+		setTokenIdx(i);
 		declare(&mother.node, NodeType_Function);
 	}
 	if (parse_failed) return 1;
-	for (u32 i : lexer.struct_decl) {
-		tokens.setiter(i);
-		curt = *tokens.iter;
+	for (u32 i : preprocessor.struct_decl) {
+		setTokenIdx(i);
 		declare(&mother.node, NodeType_Structure);
 	}
 	if (parse_failed) return 1;
-	
-	//TODO make a nice way to find all global parser.declarations
 	
 	for (Node* n : knownStructs) {
 		Define(psStruct, n);
@@ -1378,12 +1187,6 @@ b32 parse_program(Program& mother) {
 	for (Node* n : knownFuncs) {
 		Define(psFunction, n);
 	}
-	
-	mother.node.comment = "program";
-	
-	tokens.setiter(0);
-	curt = tokens[0];
-	//parser(psGlobal, &mother.node);
-	
+
 	return parse_failed;
 }
