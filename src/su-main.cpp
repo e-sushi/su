@@ -50,7 +50,6 @@ list input .su files
 command line arguments without options
 -----------------------------------
 		--sw       suppress warnings
-		--se       suppress errors
 		--sm       suppress messages
 		--sa       suppress all printing
 		--v        verbose printing of internal actions (actual compiler steps, not warnings, errors, etc. for debugging the compiler)
@@ -91,6 +90,7 @@ maybe require -defstr to specify OS versions and distros
 
 //headers
 #include "su-warnings.h"
+#include "su-errors.h"
 #include "su-types.h"
 
 //source
@@ -119,11 +119,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 			if (str_ends_with(arg, ".su")) {
 				filepaths.add(argv[i]);
 				//TODO block .subuild files after finding a .su
-				//NOTE maybe actually allow .subuild files to be used with different combinations of .su files?
-			}
-			else if (str_ends_with(arg, ".subuild")) {
-				//TODO build file parsing
-				//TODO block .su files after finding a build file
 			}
 			else {
 				PRINTLN("file with invalid file type passed: " << arg);
@@ -179,10 +174,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		else if (!strcmp("--sw", arg)) {
 			globals.supress_warnings = true;
 		}
-		//// @--se supress errors ////
-		else if (!strcmp("--se", arg)) {
-			globals.supress_errors = true;
-		}
 		//// @--sm supress messages ////
 		else if (!strcmp("--sm", arg)) {
 			globals.supress_messages = true;
@@ -190,7 +181,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//// @--sa supress all printing ////
 		else if (!strcmp("--sa", arg)) {
 			globals.supress_warnings = true;
-			globals.supress_errors = true;
 			globals.supress_messages = true;
 		}
 		else {
@@ -198,7 +188,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 			return ReturnCode_Invalid_Argument;
 		}
 	}
-
+	
 	//check that a file was passed
 	if(filepaths.count == 0){
 		PRINTLN("ERROR: no files passed");
@@ -206,8 +196,11 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 	}
 	
 	for(const string& raw_filepath : filepaths){ //NOTE MULTIPLE FILES DOESNT ACTUALLY WORK YET
+		u32 error_code = 0;
+		
 		//TODO dont do this so we support relative paths
 		FilePath filepath(cstring{raw_filepath.str, raw_filepath.count});
+		cstring name_dot_ext = {filepath.filename.str, filepath.filename.count + 1 + filepath.extension.count};
 		
 		string source = load_file(raw_filepath.str);
 		if(!source) return ReturnCode_File_Not_Found;
@@ -216,22 +209,31 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//// Lexing
 		log("verbose", "lexing started");
 		TIMER_START(timer);
-		if(!lex_file(source)){
-			PRINTLN("ERROR: lexer failed");
-			return ReturnCode_Lexer_Failed;
-		}
+		error_code = lex_file(name_dot_ext, source);
+		if(error_code != EC_Success){ PRINTLN("ERROR: lexer failed"); return ReturnCode_Lexer_Failed; }
 		log("verbose", "lexing took ", TIMER_END(timer)," ms");
 		log("verbose", "lexing finished");
+		
+		/*
+		forE(lexer.tokens){
+			if(it->type == Token_LiteralFloat){
+				printf("type: %s, val: %f\n", TokenTypes_Names[it->type], it->float_value);
+			}else if(it->type == Token_LiteralInteger){
+				printf("type: %s, val: %lld\n", TokenTypes_Names[it->type], it->int_value);
+			}else{
+				printf("type: %s, val: %.*s\n", TokenTypes_Names[it->type], int(it->raw.count), it->raw.str);
+			}
+		}
+*/
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
+		program.filename =  name_dot_ext;
 		log("verbose", "parsing started");
 		TIMER_RESET(timer);
-		if(parse_program(program)){
-			PRINTLN("ERROR: parser failed");
-			return ReturnCode_Parser_Failed;
-		}
+		error_code = parse_program(program);
+		if(error_code != EC_Success){ PRINTLN("ERROR: parser failed"); return ReturnCode_Parser_Failed; }
 		log("verbose", "parsing took ", TIMER_END(timer), " ms");
 		log("verbose", "parsing finished");
 		
@@ -243,10 +245,8 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		log("verbose", "assembling started");
 		string assembly;
 		TIMER_RESET(timer);
-		if(!assemble_program(program, assembly)){
-			PRINTLN("ERROR: assembler failed");
-			return ReturnCode_Assembler_Failed;
-		}
+		error_code = assemble_program(program, assembly);
+		if(error_code != EC_Success){ PRINTLN("ERROR: assembler failed"); return ReturnCode_Assembler_Failed; }
 		log("verbose", "assembling took ", TIMER_END(timer), " ms");
 		log("verbose", "assembling finished");
 		

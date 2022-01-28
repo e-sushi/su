@@ -32,7 +32,6 @@ struct {
 	u32 warning_level = 1;
 	b32 verbose_print      = false;
 	b32 supress_warnings   = false;
-	b32 supress_errors     = false;
 	b32 supress_messages   = false;
 	b32 warnings_as_errors = false;
 	OSOut osout = OSOut_Windows;
@@ -73,9 +72,9 @@ struct AlphaNode {
 	AlphaNode* nodes[62];
 	char debug[62];
 	
-
+	
 	AlphaNode() { memset(this, 0, sizeof(AlphaNode)); }
-
+	
 };
 
 #define for_node(node) for(Node* it = node; it != 0; it = it->next)
@@ -301,6 +300,219 @@ const char* dataTypeStrs[] = {
 
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Lexer
+enum TokenTypes{
+	Token_Null = 0,
+	Token_ERROR = 0,                // when something doesnt make sense during lexing
+	Token_EOF,                      // end of file
+	
+	Token_Identifier,               // function/variable names                 
+	
+	//// literal ////
+	Token_LiteralFloat,
+	Token_LiteralInteger,
+	Token_LiteralCharacter,
+	Token_LiteralString,
+	
+	//// control ////
+	Token_Semicolon,                // ;
+	Token_OpenBrace,                // {
+	Token_CloseBrace,               // }
+	Token_OpenParen,                // (
+	Token_CloseParen,               // )
+	Token_OpenSquare,               // [
+	Token_CloseSquare,              // ]
+	Token_Comma,                    // ,
+	Token_QuestionMark,             // ?
+	Token_Colon,                    // :
+	Token_Dot,                      // .
+	Token_At,                       // @
+	Token_Pound,                    // #
+	Token_Backtick,                 // `
+	
+	//// operators ////
+	Token_Plus,                     // +
+	Token_Increment,                // ++
+	Token_PlusAssignment,           // +=
+	Token_Negation,                 // -
+	Token_Decrement,                // --
+	Token_NegationAssignment,       // -=
+	Token_Multiplication,           // *
+	Token_MultiplicationAssignment, // *=
+	Token_Division,                 // /
+	Token_DivisionAssignment,       // /=
+	Token_BitNOT,                   // ~
+	Token_BitNOTAssignment,         // ~=
+	Token_BitAND,                   // &
+	Token_BitANDAssignment,         // &=
+	Token_AND,                      // &&
+	Token_BitOR,                    // |
+	Token_BitORAssignment,          // |=
+	Token_OR,                       // ||
+	Token_BitXOR,                   // ^
+	Token_BitXORAssignment,         // ^=
+	Token_BitShiftLeft,             // <<
+	Token_BitShiftRight,            // >>
+	Token_Modulo,                   // %
+	Token_ModuloAssignment,         // %=
+	Token_Assignment,               // =
+	Token_Equal,                    // ==
+	Token_LogicalNOT,               // !
+	Token_NotEqual,                 // !=
+	Token_LessThan,                 // <
+	Token_LessThanOrEqual,          // <=
+	Token_GreaterThan,              // >
+	Token_GreaterThanOrEqual,       // >=
+	
+	//// keywords ////
+	Token_Return,                   // return
+	Token_If,                       // if
+	Token_Else,                     // else
+	Token_For,                      // for
+	Token_While,                    // while 
+	Token_Break,                    // break
+	Token_Continue,                 // continue
+	Token_Defer,                    // defer
+	Token_StructDecl,               // struct
+	
+	//// types  ////
+	Token_Void,                     // void
+	Token_Signed8,                  // s8
+	Token_Signed16,                 // s16 
+	Token_Signed32,                 // s32 
+	Token_Signed64,                 // s64
+	Token_Unsigned8,                // u8
+	Token_Unsigned16,               // u16
+	Token_Unsigned32,               // u32 
+	Token_Unsigned64,               // u64 
+	Token_Float32,                  // f32 
+	Token_Float64,                  // f64 
+	Token_String,                   // str
+	Token_Any,                      // any
+	Token_Struct,                   // user defined type
+}; typedef u32 TokenType;
+
+#define NAME(code) STRINGIZE(code)
+const char* TokenTypes_Names[] = {
+	"null/error",
+	NAME(Token_EOF),
+	NAME(Token_Identifier),
+	
+	NAME(Token_LiteralFloat),
+	NAME(Token_LiteralInteger),
+	NAME(Token_LiteralCharacter),
+	NAME(Token_LiteralString),
+	
+	NAME(Token_Semicolon),
+	NAME(Token_OpenBrace),
+	NAME(Token_CloseBrace),
+	NAME(Token_OpenParen),
+	NAME(Token_CloseParen),
+	NAME(Token_OpenSquare),
+	NAME(Token_CloseSquare),
+	NAME(Token_Comma),
+	NAME(Token_QuestionMark),
+	NAME(Token_Colon),
+	NAME(Token_Dot),
+	NAME(Token_At),
+	NAME(Token_Pound),
+	NAME(Token_Backtick),
+	
+	NAME(Token_Plus),
+	NAME(Token_Increment),
+	NAME(Token_PlusAssignment),
+	NAME(Token_Negation),
+	NAME(Token_Decrement),
+	NAME(Token_NegationAssignment),
+	NAME(Token_Multiplication),
+	NAME(Token_MultiplicationAssignment),
+	NAME(Token_Division),
+	NAME(Token_DivisionAssignment),
+	NAME(Token_BitNOT),
+	NAME(Token_BitNOTAssignment),
+	NAME(Token_BitAND),
+	NAME(Token_BitANDAssignment),
+	NAME(Token_AND),
+	NAME(Token_BitOR),
+	NAME(Token_BitORAssignment),
+	NAME(Token_OR),
+	NAME(Token_BitXOR),
+	NAME(Token_BitXORAssignment),
+	NAME(Token_BitShiftLeft),
+	NAME(Token_BitShiftRight),
+	NAME(Token_Modulo),
+	NAME(Token_ModuloAssignment),
+	NAME(Token_Assignment),
+	NAME(Token_Equal),
+	NAME(Token_LogicalNOT),
+	NAME(Token_NotEqual),
+	NAME(Token_LessThan),
+	NAME(Token_LessThanOrEqual),
+	NAME(Token_GreaterThan),
+	NAME(Token_GreaterThanOrEqual),
+	
+	NAME(Token_Return),
+	NAME(Token_If),
+	NAME(Token_Else),
+	NAME(Token_For),
+	NAME(Token_While),
+	NAME(Token_Break),
+	NAME(Token_Continue),
+	NAME(Token_Defer),
+	NAME(Token_StructDecl),
+	
+	NAME(Token_Void),
+	NAME(Token_Signed8),
+	NAME(Token_Signed16),
+	NAME(Token_Signed32),
+	NAME(Token_Signed64),
+	NAME(Token_Unsigned8),
+	NAME(Token_Unsigned16),
+	NAME(Token_Unsigned32),
+	NAME(Token_Unsigned64),
+	NAME(Token_Float32),
+	NAME(Token_Float64),
+	NAME(Token_String),
+	NAME(Token_Any),
+	NAME(Token_Struct),
+};
+#undef NAME
+
+enum TokenGroups{
+	TokenGroup_NULL,
+	TokenGroup_Identifier,
+	TokenGroup_Literal,
+	TokenGroup_Control,
+	TokenGroup_Operator,
+	TokenGroup_Keyword,
+	TokenGroup_Type,
+}; typedef u32 TokenGroup;
+
+struct Token {
+	TokenType  type;
+	TokenGroup group;
+	
+	cstring file;
+	u32 line_start, line_end;
+	u32 col_start,  col_end;
+	
+	union{
+		f64 float_value;
+		u64 int_value;
+		cstring raw; //string and character literals, identifiers, types
+	};
+};
+
+struct Lexer {
+	//TODO set up an indexing array that determines separate files
+	array<Token> tokens;  
+	array<u32> var_decl;
+	array<u32> func_decl;
+	array<u32> struct_decl; //so that we may parse all struct definitions first
+} lexer;
+
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
 enum ExpressionType : u32 {
 	Expression_IdentifierLHS,
@@ -351,7 +563,7 @@ static const char* ExTypeStrings[] = {
 	"idRHS: ",
 	
 	"fcall: ",
-
+	
 	"tern: ",
 	
 	"literal: ",
@@ -388,9 +600,12 @@ static const char* ExTypeStrings[] = {
 
 struct Struct;
 struct Expression {
+	Node node;
+	Token* token_start;
+	Token* token_end;
+	
 	cstring expstr;
 	ExpressionType type;
-	Node node;
 	DataType datatype;
 	Struct* struct_type;
 	union {
@@ -424,19 +639,25 @@ enum StatementType : u32 {
 };
 
 struct Statement {
-	StatementType type = Statement_Unknown;
 	Node node;
+	Token* token_start;
+	Token* token_end;
+	
+	StatementType type = Statement_Unknown;
 };
 #define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
 
 struct Declaration {
+	Node node;
+	Token* token_start;
+	Token* token_end;
+	u64 token_idx = 0;
+	
 	cstring identifier;
 	cstring type_id; //used for storing the name of the struct this decalaration is made with, this is necessary to allow for global structs being used everywhere
 	DataType type;
 	Struct* struct_type = 0;
-	Node node;
 	b32 initialized = 0;
-	u64 token_idx = 0;
 	u32 type_size = npos;
 	union {
 		f32 float32;
@@ -456,11 +677,19 @@ struct Declaration {
 
 struct Scope {
 	Node node;
+	Token* token_start;
+	Token* token_end;
+	
 	b32 has_return_statement = false;
 };
 #define ScopeFromNode(node_ptr) ((Scope*)((u8*)(node_ptr) - OffsetOfMember(Scope,node)))
 
 struct Function {
+	Node node;
+	Token* token_start;
+	Token* token_end;
+	u64 token_idx = 0;
+	
 	cstring identifier;
 	cstring internal_label;
 	DataType type;
@@ -468,223 +697,31 @@ struct Function {
 	map<cstring, Declaration*> args;
 	//TODO do this with a binary tree sort of thing instead later
 	array<Function*> overloads;
-	Node node;
-	u64 token_idx = 0;
 };
 #define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
 
 struct Struct {
+	Node node;
+	Token* token_start;
+	Token* token_end;
+	u64 token_idx = 0;
+	
 	cstring identifier;
 	map<cstring, Declaration*> member_vars;
 	map<cstring, Function*> member_funcs;
 	//this kind of sucks! do it better with like trees or sumn later man 
 	map<DataType, Function*> podConverters; //stores functions that convert this struct to built in types
 	map<cstring, Function*> structConverters; //stores functions that converts this struct to other structs
-	Node node;
-	u64 token_idx = 0;
 	u32 struct_size = npos;
 };
 #define StructFromNode(node_ptr) ((Struct*)((u8*)(node_ptr) - OffsetOfMember(Struct,node)))
 
 struct Program {
 	Node node;
+	
+	cstring filename;
+	//TODO add entrypoint string
 };
-
-
-//~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Lexer
-enum Token_Type {
-	Token_Null,
-	Token_ERROR,                    // when something doesnt make sense during lexing
-	Token_EOF,                      // end of file
-	
-	Token_Identifier,               // function/variable names                 
-	
-	//// literal ////
-	Token_Literal,
-	Token_LiteralFloat,
-	Token_LiteralInteger,
-	Token_LiteralString,
-	
-	//// control characters ////
-	Token_ControlCharacter,
-	Token_Semicolon,                // ;
-	Token_OpenBrace,                // {
-	Token_CloseBrace,               // }
-	Token_OpenParen,                // (
-	Token_CloseParen,               // )
-	Token_Comma,                    // ,
-	Token_QuestionMark,             // ?
-	Token_Colon,                    // :
-	Token_Dot,                      // .
-	
-	//// operators ////
-	Token_Operator,
-	Token_Plus,                     // +
-	Token_Increment,                // ++
-	Token_PlusAssignment,           // +=
-	Token_Negation,                 // -
-	Token_Decrememnt,               // --
-	Token_NegationAssignment,       // -=
-	Token_Multiplication,           // *
-	Token_MultiplicationAssignment, // *=
-	Token_Division,                 // /
-	Token_DivisionAssignment,       // /=
-	Token_BitNOT,                   // ~
-	Token_BitNOTAssignment,         // ~=
-	Token_BitAND,                   // &
-	Token_BitANDAssignment,         // &=
-	Token_AND,                      // &&
-	Token_BitOR,                    // |
-	Token_BitORAssignment,          // |=
-	Token_OR,                       // ||
-	Token_BitXOR,                   // ^
-	Token_BitXORAssignment,         // ^=
-	Token_BitShiftLeft,             // <<
-	Token_BitShiftRight,            // >>
-	Token_Modulo,                   // %
-	Token_ModuloAssignment,         // %=
-	Token_Assignment,               // =
-	Token_Equal,                    // ==
-	Token_LogicalNOT,               // !
-	Token_NotEqual,                 // !=
-	Token_LessThan,                 // <
-	Token_LessThanOrEqual,          // <=
-	Token_GreaterThan,              // >
-	Token_GreaterThanOrEqual,       // >=
-	
-	//// control keywords ////
-	Token_ControlKeyword,
-	Token_Return,                   // return
-	Token_If,                       // if
-	Token_Else,                     // else
-	Token_For,                      // for
-	Token_While,                    // while 
-	Token_Break,                    // break
-	Token_Continue,                 // continue
-	Token_StructDecl,               // struct
-	
-	//// type keywords ////
-	Token_Typename,
-	Token_Void,                     // void
-	Token_Signed8,                  // s8
-	Token_Signed16,                 // s16 
-	Token_Signed32,                 // s32 
-	Token_Signed64,                 // s64
-	Token_Unsigned8,                // u8
-	Token_Unsigned16,               // u16
-	Token_Unsigned32,               // u32 
-	Token_Unsigned64,               // u64 
-	Token_Float32,                  // f32 
-	Token_Float64,                  // f64 
-	Token_String,                   // str
-	Token_Any,                      // any
-	Token_Struct,                   // user defined type
-};
-
-static const char* tokenStrings[] = {
-	"ERROR",
-	"EOF",
-	
-	"Identifier",
-	"Literal",
-	
-	"Semicolon",
-	"OpenBrace",
-	"CloseBrace",
-	"OpenParen",
-	"CloseParen",
-	"Comma",
-	"QuestionMark",
-	"Colon",
-	"Dot",
-	
-	"Plus",
-	"PlusAssignment",
-	"Negation",
-	"NegationAssignment",
-	"Multiplication",
-	"MultiplicationAssignment",
-	"Division",
-	"DivisionAssignment",
-	"BitNOT",
-	"BitNOTAssignment",
-	"BitAND",
-	"BitANDAssignment",
-	"AND",
-	"BitOR",
-	"BitORAssignment",
-	"OR",
-	"BitXOR",
-	"BitXORAssignment",
-	"BitShiftLeft",
-	"BitShiftRight",
-	"Modulo",
-	"ModuloAssignment",
-	"Assignment",
-	"Equal",
-	"LogicalNOT",
-	"NotEqual",
-	"LessThan",
-	"LessThanOrEqual",
-	"GreaterThan",
-	"GreaterThanOrEqual",
-	
-	"Return",
-	"If",
-	"Else",
-	"Struct",
-	
-	"Signed32",
-	"Signed64",
-	"Unsigned32",
-	"Unsigned64",
-	"Float32",
-	"Float64",
-};
-
-//struct token {
-//Token_Type type;
-//cstring raw;
-//u64 line;
-//};
-
-struct token {
-	cstring str; //also used for string literals, but just points to where in the source this token is
-	Token_Type type;
-	Token_Type group;
-	u64 scope = 0;
-	u64 line = 0;
-	
-	//the actual value of a literal token
-	//TODO maybe make it so we store a cstring str here that is the val of string, and leave "" in the str above
-	union {
-		f32 float32;
-		f64 float64;
-		s64 integer; //TODO support u64 literals 
-	};
-};
-
-enum TokenGroupType_{
-	TokenGroup_Variable,
-	TokenGroup_Struct,
-	TokenGroup_Function,
-	//TokenGroup_Enum,
-}; typedef u32 TokenGroupType;
-
-struct TokenGroup{
-	TokenGroupType type;
-	u64 start;
-	u64 end;
-};
-
-struct Lexer {
-	//TODO set up an indexing array that determines separate files
-	array<token> tokens;  
-	array<u32> var_decl;
-	array<u32> func_decl;
-	array<u32> struct_decl; //so that we may parse all struct definitions first
-} lexer;
 
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////

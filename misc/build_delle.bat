@@ -11,7 +11,7 @@ REM ____________________________________________________________________________
 
 @set INCLUDES=/I"..\src" /I"C:\apps\graphviz\include"
 @set SOURCES=su-main.cpp
-@set LIBS=/libpath:C:\apps\graphviz\lib cdt.lib cgraph.lib gvc.lib user32.lib gdi32.lib winmm.lib
+@set LIBS=/libpath:C:\apps\graphviz\lib cdt.lib cgraph.lib gvc.lib
 
 REM _____________________________________________________________________________________________________
 REM                                      Compiler and Linker Flags

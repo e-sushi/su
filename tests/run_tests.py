@@ -19,9 +19,10 @@
 #  keep the .exe's
 #
 #--p
-#  print su output on error
+#  print su output on error (above the failed/passed message)
 #_______________________
 #TODOs:
+#replace return codes with error codes
 
 import sys,os,subprocess,ctypes
 
@@ -155,31 +156,55 @@ tests = [
     ["if_else/invalid/mismatched_nesting.su", ReturnCode_Assembler_Failed],
     
     ["ternary/valid/assign_ternary.su",          2],
+    ["ternary/valid/internal_assignment.su",     2],
     ["ternary/valid/multiple_ternary.su",       10],
     ["ternary/valid/nested_ternary.su",          7],
     ["ternary/valid/nested_ternary_2.su",       15],
-    ["ternary/valid/rh_assignment.su",           1],
     ["ternary/valid/ternary.su",                 4],
-    ["ternary/valid/ternary_short_circuit.su",   1],
-    ["ternary/valid/ternary_short_circuit_2.su", 2],
+    ["ternary/valid/ternary_short_circuit.su",   7],
+    ["ternary/valid/ternary_short_circuit_2.su", 3],
     ["ternary/invalid/c_ternary.su",           ReturnCode_Parser_Failed],
     ["ternary/invalid/incomplete_ternary.su",  ReturnCode_Parser_Failed],
     ["ternary/invalid/malformed_ternary.su",   ReturnCode_Parser_Failed],
     ["ternary/invalid/malformed_ternary_2.su", ReturnCode_Parser_Failed],
+    ["ternary/invalid/rh_assignment.su",       ReturnCode_Parser_Failed],
     ["ternary/invalid/ternary_assign.su",      ReturnCode_Parser_Failed],
     
-    ["scopes/valid/consecutive_blocks.su",       1],
-    ["scopes/valid/consecutive_declarations.su", 3],
-    ["scopes/valid/declare_after_block.su",      3],
-    ["scopes/valid/declare_block.su",            1],
-    ["scopes/valid/declare_late.su",             3],
-    ["scopes/valid/multi_nesting.su",            3],
-    ["scopes/valid/nested_if.su",                4],
-    ["scopes/valid/nested_scope.su",             4],
-    ["scopes/invalid/double_define.su",            ReturnCode_Parser_Failed],
-    ["scopes/invalid/out_of_scope.su",             ReturnCode_Parser_Failed],
-    ["scopes/invalid/syntax_err_extra_brace.su",   ReturnCode_Parser_Failed],
-    ["scopes/invalid/syntax_err_missing_brace.su", ReturnCode_Parser_Failed],
+    #["scopes/valid/consecutive_blocks.su",       1],
+    #["scopes/valid/consecutive_declarations.su", 3],
+    #["scopes/valid/declare_after_block.su",      3],
+    #["scopes/valid/declare_block.su",            1],
+    #["scopes/valid/declare_late.su",             3],
+    #["scopes/valid/multi_nesting.su",            3],
+    #["scopes/valid/nested_if.su",                4],
+    #["scopes/valid/nested_scope.su",             4],
+    #["scopes/invalid/double_define.su",            ReturnCode_Parser_Failed],
+    #["scopes/invalid/out_of_scope.su",             ReturnCode_Parser_Failed],
+    #["scopes/invalid/syntax_err_extra_brace.su",   ReturnCode_Parser_Failed],
+    #["scopes/invalid/syntax_err_missing_brace.su", ReturnCode_Parser_Failed],
+    
+    #["loops/valid/break.su",                 15],
+    #["loops/valid/continue.su",               1],
+    #["loops/valid/continue_empty_post.su",   30],
+    #["loops/valid/empty_expression.su",      10],
+    #["loops/valid/for.su",                    3],
+    #["loops/valid/for_decl.su",               2],
+    #["loops/valid/for_empty.su",              3],
+    #["loops/valid/for_nested_scope.su",       3],
+    #["loops/valid/for_variable_shadow.su",   65],
+    #["loops/valid/nested_break.su",         250],
+    #["loops/valid/nested_while.su",          65],
+    #["loops/valid/return_in_while.su",        2],
+    #["loops/valid/while_multi_statement.su",  6],
+    #["loops/valid/while_single_statement.su", 6],
+    #["loops/invalid/break_not_in_loop.su",                 ReturnCode_Parser_Failed],
+    #["loops/invalid/continue_not_in_loop.su",              ReturnCode_Parser_Failed],
+    #["loops/invalid/out_of_scope.su",                      ReturnCode_Parser_Failed],
+    #["loops/invalid/syntax_err_empty_clause.su",           ReturnCode_Parser_Failed],
+    #["loops/invalid/syntax_err_paren_mismatch.su",         ReturnCode_Parser_Failed],
+    #["loops/invalid/syntax_err_statement_in_condition.su", ReturnCode_Parser_Failed],
+    #["loops/invalid/syntax_err_too_few_for_clauses.su",    ReturnCode_Parser_Failed],
+    #["loops/invalid/syntax_err_too_many_for_clauses.su",   ReturnCode_Parser_Failed],
 ];
 
 def main():

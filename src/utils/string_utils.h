@@ -185,7 +185,7 @@ to_string(void* ptr) {
 	return s;
 }
 
-#define toStr(...) ToString(__VA_ARGS__)
+#define toStr(...) (ToString(__VA_ARGS__))
 template<class... T> global_ string 
 ToString(T... args){
 	string str;

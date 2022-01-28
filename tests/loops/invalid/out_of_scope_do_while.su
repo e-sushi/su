@@ -1,6 +1,0 @@
-s32 main() {
-    do {
-        s32 a = 2;
-    } while (a);
-    return 0;
-}

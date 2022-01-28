@@ -191,6 +191,8 @@ struct cstring{
     
     FORCE_INLINE explicit operator bool(){ return str && count; }
 	FORCE_INLINE char& operator[](upt idx){ return str[idx]; }
+	FORCE_INLINE char& operator*(){ return *str; }
+	FORCE_INLINE char operator++(int){ str++; count--; return *(str-1); }
 	FORCE_INLINE char* at(upt idx){ return &str[idx]; }
 	FORCE_INLINE char* begin(){ return &str[0]; }
 	FORCE_INLINE char* end()  { return &str[count]; }
