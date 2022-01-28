@@ -1,0 +1,19 @@
+//external single line comment
+
+/* external multi line comment
+external multi line comment
+        s32 external multi line comment
+*/s32 main(){
+ //internal single line comment
+
+     /* internal multi line comment
+internal multi line comment
+        s32 internal multi line comment
+             */
+
+	for(s32 a = 0; a < 10; a++){//internal single line comment
+		a++;//internal single line comment
+	
+	}
+	return 1;//internal single line comment
+}

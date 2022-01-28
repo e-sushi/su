@@ -236,6 +236,7 @@ u32 lex_file(cstring filename, const string& file){
 						log_error(EC_Multiline_Comment_No_End, filename.count, filename.str, token.line_start, token.col_start);
 						return EC_Multiline_Comment_No_End;
 					}
+					stream++; stream++;
 					continue; //skip token creation
 				}
 			}break;
