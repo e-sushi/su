@@ -54,6 +54,7 @@ token_is_keyword_or_identifier(cstring raw){
 	CASEW("continue", Token_Continue);
 	CASEW("defer",    Token_Defer);
 	CASEW("struct",   Token_StructDecl);
+	CASEW("this",     Token_This);
 	
 	CASEW("void", Token_Void);
 	CASEW("s8",   Token_Signed8);
@@ -73,6 +74,9 @@ token_is_keyword_or_identifier(cstring raw){
 }
 
 u32 lex_file(cstring filename, const string& file){
+	lexer.file_index.add(filename);
+	LexedFile& lfile = lexer.file_index[filename];
+	
 	array<u32> identifier_indexes;
 	array<u32> global_identifiers;
 	array<cstring> struct_names;
@@ -124,7 +128,7 @@ u32 lex_file(cstring filename, const string& file){
 				
 				token.line_end = line_number;
 				token.col_end  = LINE_COLUMN;
-				lexer.tokens.add(token);
+				lfile.tokens.add(token);
 			}continue; //skip token creation b/c we did it manually
 			
 			case '\'':{
@@ -137,7 +141,7 @@ u32 lex_file(cstring filename, const string& file){
 				token.line_end = line_number;
 				token.col_end  = LINE_COLUMN;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				lexer.tokens.add(token);
+				lfile.tokens.add(token);
 				stream++;
 			}continue; //skip token creation b/c we did it manually
 			
@@ -151,7 +155,7 @@ u32 lex_file(cstring filename, const string& file){
 				token.line_end = line_number;
 				token.col_end  = LINE_COLUMN;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				lexer.tokens.add(token);
+				lfile.tokens.add(token);
 				stream++;
 			}continue; //skip token creation b/c we did it manually
 			
@@ -168,13 +172,13 @@ u32 lex_file(cstring filename, const string& file){
                 token.raw.count = stream.str - token.raw.str;
                 token.type = token_is_keyword_or_identifier(token.raw);
 				
-				if(lexer.tokens.count && lexer.tokens[lexer.tokens.count-1].type == Token_StructDecl){
+				if(lfile.tokens.count && lfile.tokens[lfile.tokens.count-1].type == Token_StructDecl){
 					struct_names.add(token.raw);
 				}
 				if(token.type == Token_Identifier){
-					identifier_indexes.add(lexer.tokens.count);
+					identifier_indexes.add(lfile.tokens.count);
 					if(scope_number == 0){
-						global_identifiers.add(lexer.tokens.count);
+						global_identifiers.add(lfile.tokens.count);
 					}
 				}
             }break;
@@ -193,13 +197,13 @@ u32 lex_file(cstring filename, const string& file){
 			CASE1('#', Token_Pound);
 			CASE1('`', Token_Backtick);
 			
-			case '{':{
+			case '{':{ //NOTE special for scope tracking
 				token.type = Token_OpenBrace;
 				scope_number++;
 				stream++;
 			}break;
 			
-			case '}':{
+			case '}':{ //NOTE special for scope tracking
 				token.type = Token_CloseBrace;
 				scope_number--;
 				stream++;
@@ -216,10 +220,8 @@ u32 lex_file(cstring filename, const string& file){
 			CASE2('^', Token_BitXOR,          '=', Token_BitXORAssignment);
 			CASE2('=', Token_Assignment,      '=', Token_Equal);
 			CASE2('!', Token_LogicalNOT,      '=', Token_NotEqual);
-			CASE3('<', Token_LessThan,        '=', Token_LessThanOrEqual,     '<', Token_BitShiftLeft);
-			CASE3('>', Token_GreaterThan,     '=', Token_GreaterThanOrEqual,  '>', Token_BitShiftRight);
 			
-			case '/':{
+			case '/':{ //NOTE special because of comments
 				token.type = Token_Division;
 				stream++;
 				if(*stream == '='){
@@ -235,6 +237,38 @@ u32 lex_file(cstring filename, const string& file){
 						return EC_Multiline_Comment_No_End;
 					}
 					continue; //skip token creation
+				}
+			}break;
+			
+			case '<':{ //NOTE special because of bitshift assignment
+				token.type = Token_LessThan;
+				stream++;
+				if      (*stream == '='){
+					token.type = Token_LessThanOrEqual;
+					stream++;
+				}else if(*stream == '<'){
+					token.type = Token_BitShiftLeft;
+					stream++;
+					if(*stream == '='){
+						token.type = Token_BitShiftLeftAssignment;
+						stream++;
+					}
+				}
+			}break;
+			
+			case '>':{ //NOTE special because of bitshift assignment
+				token.type = Token_GreaterThan;
+				stream++;
+				if      (*stream == '='){
+					token.type = Token_GreaterThanOrEqual;
+					stream++;
+				}else if(*stream == '>'){
+					token.type = Token_BitShiftRight;
+					stream++;
+					if(*stream == '='){
+						token.type = Token_BitShiftRightAssignment;
+						stream++;
+					}
 				}
 			}break;
 			
@@ -265,11 +299,11 @@ u32 lex_file(cstring filename, const string& file){
 			token.line_end = line_number;
 			token.col_end  = LINE_COLUMN;
 			token.raw.count = stream.str - token.raw.str;
-			lexer.tokens.add(token);
+			lfile.tokens.add(token);
 		}
 	}
 	
-	lexer.tokens.add(Token{Token_EOF, Token_EOF});
+	lfile.tokens.add(Token{Token_EOF, Token_EOF});
 	
 	//not very helpful
 	if(scope_number) logE("lexer", "unbalanced {} somewhere in code");
@@ -279,8 +313,8 @@ u32 lex_file(cstring filename, const string& file){
 	//TODO find a good way to only add identifiers that are in the global scope 
 	forI(Max(identifier_indexes.count, global_identifiers.count)){
 		b32 isstruct = 0;
-		if(i < identifier_indexes.count && lexer.tokens[identifier_indexes[i] - 1].type != Token_StructDecl){
-			Token& t = lexer.tokens[identifier_indexes[i]];
+		if(i < identifier_indexes.count && lfile.tokens[identifier_indexes[i] - 1].type != Token_StructDecl){
+			Token& t = lfile.tokens[identifier_indexes[i]];
 			b32 isstruct = 0;
 			for (cstring& str : struct_names){
 				if(equals(str, t.raw)){
@@ -293,13 +327,13 @@ u32 lex_file(cstring filename, const string& file){
 			
 		}
 		if(i < global_identifiers.count){
-			if(lexer.tokens[global_identifiers[i] - 1].type == Token_StructDecl){
-				lexer.struct_decl.add(global_identifiers[i] - 1);
-			}else if(match_any(lexer.tokens[global_identifiers[i] - 1].group, TokenGroup_Type)){
-				if(lexer.tokens[global_identifiers[i] + 1].type == Token_OpenParen){
-					lexer.func_decl.add(global_identifiers[i] - 1);
+			if(lfile.tokens[global_identifiers[i] - 1].type == Token_StructDecl){
+				lfile.struct_decl.add(global_identifiers[i] - 1);
+			}else if(match_any(lfile.tokens[global_identifiers[i] - 1].group, TokenGroup_Type)){
+				if(lfile.tokens[global_identifiers[i] + 1].type == Token_OpenParen){
+					lfile.func_decl.add(global_identifiers[i] - 1);
 				}else{
-					lexer.var_decl.add(global_identifiers[i] - 1);
+					lfile.var_decl.add(global_identifiers[i] - 1);
 				}
 			} 
 		}

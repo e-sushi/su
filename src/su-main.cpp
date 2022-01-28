@@ -96,6 +96,7 @@ maybe require -defstr to specify OS versions and distros
 //source
 #include "su-io.cpp"
 #include "su-lexer.cpp"
+#include "su-preprocessor.cpp"
 #include "su-parser.cpp"
 #include "su-assembler.cpp"
 #include "su-ast-graph.cpp"
@@ -226,19 +227,23 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		}
 */
 		
+		preprocessor.preprocess();
+
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
-		program.filename =  name_dot_ext;
+		program.filename = name_dot_ext;
 		log("verbose", "parsing started");
 		TIMER_RESET(timer);
-		error_code = parse_program(program);
+		error_code = parser.parse_program(program);
 		if(error_code != EC_Success){ PRINTLN("ERROR: parser failed"); return ReturnCode_Parser_Failed; }
 		log("verbose", "parsing took ", TIMER_END(timer), " ms");
 		log("verbose", "parsing finished");
 		
 		string output_graph_path = output_dir + filepath.filename + ".svg";
 		generate_ast_graph_svg(output_graph_path.str, program);
+		generate_ast_graph_svg("parserdebugtree.svg", &ParserDebugTree);
+
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Assembling

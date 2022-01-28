@@ -39,6 +39,31 @@ struct {
 
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Memory
+struct Arena {
+	u8* data = 0;
+	u8* cursor = 0;
+	upt size = 0;
+	
+	void init(upt bytes) {
+		data = (u8*)calloc(1, bytes);
+		cursor = data;
+		size = bytes;
+	}
+	
+	template<typename T>
+		void* add(const T& in) {
+		if (cursor - (data + size) > -spt(sizeof(T))) {
+			data = (u8*)calloc(1, size);
+			cursor = data;
+		}
+		*((T*)cursor) = in;
+		cursor += sizeof(T);
+		return cursor - sizeof(T);
+	}
+};
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
 enum NodeType : u32 {
 	NodeType_Program,
@@ -49,6 +74,8 @@ enum NodeType : u32 {
 	NodeType_Statement,
 	NodeType_Expression,
 };
+
+
 
 //abstract node tree struct
 struct Node {
@@ -65,17 +92,7 @@ struct Node {
 	string comment;
 };
 
-struct AlphaNode {
-	//TODO node type that indexes an alphabetically sorted array of strings(for var/func names and what not)
-	//maybe even generalize it to work on several data types
-	// this also has a decently large size 
-	AlphaNode* nodes[62];
-	char debug[62];
-	
-	
-	AlphaNode() { memset(this, 0, sizeof(AlphaNode)); }
-	
-};
+
 
 #define for_node(node) for(Node* it = node; it != 0; it = it->next)
 #define for_node_reverse(node) for(Node* it = node; it != 0; it = it->prev)
@@ -352,7 +369,9 @@ enum TokenTypes{
 	Token_BitXOR,                   // ^
 	Token_BitXORAssignment,         // ^=
 	Token_BitShiftLeft,             // <<
+	Token_BitShiftLeftAssignment,   // <<=
 	Token_BitShiftRight,            // >>
+	Token_BitShiftRightAssignment,  // >>=
 	Token_Modulo,                   // %
 	Token_ModuloAssignment,         // %=
 	Token_Assignment,               // =
@@ -374,6 +393,7 @@ enum TokenTypes{
 	Token_Continue,                 // continue
 	Token_Defer,                    // defer
 	Token_StructDecl,               // struct
+	Token_This,                     // this
 	
 	//// types  ////
 	Token_Void,                     // void
@@ -439,7 +459,9 @@ const char* TokenTypes_Names[] = {
 	NAME(Token_BitXOR),
 	NAME(Token_BitXORAssignment),
 	NAME(Token_BitShiftLeft),
+	NAME(Token_BitShiftLeftAssignment),
 	NAME(Token_BitShiftRight),
+	NAME(Token_BitShiftRightAssignment),
 	NAME(Token_Modulo),
 	NAME(Token_ModuloAssignment),
 	NAME(Token_Assignment),
@@ -460,6 +482,7 @@ const char* TokenTypes_Names[] = {
 	NAME(Token_Continue),
 	NAME(Token_Defer),
 	NAME(Token_StructDecl),
+	NAME(Token_This),
 	
 	NAME(Token_Void),
 	NAME(Token_Signed8),
@@ -503,14 +526,32 @@ struct Token {
 	};
 };
 
+
+struct LexedFile {
+	array<Token> tokens;
+	array<u32>   var_decl;
+	array<u32>   func_decl;
+	array<u32>   struct_decl;
+	array<u32>   preprocessor_tokens;
+};
+
 struct Lexer {
-	//TODO set up an indexing array that determines separate files
-	array<Token> tokens;  
-	array<u32> var_decl;
-	array<u32> func_decl;
-	array<u32> struct_decl; //so that we may parse all struct definitions first
+	map<cstring, LexedFile> file_index;
 } lexer;
 
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Preprocessor
+struct Preprocessor {
+	array<Token> tokens;
+	array<u32>   var_decl;
+	array<u32>   func_decl;
+	array<u32>   struct_decl;
+	array<u32>   preprocessor_tokens;
+	
+	void preprocess_parse();
+	b32  preprocess();
+	
+}preprocessor;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
@@ -559,7 +600,7 @@ enum ExpressionType : u32 {
 };
 
 static const char* ExTypeStrings[] = {
-	"idLHS: ",     
+	"idLHS: ",
 	"idRHS: ",
 	
 	"fcall: ",
@@ -718,35 +759,268 @@ struct Struct {
 
 struct Program {
 	Node node;
-	
 	cstring filename;
 	//TODO add entrypoint string
 };
 
-
-//~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Memory
-struct Arena {
-	u8* data = 0;
-	u8* cursor = 0;
-	upt size = 0;
-	
-	void init(upt bytes) {
-		data = (u8*)calloc(1, bytes);
-		cursor = data;
-		size = bytes;
-	}
-	
-	template<typename T>
-		void* add(const T& in) {
-		if (cursor - (data + size) > -spt(sizeof(T))) {
-			data = (u8*)calloc(1, size); 
-			cursor = data;
-		}
-		*((T*)cursor) = in;
-		cursor += sizeof(T);
-		return cursor - sizeof(T);
-	}
+enum ParseStage {
+	psGlobal,      // <program>       :: = { ( <function> | <struct> ) }
+	psStruct,      // <struct>        :: = "struct" <id> "{" { ( <declaration> ";" | <function> ) } "}" [<id>] ";"
+	psFunction,    // <function>      :: = <type> ( [ "[" [<integer>] "]" ] | "*" ) <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
+	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
+	psDeclaration, // <declaration>   :: = <type> ( [ "[" [<integer>] "]" ] | "*" ) <id> [ = <exp> ]
+	psStatement,   // <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
+	//                                   | "if" "(" <exp> ")" <statement> | <declaration> [ "else" <statement> | <declaration> ]
+	//                                   | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
+	//                                   | "for" "(" <declaration> ";" [<exp>] ";" [<exp>] ")" <statement>
+	//                                   | "while" "(" <exp> ")" <statement>
+	//                                   | "break" [<integer>] ";" 
+	//                                   | "continue" ";"
+	//                                   | <struct>
+	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional>
+	psConditional, // <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
+	psLogicalOR,   // <logical or>    :: = <logical and> { "||" <logical and> } 
+	psLogicalAND,  // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
+	psBitwiseOR,   // <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
+	psBitwiseXOR,  // <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
+	psBitwiseAND,  // <bitwise and>   :: = <equality> { "&" <equality> }
+	psEquality,    // <equality>      :: = <relational> { ("!=" | "==") <relational> }
+	psRelational,  // <relational>    :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
+	psBitshift,    // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
+	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
+	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
+	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | <memberaccess> | "if"
+	//                <funccall>      :: = < id> "("[( <exp> | <id> = <exp> ) {"," ( <exp> | <id> = <exp> ) }] ")"
+	//                <literal>       :: = <integer> | <float> | <string>
+	//                <memberaccess>  :: = <id> "." <id> { "." <id> }
+	//                <float>         :: = { <integer> } "." <integer> { <integer> }
+	//                <string>        :: = """ { <char> } """
+	//                <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
+	//                <char>          :: = you know what chars are
+	//                <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
+	//                <incdec>        :: = "++" | "--"
+	//                <unary>         :: = "!" | "~" | "-"
 };
+
+struct Parser {
+	array<Token>* tokens; //TODO make this a view of the preprocessor's final array so we can do multithreading
+	Token curt;
+	
+	Struct*      structure;
+	Function*    function;
+	Scope*       scope;
+	Declaration* declaration;
+	Statement*   statement;
+	Expression*  expression;
+	
+	Arena arena;
+	
+	inline void token_next(u32 count = 1) {
+		curt = tokens->next(count);
+	}
+	
+	inline void token_prev(u32 count = 1) {
+		curt = tokens->prev(count);
+	}
+	
+	inline void setTokenIdx(u32 i) {
+		tokens->setiter(i);
+		curt = *tokens->iter;
+	}
+	
+	inline u32 currTokIdx() {
+		return tokens->iter - tokens->data;
+	}
+	
+	template<class... T>
+		inline b32 check_signature(u32 offset, T... in) {
+		return ((tokens->peek(offset++).type == in) && ...);
+	}
+	
+	template<typename... T> inline b32
+		next_match(T... in) {
+		return ((tokens->peek(1).type == in) || ...);
+	}
+	
+	template<typename... T> inline b32
+		next_match_group(T... in) {
+		return ((tokens->peek(1).group == in) || ...);
+	}
+	
+	inline Node* new_structure(cstring& identifier, const string& node_str = "") {
+		structure = (Struct*)arena.add(Struct());
+		structure->identifier = identifier;
+		structure->node.type = NodeType_Structure;
+		structure->node.comment = node_str;
+		return &structure->node;
+	}
+	
+	inline Node* new_function(cstring& identifier, const string& node_str = "") {
+		function = (Function*)arena.add(Function());
+		function->identifier = identifier;
+		function->node.type = NodeType_Function;
+		function->node.comment = node_str;
+		return &function->node;
+	}
+	
+	inline Node* new_scope(const string& node_str = "") {
+		scope = (Scope*)arena.add(Scope());
+		scope->node.type = NodeType_Scope;
+		scope->node.comment = node_str;
+		return &scope->node;
+	}
+	
+	inline Node* new_statement(StatementType type, const string& node_str = "") {
+		statement = (Statement*)arena.add(Statement());
+		statement->type = type;
+		statement->node.type = NodeType_Statement;
+		statement->node.comment = node_str;
+		return &statement->node;
+	}
+	
+	inline Node* new_expression(cstring& str, ExpressionType type, const string& node_str = "") {
+		expression = (Expression*)arena.add(Expression());
+		expression->expstr = str;
+		expression->type = type;
+		expression->node.type = NodeType_Expression;
+		if (!node_str.count) expression->node.comment = ExTypeStrings[type];
+		else                expression->node.comment = node_str;
+		return &expression->node;
+	}
+	
+	inline Node* new_declaration(cstring& identifier, DataType type, const string& node_str = "") {
+		declaration = (Declaration*)arena.add(Declaration());
+		declaration->identifier = identifier;
+		declaration->node.type = NodeType_Declaration;
+		declaration->type = type;
+		declaration->node.comment = node_str;
+		return &declaration->node;
+	}
+	
+	template<typename... T>
+		Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
+		Node* ret0 = ret; //save for type checking and removing if we do compile time exp
+		token_next();
+		Node* me = new_expression(curt.raw, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
+		change_parent(me, ret);
+		insert_last(node, me);
+		token_next();
+		ret = define(next_stage, me);
+		type_check(ret0, ret);
+		Expression* meexp = ExpressionFromNode(me);
+		//TODO fix the bug that happens when you do something like a + 30 * 2 || 9 / 3 * 4;
+		auto docomptime = [&](Expression* exp, ExpressionType type, Node* a, Node* b) {
+			switch (ExpressionFromNode(ret0)->datatype) {
+				case DataType_Signed8: {exp->int8 = compile_time_binop< s8>(type, ExpressionFromNode(a)->int8, ExpressionFromNode(b)->int8); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int8)); return true; }break;
+				case DataType_Signed16: {exp->int16 = compile_time_binop<s16>(type, ExpressionFromNode(a)->int16, ExpressionFromNode(b)->int16); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int16)); return true; }break;
+				case DataType_Signed32: {exp->int32 = compile_time_binop<s32>(type, ExpressionFromNode(a)->int32, ExpressionFromNode(b)->int32); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int32)); return true; }break;
+				case DataType_Signed64: {exp->int64 = compile_time_binop<s64>(type, ExpressionFromNode(a)->int64, ExpressionFromNode(b)->int64); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int64)); return true; }break;
+				case DataType_Unsigned8: {exp->uint8 = compile_time_binop< u8>(type, ExpressionFromNode(a)->uint8, ExpressionFromNode(b)->uint8); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint8)); return true; }break;
+				case DataType_Unsigned16: {exp->uint16 = compile_time_binop<u16>(type, ExpressionFromNode(a)->uint16, ExpressionFromNode(b)->uint16); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint16)); return true; }break;
+				case DataType_Unsigned32: {exp->uint32 = compile_time_binop<u32>(type, ExpressionFromNode(a)->uint32, ExpressionFromNode(b)->uint32); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint32)); return true; }break;
+				case DataType_Unsigned64: {exp->uint64 = compile_time_binop<u64>(type, ExpressionFromNode(a)->uint64, ExpressionFromNode(b)->uint64); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint64)); return true; }break;
+				//TODO these need special case for not doing integer based ops case DataType_Float32:    {ExpressionFromNode(me)->float32 = compile_time_binop<f32>(ExpressionFromNode(me)->type, ExpressionFromNode(ret0)->float32, ExpressionFromNode(ret)->float32 );}break;
+				//TODO these need special case for not doing integer based ops case DataType_Float64:    {ExpressionFromNode(me)->float64 = compile_time_binop<f64>(ExpressionFromNode(me)->type, ExpressionFromNode(ret0)->float64, ExpressionFromNode(ret)->float64 );}break;
+				//TODO case DataType_String:     {compile_time_binop<>(ExpressionFromNode(ret0)-> , ExpressionFromNode(ret)-> )}break;
+				//TODO case DataType_Pointer:    {compile_time_binop<>(ExpressionFromNode(ret0)-> , ExpressionFromNode(ret)-> )}break;
+				default: return false;
+			}
+		};
+		
+		if (ExpressionFromNode(ret0)->type == Expression_Literal && ExpressionFromNode(ret)->type == Expression_Literal) {
+			if (docomptime(meexp, meexp->type, ret0, ret)) {
+				change_parent(0, ret);
+				change_parent(0, ret0);
+				meexp->type = Expression_Literal;
+				meexp->datatype = ExpressionFromNode(ret0)->datatype;
+				
+			}
+			
+		}
+		while (next_match(tokcheck...)) {
+			token_next();
+			Node* me2 = new_expression(curt.raw, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
+			token_next();
+			ret0 = me;
+			ret = define(next_stage, node);
+			type_check(ret0, ret);
+			Expression* me2exp = ExpressionFromNode(me2);
+			Expression* deb2 = ExpressionFromNode(ret0);
+			
+			Expression* deb = ExpressionFromNode(ret);
+			if (ExpressionFromNode(ret0)->type == Expression_Literal && ExpressionFromNode(ret)->type == Expression_Literal) {
+				if (docomptime(meexp, meexp->type, ret0, ret)) {
+					docomptime(meexp, me2exp->type, ret0, ret);
+					change_parent(0, ret);
+					change_parent(0, ret0);
+				}
+			}
+			else {
+				change_parent(me2, me);
+				change_parent(me2, ret);
+				insert_last(node, me2);
+				me = me2;
+			}
+		}
+		return me;
+	}
+	
+	Node* declare(Node* node, NodeType type);
+	Node* define(ParseStage stage, Node* node);
+	u32 parse_program(Program& mother);
+} parser;
+
+
+
+
+//TODO maybe optimize for fun later
+struct AlphaNode {
+	//AlphaNode* nodes[62];
+	//char debug[62];
+	s16 offsets[64];
+	
+	AlphaNode() { memset(this, 0, sizeof(AlphaNode)); }
+};
+
+Arena alphanodes;
+AlphaNode* anode;
+
+void alpha_add_str(const string& str) {
+	if (!alphanodes.data) { alphanodes.init(Kilobytes(1)); anode = (AlphaNode*)alphanodes.add(AlphaNode()); }
+	AlphaNode* working = anode;
+	AlphaNode* next = 0;
+	for (u32 i = 0; i < str.count; i++) {
+		u32 index = 0;
+		u8 ch = str.str[i];
+		if (ch > 47 && ch < 58) index = ch - 48;
+		else if (ch > 64 && ch < 91) index = ch - 55;
+		else if (ch > 96 && ch < 123) index = ch - 61;
+		
+		if (!working->offsets[index]) {
+			next = (AlphaNode*)alphanodes.add(AlphaNode());
+			working->offsets[index] = (next - working);
+			//log("", working->offsets[index]);
+		}
+		//working->debug[index] = ch;
+		working += working->offsets[index];
+	}
+}
+
+AlphaNode* alpha_match_str(const string& str) {
+	AlphaNode* working = anode;
+	forI(str.count) {
+		u32 index = 0;
+		u8 ch = str.str[i];
+		if (ch > 47 && ch < 58)  index = ch - 48;
+		else if (ch > 64 && ch < 91)  index = ch - 55;
+		else if (ch > 96 && ch < 123) index = ch - 61;
+		if (!working->offsets[index]) return 0;
+		else working += working->offsets[index] * sizeof(AlphaNode);
+	}
+	return working;
+}
+
+
+
 
 #endif //SU_TYPES_H
