@@ -108,6 +108,10 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
+
+	array<u32> a = {1,2,3,4,5,6,7,8,9,0};
+
+	carray<u32> aview = {a.data, a.count};
 	
 	//make this not array and string later maybe 
 	array<string> filepaths;

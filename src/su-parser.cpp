@@ -297,7 +297,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 				Expect(Token_Identifier) {
 					Node* me = new_function(curt.raw, toStr("func: ", dataTypeStrs[dtype], " ", curt.raw));
 					Function* func = parser.function;
-					func->token_start = tokens->iter-1;
+					func->token_start = tokens.iter-1;
 					insert_last(node, me);
 					function->type = dtype;
 					*funclabel = toStr(curt.raw, "@", dataTypeStrs[dtype], "@");
@@ -322,7 +322,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 							function->internal_label = cstring{ funclabel->str, funclabel->count };
 						}
 						ExpectFail("expected a ) for func decl ", function->identifier);
-						func->token_end = tokens->iter+1;
+						func->token_end = tokens.iter+1;
 						return me;
 					}ExpectFail("expected ( for function declaration of ", function->identifier);
 				}ExpectFail("expected identifier for function declaration");
@@ -335,12 +335,12 @@ Node* Parser::declare(Node* node, NodeType type) {
 				Expect(Token_Identifier) {
 					Node* me = new_structure(curt.raw, toStr("struct: ", curt.raw));
 					Struct* strct = parser.structure;
-					strct->token_start = tokens->iter-1;
+					strct->token_start = tokens.iter-1;
 					insert_last(node, me);
 					token_next();
 					structure->token_idx = currTokIdx();
 					Expect(Token_OpenBrace) {
-						while (match_any(tokens->peek().group, TokenGroup_Type)) {
+						while (match_any(array_peek(tokens).group, TokenGroup_Type)) {
 							token_next();
 							DataType dtype = dataTypeFromToken(curt.type);
 							token_next();
@@ -374,7 +374,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 										Expect(Token_CloseBrace) { 
 											Function* func = FunctionFromNode(f);
 											parser.structure->member_funcs.add(id, func); 
-											func->token_end = tokens->iter;
+											func->token_end = tokens.iter;
 										}
 									}
 								}
@@ -393,7 +393,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 							token_next();
 							Expect(Token_Semicolon) { 
 								knownStructs.add(structure->identifier, me); 
-								strct->token_end = tokens->iter;
+								strct->token_end = tokens.iter;
 								return me; 
 							}
 							ExpectFail("expected ; for struct decl "     ,structure->identifier);
@@ -494,7 +494,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 		case psScope: { /////////////////////////////////////////////////////////////////////// @Scope
 			Node* me = new_scope("scope");
 			Scope* scpe = scope;
-			scpe->token_start = tokens->iter;
+			scpe->token_start = tokens.iter;
 			insert_last(node, &scope->node);
 			while (!next_match(Token_CloseBrace)) {
 				if(scope->has_return_statement){
@@ -520,7 +520,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 				if (next_match(Token_EOF)) { ParseFail("Unexpected EOF"); return 0; }
 			}
 			token_next();
-			scpe->token_end = tokens->iter;
+			scpe->token_end = tokens.iter;
 		}break;
 		
 		case psDeclaration: {////////////////////////////////////////////////////////////////// @Declaration
@@ -546,7 +546,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 				case Token_If: {
 					Node* ifno = new_statement(Statement_Conditional, "if statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, ifno);
 					token_next();
 					Expect(Token_OpenParen) {
@@ -559,13 +559,13 @@ Node* Parser::define(ParseStage stage, Node* node) {
 							Expect(Token_OpenBrace) {
 								Define(psStatement, ifno); //scope
 								Expect(Token_CloseBrace){ }ExpectFail("expected a }");
-								stmt->token_end = tokens->iter;
+								stmt->token_end = tokens.iter;
 							}
 							else {
 								ExpectGroup(TokenGroup_Type) { ParseFail("can't declare a declaration in an unscoped if statement"); return 0; } //TODO there's no reason this cant be valid, just warn when it happens
 								Define(psStatement, ifno);
 								Expect(Token_Semicolon){ }ExpectFail("expected a ;");
-								stmt->token_end = tokens->iter;
+								stmt->token_end = tokens.iter;
 							}
 							if (next_match(Token_Else)) {
 								token_next();
@@ -578,18 +578,18 @@ Node* Parser::define(ParseStage stage, Node* node) {
 				case Token_Else: {
 					new_statement(Statement_Else, "else statement");
 					Statement* stmt = statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, &statement->node);
 					token_next();
 					define(psStatement, &statement->node);
-					stmt->token_end = tokens->iter;
+					stmt->token_end = tokens.iter;
 				}break;
 				
 				case Token_For: {
 					StateSet(stInForLoop);
 					Node* me = new_statement(Statement_For, "for statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, me);
 					token_next();
 					Expect(Token_OpenParen) {
@@ -635,14 +635,14 @@ Node* Parser::define(ParseStage stage, Node* node) {
 							token_next();
 							Expect(Token_OpenBrace) {
 								Define(psStatement, me);
-								stmt->token_end = tokens->iter;
+								stmt->token_end = tokens.iter;
 							}
 							else {
 								ExpectGroup(TokenGroup_Type) { ParseFail("can't declare a declaration in an unscoped for statement"); return 0; }
 								Define(psStatement, me);
 								Expect(Token_Semicolon) { }
 								ExpectFail("expected a ;");
-								stmt->token_end = tokens->iter;
+								stmt->token_end = tokens.iter;
 							}
 						}ExpectFail("expected ) for for loop");
 					}ExpectFail("expected ( after for");
@@ -653,7 +653,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 					StateSet(stInWhileLoop);
 					Node* me = new_statement(Statement_While, "while statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, me);
 					token_next();
 					Expect(Token_OpenParen) {
@@ -666,14 +666,14 @@ Node* Parser::define(ParseStage stage, Node* node) {
 							token_next();
 							Expect(Token_OpenBrace) {
 								Define(psStatement, me);
-								stmt->token_end = tokens->iter;
+								stmt->token_end = tokens.iter;
 							}
 							else {
 								ExpectGroup(TokenGroup_Type) { ParseFail("can't declare a declaration in an unscoped for statement"); return 0; }
 								Define(psStatement, me);
 								Expect(Token_Semicolon) { }
 								ExpectFail("expected a ;");
-								stmt->token_end = tokens->iter;
+								stmt->token_end = tokens.iter;
 							}
 						}ExpectFail("expected ) for while");
 					}ExpectFail("expected ( after while");
@@ -684,34 +684,34 @@ Node* Parser::define(ParseStage stage, Node* node) {
 					if (!StateHas(stInWhileLoop | stInForLoop)) { ParseFail("break not allowed outside of while/for loop"); return 0; }
 					Node* me = new_statement(Statement_Break, "break statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, me);
 					token_next();
-					stmt->token_end = tokens->iter;
+					stmt->token_end = tokens.iter;
 				}break;
 				
 				case Token_Continue: {
 					if (!StateHas(stInWhileLoop | stInForLoop)) { ParseFail("continue not allowed outside of while/for loop"); return 0; }
 					Node* me = new_statement(Statement_Continue, "continue statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, me);
 					token_next();
-					stmt->token_end = tokens->iter;
+					stmt->token_end = tokens.iter;
 				}break;
 				
 				case Token_Return: {
 					scope->has_return_statement = true;
 					new_statement(Statement_Return, "return statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, &statement->node);
 					token_next();
 					Define(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("expected a ;");
-					stmt->token_end = tokens->iter;
+					stmt->token_end = tokens.iter;
 				}break;
 				
 				case Token_OpenBrace: {
@@ -721,10 +721,10 @@ Node* Parser::define(ParseStage stage, Node* node) {
 				case Token_StructDecl: {
 					Node* me = new_statement(Statement_Struct, "struct statement");
 					Statement* stmt = parser.statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					Define(psStruct, me);
 					insert_last(node, me);
-					stmt->token_end = tokens->iter-1;
+					stmt->token_end = tokens.iter-1;
 				}break;
 				
 				case Token_Semicolon: {
@@ -734,13 +734,13 @@ Node* Parser::define(ParseStage stage, Node* node) {
 				default: {
 					new_statement(Statement_Expression, "exp statement");
 					Statement* stmt = statement;
-					stmt->token_start = tokens->iter;
+					stmt->token_start = tokens.iter;
 					insert_last(node, &statement->node);
 					Define(psExpression, &statement->node);
 					token_next();
 					Expect(Token_Semicolon) {}
 					ExpectFail("Expected a ;");
-					stmt->token_end = tokens->iter;
+					stmt->token_end = tokens.iter;
 				}break;
 			}
 		}break;
@@ -1193,7 +1193,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 					Node* me = new_expression(curt.raw, Expression_BinaryOpMemberAccess);
 					token_next();
 					Expect(Token_Identifier) {
-						if (!nodeexp->struct_type->member_vars.has(curt.raw)) { ParseFail("attempt to access undefined member of var ", (*tokens)[currTokIdx() - 2].raw); return 0; }
+						if (!nodeexp->struct_type->member_vars.has(curt.raw)) { ParseFail("attempt to access undefined member of var ", tokens[currTokIdx() - 2].raw); return 0; }
 						Node* me2 = new_expression(curt.raw, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.raw));
 						nodeexp = parser.expression;
 						nodeexp->struct_type = (*nodestruct->member_vars.at(curt.raw))->struct_type;
@@ -1205,7 +1205,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 							me2 = new_expression(curt.raw, Expression_BinaryOpMemberAccess);
 							token_next();
 							Expect(Token_Identifier) {
-								if (!nodestruct->member_vars.has(curt.raw)) { ParseFail("attempt to access undefined member of var ", (*tokens)[currTokIdx() - 2].raw); return 0; }
+								if (!nodestruct->member_vars.has(curt.raw)) { ParseFail("attempt to access undefined member of var ", tokens[currTokIdx() - 2].raw); return 0; }
 								Node* next = new_expression(curt.raw, Expression_IdentifierRHS, toStr(expstr(Expression_IdentifierRHS), curt.raw));
 								nodeexp = parser.expression;
 								nodeexp->struct_type = (*nodestruct->member_vars.at(curt.raw))->struct_type;
@@ -1236,7 +1236,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 b32 Parser::parse_program(Program& mother) {
 	arena.init(Kilobytes(10));
 	mother.node.comment = "program";
-	tokens = &preprocessor.tokens;
+	tokens = carray<Token>{preprocessor.tokens.data, preprocessor.tokens.count};
 	
 	for (u32 i : preprocessor.func_decl) {
 		setTokenIdx(i);
