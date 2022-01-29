@@ -83,6 +83,7 @@ maybe require -defstr to specify OS versions and distros
 //libs
 #include <iostream>
 #include <chrono>
+#include <thread>
 
 #define TIMER_START(name) std::chrono::time_point<std::chrono::high_resolution_clock> name = std::chrono::high_resolution_clock::now()
 #define TIMER_RESET(name) name = std::chrono::high_resolution_clock::now()
@@ -206,7 +207,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		string source = load_file(raw_filepath.str);
 		if(!source) return ReturnCode_File_Not_Found;
 		
-		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//~///////////////////////////////////////////////////////////////////////////////////////////////
 		//// Lexing
 		log("verbose", "lexing started");
 		TIMER_START(timer);

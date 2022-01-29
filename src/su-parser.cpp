@@ -251,7 +251,7 @@ const char* nodeTypeStrs[] = {
 
 Node* declare(Node* node, NodeType type);
 Node* define(ParseStage stage, Node* node);
-auto debug_define = [&](ParseStage stage, Node* node) -> Node* {
+auto debug_define = [](ParseStage stage, Node* node) -> Node* {
 	if (!ParserDebugArena.data) ParserDebugArena.init(Kilobytes(1));
 	
 	Node* nu = (Node*)ParserDebugArena.add(Node());
@@ -396,9 +396,9 @@ Node* Parser::declare(Node* node, NodeType type) {
 								strct->token_end = tokens->iter;
 								return me; 
 							}
-							ExpectFail("expected ; for struct decl ", structure->identifier);
-						}ExpectFail("expected } for struct decl ", structure->identifier);
-					}ExpectFail("expected{after struct identifier ", structure->identifier);
+							ExpectFail("expected ; for struct decl "     ,structure->identifier);
+						}ExpectFail("expected } for struct decl "     ,structure->identifier);
+					}ExpectFail("expected{after struct identifier ",structure->identifier);
 				}ExpectFail("expected an identifier for struct decl");
 			}ExpectFail("expected 'struct' keyword for struct declaration (somehow 'declare' was called without this?)");
 		}break;
