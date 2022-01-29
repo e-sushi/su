@@ -91,7 +91,6 @@ maybe require -defstr to specify OS versions and distros
 
 //headers
 #include "su-warnings.h"
-#include "su-errors.h"
 #include "su-types.h"
 
 //source
@@ -198,11 +197,10 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 	}
 	
 	for(const string& raw_filepath : filepaths){ //NOTE MULTIPLE FILES DOESNT ACTUALLY WORK YET
-		u32 error_code = 0;
+		b32 success = false;
 		
-		//TODO dont do this so we support relative paths
-		FilePath filepath(cstring{raw_filepath.str, raw_filepath.count});
-		cstring name_dot_ext = {filepath.filename.str, filepath.filename.count + 1 + filepath.extension.count};
+		cstring filepath{raw_filepath.str, raw_filepath.count};
+		FilePath filepath_ex(filepath);
 		
 		string source = load_file(raw_filepath.str);
 		if(!source) return ReturnCode_File_Not_Found;
@@ -211,12 +209,13 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//// Lexing
 		log("verbose", "lexing started");
 		TIMER_START(timer);
-		error_code = lex_file(name_dot_ext, source);
-		if(error_code != EC_Success){ PRINTLN("ERROR: lexer failed"); return ReturnCode_Lexer_Failed; }
+		success = lex_file(filepath, source);
+		if(!success){ PRINTLN("ERROR: lexer failed"); return ReturnCode_Lexer_Failed; }
 		log("verbose", "lexing took ", TIMER_END(timer)," ms");
 		log("verbose", "lexing finished");
 		
 		/*
+//NOTE print all tokens
 		forE(lexer.tokens){
 			if(it->type == Token_LiteralFloat){
 				printf("type: %s, val: %f\n", TokenTypes_Names[it->type], it->float_value);
@@ -229,39 +228,39 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 */
 		
 		preprocessor.preprocess();
-
+		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Parsing
 		Program program;
-		program.filename = name_dot_ext;
+		program.filename = filepath;
 		log("verbose", "parsing started");
 		TIMER_RESET(timer);
-		error_code = parser.parse_program(program);
-		if(error_code != EC_Success){ PRINTLN("ERROR: parser failed"); return ReturnCode_Parser_Failed; }
+		success = parser.parse_program(program);
+		if(!success){ PRINTLN("ERROR: parser failed"); return ReturnCode_Parser_Failed; }
 		log("verbose", "parsing took ", TIMER_END(timer), " ms");
 		log("verbose", "parsing finished");
 		
-		string output_graph_path = output_dir + filepath.filename + ".svg";
+		string output_graph_path = output_dir + filepath_ex.filename + ".svg";
 		generate_ast_graph_svg(output_graph_path.str, program);
 		generate_ast_graph_svg("parserdebugtree.svg", &ParserDebugTree);
-
+		
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Assembling
 		log("verbose", "assembling started");
 		string assembly;
 		TIMER_RESET(timer);
-		error_code = assemble_program(program, assembly);
-		if(error_code != EC_Success){ PRINTLN("ERROR: assembler failed"); return ReturnCode_Assembler_Failed; }
+		success = assemble_program(program, assembly);
+		if(!success){ PRINTLN("ERROR: assembler failed"); return ReturnCode_Assembler_Failed; }
 		log("verbose", "assembling took ", TIMER_END(timer), " ms");
 		log("verbose", "assembling finished");
 		
-		string output_asm_path = output_dir + filepath.filename + ".s";
-		b32 success = write_file(output_asm_path.str, assembly);
+		string output_asm_path = output_dir + filepath_ex.filename + ".s";
+		success = write_file(output_asm_path.str, assembly);
 		if(!success) return ReturnCode_File_Locked;
 		
 		//print successfully compiled file
-		printf("%s\n", filepath.filename.str); //NOTE printf will go until \0 which happens to include the extension
+		printf("%s\n", filepath.str);
 	}
 	return ReturnCode_Success;
 }

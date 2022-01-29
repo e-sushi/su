@@ -420,10 +420,10 @@ template<typename... T, typename A> inline b32 match_any(A tested, T... in) { re
 #define AssertBreakpoint(expression, ...) STMNT( if(!(expression)){ DebugBreakpoint; } )
 #define StaticAssertAlways(expression, ...) char GLUE(__ignore__, GLUE(__LINE__,__default__))[(expression)?1:-1]
 
-#if   DESHI_INTERNAL
+#if   SU_INTERNAL
 #  define Assert(expression, ...) AssertBreakpoint(expression)
 #  define StaticAssert(expression, ...) StaticAssertAlways(expression)
-#elif DESHI_SLOW
+#elif SU_SLOW
 #  define Assert(expression, ...) AssertAlways(expression)
 #  define StaticAssert(expression, ...) StaticAssertAlways(expression)
 #else

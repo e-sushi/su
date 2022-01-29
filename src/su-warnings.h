@@ -17,7 +17,6 @@ enum WarningCodes{
 	//// @level1 //// (warnings that are probably programmer errors, but are valid in rare cases)
 	WarningCodes_Level1_Start = WarningCodes_NULL,
 	
-	WC_Not_All_Paths_Return,
 	WC_Overflow,
 	//WC_Implicit_Narrowing_Conversion,
 	
@@ -50,7 +49,6 @@ const char* WarningCodes_Names[WarningCodes_COUNT] = {
 	"null",
 	
 	//// @level1 //// (warnings that are probably programmer errors, but are valid in rare cases)
-	NAME(WC_Not_All_Paths_Return),
 	NAME(WC_Overflow),
 	//NAME(WC_Implicit_Narrowing_Conversion),
 	
@@ -70,12 +68,11 @@ const char* WarningCodes_Names[WarningCodes_COUNT] = {
 /////////////////// //NOTE we append "%s" to the end of strings for call-site formatting
 //// @Messages ////
 ///////////////////
-#define MSG(code,msg) "%.*s(%d:%d):[%s%d] " msg "%s"
+#define MSG(code,msg) "%.*s(%d,%d):[%s%d] " msg "%s"
 const char* WarningCodes_Messages[WarningCodes_COUNT] = {
 	"null",
 	
 	//// @level1 //// (warnings that are probably programmer errors, but are valid in rare cases)
-	MSG(WC_Not_All_Paths_Return, "Not all code paths in the non-void function '%.*s' return a value. Auto-inserting a return 0 at the end of the function."),
 	MSG(WC_Overflow, "Overflow in conversion from '%s' to '%s'."),
 	//MSG(WC_Implicit_Narrowing_Conversion, ""),
 	
@@ -89,5 +86,9 @@ const char* WarningCodes_Messages[WarningCodes_COUNT] = {
 	//MSG(WC_Negative_Constant_Assigned_To_Unsigned_Variable, ""),
 };
 #undef MSG
+
+#include <bitset>
+std::bitset<WarningCodes_COUNT> disabledWC; //NOTE disabled b/c bitset defaults to zero
+int warning_level_mapping[] = { WarningCodes_Level1_Start-1, WarningCodes_Level2_Start-1, WarningCodes_Level3_Start-1, MAX_U16};
 
 #endif //SU_WARNINGS_H

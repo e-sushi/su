@@ -4,7 +4,7 @@
 b32 parse_failed = false;
 
 #define ParseFail(...)\
-{logE("parser", __VA_ARGS__, "\n caused by token '", TokenTypes_Names[curt.type], "' on line ", curt.line_start); parse_failed = true;}
+{logE("parser", __VA_ARGS__, "\n caused by token '", TokenTypes_Names[curt.type], "' on line ", curt.l0); parse_failed = true;}
 
 #define Expect(Token_Type)\
 if(curt.type == Token_Type) 
@@ -107,8 +107,8 @@ inline upt dataTypeSizes(DataType type) {
 #define ConvertWarnIfOverflow(actualtype, type1, type2) \
 actualtype og = sec->type1; sec->type2 = og; \
 if (og != sec->type2) { \
-log_warning_custom(WC_Overflow, 0, "", 0, 0, toStr(" Value went from '",og,"' to '",sec->type2,"'.\n").str, \
-STRINGIZE(type1), STRINGIZE(type2)); \
+log_warning_custom(WC_Overflow, int(pri->token_start->file.count), pri->token_start->file.str, pri->token_start->l0, pri->token_start->c0, \
+toStr(" Value went from '",og,"' to '",sec->type2,"'.\n").str, STRINGIZE(type1), STRINGIZE(type2)); \
 } DebugPrintConversions(type1, type2)
 
 
@@ -498,7 +498,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 			insert_last(node, &scope->node);
 			while (!next_match(Token_CloseBrace)) {
 				if(scope->has_return_statement){
-					log_warning(WC_Unreachable_Code_After_Return, curt.file.count, curt.file.str, curt.line_start, curt.col_start);
+					log_warning(WC_Unreachable_Code_After_Return, (&curt));
 					if(globals.warnings_as_errors) break;
 				}
 				
@@ -1233,32 +1233,31 @@ Node* Parser::define(ParseStage stage, Node* node) {
 	return 0;
 }
 
-u32 Parser::parse_program(Program& mother) {
+b32 Parser::parse_program(Program& mother) {
 	arena.init(Kilobytes(10));
 	mother.node.comment = "program";
 	tokens = &preprocessor.tokens;
-	
 	
 	for (u32 i : preprocessor.func_decl) {
 		setTokenIdx(i);
 		declare(&mother.node, NodeType_Function);
 	}
-	if (parse_failed) return 1;
+	if (parse_failed) return false;
 	for (u32 i : preprocessor.struct_decl) {
 		setTokenIdx(i);
 		declare(&mother.node, NodeType_Structure);
 	}
-	if (parse_failed) return 1;
+	if (parse_failed) return false;
 	
 	for (Node* n : knownStructs) {
 		Define(psStruct, n);
 	}
-	if (parse_failed) return 1;
+	if (parse_failed) return false;
 	
 	for (Node* n : knownFuncs) {
 		Define(psFunction, n);
 	}
-	if (parse_failed) return 1;
+	if (parse_failed) return false;
 	
-	return EC_Success;
+	return true;
 }
