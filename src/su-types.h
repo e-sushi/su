@@ -516,8 +516,8 @@ struct Token {
 	TokenGroup group;
 	
 	cstring file;
-	u32 line_start, line_end;
-	u32 col_start,  col_end;
+	u32 l0, l1;
+	u32 c0, c1;
 	
 	union{
 		f64 float_value;
@@ -967,7 +967,7 @@ struct Parser {
 	
 	Node* declare(Node* node, NodeType type);
 	Node* define(ParseStage stage, Node* node);
-	u32 parse_program(Program& mother);
+	b32 parse_program(Program& mother);
 } parser;
 
 

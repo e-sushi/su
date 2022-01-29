@@ -27,6 +27,9 @@ struct Assembler{
 ////////////////
 //// @utils //// //NOTE assembly is in AT&T syntax: instr src,dest #comment
 ////////////////
+#define assembler_report_error(token, fmt, ...)\
+printf("%.*s(%d,%d): Error: " fmt, int(token->file.count), token->file.str, token->l0, token->c0, ##__VA_ARGS__)
+
 //TODO setup args for function / start function / end function
 
 local FORCE_INLINE void asm_pure(const char* str)   { assembler.output += str; }
@@ -89,7 +92,7 @@ asm_pop_stack(u32 reg, const char* comment = 0){
 void assemble_expression(Expression* expr);
 
 FORCE_INLINE void assemble_binop_children(Expression* expr){
-	Assert(expr->node.child_count == 2, "Binary operators must have two child nodes");
+	AssertAlways(expr->node.child_count == 2, "Binary operators must have two child nodes");
 	//NOTE right then left because our AST grows left, so we want to push values to be used later onto the stack first
 	assemble_expression(ExpressionFromNode(expr->node.last_child));
 	asm_push_stack(Register_RAX);
@@ -131,7 +134,7 @@ assemble_expression(Expression* expr){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Ternary
 		case Expression_TernaryConditional:{
-			Assert(expr->node.child_count == 3, "Expression_TernaryConditional must have three child nodes");
+			AssertAlways(expr->node.child_count == 3, "Expression_TernaryConditional must have three child nodes");
 			
 			string skip_if_label = toStr(".L",assembler.label_counter++);
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
@@ -154,7 +157,7 @@ assemble_expression(Expression* expr){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Literals
 		case Expression_Literal:{
-			Assert(expr->node.child_count == 0, "Expression_Literal must not have any child nodes");
+			AssertAlways(expr->node.child_count == 0, "Expression_Literal must not have any child nodes");
 			
 			//string args = toStr("$",expr->integer_literal.value,",%rax");
 			string args = "$" + to_string(expr->int64) + ",%rax";
@@ -164,14 +167,14 @@ assemble_expression(Expression* expr){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Unary Operators
 		case Expression_UnaryOpBitComp:{
-			Assert(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
+			AssertAlways(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
 			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("notq", "%rax", "perform bitwise complement");
 		}break;
 		
 		case Expression_UnaryOpLogiNOT:{
-			Assert(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
+			AssertAlways(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
 			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("cmpq", "$0,%rax", "perform logical not");
@@ -180,15 +183,15 @@ assemble_expression(Expression* expr){
 		}break;
 		
 		case Expression_UnaryOpNegate:{
-			Assert(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
+			AssertAlways(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
 			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("negq", "%rax", "perform artihmetic negation");
 		}break;
 		
 		case Expression_IncrementPrefix:{
-			Assert(expr->node.child_count == 1, "Expression_IncrementPrefix must have only one child node");
-			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPrefix child must be Expression_IdentifierRHS");
+			AssertAlways(expr->node.child_count == 1, "Expression_IncrementPrefix must have only one child node");
+			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPrefix child must be Expression_IdentifierRHS");
 			
 			Expression* var = ExpressionFromNode(expr->node.first_child);
 			u32* offset = assembler.var_map.at(var->expstr);
@@ -202,8 +205,8 @@ assemble_expression(Expression* expr){
 		}break;
 		
 		case Expression_IncrementPostfix:{
-			Assert(expr->node.child_count == 1, "Expression_IncrementPostfix must have only one child node");
-			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPostfix child must be Expression_IdentifierRHS");
+			AssertAlways(expr->node.child_count == 1, "Expression_IncrementPostfix must have only one child node");
+			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPostfix child must be Expression_IdentifierRHS");
 			
 			Expression* var = ExpressionFromNode(expr->node.first_child);
 			u32* offset = assembler.var_map.at(var->expstr);
@@ -217,8 +220,8 @@ assemble_expression(Expression* expr){
 		}break;
 		
 		case Expression_DecrementPrefix:{
-			Assert(expr->node.child_count == 1, "Expression_DecrementPrefix must have only one child node");
-			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPrefix child must be Expression_IdentifierRHS");
+			AssertAlways(expr->node.child_count == 1, "Expression_DecrementPrefix must have only one child node");
+			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPrefix child must be Expression_IdentifierRHS");
 			
 			Expression* var = ExpressionFromNode(expr->node.first_child);
 			u32* offset = assembler.var_map.at(var->expstr);
@@ -232,8 +235,8 @@ assemble_expression(Expression* expr){
 		}break;
 		
 		case Expression_DecrementPostfix:{
-			Assert(expr->node.child_count == 1, "Expression_DecrementPostfix must have only one child node");
-			Assert(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPostfix child must be Expression_IdentifierRHS");
+			AssertAlways(expr->node.child_count == 1, "Expression_DecrementPostfix must have only one child node");
+			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPostfix child must be Expression_IdentifierRHS");
 			
 			Expression* var = ExpressionFromNode(expr->node.first_child);
 			u32* offset = assembler.var_map.at(var->expstr);
@@ -250,7 +253,7 @@ assemble_expression(Expression* expr){
 		//// Binary Operators
 		case Expression_BinaryOpOR:{
 			//TODO: optimization, check for false/true literals
-			Assert(expr->node.child_count == 2, "Expression_BinaryOpOR must have two child nodes");
+			AssertAlways(expr->node.child_count == 2, "Expression_BinaryOpOR must have two child nodes");
 			
 			string label = toStr(".L",assembler.label_counter++);
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
@@ -262,7 +265,7 @@ assemble_expression(Expression* expr){
 		
 		case Expression_BinaryOpAND:{
 			//TODO: optimization, check for false/true literals
-			Assert(expr->node.child_count == 2, "Expression_BinaryOpAND must have two child nodes");
+			AssertAlways(expr->node.child_count == 2, "Expression_BinaryOpAND must have two child nodes");
 			
 			string label = toStr(".L",assembler.label_counter++);
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
@@ -396,7 +399,7 @@ assemble_expression(Expression* expr){
 		}break;
 		
 		case Expression_BinaryOpAssignment:{
-			Assert(expr->node.child_count == 2, "Expression_BinaryOpAssignment must have only two child nodes");
+			AssertAlways(expr->node.child_count == 2, "Expression_BinaryOpAssignment must have only two child nodes");
 			
 			assemble_expression(ExpressionFromNode(expr->node.last_child));
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
@@ -413,6 +416,8 @@ assemble_statement(Statement* stmt){
 	
     switch(stmt->type){
         case Statement_Return:{
+			AssertAlways(stmt->node.child_count >= 1, "Statement_Return must have at least one child node");
+			
 			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
 			
 			asm_instruction("leave", "restore the previous stack pointer and base pointers (end scope)");
@@ -425,7 +430,7 @@ assemble_statement(Statement* stmt){
 		}break;
 		
 		case Statement_Conditional:{
-			Assert(stmt->node.child_count >= 1, "Statement_Conditional must have at least 1 child node");
+			AssertAlways(stmt->node.child_count >= 1, "Statement_Conditional must have at least 1 child node");
 			
 			assembler.if_nesting += 1;
 			
@@ -457,7 +462,7 @@ assemble_statement(Statement* stmt){
 			asm_label(skip_if_label);
 			//else body
 			if(else_encountered){
-				Assert(stmt->node.last_child->type == NodeType_Statement && StatementFromNode(stmt->node.last_child)->type == Statement_Else, "If there is an else statement as a child node to an if statement, it must be the last node");
+				AssertAlways(stmt->node.last_child->type == NodeType_Statement && StatementFromNode(stmt->node.last_child)->type == Statement_Else, "If there is an else statement as a child node to an if statement, it must be the last node");
 				assemble_statement(StatementFromNode(stmt->node.last_child));
 				asm_label(skip_else_label);
 			}else{
@@ -539,7 +544,7 @@ local void
 assemble_function(Function* func){
 	//TODO func either has to have a return statement or an else with a return statement
 	if(func->node.child_count == 0) return;
-	Assert(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "A function only has one child and it has to be a scope if its a definition");
+	AssertAlways(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "A function only has one child and it has to be a scope if its a definition");
 	
     assembler.function_returned = false;
     
@@ -562,13 +567,9 @@ assemble_function(Function* func){
 		}
 	}
 	
-    if(func->type != DataType_Void && !assembler.function_returned && !equals(func->identifier, cstr_lit("main"))){
-		log_warning(WC_Not_All_Paths_Return, func->token_start->file.count, func->token_start->file.str, func->token_start->line_start, func->token_start->col_start, func->identifier.count, func->identifier.str);
-		if(globals.warnings_as_errors) assembler.function_error = true;
-		
-		asm_instruction("mov", "$0,%rax", "no return statement was found so return 0 by default");
-		asm_instruction("leave",          "restore the previous stack pointer and base pointers");
-        asm_instruction("ret",            "return code pointer back to func call site (end function)");
+    if(func->type != DataType_Void && !assembler.function_returned){
+		assembler_report_error(func->token_start, "Not all code paths in the non-void function '%.*s' return a value.\n", int(func->identifier.count), func->identifier.str);
+		assembler.function_error = true;
     }
 	
 	if(assembler.function_error){
@@ -577,11 +578,10 @@ assemble_function(Function* func){
 	}
 }
 
-u32 assemble_program(Program& program, string& assembly) {
+b32 
+assemble_program(Program& program, string& assembly){
     assembler.output.reserve(1024);
-    string filename(program.filename); filename = "\"" + filename + "\"";
-    asm_instruction(".file", filename.str, "start of this file");
-    asm_instruction(".text",               "start of code section");
+    asm_instruction(".text",          "start of code section");
     asm_instruction(".globl", "main", "marks the function 'main' as being global"); //TODO add entry point to Program
     
 	for_node(program.node.first_child){
@@ -589,10 +589,10 @@ u32 assemble_program(Program& program, string& assembly) {
 	}
 	
 	if(assembler.failed){
-		logfE("assembler", "Program '' failed to compile due to internal errors");
-		return 1;
+		logfE("assembler", "Program '%s' failed to compile due to internal errors", program.filename.str);
+		return false;
 	}
 	
 	assembly = assembler.output;
-	return EC_Success;
+	return true;
 }

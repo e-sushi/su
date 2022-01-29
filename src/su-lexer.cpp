@@ -42,6 +42,9 @@ stream++;                    \
 
 #define LINE_COLUMN ((stream.str - line_start)+1)
 
+#define lexer_report_error(token, fmt, ...)\
+printf("%.*s(%d,%d): Error: " fmt, int(token.file.count), token.file.str, token.l0, token.c0, ##__VA_ARGS__)
+
 //TODO maybe speed this up with hashing/layering
 local TokenType
 token_is_keyword_or_identifier(cstring raw){
@@ -73,7 +76,7 @@ token_is_keyword_or_identifier(cstring raw){
     return Token_Identifier;
 }
 
-u32 lex_file(cstring filename, const string& file){
+b32 lex_file(cstring filename, const string& file){
 	lexer.file_index.add(filename);
 	LexedFile& lfile = lexer.file_index[filename];
 	
@@ -83,15 +86,16 @@ u32 lex_file(cstring filename, const string& file){
 	
 	cstring stream{file.str, file.count};
 	u32 line_number = 1;
+	u32 line_count_non_blank = 0; //TODO count number of non-comment and non-empty lines
 	u32 scope_number = 0;
 	char* line_start = stream.str;
 	while(stream && *stream != '\0'){
 		//set token start
 		Token token{};
 		token.file = filename;
-		token.line_start = line_number;
-		token.col_start  = LINE_COLUMN;
-		token.raw.str    = stream.str;
+		token.l0   = line_number;
+		token.c0   = LINE_COLUMN;
+		token.raw.str = stream.str;
 		
 		switch(*stream){
 			//// @whitespace ////
@@ -126,8 +130,8 @@ u32 lex_file(cstring filename, const string& file){
 					token.int_value = b10tou64(token.raw); //NOTE this replaces token.raw since they are unioned
 				}
 				
-				token.line_end = line_number;
-				token.col_end  = LINE_COLUMN;
+				token.l1 = line_number;
+				token.c1 = LINE_COLUMN;
 				lfile.tokens.add(token);
 			}continue; //skip token creation b/c we did it manually
 			
@@ -138,8 +142,8 @@ u32 lex_file(cstring filename, const string& file){
 				
 				while(stream && *stream != '\''){ stream++; } //skip until closing single quotes
 				
-				token.line_end = line_number;
-				token.col_end  = LINE_COLUMN;
+				token.l1 = line_number;
+				token.c1 = LINE_COLUMN;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
 				lfile.tokens.add(token);
 				stream++;
@@ -152,8 +156,8 @@ u32 lex_file(cstring filename, const string& file){
 				
 				while(stream && *stream != '"'){ stream++; } //skip until closing double quotes
 				
-				token.line_end = line_number;
-				token.col_end  = LINE_COLUMN;
+				token.l1 = line_number;
+				token.c1 = LINE_COLUMN;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
 				lfile.tokens.add(token);
 				stream++;
@@ -233,8 +237,8 @@ u32 lex_file(cstring filename, const string& file){
 				}else if(*stream == '*'){
 					while((stream.count > 1) && !(stream[0] == '*' && stream[1] == '/')){ stream++; } //skip multiline comment
 					if(stream.count <= 1 && stream[-1] != '/' && stream[-2] != '*'){
-						log_error(EC_Multiline_Comment_No_End, filename.count, filename.str, token.line_start, token.col_start);
-						return EC_Multiline_Comment_No_End;
+						lexer_report_error(token, "Multi-line comment has no ending */ token.");
+						return false;
 					}
 					stream++; stream++;
 					continue; //skip token creation
@@ -297,8 +301,8 @@ u32 lex_file(cstring filename, const string& file){
 		
 		//set token end
 		if(token.type != Token_ERROR){
-			token.line_end = line_number;
-			token.col_end  = LINE_COLUMN;
+			token.l1 = line_number;
+			token.c1 = LINE_COLUMN;
 			token.raw.count = stream.str - token.raw.str;
 			lfile.tokens.add(token);
 		}
@@ -341,7 +345,7 @@ u32 lex_file(cstring filename, const string& file){
 		
 	}
 	
-	return EC_Success;
+	return true;
 }
 
 #undef LINE_COLUMN
