@@ -206,7 +206,9 @@ template<typename T>
 struct carray{
     T*  data;
     upt count;
-    
+
+	T* iter = data;
+
     FORCE_INLINE explicit operator bool(){ return data && count; }
 	FORCE_INLINE T& operator[](upt idx){ return data[idx]; }
 	FORCE_INLINE T* at(upt idx){ return &data[idx]; }
