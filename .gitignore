@@ -18,9 +18,11 @@
 *.diagsession
 *.svg
 *.s
+*.code-workspace
 
 #folders
 .vs/
+.vscode/
 build/
 docs/
 
@@ -28,8 +30,3 @@ docs/
 TODOs.txt
 misc/su.vcxproj.user
 misc/shell.bat
-workspace.code-workspace
-.vscode/c_cpp_properties.json
-.vscode/launch.json
-.vscode/settings.json
-.vscode/tasks.json

@@ -98,8 +98,8 @@ maybe require -defstr to specify OS versions and distros
 
 #ifdef TRACY_ENABLE
 #include "TracyClient.cpp"
-#endif
 #include "Tracy.hpp"
+#endif
 
 //source
 #include "su-io.cpp"
@@ -116,8 +116,6 @@ void PrintNum(u32 a){
 
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)	
 	ZoneScoped;
-
-
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//// Command Line Arguments
