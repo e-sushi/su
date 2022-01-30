@@ -6,6 +6,7 @@
 #include "utils/defines.h"
 #include "utils/string.h"
 
+const global_ u32 max_threads = 7;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compile Options
@@ -57,7 +58,8 @@ struct Arena {
 			data = (u8*)calloc(1, size);
 			cursor = data;
 		}
-		*((T*)cursor) = in;
+		memcpy(cursor, &in, sizeof(T));
+		//*((T*)cursor) = in;
 		cursor += sizeof(T);
 		return cursor - sizeof(T);
 	}
@@ -410,7 +412,7 @@ enum TokenTypes{
 	Token_String,                   // str
 	Token_Any,                      // any
 	Token_Struct,                   // user defined type
-}; typedef u32 TokenType;
+}; typedef u32 Token_Type;
 
 #define NAME(code) STRINGIZE(code)
 const char* TokenTypes_Names[] = {
@@ -512,7 +514,7 @@ enum TokenGroups{
 }; typedef u32 TokenGroup;
 
 struct Token {
-	TokenType  type;
+	Token_Type  type;
 	TokenGroup group;
 	
 	cstring file;
@@ -803,7 +805,7 @@ enum ParseStage {
 };
 
 struct Parser {
-	array<Token>* tokens; //TODO make this a view of the preprocessor's final array so we can do multithreading
+	carray<Token> tokens; 
 	Token curt;
 	
 	Struct*      structure;
@@ -816,35 +818,35 @@ struct Parser {
 	Arena arena;
 	
 	inline void token_next(u32 count = 1) {
-		curt = tokens->next(count);
+		curt = array_next(tokens,count);
 	}
 	
 	inline void token_prev(u32 count = 1) {
-		curt = tokens->prev(count);
+		curt = array_prev(tokens,count);
 	}
 	
 	inline void setTokenIdx(u32 i) {
-		tokens->setiter(i);
-		curt = *tokens->iter;
+		tokens.iter = tokens.data + i;
+		curt = *tokens.iter;
 	}
 	
 	inline u32 currTokIdx() {
-		return tokens->iter - tokens->data;
+		return tokens.iter - tokens.data;
 	}
 	
 	template<class... T>
 		inline b32 check_signature(u32 offset, T... in) {
-		return ((tokens->peek(offset++).type == in) && ...);
+		return ((array_peek(tokens,offset++).type == in) && ...);
 	}
 	
 	template<typename... T> inline b32
 		next_match(T... in) {
-		return ((tokens->peek(1).type == in) || ...);
+		return ((array_peek(tokens).type == in) || ...);
 	}
 	
 	template<typename... T> inline b32
 		next_match_group(T... in) {
-		return ((tokens->peek(1).group == in) || ...);
+		return ((array_peek(tokens).group == in) || ...);
 	}
 	
 	inline Node* new_structure(cstring& identifier, const string& node_str = "") {
@@ -898,7 +900,7 @@ struct Parser {
 	}
 	
 	template<typename... T>
-		Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
+	Node* binopParse(Node* node, Node* ret, ParseStage next_stage, T... tokcheck) {
 		Node* ret0 = ret; //save for type checking and removing if we do compile time exp
 		token_next();
 		Node* me = new_expression(curt.raw, *tokToExp.at(curt.type), ExTypeStrings[*tokToExp.at(curt.type)]);
@@ -911,11 +913,11 @@ struct Parser {
 		//TODO fix the bug that happens when you do something like a + 30 * 2 || 9 / 3 * 4;
 		auto docomptime = [&](Expression* exp, ExpressionType type, Node* a, Node* b) {
 			switch (ExpressionFromNode(ret0)->datatype) {
-				case DataType_Signed8: {exp->int8 = compile_time_binop< s8>(type, ExpressionFromNode(a)->int8, ExpressionFromNode(b)->int8); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int8)); return true; }break;
-				case DataType_Signed16: {exp->int16 = compile_time_binop<s16>(type, ExpressionFromNode(a)->int16, ExpressionFromNode(b)->int16); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int16)); return true; }break;
-				case DataType_Signed32: {exp->int32 = compile_time_binop<s32>(type, ExpressionFromNode(a)->int32, ExpressionFromNode(b)->int32); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int32)); return true; }break;
-				case DataType_Signed64: {exp->int64 = compile_time_binop<s64>(type, ExpressionFromNode(a)->int64, ExpressionFromNode(b)->int64); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int64)); return true; }break;
-				case DataType_Unsigned8: {exp->uint8 = compile_time_binop< u8>(type, ExpressionFromNode(a)->uint8, ExpressionFromNode(b)->uint8); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint8)); return true; }break;
+				case DataType_Signed8:    {exp->int8   = compile_time_binop< s8>(type, ExpressionFromNode(a)->int8, ExpressionFromNode(b)->int8); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int8)); return true; }break;
+				case DataType_Signed16:   {exp->int16  = compile_time_binop<s16>(type, ExpressionFromNode(a)->int16, ExpressionFromNode(b)->int16); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int16)); return true; }break;
+				case DataType_Signed32:   {exp->int32  = compile_time_binop<s32>(type, ExpressionFromNode(a)->int32, ExpressionFromNode(b)->int32); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int32)); return true; }break;
+				case DataType_Signed64:   {exp->int64  = compile_time_binop<s64>(type, ExpressionFromNode(a)->int64, ExpressionFromNode(b)->int64); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->int64)); return true; }break;
+				case DataType_Unsigned8:  {exp->uint8  = compile_time_binop< u8>(type, ExpressionFromNode(a)->uint8, ExpressionFromNode(b)->uint8); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint8)); return true; }break;
 				case DataType_Unsigned16: {exp->uint16 = compile_time_binop<u16>(type, ExpressionFromNode(a)->uint16, ExpressionFromNode(b)->uint16); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint16)); return true; }break;
 				case DataType_Unsigned32: {exp->uint32 = compile_time_binop<u32>(type, ExpressionFromNode(a)->uint32, ExpressionFromNode(b)->uint32); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint32)); return true; }break;
 				case DataType_Unsigned64: {exp->uint64 = compile_time_binop<u64>(type, ExpressionFromNode(a)->uint64, ExpressionFromNode(b)->uint64); me->comment = toStr(ExTypeStrings[Expression_Literal], " ", to_string(exp->uint64)); return true; }break;

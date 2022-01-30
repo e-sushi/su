@@ -66,6 +66,8 @@ maybe require -defstr to specify OS versions and distros
 
 */
 
+
+
 //utils
 #include "utils/array.h"
 #include "utils/array_utils.h"
@@ -80,9 +82,11 @@ maybe require -defstr to specify OS versions and distros
 #include "utils/unicode.h"
 #include "utils/utils.h"
 
-//libs
+//libs:
 #include <iostream>
 #include <chrono>
+#include <thread>
+#include <condition_variable>
 
 #define TIMER_START(name) std::chrono::time_point<std::chrono::high_resolution_clock> name = std::chrono::high_resolution_clock::now()
 #define TIMER_RESET(name) name = std::chrono::high_resolution_clock::now()
@@ -92,22 +96,29 @@ maybe require -defstr to specify OS versions and distros
 #include "su-warnings.h"
 #include "su-types.h"
 
+#ifdef TRACY_ENABLE
+#include "TracyClient.cpp"
+#endif
+#include "Tracy.hpp"
+
 //source
 #include "su-io.cpp"
+#include "su-threader.cpp"
 #include "su-lexer.cpp"
 #include "su-preprocessor.cpp"
 #include "su-parser.cpp"
 #include "su-assembler.cpp"
 #include "su-ast-graph.cpp"
 
-int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)
+int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)	
+	ZoneScoped;
+	
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//// Command Line Arguments
 	if (argc < 2) {
 		PRINTLN("ERROR: no arguments passed");
 		return ReturnCode_No_File_Passed;
 	}
-	
 	//make this not array and string later maybe 
 	array<string> filepaths;
 	string output_dir = "";
@@ -204,7 +215,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		string source = load_file(raw_filepath.str);
 		if(!source) return ReturnCode_File_Not_Found;
 		
-		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//~///////////////////////////////////////////////////////////////////////////////////////////////
 		//// Lexing
 		log("verbose", "lexing started");
 		TIMER_START(timer);

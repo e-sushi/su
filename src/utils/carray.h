@@ -42,4 +42,26 @@ array_insert(T* arr, upt arr_count, T& item, upt idx){
 }
 template<typename T> FORCE_INLINE void array_insert(carray<T> arr, T& item, upt idx){ array_insert(arr.data, arr.count, item, idx); }
 
+template<typename T> global_ T&
+array_next(carray<T>& arr, u32 count=1){
+	if((arr.data + arr.count) - arr.iter + 1 >= 0){
+		return arr.iter += count, *arr.iter;
+	}
+	return *arr.iter;
+}
+
+template<typename T> global_ T&
+array_prev(carray<T>& arr, u32 count = 1){
+	if (arr.iter - arr.data + 1 >= 0) {
+		return arr.iter -= count, *arr.iter;
+	}
+	return *--arr.iter;
+}
+
+template<typename T> global_ T&
+array_peek(carray<T>& arr, u32 i=1){
+	if((arr.data + arr.count) - arr.iter + 1 >= 0) return *(arr.iter + i);
+	return *arr.iter;
+}
+
 #endif //DESHI_CARRAY_H
