@@ -21,6 +21,7 @@
 
 #folders
 .vs/
+.vscode/
 build/
 docs/
 
@@ -28,3 +29,4 @@ docs/
 TODOs.txt
 misc/su.vcxproj.user
 misc/shell.bat
+misc/su.code-workspace

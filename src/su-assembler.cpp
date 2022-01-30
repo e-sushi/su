@@ -17,8 +17,9 @@ struct Assembler{
 	
 	u32 label_counter = 1;
 	//char label[16] = ".L?";
+	u32 innermost_loop_exit_label = -1;
+	u32 innermost_loop_loop_label = -1;
 	
-	Declaration* active_decl = 0;
 	u32 stack_offset = 0;
 	map<string,u32> var_map; //TODO use cstring, allow for local shadowing, use an arena
 } assembler;
@@ -110,11 +111,7 @@ assemble_expression(Expression* expr){
 		case Expression_IdentifierLHS:{
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
-				if(assembler.active_decl){
-					asm_instruction("movq", toStr("%rax,-",*offset,"(%rbp)").str, toStr("copy the value at %rax in var ", assembler.active_decl->identifier).str);
-				}else{
-					asm_instruction("movq", toStr("%rax,-",*offset,"(%rbp)").str, "copy the value at %rax in a var");
-				}
+				asm_instruction("movq", toStr("%rax,-",*offset,"(%rbp)").str, toStr("copy the value at %rax in var ", expr->expstr).str);
 			}else{
 				logfE("assembler", "Attempted to reference an undeclared variable: %s", expr->expstr.str);
 				assembler.function_error = true;
@@ -430,7 +427,7 @@ assemble_statement(Statement* stmt){
 		}break;
 		
 		case Statement_Conditional:{
-			AssertAlways(stmt->node.child_count >= 1, "Statement_Conditional must have at least 1 child node");
+			AssertAlways(stmt->node.child_count >= 1, "Statement_Conditional must have at least one child node");
 			
 			assembler.if_nesting += 1;
 			
@@ -471,8 +468,10 @@ assemble_statement(Statement* stmt){
 		}break;
 		
 		case Statement_Else:{
+			AssertAlways(stmt->node.child_count == 1, "Statement_Conditional must have only one child node");
+			
 			if(assembler.if_nesting <= 0){
-				logfE("assembler", "Else statement has no matching if statement"); //TODO catch this in the parser
+				logfE("assembler", "Else statement has no matching if statement. TODO catch this in the parser");
 				assembler.function_error = true;
 				return;
 			}
@@ -482,19 +481,49 @@ assemble_statement(Statement* stmt){
 		}break;
 		
 		case Statement_For:{
-			log("assembler", "Statement_For not implemented yet");
+			AssertAlways(stmt->node.child_count >= 2, "Statement_For must have at least two child nodes");
+			//TODO for statement
 		}break;
 		
 		case Statement_While:{
-			log("assembler", "Statement_While not implemented yet");
+			AssertAlways(stmt->node.child_count == 2, "Statement_While must have exactly two child nodes");
+			
+			//jump labels
+			assembler.innermost_loop_loop_label = assembler.label_counter;
+			string loop_label = toStr(".L",assembler.label_counter++);
+			assembler.innermost_loop_exit_label = assembler.label_counter;
+			string exit_label = toStr(".L",assembler.label_counter++);
+			
+			//early out if false
+			assemble_expression(ExpressionFromNode(stmt->node.first_child));
+			asm_instruction("cmpq", "$0,%rax",    "compare %rax against zero");
+			asm_instruction("jz", exit_label.str, "jump over loop body if false");
+			
+			//loop body
+			asm_label(loop_label);
+			if      (stmt->node.last_child->type == NodeType_Scope){
+				assemble_scope(ScopeFromNode(stmt->node.last_child));
+			}else if(stmt->node.last_child->type == NodeType_Expression){
+				assemble_statement(StatementFromNode(stmt->node.last_child));
+			}
+			
+			//loop post expression
+			assemble_expression(ExpressionFromNode(stmt->node.first_child));
+			asm_instruction("cmpq",  "$0,%rax",    "compare %rax against zero");
+			asm_instruction("jnz", loop_label.str, "restart loop body if true");
+			
+			//exit
+			asm_label(exit_label);
 		}break;
 		
 		case Statement_Break:{
-			log("assembler", "Statement_Break not implemented yet");
+			string exit_label = toStr(".L",assembler.innermost_loop_exit_label);
+			asm_instruction("jmp", exit_label.str, "break statement so exit the loop");
 		}break;
 		
 		case Statement_Continue:{
-			log("assembler", "Statement_Continue not implemented yet");
+			string loop_label = toStr(".L",assembler.innermost_loop_loop_label);
+			asm_instruction("jmp", loop_label.str, "continue statement so restart the loop");
 		}break;
 		
 		case Statement_Struct:{
@@ -514,16 +543,15 @@ assemble_declaration(Declaration* decl){
 	//TODO need sizing information overall to call the correct registers
 	if(decl->type != DataType_Signed32){
 		logfE("assembler", "Declaration '%s' declared with type '%s' which is unhandled currently", decl->identifier.str, dataTypeStrs[decl->type]);
+		assembler.function_error = true;
 		return;
 	}
 	
 	assembler.stack_offset += 8; //sizeof(s64) == 4
 	assembler.var_map.add(decl->identifier, assembler.stack_offset);
 	
-	assembler.active_decl = decl;
 	asm_instruction("pushq", "$0", toStr("init var ", decl->identifier, " to zero").str);
 	for_node(decl->node.first_child) assemble_expression(ExpressionFromNode(it));
-	assembler.active_decl = 0;
 }
 
 local void

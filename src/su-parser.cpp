@@ -669,7 +669,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 								stmt->token_end = tokens->iter;
 							}
 							else {
-								ExpectGroup(TokenGroup_Type) { ParseFail("can't declare a declaration in an unscoped for statement"); return 0; }
+								ExpectGroup(TokenGroup_Type) { ParseFail("can't declare a declaration in an unscoped while statement"); return 0; }
 								Define(psStatement, me);
 								Expect(Token_Semicolon) { }
 								ExpectFail("expected a ;");
