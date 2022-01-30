@@ -1,7 +1,5 @@
 
 s32 main(){
-	for(a = 0; a < 10; a++){
-		a++;
 	
 	}
 	return 1;
