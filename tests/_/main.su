@@ -1,4 +1,4 @@
 s32 main(){
 	u32 a = 0;
-	return a + 30 * 2 || 9 / 3 * 4;
+	return a;
 }

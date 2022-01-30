@@ -82,7 +82,7 @@ maybe require -defstr to specify OS versions and distros
 #include "utils/unicode.h"
 #include "utils/utils.h"
 
-//libs:
+//libs
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -110,9 +110,15 @@ maybe require -defstr to specify OS versions and distros
 #include "su-assembler.cpp"
 #include "su-ast-graph.cpp"
 
+void PrintNum(u32 a){
+	PRINTLN(a);
+}
+
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)	
 	ZoneScoped;
-	
+
+
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//// Command Line Arguments
 	if (argc < 2) {
@@ -142,7 +148,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 			globals.warning_level = stoi(argv[i]);
 			//TODO handle invalid arg here
 		}
-		//// @-os output OS ////
+		//// @-os output OS ////ありがとうご
 		else if (!strcmp("-os", arg)) {
 			arg = argv[++i];
 			if      (!strcmp("windows", arg)) { globals.osout = OSOut_Windows; }
@@ -205,7 +211,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		PRINTLN("ERROR: no files passed");
 		return ReturnCode_No_File_Passed;
 	}
-	
+
 	for(const string& raw_filepath : filepaths){ //NOTE MULTIPLE FILES DOESNT ACTUALLY WORK YET
 		b32 success = false;
 		
@@ -224,8 +230,8 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		log("verbose", "lexing took ", TIMER_END(timer)," ms");
 		log("verbose", "lexing finished");
 		
-		/*
-//NOTE print all tokens
+#if 0
+		//NOTE print all tokens
 		forE(lexer.tokens){
 			if(it->type == Token_LiteralFloat){
 				printf("type: %s, val: %f\n", TokenTypes_Names[it->type], it->float_value);
@@ -235,7 +241,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 				printf("type: %s, val: %.*s\n", TokenTypes_Names[it->type], int(it->raw.count), it->raw.str);
 			}
 		}
-*/
+#endif
 		
 		preprocessor.preprocess();
 		
@@ -272,5 +278,6 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		//print successfully compiled file
 		printf("%s\n", filepath.str);
 	}
+	
 	return ReturnCode_Success;
 }

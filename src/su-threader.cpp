@@ -8,7 +8,6 @@ template<typename T> struct is_pointer<T*> { static const bool value = true; };
 template<typename T> T& deref_if_pointer(T& x){return x;}
 template<typename T> T& deref_if_pointer(T* x){return *x;}
 
-
 enum ThreadState{
     ThreadState_NotInitialized,
     ThreadState_Initializing,
@@ -18,16 +17,15 @@ enum ThreadState{
 };
 
 struct Thread;
-
 template<typename FuncToRun, typename... FuncArgs>
 void threadfunc(Thread* me, FuncToRun f, FuncArgs... args);
 //persistent thread struct
 //the purpose of this is to assign a thread a function it can repeatedly execute without closing
-//TODO changing arguments without resetting the function
+//TODO clean up redundent things in this struct
 struct Thread {
 	std::thread me;
-	std::condition_variable cond;
-	std::condition_variable wait;
+	std::condition_variable ThreadCondition;
+	std::condition_variable CallingThreadCondition;
 	std::mutex caller;  //locked by the thread who created this thread while its waiting
 	std::mutex waiting; //locked by the thread when its waiting
 	ThreadState state;
@@ -37,23 +35,19 @@ struct Thread {
 
 	void WakeUp() {
         ZoneScoped;
-		cond.notify_all();
+		ThreadCondition.notify_all();
 	}
 
-	//causes the calling thread to wait until this one signals that its finished
-    //maxTimeToWait is given in milliseconds
-    //returns false if the wait timed out
+	//this funciton locks the caller mutex and waits until CallingThreadCondition receieves
+	//a signal to unblock
 	b32 Wait(u64 timeout = 0) {
         ZoneScoped;
-        while(state != ThreadState_Sleep) {}
+        if(state == ThreadState_Sleep) return true;
+        std::unique_lock<std::mutex> lock(caller);
+        if(timeout) 
+            return (CallingThreadCondition.wait_for(lock, std::chrono::milliseconds(timeout)) == std::cv_status::timeout ? false : true);
+        else CallingThreadCondition.wait(lock);
         return true;
-        
-        //if(state == ThreadState_Sleep) return true;
-        //std::unique_lock<std::mutex> lock(caller);
-        //if(timeout) 
-        //    return (wait.wait_for(lock, std::chrono::milliseconds(timeout)) == std::cv_status::timeout ? false : true);
-        //else wait.wait(lock);
-        //return true;
 	}
 
     //attempts to run the threads function immediately, but returns early if it can't
@@ -92,6 +86,14 @@ struct Thread {
 		WakeUp();
 	}
 
+	//waits for the thread to return, this means you must know the thread is active to begin with!
+	void CloseAndJoin(){
+        ZoneScoped;
+		state = ThreadState_Close;
+		WakeUp();
+		if(me.joinable()) me.join();
+	}
+
     //sets the function that the thread calls 
     //TODO maybe theres a way around closing and reopening the thread? probably not with templating
 	template<typename FuncToRun, typename... FuncArgs>
@@ -99,7 +101,6 @@ struct Thread {
         ZoneScoped;
         Close(); state = ThreadState_Initializing;
 		me = std::thread(threadfunc<FuncToRun, FuncArgs...>, this, f, args...);
-        me.detach();
 	}
     //sets the function that the thread calls and waits until its done initializing
 	template<typename FuncToRun, typename... FuncArgs>
@@ -107,7 +108,6 @@ struct Thread {
         ZoneScoped;
 		Close(); state = ThreadState_Initializing;
 		me = std::thread(threadfunc<FuncToRun, FuncArgs...>, this, f, args...);
-        me.detach();
 		Wait();
 	}
 
@@ -115,6 +115,7 @@ struct Thread {
         if (state == ThreadState_NotInitialized) return;
 		if (state != ThreadState_Sleep) Wait();
 		Close();
+        
         Wait();    
     }
 };
@@ -125,19 +126,23 @@ void threadfunc(Thread* me, FuncToRun f, FuncArgs... args) {
     tracy::SetThreadName(me->comment.str);
 	ThreadDebugPrint(me, " has been created.");
 	while (me->state != ThreadState_Close) {
-        ZoneScoped;
+		ZoneScopedN("Thread is awake");
 		if(me->state==ThreadState_CallFunction){
-            ZoneScoped; 
-            ThreadDebugPrint(me, " is calling its function ", me->functioncalls, " times"); 
+			ZoneScopedN("Thread calls function");
+            ThreadDebugPrint(me, " is calling its function ",  me->functioncalls, " times"); 
             while (me->functioncalls--) { f(deref_if_pointer(args)...); }
         }
-		me->state = ThreadState_Sleep;
-		//me->wait.notify_all();
         ThreadDebugPrint(me, " is going to sleep");
+		me->state = ThreadState_Sleep;
+		me->CallingThreadCondition.notify_all();
 		std::unique_lock<std::mutex> lock(me->waiting);
-		me->cond.wait(lock);
+		while(me->state == ThreadState_Sleep) 
+			me->ThreadCondition.wait(lock);
+		ThreadDebugPrint(me, " has woken up");
 	}
 	ThreadDebugPrint(me, " is now closing");
+	me->CallingThreadCondition.notify_all();
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
 struct ThreadManager{
@@ -161,10 +166,41 @@ struct ThreadManager{
         threads.remove(thread);
     }
 
+	
+    void StopAndDeleteThreadAndWait(Thread* thread){
+        ZoneScoped;
+        if(Thread** tcheck = threads.at(thread); !tcheck) return; //maybe assert here?
+        thread->Close();
+		thread->Wait();
+        threads.remove(thread);
+    }
+
+	  void StopAndDeleteAllThreads(){
+        ZoneScoped;
+        for(Thread* t : threads){
+        	t->Close();
+		}
+		threads.clear();
+    }
+
+	
+    void StopAndDeleteAllThreadsAndWait(){
+        ZoneScoped;
+       	for(Thread* t : threads){
+        	t->CloseAndJoin();
+		}
+		threads.clear();
+    }
+
+
     void DeleteThread(Thread* thread){
         ZoneScoped;
         threads.remove(thread); //no need to check if it exists here
     }
+
+	void CloseAllThreads(){
+		for(Thread* t : threads) t->Close();
+	}
 
     void WaitForAllThreadsToFinish(u64 timeout = 0){
         ZoneScoped;
@@ -172,8 +208,7 @@ struct ThreadManager{
     }
 
     ~ThreadManager(){
-        for(Thread* t : threads) if(t) t->~Thread();
+        
     }
-};
 
-ThreadManager tmanager;
+} tmanager;

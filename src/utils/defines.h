@@ -182,6 +182,7 @@ typedef double             f64;
 typedef s32                b32;   //sized boolean type
 typedef wchar_t            wchar;
 
+
 typedef u32 Type;
 typedef u32 Flags;
 
