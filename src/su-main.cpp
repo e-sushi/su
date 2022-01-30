@@ -98,8 +98,8 @@ maybe require -defstr to specify OS versions and distros
 
 #ifdef TRACY_ENABLE
 #include "TracyClient.cpp"
-#endif
 #include "Tracy.hpp"
+#endif
 
 //source
 #include "su-io.cpp"
@@ -111,7 +111,9 @@ maybe require -defstr to specify OS versions and distros
 #include "su-ast-graph.cpp"
 
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)	
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//// Command Line Arguments

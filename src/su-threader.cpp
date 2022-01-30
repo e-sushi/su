@@ -36,7 +36,9 @@ struct Thread {
 	int functioncalls = 0;
 
 	void WakeUp() {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
 		cond.notify_all();
 	}
 
@@ -44,7 +46,9 @@ struct Thread {
     //maxTimeToWait is given in milliseconds
     //returns false if the wait timed out
 	b32 Wait(u64 timeout = 0) {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
         while(state != ThreadState_Sleep) {}
         return true;
         
@@ -58,7 +62,9 @@ struct Thread {
 
     //attempts to run the threads function immediately, but returns early if it can't
 	void Run(int count = 1) {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
 		if (state != ThreadState_Sleep) return; //thread is already running
 		functioncalls = count;
 		state = ThreadState_CallFunction;
@@ -67,27 +73,35 @@ struct Thread {
 
     //waits until the the thread finishes executing before telling it to run again
     void WaitToRun(int count = 1){
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
         Wait();
         Run(count);
     }
 
 	//pauses the calling thread until this one has finished executing
 	void RunAndWait(int count = 1) {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
 		Run(count);
 		Wait();
 	}
 
     void WaitToRunAndWait(int count = 1){
+#ifdef TRACY_ENABLE        
         ZoneScoped;
+#endif
         Wait();
         RunAndWait(count);
     }
 
     //causes the thread to return
 	void Close() {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
 		state = ThreadState_Close;
 		WakeUp();
 	}
@@ -96,7 +110,9 @@ struct Thread {
     //TODO maybe theres a way around closing and reopening the thread? probably not with templating
 	template<typename FuncToRun, typename... FuncArgs>
 	void SetFunction(FuncToRun f, FuncArgs...args) {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif        
         Close(); state = ThreadState_Initializing;
 		me = std::thread(threadfunc<FuncToRun, FuncArgs...>, this, f, args...);
         me.detach();
@@ -104,7 +120,9 @@ struct Thread {
     //sets the function that the thread calls and waits until its done initializing
 	template<typename FuncToRun, typename... FuncArgs>
 	void SetFunctionAndWait(FuncToRun f, FuncArgs...args) {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
 		Close(); state = ThreadState_Initializing;
 		me = std::thread(threadfunc<FuncToRun, FuncArgs...>, this, f, args...);
         me.detach();
@@ -121,13 +139,19 @@ struct Thread {
 
 template<typename FuncToRun, typename... FuncArgs>
 void threadfunc(Thread* me, FuncToRun f, FuncArgs... args) {
+#ifdef TRACY_ENABLE
     ZoneScoped;
+#endif
     tracy::SetThreadName(me->comment.str);
 	ThreadDebugPrint(me, " has been created.");
 	while (me->state != ThreadState_Close) {
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
 		if(me->state==ThreadState_CallFunction){
+#ifdef TRACY_ENABLE
             ZoneScoped; 
+#endif
             ThreadDebugPrint(me, " is calling its function ", me->functioncalls, " times"); 
             while (me->functioncalls--) { f(deref_if_pointer(args)...); }
         }
@@ -145,7 +169,9 @@ struct ThreadManager{
     Arena thread_arena;
 
     Thread* MakeNewThread(const string& comment = ""){
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
         if(!thread_arena.data) thread_arena.init(sizeof(Thread)*max_threads);
         if(threads.count >= max_threads) return 0;
         Thread* nu = (Thread*)thread_arena.add(Thread());
@@ -155,19 +181,25 @@ struct ThreadManager{
     }
 
     void StopAndDeleteThread(Thread* thread){
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
         if(Thread** tcheck = threads.at(thread); !tcheck) return; //maybe assert here?
         thread->Close();
         threads.remove(thread);
     }
 
     void DeleteThread(Thread* thread){
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
         threads.remove(thread); //no need to check if it exists here
     }
 
     void WaitForAllThreadsToFinish(u64 timeout = 0){
+#ifdef TRACY_ENABLE
         ZoneScoped;
+#endif
         for(Thread* t : threads) t->Wait(timeout);
     }
 

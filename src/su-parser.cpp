@@ -65,7 +65,9 @@ Node* ParserDebugTreeCurrent = &ParserDebugTree;
 Arena ParserDebugArena;
 
 inline DataType dataTypeFromToken(Token_Type type) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	switch (type) {
 		case Token_Void      : {return DataType_Void;}
 		case Token_Signed8   : {return DataType_Signed8;}  
@@ -86,7 +88,9 @@ inline DataType dataTypeFromToken(Token_Type type) {
 }
 
 inline upt dataTypeSizes(DataType type) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	switch (type) {
 		case DataType_Void       : {return    0;}
 		case DataType_Signed8    : {return    1;}
@@ -131,7 +135,9 @@ case DataType_Structure:  { NotImplemented; } \
 
 //secn is casted to match prin if possible
 b32 type_check(Node* prin, Node* secn) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	Expression* pri = ExpressionFromNode(prin);
 	Expression* sec = ExpressionFromNode(secn);
 	
@@ -152,7 +158,9 @@ b32 type_check(Node* prin, Node* secn) {
 }
 
 void set_expression_type_from_declaration(Node* exp, Node* decl) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	Declaration* d = DeclarationFromNode(decl);
 	Expression* e = ExpressionFromNode(exp);
 	switch (d->type) {
@@ -188,7 +196,9 @@ ParseState pState = stNone;
 
 template<typename T>
 T compile_time_binop(ExpressionType type, T a, T b) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	switch (type) {
 		case Expression_BinaryOpPlus:               {return a +  b;}break;
 		case Expression_BinaryOpMinus:              {return a -  b;}break;
@@ -291,7 +301,9 @@ auto debug_define = [](ParseStage stage, Node* node) -> Node* {
 
 //declares a node of a given type and returns it 
 Node* Parser::declare(Node* node, NodeType type) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	//TODO overloaded functions have different signatures
 	switch (type) {
 		case NodeType_Function: {
@@ -433,7 +445,9 @@ Node* Parser::declare(Node* node, NodeType type) {
 
 Node* Parser::define(ParseStage stage, Node* node) {
 	if (parse_failed) return 0;
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	switch (stage) {
 		
 		case psGlobal: { ////////////////////////////////////////////////////////////////////// @Global
@@ -1240,7 +1254,9 @@ Node* Parser::define(ParseStage stage, Node* node) {
 }
 
 b32 Parser::parse_program(Program& mother) {
+#ifdef TRACY_ENABLE
 	ZoneScoped;
+#endif
 	arena.init(Kilobytes(10));
 	mother.node.comment = "program";
 	tokens = carray<Token>{preprocessor.tokens.data, preprocessor.tokens.count};
