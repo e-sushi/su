@@ -6,6 +6,7 @@
 #include "utils/defines.h"
 #include "utils/string.h"
 
+const global_ u32 max_threads = 7;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compile Options
@@ -57,7 +58,8 @@ struct Arena {
 			data = (u8*)calloc(1, size);
 			cursor = data;
 		}
-		*((T*)cursor) = in;
+		memcpy(cursor, &in, sizeof(T));
+		//*((T*)cursor) = in;
 		cursor += sizeof(T);
 		return cursor - sizeof(T);
 	}
@@ -410,7 +412,7 @@ enum TokenTypes{
 	Token_String,                   // str
 	Token_Any,                      // any
 	Token_Struct,                   // user defined type
-}; typedef u32 TokenType;
+}; typedef u32 Token_Type;
 
 #define NAME(code) STRINGIZE(code)
 const char* TokenTypes_Names[] = {
@@ -512,7 +514,7 @@ enum TokenGroups{
 }; typedef u32 TokenGroup;
 
 struct Token {
-	TokenType  type;
+	Token_Type  type;
 	TokenGroup group;
 	
 	cstring file;

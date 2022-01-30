@@ -1,4 +1,4 @@
 void main(){
-	int a = 5;
+	s32 a = 5;
     a++;
 }

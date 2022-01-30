@@ -60,12 +60,12 @@
     <ClCompile>
       <WarningLevel>Level1</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TRACY_ENABLE;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/F 200000000 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>C:\src\graphviz\include\;C:\apps\graphviz\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\src\tracy-0.7.8;C:\src\graphviz\include\;C:\apps\graphviz\include</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>

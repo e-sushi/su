@@ -46,8 +46,9 @@ stream++;                    \
 printf("%.*s(%d,%d): Error: " fmt, int(token.file.count), token.file.str, token.l0, token.c0, ##__VA_ARGS__)
 
 //TODO maybe speed this up with hashing/layering
-local TokenType
+local Token_Type
 token_is_keyword_or_identifier(cstring raw){
+	ZoneScoped;
 	CASEW("return",   Token_Return);
 	CASEW("if",       Token_If);
 	CASEW("else",     Token_Else);
@@ -77,6 +78,7 @@ token_is_keyword_or_identifier(cstring raw){
 }
 
 b32 lex_file(cstring filename, const string& file){
+	ZoneScoped;
 	lexer.file_index.add(filename);
 	LexedFile& lfile = lexer.file_index[filename];
 	
