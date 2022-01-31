@@ -40,6 +40,7 @@ local FORCE_INLINE void asm_label(const string& str){ assembler.output += str; a
 
 local void
 asm_instruction(const char* instruction, const char* comment){  //'pad instruction # comment\n'
+	ZoneScoped;
     upt len_instruction = Max(strlen(instruction), upt(assembler.instruction_width + assembler.args_width + 1));
     char* str = 0;
 	upt count = 0;
@@ -59,6 +60,7 @@ asm_instruction(const char* instruction, const char* comment){  //'pad instructi
 
 local void
 asm_instruction(const char* instruction, const char* args, const char* comment){  //'pad instruction args # comment\n'
+	ZoneScoped;
     upt len_instruction = Max(strlen(instruction), upt(assembler.instruction_width));
     upt len_args = Max(strlen(args), upt(assembler.args_width));
     char* str = 0;
@@ -78,12 +80,12 @@ asm_instruction(const char* instruction, const char* args, const char* comment){
 }
 
 local FORCE_INLINE void
-asm_push_stack(u32 reg, const char* comment = 0){
+asm_push_stack(u32 reg, const char* comment = 0){ZoneScoped;
 	asm_instruction("pushq", registers_x64[reg], (comment) ? comment : "push register onto stack");
 }
 
 local FORCE_INLINE void
-asm_pop_stack(u32 reg, const char* comment = 0){
+asm_pop_stack(u32 reg, const char* comment = 0){ZoneScoped;
 	asm_instruction("popq",  registers_x64[reg], (comment) ? comment : "pop stack into register");
 }
 
@@ -92,7 +94,7 @@ asm_pop_stack(u32 reg, const char* comment = 0){
 /////////////////////
 void assemble_expression(Expression* expr);
 
-FORCE_INLINE void assemble_binop_children(Expression* expr){
+FORCE_INLINE void assemble_binop_children(Expression* expr){ ZoneScoped;
 	AssertAlways(expr->node.child_count == 2, "Binary operators must have two child nodes");
 	//NOTE right then left because our AST grows left, so we want to push values to be used later onto the stack first
 	assemble_expression(ExpressionFromNode(expr->node.last_child));
@@ -101,14 +103,14 @@ FORCE_INLINE void assemble_binop_children(Expression* expr){
 }
 
 local void
-assemble_expression(Expression* expr){
+assemble_expression(Expression* expr){ZoneScoped;
 	//if(assembler.write_comments) asm_pure(toStr("# ", expr->node.comment, "\n"));
 	if(assembler.function_error) return;
 	
 	switch(expr->type){
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Identifiers
-		case Expression_IdentifierLHS:{
+		case Expression_IdentifierLHS:{ZoneScoped;
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
 				asm_instruction("movq", toStr("%rax,-",*offset,"(%rbp)").str, toStr("copy the value at %rax in var ", expr->expstr).str);
@@ -118,7 +120,7 @@ assemble_expression(Expression* expr){
 			}
 		}break;
 		
-		case Expression_IdentifierRHS:{
+		case Expression_IdentifierRHS:{ZoneScoped;
 			u32* offset = assembler.var_map.at(expr->expstr);
 			if(offset){
 				asm_instruction("movq", toStr("-",*offset,"(%rbp),%rax").str, toStr("copy value of var ",expr->expstr," in %rax").str);
@@ -130,7 +132,7 @@ assemble_expression(Expression* expr){
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Ternary
-		case Expression_TernaryConditional:{
+		case Expression_TernaryConditional:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 3, "Expression_TernaryConditional must have three child nodes");
 			
 			string skip_if_label = toStr(".L",assembler.label_counter++);
@@ -153,7 +155,7 @@ assemble_expression(Expression* expr){
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Literals
-		case Expression_Literal:{
+		case Expression_Literal:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 0, "Expression_Literal must not have any child nodes");
 			
 			//string args = toStr("$",expr->integer_literal.value,",%rax");
@@ -163,14 +165,14 @@ assemble_expression(Expression* expr){
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Unary Operators
-		case Expression_UnaryOpBitComp:{
+		case Expression_UnaryOpBitComp:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_UnaryOpBitComp must have only one child node");
 			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("notq", "%rax", "perform bitwise complement");
 		}break;
 		
-		case Expression_UnaryOpLogiNOT:{
+		case Expression_UnaryOpLogiNOT:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_UnaryOpLogiNOT must have only one child node");
 			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
@@ -179,14 +181,14 @@ assemble_expression(Expression* expr){
 			asm_instruction("sete", "%al",     "");
 		}break;
 		
-		case Expression_UnaryOpNegate:{
+		case Expression_UnaryOpNegate:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_UnaryOpNegate must have only one child node");
 			
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 			asm_instruction("negq", "%rax", "perform artihmetic negation");
 		}break;
 		
-		case Expression_IncrementPrefix:{
+		case Expression_IncrementPrefix:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_IncrementPrefix must have only one child node");
 			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPrefix child must be Expression_IdentifierRHS");
 			
@@ -201,7 +203,7 @@ assemble_expression(Expression* expr){
 			}
 		}break;
 		
-		case Expression_IncrementPostfix:{
+		case Expression_IncrementPostfix:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_IncrementPostfix must have only one child node");
 			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_IncrementPostfix child must be Expression_IdentifierRHS");
 			
@@ -216,7 +218,7 @@ assemble_expression(Expression* expr){
 			}
 		}break;
 		
-		case Expression_DecrementPrefix:{
+		case Expression_DecrementPrefix:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_DecrementPrefix must have only one child node");
 			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPrefix child must be Expression_IdentifierRHS");
 			
@@ -231,7 +233,7 @@ assemble_expression(Expression* expr){
 			}
 		}break;
 		
-		case Expression_DecrementPostfix:{
+		case Expression_DecrementPostfix:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 1, "Expression_DecrementPostfix must have only one child node");
 			AssertAlways(ExpressionFromNode(expr->node.first_child)->type == Expression_IdentifierRHS, "Expression_DecrementPostfix child must be Expression_IdentifierRHS");
 			
@@ -248,7 +250,7 @@ assemble_expression(Expression* expr){
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 		//// Binary Operators
-		case Expression_BinaryOpOR:{
+		case Expression_BinaryOpOR:{ZoneScoped;
 			//TODO: optimization, check for false/true literals
 			AssertAlways(expr->node.child_count == 2, "Expression_BinaryOpOR must have two child nodes");
 			
@@ -260,7 +262,7 @@ assemble_expression(Expression* expr){
 			asm_label(label);
 		}break;
 		
-		case Expression_BinaryOpAND:{
+		case Expression_BinaryOpAND:{ZoneScoped;
 			//TODO: optimization, check for false/true literals
 			AssertAlways(expr->node.child_count == 2, "Expression_BinaryOpAND must have two child nodes");
 			
@@ -272,28 +274,28 @@ assemble_expression(Expression* expr){
 			asm_label(label);
 		}break;
 		
-		case Expression_BinaryOpBitOR:{
+		case Expression_BinaryOpBitOR:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
 			asm_instruction("orq",  "%rdx,%rax", "bitwise or %rax with %rdx");
 		}break;
 		
-		case Expression_BinaryOpBitXOR:{
+		case Expression_BinaryOpBitXOR:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
 			asm_instruction("xorq", "%rdx,%rax", "bitwise xor %rax with %rdx");
 		}break;
 		
-		case Expression_BinaryOpBitAND:{
+		case Expression_BinaryOpBitAND:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
 			asm_instruction("andq", "%rdx,%rax", "bitwise and %rax with %rdx");
 		}break;
 		
-		case Expression_BinaryOpEqual:{
+		case Expression_BinaryOpEqual:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
@@ -301,7 +303,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("sete", "%al",       "set %al if equal");
 		}break;
 		
-		case Expression_BinaryOpNotEqual:{
+		case Expression_BinaryOpNotEqual:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
@@ -309,7 +311,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("setne", "%al",       "set %al if not equal");
 		}break;
 		
-		case Expression_BinaryOpLessThan:{
+		case Expression_BinaryOpLessThan:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
@@ -317,7 +319,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("setl", "%al",       "set %al if less than");
 		}break;
 		
-		case Expression_BinaryOpLessThanOrEqual:{
+		case Expression_BinaryOpLessThanOrEqual:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
@@ -325,7 +327,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("setle", "%al",       "set %al if less than/equal");
 		}break;
 		
-		case Expression_BinaryOpGreaterThan:{
+		case Expression_BinaryOpGreaterThan:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
@@ -333,7 +335,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("setg", "%al",       "set %al if greater than");
 		}break;
 		
-		case Expression_BinaryOpGreaterThanOrEqual:{
+		case Expression_BinaryOpGreaterThanOrEqual:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
@@ -341,7 +343,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("setge", "%al",       "set %al if greater than/equal");
 		}break;
 		
-		case Expression_BinaryOpBitShiftLeft:{
+		case Expression_BinaryOpBitShiftLeft:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_instruction("movq", "%rax,%rdx", "copy %rax into %rdx for bitshift left");
@@ -349,7 +351,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("shlq", "%cl,%rax",  "bitshift left %rax by %rdx");
 		}break;
 		
-		case Expression_BinaryOpBitShiftRight:{
+		case Expression_BinaryOpBitShiftRight:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_instruction("movq", "%rax,%rdx", "copy %rax into %rdx for bitshift right");
@@ -357,28 +359,28 @@ assemble_expression(Expression* expr){
 			asm_instruction("shrq", "%cl,%rax",  "bitshift right %rax by %rdx");
 		}break;
 		
-		case Expression_BinaryOpPlus:{
+		case Expression_BinaryOpPlus:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
 			asm_instruction("addq", "%rdx,%rax", "add, store result in %rax");
 		}break;
 		
-		case Expression_BinaryOpMinus:{
+		case Expression_BinaryOpMinus:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
 			asm_instruction("subq", "%rdx,%rax", "subtract %rax - %rdx, store result in %rax");
 		}break;
 		
-		case Expression_BinaryOpMultiply:{
+		case Expression_BinaryOpMultiply:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RDX);
 			asm_instruction("imulq", "%rdx,%rax", "signed multiply, store result in %rax");
 		}break;
 		
-		case Expression_BinaryOpDivision:{
+		case Expression_BinaryOpDivision:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RCX);
@@ -386,7 +388,7 @@ assemble_expression(Expression* expr){
 			asm_instruction("idivq", "%rcx", "signed divide %rdx:%rax by %rcx, quotient in %rax, remainder in %rdx");
 		}break;
 		
-		case Expression_BinaryOpModulo:{
+		case Expression_BinaryOpModulo:{ZoneScoped;
 			assemble_binop_children(expr);
 			
 			asm_pop_stack(Register_RCX);
@@ -395,24 +397,24 @@ assemble_expression(Expression* expr){
 			asm_instruction("movq",  "%rdx,%rax", "copy remainder from %rdx into %rax");
 		}break;
 		
-		case Expression_BinaryOpAssignment:{
+		case Expression_BinaryOpAssignment:{ZoneScoped;
 			AssertAlways(expr->node.child_count == 2, "Expression_BinaryOpAssignment must have only two child nodes");
 			
 			assemble_expression(ExpressionFromNode(expr->node.last_child));
 			assemble_expression(ExpressionFromNode(expr->node.first_child));
 		}break;
 		
-		default:{ NotImplemented; assembler.failed = true; }break;
+		default:{ZoneScoped; NotImplemented; assembler.failed = true; }break;
 	}
 }
 
 local void assemble_scope(Scope* scope);
 local void
-assemble_statement(Statement* stmt){
+assemble_statement(Statement* stmt){ZoneScoped;
 	if(assembler.function_error) return;
 	
     switch(stmt->type){
-        case Statement_Return:{
+        case Statement_Return:{ZoneScoped;
 			AssertAlways(stmt->node.child_count >= 1, "Statement_Return must have at least one child node");
 			
 			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
@@ -422,11 +424,11 @@ assemble_statement(Statement* stmt){
             assembler.function_returned = true;
         }break;
 		
-		case Statement_Expression:{
+		case Statement_Expression:{ZoneScoped;
 			for_node(stmt->node.first_child) assemble_expression(ExpressionFromNode(it));
 		}break;
 		
-		case Statement_Conditional:{
+		case Statement_Conditional:{ZoneScoped;
 			AssertAlways(stmt->node.child_count >= 1, "Statement_Conditional must have at least one child node");
 			
 			assembler.if_nesting += 1;
@@ -467,7 +469,7 @@ assemble_statement(Statement* stmt){
 			}
 		}break;
 		
-		case Statement_Else:{
+		case Statement_Else:{ZoneScoped;
 			AssertAlways(stmt->node.child_count == 1, "Statement_Conditional must have only one child node");
 			
 			if(assembler.if_nesting <= 0){
@@ -480,12 +482,12 @@ assemble_statement(Statement* stmt){
 			assembler.if_nesting -= 1;
 		}break;
 		
-		case Statement_For:{
+		case Statement_For:{ZoneScoped;
 			AssertAlways(stmt->node.child_count >= 2, "Statement_For must have at least two child nodes");
 			//TODO for statement
 		}break;
 		
-		case Statement_While:{
+		case Statement_While:{ZoneScoped;
 			AssertAlways(stmt->node.child_count == 2, "Statement_While must have exactly two child nodes");
 			
 			//jump labels
@@ -516,26 +518,26 @@ assemble_statement(Statement* stmt){
 			asm_label(exit_label);
 		}break;
 		
-		case Statement_Break:{
+		case Statement_Break:{ZoneScoped;
 			string exit_label = toStr(".L",assembler.innermost_loop_exit_label);
 			asm_instruction("jmp", exit_label.str, "break statement so exit the loop");
 		}break;
 		
-		case Statement_Continue:{
+		case Statement_Continue:{ZoneScoped;
 			string loop_label = toStr(".L",assembler.innermost_loop_loop_label);
 			asm_instruction("jmp", loop_label.str, "continue statement so restart the loop");
 		}break;
 		
-		case Statement_Struct:{
+		case Statement_Struct:{ZoneScoped;
 			log("assembler", "Statement_Struct not implemented yet");
 		}break;
 		
-		default:{ NotImplemented; assembler.failed = true; }break;
+		default:{ZoneScoped; NotImplemented; assembler.failed = true; }break;
     }
 }
 
 local void
-assemble_declaration(Declaration* decl){
+assemble_declaration(Declaration* decl){ZoneScoped;
 	if(assembler.function_error) return;
 	
 	//NOTE a structure size of 'npos' means that it got past parser without being defined properly
@@ -555,7 +557,7 @@ assemble_declaration(Declaration* decl){
 }
 
 local void
-assemble_scope(Scope* scope){
+assemble_scope(Scope* scope){ZoneScoped;
 	if(assembler.function_error) return;
 	
 	for_node(scope->node.first_child){
@@ -569,7 +571,7 @@ assemble_scope(Scope* scope){
 }
 
 local void
-assemble_function(Function* func){
+assemble_function(Function* func){ZoneScoped;
 	//TODO func either has to have a return statement or an else with a return statement
 	if(func->node.child_count == 0) return;
 	AssertAlways(func->node.child_count == 1 && func->node.first_child->type == NodeType_Scope, "A function only has one child and it has to be a scope if its a definition");
@@ -607,7 +609,7 @@ assemble_function(Function* func){
 }
 
 b32 
-assemble_program(Program& program, string& assembly){
+assemble_program(Program& program, string& assembly){ZoneScoped;
     assembler.output.reserve(1024);
     asm_instruction(".text",          "start of code section");
     asm_instruction(".globl", "main", "marks the function 'main' as being global"); //TODO add entry point to Program

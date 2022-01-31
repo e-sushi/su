@@ -104,11 +104,11 @@ to_string(s64 x) {
 global_ string 
 to_string(u32 x){
 	string s;
-	s.count = snprintf(nullptr, 0, "%d", x);
+	s.count = snprintf(nullptr, 0, "%u", x);
 	s.str   = (char*)s.allocator->reserve(s.count+1); Assert(s.str, "Failed to allocate memory");
 	s.allocator->commit(s.str, s.count+1);
 	s.space = s.count+1;
-	snprintf(s.str, s.count+1, "%d", x);
+	snprintf(s.str, s.count+1, "%u", x);
 	return s;
 }
 

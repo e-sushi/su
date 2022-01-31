@@ -160,9 +160,12 @@ void threadfunc(Thread* me, FuncToRun f, FuncArgs... args) {
         TracyMessageC("thread sends signal to manager", 30, 0x5577ff);
         last_returned = me;
         manager_wait.notify_all();
-        
-		me->CallingThreadCondition.notify_all();
-        TracyMessageC("thread is going to sleep", 20, 0x00aaff);
+        try{
+    		me->CallingThreadCondition.notify_all();
+        }catch(const std::system_error& e){
+            PRINTLN(e.what());
+        }
+                TracyMessageC("thread is going to sleep", 20, 0x00aaff);
 		std::unique_lock<LockableBase(std::mutex)> lock(me->waiting);
         LockableBase(std::mutex)& ok = me->waiting;
         LockMark(ok);

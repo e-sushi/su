@@ -322,7 +322,7 @@ const char* dataTypeStrs[] = {
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Lexer
-enum TokenTypes{
+enum Token_Type : u32{
 	Token_Null = 0,
 	Token_ERROR = 0,                // when something doesnt make sense during lexing
 	Token_EOF,                      // end of file
@@ -414,7 +414,7 @@ enum TokenTypes{
 	Token_String,                   // str
 	Token_Any,                      // any
 	Token_Struct,                   // user defined type
-}; typedef u32 Token_Type;
+}; //typedef u32 Token_Type;
 
 #define NAME(code) STRINGIZE(code)
 const char* TokenTypes_Names[] = {

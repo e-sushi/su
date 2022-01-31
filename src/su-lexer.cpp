@@ -12,13 +12,13 @@ constexpr u8 lexer_char_to_digit[256] = { //convert ascii characters to digits
 if(equals(cstr_lit(c1), raw)) return t1
 
 #define CASE1(c1,t1) \
-case c1:{          \
+case c1:{ZoneScoped;          \
 token.type = t1; \
 stream++;        \
 }break;
 
 #define CASE2(c1,t1, c2,t2) \
-case c1:{                 \
+case c1:{ZoneScoped;      \
 token.type = t1;        \
 stream++;               \
 if(*stream == c2){      \
@@ -28,7 +28,7 @@ stream++;             \
 }break;
 
 #define CASE3(c1,t1, c2,t2, c3,t3) \
-case c1:{                        \
+case c1:{ ZoneScoped;                       \
 token.type = t1;               \
 stream++;                      \
 if      (*stream == c3){       \
@@ -46,43 +46,69 @@ stream++;                    \
 printf("%.*s(%d,%d): Error: " fmt, int(token.file.count), token.file.str, token.l0, token.c0, ##__VA_ARGS__)
 
 //TODO maybe speed this up with hashing/layering
+
+
+
+enum keyword_hashes{
+	kh_return     = 2085702151,
+	kh_if         = 1545789136,
+	kh_else       = 3419725518,
+	kh_for        = 856556216,
+	kh_while      = 152936142,
+	kh_break      = 2718502296,
+	kh_continue   = 2910489658,
+	kh_defer      = 1815187539,
+	kh_struct     = 3948182702,
+	kh_this       = 683897725,
+	kh_void       = 1243292671,
+	kh_s8         = 1325482204,
+	kh_s16        = 3315202241,
+	kh_s32        = 1760205235,
+	kh_s64        = 4080335092,
+	kh_u8         = 1291926966,
+	kh_u16        = 3348757479,
+	kh_u32        = 1860870949,
+	kh_u64        = 4046779854,
+	kh_f32        = 2078979996,
+	kh_f64        = 3761560331,
+	kh_str        = 802133312,
+	kh_any        = 1488259997,
+};
+
 local Token_Type
 token_is_keyword_or_identifier(cstring raw){
-#ifdef TRACY_ENABLE
 	ZoneScoped;
-#endif
-	CASEW("return",   Token_Return);
-	CASEW("if",       Token_If);
-	CASEW("else",     Token_Else);
-	CASEW("for",      Token_For);
-	CASEW("while",    Token_While);
-	CASEW("break",    Token_Break);
-	CASEW("continue", Token_Continue);
-	CASEW("defer",    Token_Defer);
-	CASEW("struct",   Token_StructDecl);
-	CASEW("this",     Token_This);
-	
-	CASEW("void", Token_Void);
-	CASEW("s8",   Token_Signed8);
-	CASEW("s16",  Token_Signed16);
-	CASEW("s32",  Token_Signed32);
-	CASEW("s64",  Token_Signed64);
-	CASEW("u8",   Token_Unsigned8);
-	CASEW("u16",  Token_Unsigned16);
-	CASEW("u32",  Token_Unsigned32);
-	CASEW("u64",  Token_Unsigned64);
-	CASEW("f32",  Token_Float32);
-	CASEW("f64",  Token_Float64);
-	CASEW("str",  Token_String);
-	CASEW("any",  Token_Any);
-	
+	u32 a = hash<cstring>()(raw);
+	switch(a){
+		case kh_return:   return Token_Return;
+		case kh_if:       return Token_If;
+		case kh_else:     return Token_Else;
+		case kh_for:      return Token_For;
+		case kh_while:    return Token_While;
+		case kh_break:    return Token_Break;
+		case kh_continue: return Token_Continue;
+		case kh_defer:    return Token_Defer;
+		case kh_struct:   return Token_StructDecl;
+		case kh_this:     return Token_This;
+		case kh_void:     return Token_Void;
+		case kh_s8:       return Token_Signed8;
+		case kh_s16:      return Token_Signed16;
+		case kh_s32:      return Token_Signed32;
+		case kh_s64:      return Token_Signed64;
+		case kh_u8:       return Token_Unsigned8;
+		case kh_u16:      return Token_Unsigned16;
+		case kh_u32:      return Token_Unsigned32;
+		case kh_u64:      return Token_Unsigned64;
+		case kh_f32:      return Token_Float32;
+		case kh_f64:      return Token_Float64;
+		case kh_str:      return Token_String;
+		case kh_any:      return Token_Any;
+	}
     return Token_Identifier;
 }
 
 b32 lex_file(cstring filename, const string& file){
-#ifdef TRACY_ENABLE
 	ZoneScoped;
-#endif
 	lexer.file_index.add(filename);
 	LexedFile& lfile = lexer.file_index[filename];
 	
@@ -96,6 +122,7 @@ b32 lex_file(cstring filename, const string& file){
 	u32 scope_number = 0;
 	char* line_start = stream.str;
 	while(stream && *stream != '\0'){
+		ZoneScoped;
 		//set token start
 		Token token{};
 		token.file = filename;
@@ -106,6 +133,7 @@ b32 lex_file(cstring filename, const string& file){
 		switch(*stream){
 			//// @whitespace ////
 			case ' ': case '\n': case '\r': case '\t': case '\v':{
+				ZoneScoped;
 				while(isspace(*stream)){
 					if(*stream == '\n'){
 						line_start = stream.str;
@@ -117,6 +145,7 @@ b32 lex_file(cstring filename, const string& file){
 			
 			//// @literals ////
 			case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':{
+				ZoneScoped;
 				while(isdigit(*stream) || *stream == '_'){ stream++; } //skip to non-digit (excluding underscore)
 				if(*stream == '.' || *stream == 'e' || *stream == 'E'){
 					stream++;
@@ -142,6 +171,7 @@ b32 lex_file(cstring filename, const string& file){
 			}continue; //skip token creation b/c we did it manually
 			
 			case '\'':{
+				ZoneScoped;
 				token.type  = Token_LiteralCharacter;
 				token.group = TokenGroup_Literal;
 				stream++;
@@ -156,6 +186,7 @@ b32 lex_file(cstring filename, const string& file){
 			}continue; //skip token creation b/c we did it manually
 			
 			case '"':{
+				ZoneScoped;
 				token.type  = Token_LiteralString;
 				token.group = TokenGroup_Literal;
 				stream++;
@@ -177,6 +208,7 @@ b32 lex_file(cstring filename, const string& file){
             case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T':
             case 'U': case 'V': case 'W': case 'X': case 'Y': case 'Z':
             case '_':{
+				ZoneScoped;
                 while(isalnum(*stream) || *stream == '_'){ stream++; } //skip to non-alphanumeric
 				
                 token.raw.count = stream.str - token.raw.str;
@@ -208,12 +240,14 @@ b32 lex_file(cstring filename, const string& file){
 			CASE1('`', Token_Backtick);
 			
 			case '{':{ //NOTE special for scope tracking
+			ZoneScoped;
 				token.type = Token_OpenBrace;
 				scope_number++;
 				stream++;
 			}break;
 			
 			case '}':{ //NOTE special for scope tracking
+			ZoneScoped;
 				token.type = Token_CloseBrace;
 				scope_number--;
 				stream++;
@@ -232,6 +266,7 @@ b32 lex_file(cstring filename, const string& file){
 			CASE2('!', Token_LogicalNOT,      '=', Token_NotEqual);
 			
 			case '/':{ //NOTE special because of comments
+			ZoneScoped;
 				token.type = Token_Division;
 				stream++;
 				if(*stream == '='){
@@ -252,6 +287,7 @@ b32 lex_file(cstring filename, const string& file){
 			}break;
 			
 			case '<':{ //NOTE special because of bitshift assignment
+			ZoneScoped;
 				token.type = Token_LessThan;
 				stream++;
 				if      (*stream == '='){
@@ -268,6 +304,7 @@ b32 lex_file(cstring filename, const string& file){
 			}break;
 			
 			case '>':{ //NOTE special because of bitshift assignment
+			ZoneScoped;
 				token.type = Token_GreaterThan;
 				stream++;
 				if      (*stream == '='){
@@ -284,6 +321,7 @@ b32 lex_file(cstring filename, const string& file){
 			}break;
 			
 			default:{
+				ZoneScoped;
 				logE("lexer", "Invalid token '",*stream,"' at ",filename,"(",line_number,",",LINE_COLUMN,").");
 				token.type = Token_ERROR;
 				stream++;

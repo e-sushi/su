@@ -119,12 +119,39 @@ void PrintNum(u32 a){
 }
 
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)	
-	ZoneScoped;
-
 #ifdef TRACY_ENABLE
 	PRINTLN("Tracy is enabled. Waiting for connection...");
 	while(!TracyIsConnected){}
 #endif
+	ZoneScoped;
+	
+	string s = "";
+
+	s+=toStr(hash<cstring>()(cstr_lit("return")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("if")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("else")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("for")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("while")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("break")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("continue")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("defer")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("struct")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("this")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("void")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("s8")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("s16")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("s32")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("s64")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("u8")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("u16")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("u32")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("u64")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("f32")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("f64")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("str")), "\n");
+	s+=toStr(hash<cstring>()(cstr_lit("any")), "\n");
+	PRINTLN(s);
+	
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//// Command Line Arguments
@@ -264,9 +291,9 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		log("verbose", "parsing took ", TIMER_END(timer), " ms");
 		log("verbose", "parsing finished");
 		
-		string output_graph_path = output_dir + filepath_ex.filename + ".svg";
-		generate_ast_graph_svg(output_graph_path.str, program);
-		generate_ast_graph_svg("parserdebugtree.svg", &ParserDebugTree);
+		//string output_graph_path = output_dir + filepath_ex.filename + ".svg";
+		//generate_ast_graph_svg(output_graph_path.str, program);
+		//generate_ast_graph_svg("parserdebugtree.svg", &ParserDebugTree);
 		
 		
 		//////////////////////////////////////////////////////////////////////////////////////////////////
