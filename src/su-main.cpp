@@ -64,16 +64,23 @@ maybe count the the amount of tokens of each node type we have as we lex, so we 
 
 maybe require -defstr to specify OS versions and distros
 
+add verbose printing levels 
+
 */
+#include "utils/defines.h"
 
+#ifdef TRACY_ENABLE
+#include "TracyClient.cpp"
+#endif
+#include "Tracy.hpp"
 
+#define TracyMessageS(message) TracyMessage(message, sizeof(message) - 1)
 
 //utils
 #include "utils/array.h"
 #include "utils/array_utils.h"
 #include "utils/carray.h"
 #include "utils/cstring.h"
-#include "utils/defines.h"
 #include "utils/hash.h"
 #include "utils/map.h"
 #include "utils/pair.h"
@@ -96,10 +103,7 @@ maybe require -defstr to specify OS versions and distros
 #include "su-warnings.h"
 #include "su-types.h"
 
-#ifdef TRACY_ENABLE
-#include "TracyClient.cpp"
-#include "Tracy.hpp"
-#endif
+
 
 //source
 #include "su-io.cpp"
@@ -116,6 +120,11 @@ void PrintNum(u32 a){
 
 int main(int argc, char* argv[]) { //NOTE argv includes the entire command line (including .exe)	
 	ZoneScoped;
+
+#ifdef TRACY_ENABLE
+	PRINTLN("Tracy is enabled. Waiting for connection...");
+	while(!TracyIsConnected){}
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//// Command Line Arguments
@@ -250,6 +259,7 @@ int main(int argc, char* argv[]) { //NOTE argv includes the entire command line 
 		log("verbose", "parsing started");
 		TIMER_RESET(timer);
 		success = parser.parse_program(program);
+		//success = parse_prog(program);
 		if(!success){ PRINTLN("ERROR: parser failed"); return ReturnCode_Parser_Failed; }
 		log("verbose", "parsing took ", TIMER_END(timer), " ms");
 		log("verbose", "parsing finished");

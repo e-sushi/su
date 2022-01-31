@@ -186,6 +186,8 @@ typedef wchar_t            wchar;
 typedef u32 Type;
 typedef u32 Flags;
 
+#define strlit_sized(s) (char*)s, sizeof(s)
+
 struct cstring{
     char* str;
     upt   count;

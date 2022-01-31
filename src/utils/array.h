@@ -91,6 +91,7 @@ struct array{
 ///////////////////////
 template<typename T> inline array<T>::
 array(){
+	ZoneScoped;
 	allocator = DESHI_ARRAY_ALLOCATOR;
 	
 	space = 0;
@@ -103,6 +104,7 @@ array(){
 
 template<typename T> inline array<T>::
 array(Allocator* a){
+	ZoneScoped;
 	allocator = a;
 	
 	space = 0;
@@ -115,6 +117,7 @@ array(Allocator* a){
 
 template<typename T> inline array<T>::
 array(u32 _count, Allocator* a){
+	ZoneScoped;
 	allocator = a;
 	
 	count = 0;
@@ -128,6 +131,7 @@ array(u32 _count, Allocator* a){
 
 template<typename T> inline array<T>::
 array(std::initializer_list<T> l, Allocator* a){
+	ZoneScoped;
 	allocator = a;
 	
 	count = l.size();
@@ -147,6 +151,7 @@ array(std::initializer_list<T> l, Allocator* a){
 //so we have to make sure everything in the array gets recreated
 template<typename T> inline array<T>::
 array(const array<T>& array, Allocator* a){
+	ZoneScoped;
 	allocator = a;
 	
 	count = array.count;
@@ -163,6 +168,7 @@ array(const array<T>& array, Allocator* a){
 
 template<typename T> inline array<T>::
 array(T* _data, u32 _count, Allocator* a){
+	ZoneScoped;
 	allocator = a;
 	
 	count = _count;
@@ -223,11 +229,13 @@ operator[](u32 i) const {
 ////////////////////
 template<typename T> inline u32 array<T>::
 size() const{
+	ZoneScoped;
 	return count;
 }
 
 template<typename T> inline void array<T>::
 add(const T& t){
+	ZoneScoped;
 	if(space == 0){ //if first item, allocate memory
 		space = DESHI_ARRAY_SPACE_ALIGNMENT;
 		data  = (T*)allocator->reserve(space*sizeof(T));
@@ -260,6 +268,7 @@ add(const T& t){
 
 template<typename T> inline void array<T>::
 add_array(const array<T>& t){
+	ZoneScoped;
 	for(const T& item : t){
 		this->add(item);
 	}
@@ -267,11 +276,13 @@ add_array(const array<T>& t){
 
 template<typename T> inline void array<T>::
 emplace(const T& t){
+	ZoneScoped;
 	this->add(t); //TODO emplace function signature should mimic the type's constructor
 }
 
 template<typename T> inline void array<T>::
 insert(const T& t, u32 idx){
+	ZoneScoped;
 	Assert(idx <= count);
 	if(space == 0){ //if first item, allocate memory
 		space = DESHI_ARRAY_SPACE_ALIGNMENT;
@@ -311,6 +322,7 @@ insert(const T& t, u32 idx){
 
 template<typename T> inline void array<T>::
 pop(u32 _count){
+	ZoneScoped;
 	Assert(count >= _count, "attempted to pop more than array size");
 	forI(_count){
 		last->~T();
@@ -327,6 +339,7 @@ pop(u32 _count){
 
 template<typename T> inline void array<T>::
 remove(u32 i){
+	ZoneScoped;
 	Assert(count > 0, "can't remove element from empty vector");
 	Assert(i < count, "index is out of bounds");
 	data[i].~T();
@@ -358,6 +371,7 @@ remove(u32 i){
 
 template<typename T> inline void array<T>::
 clear(){
+	ZoneScoped;
 	forI(count){ data[i].~T(); }
 	memset(data, 0, count*sizeof(T));
 	
@@ -369,6 +383,7 @@ clear(){
 
 template<typename T> inline void array<T>::
 resize(u32 new_count){
+	ZoneScoped;
 	if(new_count > space){
 		space = new_count;
 		data = (T*)allocator->resize(data, space*sizeof(T));
@@ -393,6 +408,7 @@ resize(u32 new_count){
 
 template<typename T> inline void array<T>::
 reserve(u32 new_space){
+	ZoneScoped;
 	if(new_space > space){
 		space = RoundUpTo(new_space, DESHI_ARRAY_SPACE_ALIGNMENT);
 		data = (T*)allocator->resize(data, space*sizeof(T));
@@ -406,6 +422,7 @@ reserve(u32 new_space){
 
 template<typename T> inline void array<T>::
 swap(u32 idx1, u32 idx2){
+	ZoneScoped;
 	Assert(idx1 < count && idx2 < count, "index out of bounds");
 	Assert(idx1 != idx2, "can't swap an element with itself");
 	T save = data[idx1];
@@ -415,6 +432,7 @@ swap(u32 idx1, u32 idx2){
 
 template<typename T> inline bool array<T>::
 has(const T& value){
+	ZoneScoped;
 	for(const T& blahabuasjdas : *this){
 		if(blahabuasjdas == value){
 			return true;
@@ -425,12 +443,14 @@ has(const T& value){
 
 template<typename T> inline T& array<T>::
 at(u32 i){
+	ZoneScoped;
 	Assert(i < count);
 	return data[i];
 }
 
 template<typename T> inline T& array<T>::
 next(u32 count){
+	ZoneScoped;
 	if (last - iter + 1 >= 0) {
 		return iter += count, *iter;
 	}
@@ -439,12 +459,14 @@ next(u32 count){
 
 template<typename T> inline T& array<T>::
 peek(u32 i){
+	ZoneScoped;
 	if(last - iter + 1 >= 0) return *(iter + i);
 	return *iter;
 }
 
 template<typename T> inline T& array<T>::
 prev(u32 count){
+	ZoneScoped;
 	if (iter - first + 1 >= 0) {
 		return iter -= count, *iter;
 	}
@@ -453,11 +475,13 @@ prev(u32 count){
 
 template<typename T> inline T& array<T>::
 lookback(u32 i){
+	ZoneScoped;
 	if(first - iter + 1 >= 0) return *(iter - i);
 }
 
 template<typename T> inline T* array<T>::
 nextptr(){
+	ZoneScoped;
 	if(iter + 1 - last >= 0) return iter++;
 	else return nullptr;
 }
@@ -465,24 +489,28 @@ nextptr(){
 //TODO come up with a better name for this and the corresponding previous overload
 template<typename T> inline T* array<T>::
 peekptr(u32 i){
+	ZoneScoped;
 	if(iter + 1 - last >= 0) return iter + i;
 	else return nullptr;
 }
 
 template<typename T> inline T* array<T>::
 prevptr(){
+	ZoneScoped;
 	if(iter - 1 - first >= 0) return iter--;
 	else return nullptr;
 }
 
 template<typename T> inline T* array<T>::
 lookbackptr(u32 i){
+	ZoneScoped;
 	if(iter - 1 - first >= 0) return iter - i;
 	else return nullptr;
 }
 
 template<typename T> inline void array<T>::
 setiter(u32 i) {
+	ZoneScoped;
 	iter = data + i;
 }
 

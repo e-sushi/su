@@ -16,7 +16,19 @@ enum ThreadState{
 	ThreadState_CallFunction,
 };
 
+const char* ThreadStateStrs[] = {
+    "ThreadState_NotInitialized",
+    "ThreadState_NotInitialized",
+    "ThreadState_Initializing",
+    "ThreadState_Close",
+    "ThreadState_CallFunction",
+    "ThreadState_Sleep",
+};
+
 struct Thread;
+Thread* last_returned = 0;
+std::condition_variable manager_wait;
+std::mutex manager_mute;
 template<typename FuncToRun, typename... FuncArgs>
 void threadfunc(Thread* me, FuncToRun f, FuncArgs... args);
 //persistent thread struct
@@ -24,16 +36,24 @@ void threadfunc(Thread* me, FuncToRun f, FuncArgs... args);
 //TODO clean up redundent things in this struct
 struct Thread {
 	std::thread me;
-	std::condition_variable ThreadCondition;
-	std::condition_variable CallingThreadCondition;
-	std::mutex caller;  //locked by the thread who created this thread while its waiting
-	std::mutex waiting; //locked by the thread when its waiting
-	ThreadState state;
+	std::condition_variable_any ThreadCondition;
+	std::condition_variable_any CallingThreadCondition;
+	TracyLockable(std::mutex, caller);  //locked by the thread who created this thread while its waiting
+	TracyLockable(std::mutex, waiting); //locked by the thread when its waiting
+	TracyLockable(std::mutex, statemutex);
+    ThreadState state;
     string comment;
 
 	int functioncalls = 0;
 
+    void ChangeState(ThreadState ts){
+        std::unique_lock<LockableBase(std::mutex)> lock(statemutex); LockMark(statemutex);
+        state = ts;
+        lock.unlock();
+    }
+
 	void WakeUp() {
+        if(state != ThreadState_Sleep) return;
         ZoneScoped;
 		ThreadCondition.notify_all();
 	}
@@ -43,10 +63,11 @@ struct Thread {
 	b32 Wait(u64 timeout = 0) {
         ZoneScoped;
         if(state == ThreadState_Sleep) return true;
-        std::unique_lock<std::mutex> lock(caller);
+        std::unique_lock<LockableBase(std::mutex)> lock(caller);
+        LockMark(caller);
         if(timeout) 
-            return (CallingThreadCondition.wait_for(lock, std::chrono::milliseconds(timeout)) == std::cv_status::timeout ? false : true);
-        else CallingThreadCondition.wait(lock);
+            return (CallingThreadCondition.wait_for(lock, std::chrono::milliseconds(timeout), [this]{return state == ThreadState_Sleep;}) ? false : true);
+        else CallingThreadCondition.wait(lock,[this]{return state == ThreadState_Sleep;});
         return true;
 	}
 
@@ -55,7 +76,7 @@ struct Thread {
         ZoneScoped;
 		if (state != ThreadState_Sleep) return; //thread is already running
 		functioncalls = count;
-		state = ThreadState_CallFunction;
+		ChangeState(ThreadState_CallFunction);
 		WakeUp();
 	}
 
@@ -82,32 +103,33 @@ struct Thread {
     //causes the thread to return
 	void Close() {
         ZoneScoped;
-		state = ThreadState_Close;
+		ChangeState(ThreadState_Close);
 		WakeUp();
 	}
 
 	//waits for the thread to return, this means you must know the thread is active to begin with!
 	void CloseAndJoin(){
         ZoneScoped;
-		state = ThreadState_Close;
+		ChangeState(ThreadState_Close);
 		WakeUp();
 		if(me.joinable()) me.join();
 	}
 
     //sets the function that the thread calls 
-    //TODO maybe theres a way around closing and reopening the thread? probably not with templating
 	template<typename FuncToRun, typename... FuncArgs>
 	void SetFunction(FuncToRun f, FuncArgs...args) {
         ZoneScoped;
-        Close(); state = ThreadState_Initializing;
+        TracyMessage("Closing previous thread", 23);
+        CloseAndJoin(); 
+        TracyMessage("Changing state", 14);
+        ChangeState(ThreadState_Initializing);
+        TracyMessage("Making std::thread", 18);
 		me = std::thread(threadfunc<FuncToRun, FuncArgs...>, this, f, args...);
 	}
     //sets the function that the thread calls and waits until its done initializing
 	template<typename FuncToRun, typename... FuncArgs>
 	void SetFunctionAndWait(FuncToRun f, FuncArgs...args) {
-        ZoneScoped;
-		Close(); state = ThreadState_Initializing;
-		me = std::thread(threadfunc<FuncToRun, FuncArgs...>, this, f, args...);
+        SetFunction(f,args...);
 		Wait();
 	}
 
@@ -123,26 +145,36 @@ struct Thread {
 template<typename FuncToRun, typename... FuncArgs>
 void threadfunc(Thread* me, FuncToRun f, FuncArgs... args) {
     ZoneScoped;
+#ifdef TRACY_ENABLE
     tracy::SetThreadName(me->comment.str);
-	ThreadDebugPrint(me, " has been created.");
+#endif
 	while (me->state != ThreadState_Close) {
-		ZoneScopedN("Thread is awake");
+        ZoneScopedN("threadfunc inner loop");
+        TracyMessageC("thread loop start", 17, 0x11aa1f);
 		if(me->state==ThreadState_CallFunction){
-			ZoneScopedN("Thread calls function");
-            ThreadDebugPrint(me, " is calling its function ",  me->functioncalls, " times"); 
+            TracyMessageC("thread calls its function", 25, 0xffaa00);
             while (me->functioncalls--) { f(deref_if_pointer(args)...); }
+            TracyMessageC("thread finishes calling its fun", 31, 0xffaa00);
         }
-        ThreadDebugPrint(me, " is going to sleep");
-		me->state = ThreadState_Sleep;
+        
+        TracyMessageC("thread sends signal to manager", 30, 0x5577ff);
+        last_returned = me;
+        manager_wait.notify_all();
+        
 		me->CallingThreadCondition.notify_all();
-		std::unique_lock<std::mutex> lock(me->waiting);
-		while(me->state == ThreadState_Sleep) 
+        TracyMessageC("thread is going to sleep", 20, 0x00aaff);
+		std::unique_lock<LockableBase(std::mutex)> lock(me->waiting);
+        LockableBase(std::mutex)& ok = me->waiting;
+        LockMark(ok);
+        TracyMessageC("thread sets sleep state", 23, 0x00aaff);
+		me->ChangeState(ThreadState_Sleep);
+		while(me->state == ThreadState_Sleep)
 			me->ThreadCondition.wait(lock);
-		ThreadDebugPrint(me, " has woken up");
+        TracyMessageC("thread wakes up", 15, 0xff0000);
+
 	}
-	ThreadDebugPrint(me, " is now closing");
+    TracyMessageC("thread closes", 15, 0x0000ff);
 	me->CallingThreadCondition.notify_all();
-	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
 struct ThreadManager{
@@ -153,8 +185,11 @@ struct ThreadManager{
         ZoneScoped;
         if(!thread_arena.data) thread_arena.init(sizeof(Thread)*max_threads);
         if(threads.count >= max_threads) return 0;
+        TracyMessage("Arenaing Thread", 15);
         Thread* nu = (Thread*)thread_arena.add(Thread());
+        TracyMessage("Setting Comment", 15);
         if(comment.count) nu->comment = comment;
+        TracyMessage("Adding Thread to map", 20);
         threads.add(nu,nu);
         return nu;
     }
@@ -199,12 +234,31 @@ struct ThreadManager{
     }
 
 	void CloseAllThreads(){
+        ZoneScoped;
 		for(Thread* t : threads) t->Close();
 	}
 
     void WaitForAllThreadsToFinish(u64 timeout = 0){
         ZoneScoped;
         for(Thread* t : threads) t->Wait(timeout);
+    }
+
+    Thread* GetFirstAvaliableThread(){
+        ZoneScoped;
+        for(Thread* t : threads)
+            if(match_any(t->state, ThreadState_Sleep, ThreadState_NotInitialized)) return t;
+        return 0;
+    }
+    //TODO add timeout
+    Thread* WaitForAvaliableThread(){
+        ZoneScoped;
+        Thread* try_no_wait = GetFirstAvaliableThread();
+        if(try_no_wait) return try_no_wait;
+        std::unique_lock<std::mutex> lock(manager_mute);
+        manager_wait.wait(lock);
+        ZoneText(last_returned->comment.str, last_returned->comment.count)
+        TracyMessage("WaitForAvaliable received signal", 33);
+        return last_returned;
     }
 
     ~ThreadManager(){

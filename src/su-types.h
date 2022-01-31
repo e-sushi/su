@@ -6,7 +6,7 @@
 #include "utils/defines.h"
 #include "utils/string.h"
 
-const global_ u32 max_threads = 7;
+const global_ u32 max_threads = 3;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compile Options
@@ -47,13 +47,15 @@ struct Arena {
 	upt size = 0;
 	
 	void init(upt bytes) {
+		ZoneScoped;
 		data = (u8*)calloc(1, bytes);
 		cursor = data;
 		size = bytes;
 	}
 	
 	template<typename T>
-		void* add(const T& in) {
+	void* add(const T& in) {
+		ZoneScoped;
 		if (cursor - (data + size) > -spt(sizeof(T))) {
 			data = (u8*)calloc(1, size);
 			cursor = data;

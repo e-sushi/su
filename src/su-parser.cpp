@@ -56,18 +56,53 @@ local map<Token_Type, ExpressionType> tokToExp{
 	{Token_Negation,           Expression_UnaryOpNegate},
 };
 
-map<cstring, Node*> knownFuncs; 
-map<cstring, Node*> knownVars;  
-map<cstring, Node*> knownStructs;
+//TODO maybe make these local to the parser so we dont have to lock them 
+map<cstring, Node*> knownFuncs;   
+map<cstring, Node*> knownVars;    
+map<cstring, Node*> knownStructs; 
+
+#ifdef TRACY_ENABLE
+TracyLockable(std::mutex, knownFuncsMutex);
+TracyLockable(std::mutex, knownVarsMutex);
+TracyLockable(std::mutex, knownStructsMutex);
+#else
+std::mutex knownFuncsMutex;
+std::mutex knownVarsMutex;
+std::mutex knownStructsMutex;
+#endif
+
+inline void thread_add_known_func(cstring id, Node* n){
+	knownFuncsMutex.lock(); LockMark(knownFuncsMutex);
+	knownFuncs.add(id, n);
+	knownFuncsMutex.unlock();
+}
+
+inline void thread_remove_known_func(cstring id){
+	knownFuncsMutex.lock(); LockMark(knownFuncsMutex);
+	knownFuncs.remove(id);
+	knownFuncsMutex.unlock();
+}
+
+inline void thread_add_known_var(cstring id, Node* n){
+	knownVarsMutex.lock(); LockMark(knownVarsMutex);
+	knownVars.add(id, n);
+	knownVarsMutex.unlock();
+}
+
+inline void thread_add_known_struct(cstring id, Node* n){
+	knownStructsMutex.lock(); LockMark(knownStructsMutex);
+	knownStructs.add(id, n);
+	knownStructsMutex.unlock();
+}
+
+
 
 Node ParserDebugTree; //keeps a stack trace of the parser if enabled so it can be output later
 Node* ParserDebugTreeCurrent = &ParserDebugTree;
 Arena ParserDebugArena;
 
 inline DataType dataTypeFromToken(Token_Type type) {
-#ifdef TRACY_ENABLE
 	ZoneScoped;
-#endif
 	switch (type) {
 		case Token_Void      : {return DataType_Void;}
 		case Token_Signed8   : {return DataType_Signed8;}  
@@ -88,9 +123,7 @@ inline DataType dataTypeFromToken(Token_Type type) {
 }
 
 inline upt dataTypeSizes(DataType type) {
-#ifdef TRACY_ENABLE
 	ZoneScoped;
-#endif
 	switch (type) {
 		case DataType_Void       : {return    0;}
 		case DataType_Signed8    : {return    1;}
@@ -301,9 +334,7 @@ auto debug_define = [](ParseStage stage, Node* node) -> Node* {
 
 //declares a node of a given type and returns it 
 Node* Parser::declare(Node* node, NodeType type) {
-#ifdef TRACY_ENABLE
 	ZoneScoped;
-#endif
 	//TODO overloaded functions have different signatures
 	switch (type) {
 		case NodeType_Function: {
@@ -314,7 +345,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 				token_next();
 				Expect(Token_Identifier) {
 					Node* me = new_function(curt.raw, toStr("func: ", dataTypeStrs[dtype], " ", curt.raw));
-					Function* func = parser.function;
+					Function* func = function;
 					func->token_start = tokens.iter-1;
 					insert_last(node, me);
 					function->type = dtype;
@@ -335,7 +366,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 						//HACK
 						if (next_match(Token_CloseParen)) token_next();
 						Expect(Token_CloseParen) { 
-							knownFuncs.add(function->identifier, me);
+							thread_add_known_func(function->identifier, me);
 							function->token_idx = currTokIdx() + 1;
 							function->internal_label = cstring{ funclabel->str, funclabel->count };
 						}
@@ -370,7 +401,7 @@ Node* Parser::declare(Node* node, NodeType type) {
 									if (knownFuncs.has(id)) {
 										f = *knownFuncs.at(id);
 										change_parent(me, f);
-										knownFuncs.remove(id); //TODO do optimized swap remove instead
+										thread_remove_known_func(id);
 										while (!next_match(Token_CloseParen)) token_next();
 										token_next(); token_next();
 									}
@@ -1254,9 +1285,7 @@ Node* Parser::define(ParseStage stage, Node* node) {
 }
 
 b32 Parser::parse_program(Program& mother) {
-#ifdef TRACY_ENABLE
 	ZoneScoped;
-#endif
 	arena.init(Kilobytes(10));
 	mother.node.comment = "program";
 	tokens = carray<Token>{preprocessor.tokens.data, preprocessor.tokens.count};
@@ -1282,5 +1311,65 @@ b32 Parser::parse_program(Program& mother) {
 	}
 	if (parse_failed) return false;
 	
+	return true;
+}
+
+struct ParserArgs{
+	Node* node = 0;
+	Parser* parser = 0;
+	NodeType type = NodeType_Declaration;
+	u32 token_idx = 0;
+};
+
+void parse_declare_thread_func(ParserArgs pargs){
+	pargs.parser->tokens = carray<Token>{preprocessor.tokens.data, preprocessor.tokens.count};
+	pargs.parser->setTokenIdx(pargs.token_idx);
+	pargs.parser->declare(pargs.node, pargs.type);
+}
+
+b32 parse_prog(Program& mother){
+	//TODO the main thread needs to also do work instead of waiting
+	// maybe Thread can be given a callback for its threads to call and ask for more to work with
+	// so they dont have to rely on the main thread to tell them what to do.
+	ZoneScoped;
+	mother.node.comment = "program";
+	array<Parser> parsers;
+	set<Thread*> pthreads;
+	array<ParserArgs> pargs;
+
+	TracyMessageS("Making threads for parsing");
+	forI(max_threads){
+		ZoneScoped;
+		TracyMessageS("Initializaing parser");
+		Parser p;
+		p.arena.init(Kilobytes(2));
+		TracyMessageS("Making new thread");
+		Thread* nu = tmanager.MakeNewThread(toStr("parse_thread", i));
+		TracyMessageS("adding new thread");
+		pthreads.add(nu);
+		TracyMessageS("adding parser args");
+		pargs.add(ParserArgs());
+		TracyMessageS("Setting base function for thread");
+		nu->SetFunction(parse_declare_thread_func, &pargs[i]);
+		TracyMessageS("Adding Parser");
+		parsers.add(p);
+
+	}
+	for(u32& i : preprocessor.func_decl){
+		ZoneNamedN(funcdecldis, "parser func declaration dispatching thread", true);
+		Thread* next = tmanager.WaitForAvaliableThread();
+		u32 idx = pthreads.add(next);
+		ParserArgs& pa = pargs[idx];
+		pa.node = &mother.node;
+		pa.parser = &parsers[idx];
+		pa.token_idx = i;
+		pa.type = NodeType_Function;
+		next->Run();
+	}
+	tmanager.WaitForAllThreadsToFinish();
+		
+
+
+
 	return true;
 }
