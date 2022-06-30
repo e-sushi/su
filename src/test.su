@@ -1,0 +1,46 @@
+import math; //imports all free modules in math
+import math as math; //imports math, but puts all of its free modules behind struct math
+
+main() : s32 {
+
+    vec2 : {
+        x, y : f32 = 0;
+
+        mag() : f32 {
+            return sqrt(x*x+y*y);
+        };
+    };
+
+    //operators may be declared anywhere, with any type
+    operator (lhs:vec2 "+" rhs:vec2) -> vec2 {
+            return vec2{lhs.x + rhs.x, lhs.y + rhs.y};
+    };
+
+    operator (lhs:vec2 "-" rhs:vec2){
+        return vec2{lhs.x - rhs.x, lhs.y - rhs.y};
+    };
+
+    operator ("!" a:vec2){
+      return vec2{!a.x,!a.y};
+    };
+
+    //runtime templated function
+    add(a:any, b:any) -> auto {
+        return a+b;
+    };
+
+    add(1,2); // 3
+    
+    add(1.2, 2); //3.2
+
+    a : vec2 = {1, 2};
+    b := vec2{2, 1};
+
+    add(a,b); // {3, 3}
+
+    add(1, b); // compiler error: no operator exists for [int] + [vec2]
+
+    add(1, b.mag()); //
+
+
+};

@@ -1,0 +1,109 @@
+#import {
+    //includes the sections 'trig' and 'geometry' from the math module
+    //behind modules trig and geometry
+    math.{
+        trig,
+        geometry
+    },
+    //includes the function 'print' from io
+    io { print },
+}
+
+
+main() : s64 {  
+    
+    unsigned_decimal     : u64 = 1000;
+    unsigned_hexadecimal : u32 = 0x3e8;
+    
+    a_u16 : u16 = 300;
+    a_u8  : u8  = 15;
+
+    こにちは　: str = "a unicode identifier representing a str";
+
+    a_s64 : s64 = 1;
+    a_s32 : s32 = 1;
+    a_s16 : s16 = 1;
+    a_s8  : s8  = 1;
+
+    a_u64 : u64 = 1;
+    a_u32 : u32 = 1;
+    a_u16 : u16 = 1;
+    a_u8  : u8  = 1;
+
+    a_f64 : f64 = 1.0232;
+    a_f32 : f32 = 1.034;
+
+    a_any : any = "a string";
+
+    if(typeof(a_any) == str){
+        return 100;
+    }else{
+        return 0;
+    }
+
+
+
+    "lots of newlines and a free literal";
+
+    // a single line comment
+
+    /*
+
+
+        a 
+        multiline
+        comment
+
+
+    */
+
+    addition       := 2 + 2;
+    subtraction    := 2 - 2;
+    multiplication := 2 * 2;
+    division       := 2 / 2;
+    modulo         := 2 % 2;
+    bitand         := 2 & 2;
+    bitor          := 2 | 2;
+    bitxor         := 2 ^ 2;
+    bitshl         := 2 << 2;
+    bitshr         := 2 >> 2;
+    loginot        := !2;
+    bitnot         := ~2;
+    
+    addition += 2;
+    subtraction -= 2;
+    multiplication *= 2;
+    division /= 2;
+    modulo %= 2;
+    bitand &= 2;
+    bitor |= 2;
+    bitxor ^= 2;
+    bitshl <<= 2;
+    bitshr >>= 2;
+
+    {
+        a := 1;
+        {
+            b := 2;
+            {
+                c:= 3;
+                {
+                    string := "a bunch of nested scopes";
+                }
+                d := 4;
+            }
+            e := 5;
+        }
+        f := 6;
+    }
+
+
+    while(1) {
+        for(i := 0; i < 100; i++){
+            if(i < 10) continue;
+            defer { break; }
+        }
+    }
+
+
+}
