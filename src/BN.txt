@@ -1,0 +1,54 @@
+<program>     = { <module> }
+<module>      = <decl> 
+              | <scope> 
+              | <module-id> ":" <scope>
+<scope>       = "{" { ( <statement> | <decl> )  ";" } "}"
+<decl>        = <var-id> ":" [ <type> ] { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ]
+              | <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
+              | <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
+              | "operator" "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope>
+<statement>   = <scope>  
+              | ( <struct> | <exp> ) ";" 
+              | "using" (<var-id> | <scope-id>) [ "{" { <statement>} "}" ]  //var-id must be a var whose type is not scalar
+              | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
+              | "while" "(" <exp> ")" <statement>
+              | "defer" <statement> 
+              | "break"
+              | "continue" 
+<exp>         = <var-id> "=" <exp> | <conditional>
+<conditional> = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp>
+<logical or>  = <logical and> { "||" <logical and> } 
+<logical and> = <bit or> { "&&" <bit or> } 
+<bit or>      = <bit xor> { "|" <bit xor> }
+<bit xor>     = <bit and> { "^" <bit and> }
+<bit and>     = <equality> { "&" <equality> }
+<equality>    = <relational> { ("!=" | "==") <relational> }
+<relational>  = <bit shift> { ("<" | ">" | "<=" | ">=") <bit shift> }
+<bit shift>   = <additive> { ("<<" | ">>" ) <additive> }
+<additive>    = <term> { ("+" | "-") <term> }
+<term>        = <factor> { ("*" | "/" | "%") <factor> }
+<factor>      = "(" <exp> ")" 
+              | <unary> <factor> 
+              | <literal> 
+              | <var-id> 
+              | <incdec> <var-id> | <var-id> <incdec> 
+              | <call> 
+              | <memaccess> 
+              | "if"
+<call>        = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
+              | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
+<arg>         = <exp> | <id> "=" <expr>
+<type>        = <scalar-type> | <struct-type>
+<scalar-type> = ("void"|"u8"|"u16"|"u32"|"u64"|"s8"|"s16"|"s32"|"s64"|"f32"|"f64")
+<struct-type> = ("str"|"any"|<struct-id>)
+<struct-id>   = <id>  // an id pertaining to a structure (created in <decl>)
+<func-id>     = <id>  // an id pertaining to a function (created in <decl>)
+<var-id>      = <id>  // an id pertaining to a variable (l-value) (created in <decl>) 
+<id>          = ? any alphanumeric character sequence, not starting with a number, and including all unicode
+                  characters outside of ascii's range ?
+<literal>     = <int> | <float> | <string>
+<int>         = ? any integer number sequence, which may be represented in decimal, binary, or hex ?
+<float>       = ? any floating point number sequence ?
+<string>      = """ { <char> } """
+<char>        = ? any unicode codepoint ? 
+
