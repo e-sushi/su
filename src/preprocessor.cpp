@@ -34,27 +34,27 @@ LogE("", ErrorFormat("error: "), (token).file, "(",(token).l0,",",(token).c0,"):
 #define preprocess_warn(token, ...)\
 Log("", WarningFormat("warning: "), (token).file, "(",(token).l0,",",(token).c0,"):", __VA_ARGS__)
 
-PreprocessedFile* preprocess(LexedFile* lfile){
+PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
     Log("", "Preprocessing...");
     logger_push_indent();
-    if(preprocessor.files.has(lfile->file->front)){
+    if(preprocessed_files.has(lexfile->file->front)){
         Log("", "File has already been preprocessed.");
         logger_pop_indent();
-        return 0;
+        return &preprocessed_files[lexfile->file->front];
     } 
 
     Stopwatch time = start_stopwatch();
     
-    preprocessor.files.add(lfile->file->front);
-    PreprocessedFile* pfile = preprocessor.files.data.last;
-    pfile->lfile = lfile;
+    preprocessed_files.add(lexfile->file->front);
+    prefile = preprocessed_files.data.last;
+    prefile->lexfile = lexfile;
 
-    //first we look for imports, if they are found we lex the file being imported from recursively
+    //first we look for imports, if they are founda we lex the file being imported from recursively
     //TODO(sushi) this can probably be multithreaded
-    for(u32 importidx : lfile->preprocessor.imports){
+    for(u32 importidx : lexfile->preprocessor.imports){
         Log("", "Processing imports");
         logger_push_indent();
-        Token* curt = &lfile->tokens[importidx];
+        Token* curt = &lexfile->tokens[importidx];
         curt++;
         if(curt->type == Token_OpenBrace){
             //multiline directive 
@@ -72,8 +72,8 @@ PreprocessedFile* preprocess(LexedFile* lfile){
                     //attempt to find the module in import paths and current working directory
                     //first check cwd
                     if(file_exists(check)){
-                        preprocess(lex_file(check));
-                        Log("", "Preprocessing -> ", VTS_BlueFg, lfile->file->name, VTS_Default);
+                        preprocess(lexer.lex(check));
+                        Log("", "Preprocessing -> ", VTS_BlueFg, lexfile->file->name, VTS_Default);
                         logger_push_indent(2);
                         
                     }else{
@@ -95,11 +95,11 @@ PreprocessedFile* preprocess(LexedFile* lfile){
         logger_pop_indent();
     }
     
-    pfile->decl.exported.vars = lfile->decl.glob.vars;
-    pfile->decl.exported.funcs = lfile->decl.glob.funcs;
-    pfile->decl.exported.structs = lfile->decl.glob.structs;
-    for(u32 idx : lfile->preprocessor.internals){
-        Token* curt = &lfile->tokens[idx];
+    prefile->decl.exported.vars = lexfile->decl.glob.vars;
+    prefile->decl.exported.funcs = lexfile->decl.glob.funcs;
+    prefile->decl.exported.structs = lexfile->decl.glob.structs;
+    for(u32 idx : lexfile->preprocessor.internals){
+        Token* curt = &lexfile->tokens[idx];
         curt++;
         u32 start = idx, end;
         if(curt->type == Token_OpenBrace){
@@ -118,94 +118,95 @@ PreprocessedFile* preprocess(LexedFile* lfile){
             end = idx;
         }else{
             //the rest of the file is considered internal
-            end = lfile->tokens.count;
+            end = lexfile->tokens.count;
         }
         
-        forI(Max(pfile->decl.exported.vars.count, Max(pfile->decl.exported.funcs.count, pfile->decl.exported.structs.count))){
-            if(i < pfile->decl.exported.vars.count){
-                if(pfile->decl.exported.vars[i] > start && pfile->decl.exported.vars[i] < end){
-                    pfile->decl.internal.vars.add(pfile->decl.exported.vars[i]);
-                    pfile->decl.exported.vars.remove_unordered(i);
+        forI(Max(prefile->decl.exported.vars.count, Max(prefile->decl.exported.funcs.count, prefile->decl.exported.structs.count))){
+            if(i < prefile->decl.exported.vars.count){
+                if(prefile->decl.exported.vars[i] > start && prefile->decl.exported.vars[i] < end){
+                    prefile->decl.internal.vars.add(prefile->decl.exported.vars[i]);
+                    prefile->decl.exported.vars.remove_unordered(i);
                 }
             }
 
-            if(i < pfile->decl.exported.funcs.count){
-                if(pfile->decl.exported.funcs[i] > start && pfile->decl.exported.funcs[i] < end){
-                    pfile->decl.internal.funcs.add(pfile->decl.exported.funcs[i]);
-                    pfile->decl.exported.funcs.remove_unordered(i);
+            if(i < prefile->decl.exported.funcs.count){
+                if(prefile->decl.exported.funcs[i] > start && prefile->decl.exported.funcs[i] < end){
+                    prefile->decl.internal.funcs.add(prefile->decl.exported.funcs[i]);
+                    prefile->decl.exported.funcs.remove_unordered(i);
                 }
             }
 
-            if(i < pfile->decl.exported.structs.count){
-                if(pfile->decl.exported.structs[i] > start && pfile->decl.exported.structs[i] < end){
-                    pfile->decl.internal.structs.add(pfile->decl.exported.structs[i]);
-                    pfile->decl.exported.structs.remove_unordered(i);
+            if(i < prefile->decl.exported.structs.count){
+                if(prefile->decl.exported.structs[i] > start && prefile->decl.exported.structs[i] < end){
+                    prefile->decl.internal.structs.add(prefile->decl.exported.structs[i]);
+                    prefile->decl.exported.structs.remove_unordered(i);
                 }
             }        
         }
 
     }
+
     
     logger_push_indent();
-    if(pfile->decl.exported.vars.count)
+    if(prefile->decl.exported.vars.count)
         Log("", "Exported vars are: ");
     logger_push_indent();
-    forI(pfile->decl.exported.vars.count){
-        Log("", "  ", lfile->tokens[pfile->decl.exported.vars[i]-2].raw);
+    forI(prefile->decl.exported.vars.count){
+        Log("", "  ", lexfile->tokens[prefile->decl.exported.vars[i]-2].raw);
     }
     logger_pop_indent();
 
-    if(pfile->decl.exported.funcs.count)
+    if(prefile->decl.exported.funcs.count)
         Log("", " Exported funcs are: ");
     logger_push_indent();
-    forI(pfile->decl.exported.funcs.count){
-        Token* curt = &lfile->tokens[pfile->decl.exported.funcs[i]];
+    forI(prefile->decl.exported.funcs.count){
+        Token* curt = &lexfile->tokens[prefile->decl.exported.funcs[i]];
         while(curt->type != Token_OpenParen) curt--;
         Log("", "  ", (--curt)->raw);
     }
     logger_pop_indent();
 
-    if(pfile->decl.exported.structs.count)
+    if(prefile->decl.exported.structs.count)
         Log("", " Exported structs are: ");
     logger_push_indent();
-    forI(pfile->decl.exported.structs.count){
-        Log("", "  ", lfile->tokens[pfile->decl.exported.structs[i]-2].raw);
+    forI(prefile->decl.exported.structs.count){
+        Log("", "  ", lexfile->tokens[prefile->decl.exported.structs[i]-2].raw);
     }
     logger_pop_indent();
 
-    if(pfile->decl.internal.vars.count)
+    if(prefile->decl.internal.vars.count)
         Log("", " Internal vars are: ");
     logger_push_indent();
-    forI(pfile->decl.internal.vars.count){
-        Log("", "  ", lfile->tokens[pfile->decl.internal.vars[i]-2].raw);
+    forI(prefile->decl.internal.vars.count){
+        Log("", "  ", lexfile->tokens[prefile->decl.internal.vars[i]-2].raw);
     }
     logger_pop_indent();
 
-    if(pfile->decl.internal.funcs.count)
+    if(prefile->decl.internal.funcs.count)
         Log("", " Internal funcs are: ");
     logger_push_indent();
-    forI(pfile->decl.internal.funcs.count){
-        Token* curt = &lfile->tokens[pfile->decl.internal.funcs[i]];
+    forI(prefile->decl.internal.funcs.count){
+        Token* curt = &lexfile->tokens[prefile->decl.internal.funcs[i]];
         while(curt->type != Token_OpenParen) curt--;
         Log("", "  ", (--curt)->raw);
     }
     logger_pop_indent();
 
-    if(pfile->decl.internal.structs.count)
+    if(prefile->decl.internal.structs.count)
         Log("", " Internal structs are: ");
     logger_push_indent();
-    forI(pfile->decl.internal.structs.count){
-        Log("", "  ", lfile->tokens[pfile->decl.internal.structs[i]-2].raw);
+    forI(prefile->decl.internal.structs.count){
+        Log("", "  ", lexfile->tokens[prefile->decl.internal.structs[i]-2].raw);
     }
     logger_pop_indent();
     logger_pop_indent();
 
-    for(u32 idx : lfile->preprocessor.runs){
-        preprocess_error(lfile->tokens[idx], "#run is not implemented yet.");
+    for(u32 idx : lexfile->preprocessor.runs){
+        preprocess_error(lexfile->tokens[idx], "#run is not implemented yet.");
     }
 
     Log("", VTS_GreenFg, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
     logger_pop_indent(2);
 
-    return pfile;
+    return prefile;
 }

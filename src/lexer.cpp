@@ -188,7 +188,7 @@ b32 is_identifier_char(u32 codepoint){
 
 #define stream_next { str8_advance(&stream); line_col++; } 
 
-LexedFile* lex_file(str8 filepath){DPZoneScoped;
+LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 	Stopwatch lex_time = start_stopwatch();
 	logger_pop_indent(-1);
 	File* file = file_init(filepath, FileAccess_Read);
@@ -204,17 +204,16 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 
 	str8 filename = file->name;
 
-	if(lexer.files.has(filename)){
+	if(lexed_files.has(filename)){
 		Log("", VTS_GreenFg, "File has already been lexed.", VTS_Default);
-		//this file has already been lexed, so we can early out
-		return 0;
+		return &lexed_files[filename];
 	}
 
 	//create the module 
 
-	lexer.files.add(filename);
-	LexedFile* lfile = &lexer.files[filename];
-	lfile->file = file;
+	lexed_files.add(filename);
+	lexfile = &lexed_files[filename];
+	lexfile->file = file;
 
 	str8 buffer = file_read_alloc(file, file->bytes, deshi_allocator); 
 	str8 stream = buffer;
@@ -273,7 +272,7 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 
 				token.l1 = line_num;
 	 			token.c1 = line_col;
-	 			lfile->tokens.add(token);
+	 			lexfile->tokens.add(token);
 			}continue;
 
 			case '\'':{
@@ -286,7 +285,7 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				lfile->tokens.add(token);
+				lexfile->tokens.add(token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 
@@ -300,7 +299,7 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				lfile->tokens.add(token);
+				lexfile->tokens.add(token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 			
@@ -317,10 +316,10 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 			CASE1('#', Token_Pound);
 			CASE1('`', Token_Backtick);
 
-			case '{':{ //NOTE special for scope tracking
+			case '{':{ //NOTE special for scope tracking and internals 
 				token.type = Token_OpenBrace;
 				//NOTE(sushi) internal directive scopes do affect scope level
-				if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_Directive_Internal){
+				if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Directive_Internal){
 					internal_scope_depth = scope_depth;
 				}else{
 					scope_depth++;
@@ -426,19 +425,25 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 						case Token_Any:{
 							//if this token is a type we can check if its a declaration and 
 							//if it is, determine what kind of declaration it is 						
-							if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_Colon){
+							if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Colon){
 								//we know its declaration, but we need to know if its a varaible or a function
-								if(lfile->tokens[lfile->tokens.count-2].type == Token_CloseParen){
+								if(lexfile->tokens[lexfile->tokens.count-2].type == Token_CloseParen){
+									//find where the function actually starts
+									Token* curt = &lexfile->tokens[lexfile->tokens.count-1];
+									while(curt->type!=Token_OpenParen) curt--;
+									curt--;
+
 									if(!scope_depth){
-										lfile->decl.glob.funcs.add(lfile->tokens.count);
+										lexfile->decl.glob.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt)/sizeof(Token));
 									}else{
-										lfile->decl.loc.funcs.add(lfile->tokens.count);
+										lexfile->decl.loc.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt)/sizeof(Token));
 									}
 								}else{
 									if(!scope_depth){
-										lfile->decl.glob.vars.add(lfile->tokens.count);
+									
+										lexfile->decl.glob.vars.add(lexfile->tokens.count);
 									}else{
-										lfile->decl.loc.vars.add(lfile->tokens.count);
+										lexfile->decl.loc.vars.add(lexfile->tokens.count);
 									}
 								}
 							}
@@ -447,18 +452,18 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 						case Token_Struct:{
 							//in this case we know its a declaration because thats the only reason to use this keyword
 							if(!scope_depth){
-								lfile->decl.glob.structs.add(lfile->tokens.count);
+								lexfile->decl.glob.structs.add(lexfile->tokens.count-2);
 							}else{
-								lfile->decl.loc.structs.add(lfile->tokens.count);
+								lexfile->decl.loc.structs.add(lexfile->tokens.count-2);
 							}
 							struct_names.add(token.raw);
 						}        
 					}
 
-					if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_StructDecl){
+					if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_StructDecl){
 						struct_names.add(token.raw);
 					}
-					else if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_Pound){
+					else if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Pound){
 						Token_Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
 							lex_error(token, "Invalid directive following #. Directive was '", token.raw, "'");
@@ -466,13 +471,13 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 						}else{
 							switch(type){
 								case Token_Directive_Import:{
-									lfile->preprocessor.imports.add(lfile->tokens.count);
+									lexfile->preprocessor.imports.add(lexfile->tokens.count);
 								}break;
 								case Token_Directive_Internal:{
-									lfile->preprocessor.internals.add(lfile->tokens.count);
+									lexfile->preprocessor.internals.add(lexfile->tokens.count);
 								}break;
 								case Token_Directive_Run:{
-									lfile->preprocessor.runs.add(lfile->tokens.count);
+									lexfile->preprocessor.runs.add(lexfile->tokens.count);
 								}break;
 							}
 
@@ -480,9 +485,9 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 						}
 					}
 					if(token.type == Token_Identifier){
-						identifier_indexes.add(lfile->tokens.count);
+						identifier_indexes.add(lexfile->tokens.count);
 						if(!scope_depth){
-							global_identifiers.add(lfile->tokens.count);
+							global_identifiers.add(lexfile->tokens.count);
 						}
 					}
 				}else{
@@ -514,16 +519,16 @@ LexedFile* lex_file(str8 filepath){DPZoneScoped;
 			token.l1 = line_num;
 			token.c1 = line_col;
 			token.raw.count = stream.str - token.raw.str;
-			lfile->tokens.add(token);
+			lexfile->tokens.add(token);
 		}
 		
 	}
 
-	lfile->tokens.add(Token{Token_EOF, Token_EOF});	
+	lexfile->tokens.add(Token{Token_EOF, Token_EOF});	
 
 	Log("", VTS_GreenFg, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 	logger_pop_indent();
-	return lfile;
+	return lexfile;
 }
 
 #undef LINE_COLUMN

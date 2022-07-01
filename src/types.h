@@ -43,8 +43,8 @@ enum NodeType : u32 {
 	NodeType_Program,
 	NodeType_Structure,
 	NodeType_Function,
+	NodeType_Variable,
 	NodeType_Scope,
-	NodeType_Declaration,
 	NodeType_Statement,
 	NodeType_Expression,
 };
@@ -384,67 +384,7 @@ struct Token {
 };
 
 
-struct LexedFile {
-	File* file;
 
-	array<Token> tokens;
-
-	struct{
-		struct{
-			array<u32>   vars;
-			array<u32>   funcs;
-			array<u32>   structs;
-		}glob;
-		
-		struct{
-			array<u32>   vars;
-			array<u32>   funcs;
-			array<u32>   structs;
-		}loc;
-	}decl;
-	
-
-	struct{
-		array<u32> imports;
-		array<u32> internals;
-		array<u32> runs;
-	}preprocessor;
-};
-
-struct Lexer {
-	map<str8, LexedFile> files;
-} lexer;
-
-//~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Preprocessor
-
-struct PreprocessedFile{
-	LexedFile* lfile;
-
-	//declarations that are exported
-
-	struct{
-		struct{
-			array<u32> vars;
-			array<u32> funcs;
-			array<u32> structs;
-		}exported;
-
-		struct{
-			array<u32> vars;
-			array<u32> funcs;
-			array<u32> structs;
-		}internal;
-	}decl;
-
-	array<u32> runs;
-	
-};
-
-struct Preprocessor {
-	//str8 is the name of the file, it is the same as the lexer's map names
-	map<str8, PreprocessedFile> files;	
-}preprocessor;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
@@ -650,19 +590,6 @@ struct Variable{
 #define VariableFromDeclaration(x) CastFromMember(Varaible, decl, x)
 #define VariableFromNode(x) VaraibleFromDeclaration(DeclarationFromNode(x))
 
-// represents a module in the AST tree
-struct Module {
-	TNode node;
-	str8 name;
-	str8 file;
-
-	array<Declaration*> internal_decl;
-	array<Declaration*> exported_decl;
-};
-#define ModuleFromNode(x) CastFromMember(Module, node, x)
-
-map<str8, Module*> loaded_modules;
-
 struct Program {
 	Node node;
 	str8 filename;
@@ -708,54 +635,174 @@ enum ParseStage {
 	//                <unary>         :: = "!" | "~" | "-"
 };
 
-struct Parser {
-	int ok(){
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Lexer
 
-	}
+struct LexedFile {
+	File* file;
+
+	array<Token> tokens;
+
+	struct{
+		struct{
+			array<u32>   vars;
+			array<u32>   funcs;
+			array<u32>   structs;
+		}glob;
+		
+		struct{
+			array<u32>   vars;
+			array<u32>   funcs;
+			array<u32>   structs;
+		}loc;
+	}decl;
+	
+
+	struct{
+		array<u32> imports;
+		array<u32> internals;
+		array<u32> runs;
+	}preprocessor;
 };
 
+struct Lexer {
+	LexedFile* lexfile;
 
-//@memory
+	LexedFile* lex(str8 filepath);
+}lexer;
 
-struct{
-	Arena modules;
-	Arena functions;
-	Arena variables;
-	Arena structs;
-	Arena scopes;
-	Arena expressions;
-}arena;
+map<str8, LexedFile> lexed_files;
 
-FORCE_INLINE
-Module* make_module(str8 name, str8 path){
-	Module* ret = (Module*)arena.modules.cursor;
-	arena.modules.cursor += sizeof(Module);
-	arena.modules.used += sizeof(Module);
-	return ret;
-}
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Preprocessor
 
-FORCE_INLINE
-Function* make_function(){
-	Function* ret = (Function*)arena.functions.cursor;
-	arena.functions.cursor += sizeof(Function);
-	arena.functions.used += sizeof(Function);
-	return ret;
-}
+struct PreprocessedFile{
+	LexedFile* lexfile;
 
-FORCE_INLINE
-Struct* make_struct(){
-	Struct* ret = (Struct*)arena.structs.cursor;
-	arena.structs.cursor += sizeof(Struct);
-	arena.structs.used += sizeof(Struct);
-	return ret;
-}
+	struct{
+		struct{
+			array<u32> vars;
+			array<u32> funcs;
+			array<u32> structs;
+		}exported;
 
-FORCE_INLINE
-Variable* make_variable(){
-	Variable* ret = (Variable*)arena.variables.cursor;
-	arena.variables.cursor += sizeof(Variable);
-	arena.variables.used += sizeof(Variable);
-	return ret;
-}
+		struct{
+			array<u32> vars;
+			array<u32> funcs;
+			array<u32> structs;
+		}internal;
+	}decl;
+
+	array<u32> runs;
+	
+};
+
+struct Preprocessor {
+	PreprocessedFile* prefile;
+
+	PreprocessedFile* preprocess(LexedFile* lexfile);
+	//str8 is the name of the file, it is the same as the lexer's map names
+
+}preprocessor;
+
+map<str8, PreprocessedFile> preprocessed_files;	
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Parser
+
+struct ParsedFile{
+	PreprocessedFile* prefile;
+
+	struct{
+		struct{
+			array<Variable*> vars;
+			array<Function*> funcs;
+			array<Struct*> structs;
+		}exported;
+
+		struct{
+			array<Variable*> vars;
+			array<Function*> funcs;
+			array<Struct*> structs;
+		}internal;
+	}decl;
+};
+
+struct Parser {
+	ParsedFile* parfile;
+
+	carray<Token> tokens;
+	Token* curt;
+
+	Struct*      structure;
+	Function*    function;
+	Scope*       scope;
+	Declaration* declaration;
+	Statement*   statement;
+	Expression*  expression;
+
+	struct{
+		Arena modules;
+		Arena functions;
+		Arena variables;
+		Arena structs;
+		Arena scopes;
+		Arena expressions;
+
+		FORCE_INLINE
+		Function* make_function(){
+			Function* ret = (Function*)functions.cursor;
+			functions.cursor += sizeof(Function);
+			functions.used += sizeof(Function);
+			return ret;
+		}
+
+		FORCE_INLINE
+		Struct* make_struct(){
+			Struct* ret = (Struct*)structs.cursor;
+			structs.cursor += sizeof(Struct);
+			structs.used += sizeof(Struct);
+			return ret;
+		}
+
+		FORCE_INLINE
+		Variable* make_variable(){
+			Variable* ret = (Variable*)variables.cursor;
+			variables.cursor += sizeof(Variable);
+			variables.used += sizeof(Variable);
+			return ret;
+		}
+
+		FORCE_INLINE
+		Expression* make_expression(){
+			Expression* ret = (Expression*)expressions.cursor;
+			expressions.cursor += sizeof(Expression);
+			expressions.used += sizeof(Expression);
+			return ret;
+		}
+
+	}arena;
+
+	TNode* declare(TNode* node, Type type);
+	TNode* define(TNode* node, ParseStage stage);
+	ParsedFile* parse(PreprocessedFile* prefile);
+
+}parser;
+
+map<str8, ParsedFile> parsed_files;
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Compiler
+
+struct Compiler{
+	array<Lexer> lexers;
+	array<Preprocessor> preprocessors;
+	array<Parser> parsers;
+
+	u32 max_threads = 3;
+
+	void compile(str8 filepath);
+}compiler;
+
 
 #endif //SU_TYPES_H

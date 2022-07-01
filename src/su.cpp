@@ -30,12 +30,21 @@
 #include "preprocessor.cpp"
 #include "parser.cpp"
 
+
+#include "compiler.cpp"
+
 int main(){
    	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
+	
+	//compiler.compile(STR8("tests/lexer/lexer-full.su"));
 
-  	preprocess(lex_file(STR8("tests/lexer/lexer-full.su")));
+	LexedFile*         lf = lexer.lex(STR8("tests/lexer/lexer-full.su"));
+	PreprocessedFile* ppf = preprocessor.preprocess(lf);
+	forI(preprocessed_files.count){
+		parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
+	}
   
 	return 1;
 }
