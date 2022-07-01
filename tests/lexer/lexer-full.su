@@ -6,16 +6,20 @@
 #internal{
     func0() : s64 {
         return 0;
-    }
+    };
 
     func1() : s32 {
         return 1;
-    }
+    };
 
     vec2 : struct {
         a : any = 1;
-    }
+    };
 }
+
+vec3 : struct {
+    x,y : f32;
+};
 
 main() : s64 {  
     

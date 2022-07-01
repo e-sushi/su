@@ -440,16 +440,15 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 									}
 								}else{
 									if(!scope_depth){
-									
-										lexfile->decl.glob.vars.add(lexfile->tokens.count);
+										lexfile->decl.glob.vars.add(lexfile->tokens.count-2);
 									}else{
-										lexfile->decl.loc.vars.add(lexfile->tokens.count);
+										lexfile->decl.loc.vars.add(lexfile->tokens.count-2);
 									}
 								}
 							}
 						}break;        
 
-						case Token_Struct:{
+						case Token_StructDecl:{
 							//in this case we know its a declaration because thats the only reason to use this keyword
 							if(!scope_depth){
 								lexfile->decl.glob.structs.add(lexfile->tokens.count-2);

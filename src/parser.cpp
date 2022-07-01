@@ -28,12 +28,18 @@
 #endif
 
 
-TNode* Parser::declare(TNode* node, Type type){
+TNode* Parser::declare(Type type){
     logger_push_indent();
     
     switch(type){
         case decl_structure:{
             Struct* s = arena.make_struct();
+            s->decl.identifier = curt->raw;
+            s->decl.token_start = curt;
+            while(curt->type!=Token_CloseBrace){
+                curt++;
+            }
+            s->decl.token_end = curt;
         }break;
     }
 
@@ -71,9 +77,61 @@ ParsedFile* Parser::parse(PreprocessedFile* prefile){
     parfile = &parsed_files[file->front];
     parfile->prefile = prefile;
 
-    for(u32 idx : prefile->decl.exported.structs){
-        
-    }   
+    stacks.structs_pushed.add(0);
+    stacks.functions_pushed.add(0);
+    stacks.variables_pushed.add(0);
+
+    {//declare all global declarations
+        for(u32 idx : prefile->decl.exported.structs){
+            curt = &prefile->lexfile->tokens[idx];
+            Struct* s = StructFromNode(declare(decl_structure));
+            parfile->decl.exported.structs.add(s);
+            (*stacks.structs_pushed.last)++;
+            stacks.structs.add(s);
+        }   
+
+        for(u32 idx : prefile->decl.internal.structs){
+            curt = &prefile->lexfile->tokens[idx];
+            Struct* s = StructFromNode(declare(decl_structure));
+            parfile->decl.internal.structs.add(s);
+            (*stacks.structs_pushed.last)++;
+            stacks.structs.add(s);
+        }
+
+        for(u32 idx : prefile->decl.exported.funcs){
+            curt = &prefile->lexfile->tokens[idx];
+            Function* f = FunctionFromNode(declare(decl_function));
+            parfile->decl.exported.funcs.add(f);
+            (*stacks.functions_pushed.last)++;
+            stacks.functions.add(f);
+        }
+
+        for(u32 idx : prefile->decl.internal.funcs){
+            curt = &prefile->lexfile->tokens[idx];
+            Function* f = FunctionFromNode(declare(decl_function));
+            parfile->decl.internal.funcs.add(f);
+            (*stacks.functions_pushed.last)++;
+            stacks.functions.add(f);
+        }
+
+        for(u32 idx : prefile->decl.exported.vars){
+            curt = &prefile->lexfile->tokens[idx];
+            Variable* v = VariableFromNode(declare(decl_variable));
+            parfile->decl.exported.vars.add(v);
+            (*stacks.variables_pushed.last)++;
+            stacks.variables.add(v);
+        }
+
+        for(u32 idx : prefile->decl.internal.vars){
+            curt = &prefile->lexfile->tokens[idx];
+            Variable* v = VariableFromNode(declare(decl_variable));
+            parfile->decl.internal.vars.add(v);
+            (*stacks.variables_pushed.last)++;
+            stacks.variables.add(v);
+        }
+    }
+
+    
 
     Log("", VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
 

@@ -1,7 +1,3 @@
-math : module {
-
-trig : module {
-
 sin(x:f64) : f64{ 
     //... 
 }
@@ -10,9 +6,6 @@ cos(x:f64) : f64{
     //...
 }
 
-} //math.trig module
-
-} //math module
 
 
 

@@ -46,7 +46,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
     Stopwatch time = start_stopwatch();
     
     preprocessed_files.add(lexfile->file->front);
-    prefile = preprocessed_files.data.last;
+    prefile = &preprocessed_files[lexfile->file->front];
     prefile->lexfile = lexfile;
 
     //first we look for imports, if they are founda we lex the file being imported from recursively
@@ -72,7 +72,12 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
                     //attempt to find the module in import paths and current working directory
                     //first check cwd
                     if(file_exists(check)){
-                        preprocess(lexer.lex(check));
+                        Preprocessor pp;
+                        pp.preprocess(lexer.lex(check));
+                        
+                        
+
+                        
                         Log("", "Preprocessing -> ", VTS_BlueFg, lexfile->file->name, VTS_Default);
                         logger_push_indent(2);
                         
@@ -152,7 +157,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
         Log("", "Exported vars are: ");
     logger_push_indent();
     forI(prefile->decl.exported.vars.count){
-        Log("", "  ", lexfile->tokens[prefile->decl.exported.vars[i]-2].raw);
+        Log("", "  ", lexfile->tokens[prefile->decl.exported.vars[i]].raw);
     }
     logger_pop_indent();
 
@@ -168,7 +173,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
         Log("", " Exported structs are: ");
     logger_push_indent();
     forI(prefile->decl.exported.structs.count){
-        Log("", "  ", lexfile->tokens[prefile->decl.exported.structs[i]-2].raw);
+        Log("", "  ", lexfile->tokens[prefile->decl.exported.structs[i]].raw);
     }
     logger_pop_indent();
 
@@ -176,7 +181,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
         Log("", " Internal vars are: ");
     logger_push_indent();
     forI(prefile->decl.internal.vars.count){
-        Log("", "  ", lexfile->tokens[prefile->decl.internal.vars[i]-2].raw);
+        Log("", "  ", lexfile->tokens[prefile->decl.internal.vars[i]].raw);
     }
     logger_pop_indent();
 
@@ -192,7 +197,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
         Log("", " Internal structs are: ");
     logger_push_indent();
     forI(prefile->decl.internal.structs.count){
-        Log("", "  ", lexfile->tokens[prefile->decl.internal.structs[i]-2].raw);
+        Log("", "  ", lexfile->tokens[prefile->decl.internal.structs[i]].raw);
     }
     logger_pop_indent();
     logger_pop_indent();

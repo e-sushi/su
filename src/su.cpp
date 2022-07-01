@@ -38,6 +38,8 @@ int main(){
    	platform_init();
    	logger_init();
 	
+	parser.arena.init();
+
 	//compiler.compile(STR8("tests/lexer/lexer-full.su"));
 
 	LexedFile*         lf = lexer.lex(STR8("tests/lexer/lexer-full.su"));

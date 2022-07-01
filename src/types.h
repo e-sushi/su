@@ -572,7 +572,7 @@ struct Struct {
 struct Variable{
 	Declaration decl;
 
-
+	Struct* struct_data;
 	union {
 		f32 float32;
 		f64 float64;
@@ -587,8 +587,8 @@ struct Variable{
 		str8 str;
 	};
 };
-#define VariableFromDeclaration(x) CastFromMember(Varaible, decl, x)
-#define VariableFromNode(x) VaraibleFromDeclaration(DeclarationFromNode(x))
+#define VariableFromDeclaration(x) CastFromMember(Variable, decl, x)
+#define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
 
 struct Program {
 	Node node;
@@ -734,56 +734,69 @@ struct Parser {
 	carray<Token> tokens;
 	Token* curt;
 
-	Struct*      structure;
-	Function*    function;
-	Scope*       scope;
-	Declaration* declaration;
-	Statement*   statement;
-	Expression*  expression;
+	//stacks of known things 
 
 	struct{
-		Arena modules;
-		Arena functions;
-		Arena variables;
-		Arena structs;
-		Arena scopes;
-		Arena expressions;
+		array<u32> structs_pushed;
+		array<Struct*> structs;
+		array<u32> functions_pushed;
+		array<Function*> functions;
+		array<u32> variables_pushed;
+		array<Variable*> variables;
+	}stacks;
+
+	struct{
+		Arena* functions;
+		Arena* variables;
+		Arena* structs;
+		Arena* scopes;
+		Arena* expressions;
 
 		FORCE_INLINE
 		Function* make_function(){
-			Function* ret = (Function*)functions.cursor;
-			functions.cursor += sizeof(Function);
-			functions.used += sizeof(Function);
+			Function* ret = (Function*)functions->cursor;
+			functions->cursor += sizeof(Function);
+			functions->used += sizeof(Function);
 			return ret;
 		}
 
 		FORCE_INLINE
 		Struct* make_struct(){
-			Struct* ret = (Struct*)structs.cursor;
-			structs.cursor += sizeof(Struct);
-			structs.used += sizeof(Struct);
+			Struct* ret = (Struct*)structs->cursor;
+			structs->cursor += sizeof(Struct);
+			structs->used += sizeof(Struct);
 			return ret;
 		}
 
 		FORCE_INLINE
 		Variable* make_variable(){
-			Variable* ret = (Variable*)variables.cursor;
-			variables.cursor += sizeof(Variable);
-			variables.used += sizeof(Variable);
+			Variable* ret = (Variable*)variables->cursor;
+			variables->cursor += sizeof(Variable);
+			variables->used += sizeof(Variable);
 			return ret;
 		}
 
 		FORCE_INLINE
 		Expression* make_expression(){
-			Expression* ret = (Expression*)expressions.cursor;
-			expressions.cursor += sizeof(Expression);
-			expressions.used += sizeof(Expression);
+			Expression* ret = (Expression*)expressions->cursor;
+			expressions->cursor += sizeof(Expression);
+			expressions->used += sizeof(Expression);
 			return ret;
+		}
+
+		FORCE_INLINE
+		void init(){
+			functions   = memory_create_arena(Kilobytes(512));
+			variables   = memory_create_arena(Kilobytes(512));
+			structs     = memory_create_arena(Kilobytes(512));
+			scopes      = memory_create_arena(Kilobytes(512));
+			expressions = memory_create_arena(Kilobytes(512));
 		}
 
 	}arena;
 
-	TNode* declare(TNode* node, Type type);
+
+	TNode* declare(Type type);
 	TNode* define(TNode* node, ParseStage stage);
 	ParsedFile* parse(PreprocessedFile* prefile);
 
