@@ -68,14 +68,11 @@ ParsedFile* Parser::parse(PreprocessedFile* prefile){
     }
 
     parsed_files.add(file->front);
-    ParsedFile* parfile = &parsed_files[file->front];
+    parfile = &parsed_files[file->front];
     parfile->prefile = prefile;
 
-
-
-
     for(u32 idx : prefile->decl.exported.structs){
-
+        
     }   
 
     Log("", VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);

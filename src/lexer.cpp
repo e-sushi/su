@@ -426,7 +426,7 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 							//if this token is a type we can check if its a declaration and 
 							//if it is, determine what kind of declaration it is 						
 							if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Colon){
-								//we know its declaration, but we need to know if its a varaible or a function
+								//we know its a declaration, but we need to know if its a variable or a function
 								if(lexfile->tokens[lexfile->tokens.count-2].type == Token_CloseParen){
 									//find where the function actually starts
 									Token* curt = &lexfile->tokens[lexfile->tokens.count-1];
@@ -434,9 +434,9 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 									curt--;
 
 									if(!scope_depth){
-										lexfile->decl.glob.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt)/sizeof(Token));
+										lexfile->decl.glob.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt) - 1);
 									}else{
-										lexfile->decl.loc.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt)/sizeof(Token));
+										lexfile->decl.loc.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt) - 1);
 									}
 								}else{
 									if(!scope_depth){

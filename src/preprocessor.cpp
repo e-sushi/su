@@ -160,9 +160,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
         Log("", " Exported funcs are: ");
     logger_push_indent();
     forI(prefile->decl.exported.funcs.count){
-        Token* curt = &lexfile->tokens[prefile->decl.exported.funcs[i]];
-        while(curt->type != Token_OpenParen) curt--;
-        Log("", "  ", (--curt)->raw);
+        Log("", "  ", lexfile->tokens[prefile->decl.exported.funcs[i]].raw);
     }
     logger_pop_indent();
 
@@ -186,9 +184,7 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){
         Log("", " Internal funcs are: ");
     logger_push_indent();
     forI(prefile->decl.internal.funcs.count){
-        Token* curt = &lexfile->tokens[prefile->decl.internal.funcs[i]];
-        while(curt->type != Token_OpenParen) curt--;
-        Log("", "  ", (--curt)->raw);
+        Log("", "  ", lexfile->tokens[prefile->decl.internal.funcs[i]].raw);
     }
     logger_pop_indent();
 
