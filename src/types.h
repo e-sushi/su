@@ -263,6 +263,7 @@ enum Token_Type : u32{
 
 	//// directives ////
 	Token_Directive_Import,
+	Token_Directive_Internal,
 	Token_Directive_Run,
 
 }; //typedef u32 Token_Type;
@@ -374,7 +375,7 @@ struct Token {
 	str8 file;
 	u32 l0, l1;
 	u32 c0, c1;
-	
+
 	union{
 		f64 f64_val;
 		s64 s64_val;
@@ -384,29 +385,65 @@ struct Token {
 
 
 struct LexedFile {
+	File* file;
+
 	array<Token> tokens;
-	array<u32>   var_decl;
-	array<u32>   func_decl;
-	array<u32>   struct_decl;
-	array<u32>   preprocessor_tokens;
+
+	struct{
+		struct{
+			array<u32>   vars;
+			array<u32>   funcs;
+			array<u32>   structs;
+		}glob;
+		
+		struct{
+			array<u32>   vars;
+			array<u32>   funcs;
+			array<u32>   structs;
+		}loc;
+	}decl;
+	
+
+	struct{
+		array<u32> imports;
+		array<u32> internals;
+		array<u32> runs;
+	}preprocessor;
 };
 
 struct Lexer {
-	map<str8, LexedFile> file_index;
+	map<str8, LexedFile> files;
 } lexer;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Preprocessor
+
+struct PreprocessedFile{
+	LexedFile* lfile;
+
+	//declarations that are exported
+
+	struct{
+		struct{
+			array<u32> vars;
+			array<u32> funcs;
+			array<u32> structs;
+		}exported;
+
+		struct{
+			array<u32> vars;
+			array<u32> funcs;
+			array<u32> structs;
+		}internal;
+	}decl;
+
+	array<u32> runs;
+	
+};
+
 struct Preprocessor {
-	array<Token> tokens;
-	array<u32>   var_decl;
-	array<u32>   func_decl;
-	array<u32>   struct_decl;
-	array<u32>   preprocessor_tokens;
-	
-	void preprocess_parse();
-	b32  preprocess();
-	
+	//str8 is the name of the file, it is the same as the lexer's map names
+	map<str8, PreprocessedFile> files;	
 }preprocessor;
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -519,7 +556,7 @@ struct Expression {
 		cstring str;
 	};
 };
-#define ExpressionFromNode(node_ptr) ((Expression*)((u8*)(node_ptr) - OffsetOfMember(Expression,node)))
+#define ExpressionFromNode(x) CastFromMember(Expression, node, x)
 
 enum StatementType : u32 {
 	Statement_Unknown,
@@ -542,7 +579,23 @@ struct Statement {
 	
 	StatementType type = Statement_Unknown;
 };
-#define StatementFromNode(node_ptr) ((Statement*)((u8*)(node_ptr) - OffsetOfMember(Statement,node)))
+#define StatementFromNode(x) CastFromMember(Statement, node, x)
+
+struct Scope {
+	TNode node;
+	Token* token_start;
+	Token* token_end;
+	
+	b32 has_return_statement = false;
+};
+#define ScopeFromNode(x) CastFromMember(Scope, node, x)
+
+enum{
+	decl_function,
+	decl_variable,
+	decl_structure,
+};
+
 
 struct Declaration {
 	TNode node;
@@ -550,12 +603,36 @@ struct Declaration {
 	Token* token_end;
 	u64 token_idx = 0;
 	
-	cstring identifier;
-	cstring type_id; //used for storing the name of the struct this decalaration is made with, this is necessary to allow for global structs being used everywhere
+	Type type;
+	str8 identifier;
+
+};
+#define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
+
+struct Function {
+	Declaration decl;
+	str8 internal_label;
 	DataType type;
-	Struct* struct_type = 0;
-	b32 initialized = 0;
-	u32 type_size = npos;
+	u32 positional_args = 0;
+	map<cstring, Declaration*> args;
+	//TODO do this with a binary tree sort of thing instead later
+	array<Function*> overloads;
+};
+#define FunctionFromDeclaration(x) CastFromMember(Function, decl, x)
+#define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
+
+struct Struct {
+	Declaration decl;
+	
+	map<cstring, Declaration*> members;
+};
+#define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
+#define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
+
+struct Variable{
+	Declaration decl;
+
+
 	union {
 		f32 float32;
 		f64 float64;
@@ -567,64 +644,28 @@ struct Declaration {
 		u16 uint16;
 		u32 uint32;
 		u64 uint64;
-		cstring str;
+		str8 str;
 	};
 };
-#define DeclarationFromNode(node_ptr) ((Declaration*)((u8*)(node_ptr) - OffsetOfMember(Declaration,node)))
+#define VariableFromDeclaration(x) CastFromMember(Varaible, decl, x)
+#define VariableFromNode(x) VaraibleFromDeclaration(DeclarationFromNode(x))
 
-struct Scope {
-	Node node;
-	Token* token_start;
-	Token* token_end;
-	
-	b32 has_return_statement = false;
-};
-#define ScopeFromNode(node_ptr) ((Scope*)((u8*)(node_ptr) - OffsetOfMember(Scope,node)))
-
-struct Function {
-	TNode node;
-	Token* token_start;
-	Token* token_end;
-	u64 token_idx = 0;
-	
-	cstring identifier;
-	cstring internal_label;
-	DataType type;
-	u32 positional_args = 0;
-	map<cstring, Declaration*> args;
-	//TODO do this with a binary tree sort of thing instead later
-	array<Function*> overloads;
-};
-#define FunctionFromNode(node_ptr) ((Function*)((u8*)(node_ptr) - OffsetOfMember(Function,node)))
-
-struct Struct {
-	TNode node;
-	Token* token_start;
-	Token* token_end;
-	u64 token_idx = 0;
-	
-	cstring identifier;
-	map<cstring, Declaration*> member_vars;
-	map<cstring, Function*> member_funcs;
-	//this kind of sucks! do it better with like trees or sumn later man 
-	map<DataType, Function*> podConverters; //stores functions that convert this struct to built in types
-	map<cstring, Function*> structConverters; //stores functions that converts this struct to other structs
-	u32 struct_size = npos;
-};
-#define StructFromNode(node_ptr) ((Struct*)((u8*)(node_ptr) - OffsetOfMember(Struct,node)))
-
-
+// represents a module in the AST tree
 struct Module {
 	TNode node;
 	str8 name;
 	str8 file;
-	str8 line;
-}
+
+	array<Declaration*> internal_decl;
+	array<Declaration*> exported_decl;
+};
 #define ModuleFromNode(x) CastFromMember(Module, node, x)
+
+map<str8, Module*> loaded_modules;
 
 struct Program {
 	Node node;
-	cstring filename;
+	str8 filename;
 	//TODO add entrypoint string
 };
 
@@ -674,8 +715,47 @@ struct Parser {
 };
 
 
+//@memory
 
+struct{
+	Arena modules;
+	Arena functions;
+	Arena variables;
+	Arena structs;
+	Arena scopes;
+	Arena expressions;
+}arena;
 
+FORCE_INLINE
+Module* make_module(str8 name, str8 path){
+	Module* ret = (Module*)arena.modules.cursor;
+	arena.modules.cursor += sizeof(Module);
+	arena.modules.used += sizeof(Module);
+	return ret;
+}
 
+FORCE_INLINE
+Function* make_function(){
+	Function* ret = (Function*)arena.functions.cursor;
+	arena.functions.cursor += sizeof(Function);
+	arena.functions.used += sizeof(Function);
+	return ret;
+}
+
+FORCE_INLINE
+Struct* make_struct(){
+	Struct* ret = (Struct*)arena.structs.cursor;
+	arena.structs.cursor += sizeof(Struct);
+	arena.structs.used += sizeof(Struct);
+	return ret;
+}
+
+FORCE_INLINE
+Variable* make_variable(){
+	Variable* ret = (Variable*)arena.variables.cursor;
+	arena.variables.cursor += sizeof(Variable);
+	arena.variables.used += sizeof(Variable);
+	return ret;
+}
 
 #endif //SU_TYPES_H

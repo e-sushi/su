@@ -69,8 +69,11 @@ stream_next;                  \
 }                                  \
 }break;
 
-#define lexer_report_error(token, fmt, ...)\
-printf("%.*s(%d,%d): Error: " fmt, int(token.file.count), token.file.str, token.l0, token.c0, ##__VA_ARGS__)
+#define lex_error(token, ...)\
+LogE("lexer", token.file.str, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
+
+#define lex_warn(token, ...)\
+LogW("lexer", token.file.str, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
 
 
 	//keywords
@@ -100,6 +103,7 @@ const u64 kh_any        = str8_static_hash64(str8_static_t("any"));
 
 	//directives
 const u64 kh_import     = str8_static_hash64(str8_static_t("import"));
+const u64 kh_internal   = str8_static_hash64(str8_static_t("internal"));
 const u64 kh_run        = str8_static_hash64(str8_static_t("run"));
 
 local Token_Type
@@ -137,8 +141,9 @@ local Token_Type
 token_is_directive_or_identifier(str8 raw){DPZoneScoped;
 	u64 a = str8_hash64(raw);
 	switch(a){
-		case kh_import: return Token_Directive_Import;
-		case kh_run:    return Token_Directive_Run;
+		case kh_import:   return Token_Directive_Import;
+		case kh_internal: return Token_Directive_Internal;
+		case kh_run:      return Token_Directive_Run;
 	}
 	return Token_Identifier;
 
@@ -175,19 +180,23 @@ b32 is_identifier_char(u32 codepoint){
 	return false;
 }
 
-#define stream_decode                             \
-{                                                 \
+#define stream_decode {                                                \
 	DecodedCodepoint __dc = decoded_codepoint_from_utf8(stream.str, 4);\
-	cp = __dc.codepoint;                          \
-	adv = __dc.advance;                           \
+	cp = __dc.codepoint;                                               \
+	adv = __dc.advance;                                                \
 }                                                 
-
 
 #define stream_next { str8_advance(&stream); line_col++; } 
 
-
-b32 lex_file(str8 filepath){DPZoneScoped;
+LexedFile* lex_file(str8 filepath){DPZoneScoped;
+	Stopwatch lex_time = start_stopwatch();
+	logger_pop_indent(-1);
 	File* file = file_init(filepath, FileAccess_Read);
+	Log("", VTS_BlueFg, file->name, VTS_Default);
+	logger_push_indent();
+	Log("", "Lexing...");
+	logger_push_indent();
+
 	if(!file){
 		LogE("lexer", "Unable to open file '", filepath, "'");
 		return false;
@@ -195,25 +204,26 @@ b32 lex_file(str8 filepath){DPZoneScoped;
 
 	str8 filename = file->name;
 
-	if(lexer.file_index.has(filename)){
+	if(lexer.files.has(filename)){
+		Log("", VTS_GreenFg, "File has already been lexed.", VTS_Default);
 		//this file has already been lexed, so we can early out
-		return true;
+		return 0;
 	}
 
-	lexer.file_index.add(filename);
-	LexedFile* lfile = &lexer.file_index[filename];
+	//create the module 
+
+	lexer.files.add(filename);
+	LexedFile* lfile = &lexer.files[filename];
+	lfile->file = file;
 
 	str8 buffer = file_read_alloc(file, file->bytes, deshi_allocator); 
 	str8 stream = buffer;
-	defer{
-		memzfree(buffer.str);
-		file_deinit(file);
-	};
 	u32 line_num = 1;
 	u32 line_col = 1;
 	u8* line_start = stream.str;
 
 	u32 scope_depth = 0;
+	u32 internal_scope_depth = -1; //set to the scope of an internal directive if it is scoped
 
 	array<str8> struct_names;
 	array<u64> identifier_indexes;
@@ -309,13 +319,22 @@ b32 lex_file(str8 filepath){DPZoneScoped;
 
 			case '{':{ //NOTE special for scope tracking
 				token.type = Token_OpenBrace;
-				scope_depth++;
+				//NOTE(sushi) internal directive scopes do affect scope level
+				if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_Directive_Internal){
+					internal_scope_depth = scope_depth;
+				}else{
+					scope_depth++;
+				}
 				stream_next;
 			}break;
 			
-			case '}':{ //NOTE special for scope tracking
+			case '}':{ //NOTE special for scope tracking and internals
 				token.type = Token_CloseBrace;
-				scope_depth--;
+				if(scope_depth == internal_scope_depth){
+					internal_scope_depth = -1;
+				}else{
+					scope_depth--;
+				}
 				stream_next;
 			}break;
 			
@@ -343,7 +362,7 @@ b32 lex_file(str8 filepath){DPZoneScoped;
 				}else if(*stream.str == '*'){
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
-						lexer_report_error(token, "Multi-line comment has no ending */ token.");
+						lex_error(token, "Multi-line comment has no ending */ token.");
 						return false;
 					}
 					stream_next; stream_next;
@@ -391,16 +410,73 @@ b32 lex_file(str8 filepath){DPZoneScoped;
                 	token.raw.count = stream.str - token.raw.str;
                 	token.type = token_is_keyword_or_identifier(token.raw);
 
+					switch(token.type){
+						case Token_Void:                    
+						case Token_Signed8:                 
+						case Token_Signed16:                
+						case Token_Signed32:                
+						case Token_Signed64:                
+						case Token_Unsigned8:               
+						case Token_Unsigned16:              
+						case Token_Unsigned32:              
+						case Token_Unsigned64:              
+						case Token_Float32:                 
+						case Token_Float64:                 
+						case Token_String:                  
+						case Token_Any:{
+							//if this token is a type we can check if its a declaration and 
+							//if it is, determine what kind of declaration it is 						
+							if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_Colon){
+								//we know its declaration, but we need to know if its a varaible or a function
+								if(lfile->tokens[lfile->tokens.count-2].type == Token_CloseParen){
+									if(!scope_depth){
+										lfile->decl.glob.funcs.add(lfile->tokens.count);
+									}else{
+										lfile->decl.loc.funcs.add(lfile->tokens.count);
+									}
+								}else{
+									if(!scope_depth){
+										lfile->decl.glob.vars.add(lfile->tokens.count);
+									}else{
+										lfile->decl.loc.vars.add(lfile->tokens.count);
+									}
+								}
+							}
+						}break;        
+
+						case Token_Struct:{
+							//in this case we know its a declaration because thats the only reason to use this keyword
+							if(!scope_depth){
+								lfile->decl.glob.structs.add(lfile->tokens.count);
+							}else{
+								lfile->decl.loc.structs.add(lfile->tokens.count);
+							}
+							struct_names.add(token.raw);
+						}        
+					}
+
 					if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_StructDecl){
 						struct_names.add(token.raw);
 					}
 					else if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_Pound){
 						Token_Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
-							LogE("lexer", "Invalid directive following #, '", token.raw, "' in ", filename, "(", line_num, ",", line_col, ")");
+							lex_error(token, "Invalid directive following #. Directive was '", token.raw, "'");
+							type = Token_ERROR;
 						}else{
+							switch(type){
+								case Token_Directive_Import:{
+									lfile->preprocessor.imports.add(lfile->tokens.count);
+								}break;
+								case Token_Directive_Internal:{
+									lfile->preprocessor.internals.add(lfile->tokens.count);
+								}break;
+								case Token_Directive_Run:{
+									lfile->preprocessor.runs.add(lfile->tokens.count);
+								}break;
+							}
+
 							token.type = type; 
-							lfile->preprocessor_tokens.add(lfile->tokens.count);
 						}
 					}
 					if(token.type == Token_Identifier){
@@ -410,7 +486,7 @@ b32 lex_file(str8 filepath){DPZoneScoped;
 						}
 					}
 				}else{
-					LogE("lexer", "Invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"' at ",filename,"(",line_num,",",line_col,").");
+					lex_error(token, "Invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
 					token.type = Token_ERROR;
 					stream_next;
 				}
@@ -443,296 +519,11 @@ b32 lex_file(str8 filepath){DPZoneScoped;
 		
 	}
 
-	lfile->tokens.add(Token{Token_EOF, Token_EOF});
-		
-	
-	
-	//not very helpful
-	//if(scope_number) logE("lexer", "unbalanced {} somewhere in code");
-	
+	lfile->tokens.add(Token{Token_EOF, Token_EOF});	
 
-
-
-	// lexer.file_index.add(filename);
-	// LexedFile& lfile = lexer.file_index[filename];
-	
-	// array<u32> identifier_indexes;
-	// array<u32> global_identifiers;
-	// array<cstring> struct_names;
-	
-	// str8 stream{file.str, file.count};
-	// u32 line_number = 1;
-	// u32 line_count_non_blank = 0; //TODO count number of non-comment and non-empty lines
-	// u32 scope_number = 0;
-	// u8* line_start = stream.str;
-	// while(stream){DPZoneScoped;
-	// 	//set token start
-	// 	Token token{};
-	// 	token.file = filename;
-	// 	token.l0   = line_number;
-	// 	token.c0   = LINE_COLUMN;
-	// 	token.raw.str = stream.str;
-		
-	// 	switch(*stream){
-	// 		//// @whitespace ////
-	// 		case ' ': case '\n': case '\r': case '\t': case '\v':{
-	// 			DPZoneScoped;
-	// 			while(isspace(*stream)){
-	// 				if(*stream == '\n'){
-	// 					line_start = stream.str;
-	// 					line_number++;
-	// 				}
-	// 				stream++;
-	// 			}
-	// 		}continue; //skip token creation
-			
-	// 		//// @literals ////
-	// 		case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':{
-	// 			DPZoneScoped;
-	// 			while(isdigit(*stream) || *stream == '_'){ stream++; } //skip to non-digit (excluding underscore)
-	// 			if(*stream == '.' || *stream == 'e' || *stream == 'E'){
-	// 				stream++;
-	// 				while(isdigit(*stream)){ stream++; } //skip to non-digit
-	// 				token.raw.count = stream.str - token.raw.str;
-	// 				token.type        = Token_LiteralFloat;
-	// 				token.float_value = stod(token.raw); //NOTE this replaces token.raw since they are unioned
-	// 			}else if(*stream == 'x' || *stream == 'X'){
-	// 				stream++;
-	// 				while(isxdigit(*stream)){ stream++; } //skip to non-hexdigit
-	// 				token.raw.count = stream.str - token.raw.str;
-	// 				token.type = Token_LiteralInteger;
-	// 				token.int_value = b16tou64(token.raw); //NOTE this replaces token.raw since they are unioned
-	// 			}else{
-	// 				token.raw.count = stream.str - token.raw.str;
-	// 				token.type      = Token_LiteralInteger;
-	// 				token.int_value = b10tou64(token.raw); //NOTE this replaces token.raw since they are unioned
-	// 			}
-				
-	// 			token.l1 = line_number;
-	// 			token.c1 = LINE_COLUMN;
-	// 			lfile->tokens.add(token);
-	// 		}continue; //skip token creation b/c we did it manually
-			
-	// 		case '\'':{
-	// 			DPZoneScoped;
-	// 			token.type  = Token_LiteralCharacter;
-	// 			token.group = TokenGroup_Literal;
-	// 			stream++;
-				
-	// 			while(stream && *stream != '\''){ stream++; } //skip until closing single quotes
-				
-	// 			token.l1 = line_number;
-	// 			token.c1 = LINE_COLUMN;
-	// 			token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-	// 			lfile->tokens.add(token);
-	// 			stream++;
-	// 		}continue; //skip token creation b/c we did it manually
-			
-	// 		case '"':{
-	// 			DPZoneScoped;
-	// 			token.type  = Token_LiteralString;
-	// 			token.group = TokenGroup_Literal;
-	// 			stream++;
-				
-	// 			while(stream && *stream != '"'){ stream++; } //skip until closing double quotes
-				
-	// 			token.l1 = line_number;
-	// 			token.c1 = LINE_COLUMN;
-	// 			token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-	// 			lfile->tokens.add(token);
-	// 			stream++;
-	// 		}continue; //skip token creation b/c we did it manually
-			
-	// 		//// @letters //// (keywords and identifiers)
-    //         case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': case 'i': case 'j':
-    //         case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': case 'q': case 'r': case 's': case 't':
-    //         case 'u': case 'v': case 'w': case 'x': case 'y': case 'z':
-    //         case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G': case 'H': case 'I': case 'J':
-    //         case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T':
-    //         case 'U': case 'V': case 'W': case 'X': case 'Y': case 'Z':
-    //         case '_':{
-	// 			DPZoneScoped;
-    //             while(isalnum(*stream) || *stream == '_'){ stream++; } //skip to non-alphanumeric
-				
-    //             token.raw.count = stream.str - token.raw.str;
-    //             token.type = token_is_keyword_or_identifier(token.raw);
-				
-	// 			if(lfile->tokens.count && lfile->tokens[lfile->tokens.count-1].type == Token_StructDecl){
-	// 				struct_names.add(token.raw);
-	// 			}
-	// 			if(token.type == Token_Identifier){
-	// 				identifier_indexes.add(lfile->tokens.count);
-	// 				if(scope_number == 0){
-	// 					global_identifiers.add(lfile->tokens.count);
-	// 				}
-	// 			}
-    //         }break;
-			
-	// 		//// @control ////
-	// 		CASE1(';', Token_Semicolon);
-	// 		CASE1('(', Token_OpenParen);
-	// 		CASE1(')', Token_CloseParen);
-	// 		CASE1('[', Token_OpenSquare);
-	// 		CASE1(']', Token_CloseSquare);
-	// 		CASE1(',', Token_Comma);
-	// 		CASE1('?', Token_QuestionMark);
-	// 		CASE1(':', Token_Colon);
-	// 		CASE1('.', Token_Dot);
-	// 		CASE1('@', Token_At);
-	// 		CASE1('#', Token_Pound);
-	// 		CASE1('`', Token_Backtick);
-			
-	// 		case '{':{ //NOTE special for scope tracking
-	// 		DPZoneScoped;
-	// 			token.type = Token_OpenBrace;
-	// 			scope_number++;
-	// 			stream++;
-	// 		}break;
-			
-	// 		case '}':{ //NOTE special for scope tracking
-	// 		DPZoneScoped;
-	// 			token.type = Token_CloseBrace;
-	// 			scope_number--;
-	// 			stream++;
-	// 		}break;
-			
-	// 		//// @operators ////
-	// 		CASE3('+', Token_Plus,            '=', Token_PlusAssignment,      '+', Token_Increment);
-	// 		CASE3('-', Token_Negation,        '=', Token_NegationAssignment,  '-', Token_Decrement);
-	// 		CASE2('*', Token_Multiplication,  '=', Token_MultiplicationAssignment);
-	// 		CASE2('%', Token_Modulo,          '=', Token_ModuloAssignment);
-	// 		CASE2('~', Token_BitNOT,          '=', Token_BitNOTAssignment);
-	// 		CASE3('&', Token_BitAND,          '=', Token_BitANDAssignment,    '&', Token_AND);
-	// 		CASE3('|', Token_BitOR,           '=', Token_BitORAssignment,     '|', Token_OR);
-	// 		CASE2('^', Token_BitXOR,          '=', Token_BitXORAssignment);
-	// 		CASE2('=', Token_Assignment,      '=', Token_Equal);
-	// 		CASE2('!', Token_LogicalNOT,      '=', Token_NotEqual);
-			
-	// 		case '/':{ //NOTE special because of comments
-	// 		DPZoneScoped;
-	// 			token.type = Token_Division;
-	// 			stream++;
-	// 			if(*stream == '='){
-	// 				token.type = Token_DivisionAssignment;
-	// 				stream++;
-	// 			}else if(*stream == '/'){
-	// 				while(stream && *stream != '\n'){ stream++; } //skip single line comment
-	// 				continue; //skip token creation
-	// 			}else if(*stream == '*'){
-	// 				while((stream.count > 1) && !(stream[0] == '*' && stream[1] == '/')){ stream++; } //skip multiline comment
-	// 				if(stream.count <= 1 && stream[-1] != '/' && stream[-2] != '*'){
-	// 					lexer_report_error(token, "Multi-line comment has no ending */ token.");
-	// 					return false;
-	// 				}
-	// 				stream++; stream++;
-	// 				continue; //skip token creation
-	// 			}
-	// 		}break;
-			
-	// 		case '<':{ //NOTE special because of bitshift assignment
-	// 		DPZoneScoped;
-	// 			token.type = Token_LessThan;
-	// 			stream++;
-	// 			if      (*stream == '='){
-	// 				token.type = Token_LessThanOrEqual;
-	// 				stream++;
-	// 			}else if(*stream == '<'){
-	// 				token.type = Token_BitShiftLeft;
-	// 				stream++;
-	// 				if(*stream == '='){
-	// 					token.type = Token_BitShiftLeftAssignment;
-	// 					stream++;
-	// 				}
-	// 			}
-	// 		}break;
-			
-	// 		case '>':{ //NOTE special because of bitshift assignment
-	// 		DPZoneScoped;
-	// 			token.type = Token_GreaterThan;
-	// 			stream++;
-	// 			if      (*stream == '='){
-	// 				token.type = Token_GreaterThanOrEqual;
-	// 				stream++;
-	// 			}else if(*stream == '>'){
-	// 				token.type = Token_BitShiftRight;
-	// 				stream++;
-	// 				if(*stream == '='){
-	// 					token.type = Token_BitShiftRightAssignment;
-	// 					stream++;
-	// 				}
-	// 			}
-	// 		}break;
-			
-	// 		default:{
-	// 			DPZoneScoped;
-	// 			logE("lexer", "Invalid token '",*stream,"' at ",filename,"(",line_number,",",LINE_COLUMN,").");
-	// 			token.type = Token_ERROR;
-	// 			stream++;
-	// 		}break;
-	// 	}
-		
-	// 	//set token's group
-	// 	if(token.type == Token_Identifier){
-	// 		token.group = TokenGroup_Identifier;
-	// 	}else if(token.type >= Token_LiteralFloat && token.type <= Token_LiteralString){
-	// 		token.group = TokenGroup_Literal;
-	// 	}else if(token.type >= Token_Semicolon && token.type <= Token_Backtick){
-	// 		token.group = TokenGroup_Control;
-	// 	}else if(token.type >= Token_Plus && token.type <= Token_GreaterThanOrEqual){
-	// 		token.group = TokenGroup_Operator;
-	// 	}else if(token.type >= Token_Return && token.type <= Token_StructDecl){
-	// 		token.group = TokenGroup_Keyword;
-	// 	}else if(token.type >= Token_Void && token.type <= Token_Struct){
-	// 		token.group = TokenGroup_Type;
-	// 	}
-		
-	// 	//set token end
-	// 	if(token.type != Token_ERROR){
-	// 		token.l1 = line_number;
-	// 		token.c1 = LINE_COLUMN;
-	// 		token.raw.count = stream.str - token.raw.str;
-	// 		lfile->tokens.add(token);
-	// 	}
-	// }
-	
-	// lfile->tokens.add(Token{Token_EOF, Token_EOF});
-	
-	// //not very helpful
-	// if(scope_number) logE("lexer", "unbalanced {} somewhere in code");
-	
-	// //iterate over all found identifiers and figure out if they match any known struct names
-	// //so parser knows when a struct name is being used as a type
-	// //TODO find a good way to only add identifiers that are in the global scope 
-	// forI(Max(identifier_indexes.count, global_identifiers.count)){
-	// 	b32 isstruct = 0;
-	// 	if(i < identifier_indexes.count && lfile->tokens[identifier_indexes[i] - 1].type != Token_StructDecl){
-	// 		Token& t = lfile->tokens[identifier_indexes[i]];
-	// 		b32 isstruct = 0;
-	// 		for (cstring& str : struct_names){
-	// 			if(equals(str, t.raw)){
-	// 				t.type = Token_Struct;
-	// 				t.group = TokenGroup_Type;
-	// 				isstruct = 1;
-	// 				break;
-	// 			}
-	// 		}
-			
-	// 	}
-	// 	if(i < global_identifiers.count){
-	// 		if(lfile->tokens[global_identifiers[i] - 1].type == Token_StructDecl){
-	// 			lfile->struct_decl.add(global_identifiers[i] - 1);
-	// 		}else if(match_any(lfile->tokens[global_identifiers[i] - 1].group, TokenGroup_Type)){
-	// 			if(lfile->tokens[global_identifiers[i] + 1].type == Token_OpenParen){
-	// 				lfile->func_decl.add(global_identifiers[i] - 1);
-	// 			}else{
-	// 				lfile->var_decl.add(global_identifiers[i] - 1);
-	// 			}
-	// 		} 
-	// 	}
-		
-	// }
-	
-	return true;
+	Log("", VTS_GreenFg, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
+	logger_pop_indent();
+	return lfile;
 }
 
 #undef LINE_COLUMN

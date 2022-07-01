@@ -1,14 +1,21 @@
 #import {
-    //includes the sections 'trig' and 'geometry' from the math module
-    //behind modules trig and geometry
-    math.{
-        trig,
-        geometry
-    },
-    //includes the function 'print' from io
-    io { print },
+    "std/math.su" {sin, cos}
 }
 
+
+#internal{
+    func0() : s64 {
+        return 0;
+    }
+
+    func1() : s32 {
+        return 1;
+    }
+
+    vec2 : struct {
+        a : any = 1;
+    }
+}
 
 main() : s64 {  
     
@@ -106,4 +113,19 @@ main() : s64 {
     }
 
 
+};
+
+exported_var : str = "an exported var";
+
+#internal
+
+internalfunc() : void {
+    return;
+};
+
+internalfunc2() : void {
+    return;
 }
+
+internal_var : any = 1;
+

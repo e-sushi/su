@@ -1,13 +1,14 @@
-<program>     = { <module> }
-<module>      = <decl> 
-              | <scope> 
-              | <module-id> ":" <scope>
+<program>     = { <decl> }
+<directive>   = "#" ( "import" <import> | "run" <run> | "internal" [ <scope> ] )
+<import>      = { <decl-id> | <string> [ "." <import> ] { "," <import> } }  
+<run>         = <statement>
 <scope>       = "{" { ( <statement> | <decl> )  ";" } "}"
 <decl>        = <var-id> ":" [ <type> ] { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ]
               | <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
               | <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
-              | "operator" "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope>
+              | "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
 <statement>   = <scope>  
+              | <directive>
               | ( <struct> | <exp> ) ";" 
               | "using" (<var-id> | <scope-id>) [ "{" { <statement>} "}" ]  //var-id must be a var whose type is not scalar
               | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
@@ -38,12 +39,14 @@
 <call>        = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
               | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
 <arg>         = <exp> | <id> "=" <expr>
+<access>      = <id> "." <id>
 <type>        = <scalar-type> | <struct-type>
 <scalar-type> = ("void"|"u8"|"u16"|"u32"|"u64"|"s8"|"s16"|"s32"|"s64"|"f32"|"f64")
 <struct-type> = ("str"|"any"|<struct-id>)
 <struct-id>   = <id>  // an id pertaining to a structure (created in <decl>)
 <func-id>     = <id>  // an id pertaining to a function (created in <decl>)
 <var-id>      = <id>  // an id pertaining to a variable (l-value) (created in <decl>) 
+<decl-id>     = <var-id> | <func-id> | <struct-id>
 <id>          = ? any alphanumeric character sequence, not starting with a number, and including all unicode
                   characters outside of ascii's range ?
 <literal>     = <int> | <float> | <string>

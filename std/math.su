@@ -1,6 +1,6 @@
-math : {
+math : module {
 
-trig : {
+trig : module {
 
 sin(x:f64) : f64{ 
     //... 

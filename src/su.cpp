@@ -16,6 +16,7 @@
 #include "core/platform.h"
 #include "core/file.h"
 #include "core/threading.h"
+#include "core/time.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,17 +27,15 @@
 #include "types.h"
 
 #include "lexer.cpp"
-//#include "preprocessor.cpp"
+#include "preprocessor.cpp"
+#include "parser.cpp"
 
 int main(){
    	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
 
-
-   	lex_file(STR8("tests/lexer/lexer-full.su"));
-
-  // preprocess();
+  	preprocess(lex_file(STR8("tests/lexer/lexer-full.su")));
   
 	return 1;
 }
