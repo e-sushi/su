@@ -19,6 +19,7 @@
 *.svg
 *.s
 *.code-workspace
+*.cache
 
 #folders
 .vs/
@@ -28,5 +29,23 @@ docs/
 
 #specific files
 TODOs.txt
-misc/su.vcxproj.user
 misc/shell.bat
+docs/doxygen/
+
+#data ignores
+data/cfg/*
+data/fonts/*
+data/logs/*
+data/models/*
+#data/shaders/*
+data/temp/*
+data/textures/*
+
+#specific files
+imgui.ini
+TODOs.txt
+misc/suugu.vcxproj.user
+
+#delle specifics
+misc/shell.bat
+
