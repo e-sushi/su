@@ -70,10 +70,10 @@ stream_next;                  \
 }break;
 
 #define lex_error(token, ...)\
-LogE("lexer", token.file.str, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
+LogE("lexer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
 
 #define lex_warn(token, ...)\
-LogW("lexer", token.file.str, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
+LogW("lexer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
 
 
 	//keywords
@@ -101,12 +101,12 @@ const u64 kh_f64        = str8_static_hash64(str8_static_t("f64"));
 const u64 kh_str        = str8_static_hash64(str8_static_t("str"));
 const u64 kh_any        = str8_static_hash64(str8_static_t("any"));
 
-	//directives
+//directives
 const u64 kh_import     = str8_static_hash64(str8_static_t("import"));
 const u64 kh_internal   = str8_static_hash64(str8_static_t("internal"));
 const u64 kh_run        = str8_static_hash64(str8_static_t("run"));
 
-local Token_Type
+local Type
 token_is_keyword_or_identifier(str8 raw){DPZoneScoped;
 	u64 a = str8_hash64(raw);
 	switch(a){
@@ -137,7 +137,7 @@ token_is_keyword_or_identifier(str8 raw){DPZoneScoped;
     return Token_Identifier;
 }
 
-local Token_Type 
+local Type
 token_is_directive_or_identifier(str8 raw){DPZoneScoped;
 	u64 a = str8_hash64(raw);
 	switch(a){
@@ -192,9 +192,9 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 	Stopwatch lex_time = start_stopwatch();
 	logger_pop_indent(-1);
 	File* file = file_init(filepath, FileAccess_Read);
-	Log("", VTS_BlueFg, file->name, VTS_Default);
+	suLog(0, VTS_BlueFg, file->name, VTS_Default);
 	logger_push_indent();
-	Log("", "Lexing...");
+	suLog(1, "Lexing...");
 	logger_push_indent();
 
 	if(!file){
@@ -204,17 +204,19 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 
 	str8 filename = file->name;
 
+	suLog(2, "Checking if file has already been lexed");
+
 	if(lexed_files.has(filename)){
-		Log("", VTS_GreenFg, "File has already been lexed.", VTS_Default);
+		suLog(2, VTS_GreenFg, "File has already been lexed.", VTS_Default);
 		return &lexed_files[filename];
 	}
 
-	//create the module 
-
+	suLog(2, "Adding file to lexed files");
 	lexed_files.add(filename);
 	lexfile = &lexed_files[filename];
 	lexfile->file = file;
 
+	suLog(2, "Reading file contents into a buffer");
 	str8 buffer = file_read_alloc(file, file->bytes, deshi_allocator); 
 	str8 stream = buffer;
 	u32 line_num = 1;
@@ -224,6 +226,12 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 	u32 scope_depth = 0;
 	u32 internal_scope_depth = -1; //set to the scope of an internal directive if it is scoped
 
+	//need to track so that varaibles declared in stuff like for loops or functions
+	//arent considered global and arent exported
+	u32 paren_depth = 0; 
+
+	suLog(2, "Beginning lex");
+
 	array<str8> struct_names;
 	array<u64> identifier_indexes;
 	array<u64> global_identifiers;
@@ -232,6 +240,7 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 		token.file = filename;
 		token.l0 = line_num;
 		token.c0 = line_col;
+		token.scope_depth = scope_depth;
 		token.raw.str = stream.str;
 		switch(decoded_codepoint_from_utf8(stream.str, 4).codepoint){
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
@@ -280,7 +289,12 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 				token.group = TokenGroup_Literal;
 				stream_next;
 				
-				while(*stream.str != '\'') stream_next; //skip until closing single quotes
+				while(*stream.str != '\'') {//skip until closing single quotes
+					stream_next; 
+					if(*stream.str == 0){
+						lex_error(token, "Unexpected EOF when lexing single quotes");
+					}
+				}
 				
 				token.l1 = line_num;
 				token.c1 = line_col;
@@ -304,8 +318,17 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 			}continue; //skip token creation b/c we did it manually
 			
 			CASE1(';', Token_Semicolon);
-			CASE1('(', Token_OpenParen);
-			CASE1(')', Token_CloseParen);
+			case '(':{ 
+				token.type = Token_OpenParen;
+				paren_depth++;
+				stream_next;
+			}break;
+			case ')':{ 
+				token.type = Token_CloseParen; 
+				paren_depth--;
+				stream_next;
+			}break;
+
 			CASE1('[', Token_OpenSquare);
 			CASE1(']', Token_CloseSquare);
 			CASE1(',', Token_Comma);
@@ -433,13 +456,13 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 									while(curt->type!=Token_OpenParen) curt--;
 									curt--;
 
-									if(!scope_depth){
+									if(!scope_depth && !paren_depth){
 										lexfile->decl.glob.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt) - 1);
 									}else{
 										lexfile->decl.loc.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt) - 1);
 									}
 								}else{
-									if(!scope_depth){
+									if(!scope_depth && !paren_depth){
 										lexfile->decl.glob.vars.add(lexfile->tokens.count-2);
 									}else{
 										lexfile->decl.loc.vars.add(lexfile->tokens.count-2);
@@ -450,7 +473,7 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 
 						case Token_StructDecl:{
 							//in this case we know its a declaration because thats the only reason to use this keyword
-							if(!scope_depth){
+							if(!scope_depth && !paren_depth){
 								lexfile->decl.glob.structs.add(lexfile->tokens.count-2);
 							}else{
 								lexfile->decl.loc.structs.add(lexfile->tokens.count-2);
@@ -463,7 +486,7 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 						struct_names.add(token.raw);
 					}
 					else if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Pound){
-						Token_Type type = token_is_directive_or_identifier(token.raw);
+						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
 							lex_error(token, "Invalid directive following #. Directive was '", token.raw, "'");
 							type = Token_ERROR;
@@ -511,6 +534,8 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 			token.group = TokenGroup_Keyword;
 		}else if(token.type >= Token_Void && token.type <= Token_Struct){
 			token.group = TokenGroup_Type;
+		}else if(token.type >= Token_Directive_Import && token.type <= Token_Directive_Run){
+			token.group = TokenGroup_Directive;
 		}
 		
 		//set token end
@@ -525,7 +550,7 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 
 	lexfile->tokens.add(Token{Token_EOF, Token_EOF});	
 
-	Log("", VTS_GreenFg, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
+	suLog(1, VTS_GreenFg, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 	logger_pop_indent();
 	return lexfile;
 }
