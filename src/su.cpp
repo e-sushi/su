@@ -43,25 +43,39 @@ int main(){DPZoneScoped;
 
 	arena.init();
 
-	DeshThreadManager->init(3);
-	DeshThreadManager->spawn_thread();
+	DeshThreadManager->init(5);
+	DeshThreadManager->spawn_thread(5);
 
 	//compiler.compile(STR8("tests/lexer/lexer-full.su"));
 
 	Stopwatch ctime = start_stopwatch();
 
-	//LexedFile*         lf = lexer.lex(STR8("tests/imports/valid/imports.su"));
+	compiler.compile(STR8("tests/imports/valid/imports.su"));
+
+/*
+	LexedFile*         lf = lexer.lex(STR8("tests/imports/valid/imports.su"));
 	//LexedFile*         lf = lexer.lex(STR8("tests/_/main.su"));
-	LexedFile*         lf = lexer.lex(STR8("stresstest.su"));
+	//LexedFile*         lf = lexer.lex(STR8("stresstest.su"));
 
 	PreprocessedFile* ppf = preprocessor.preprocess(lf);
-	forI(preprocessed_files.count){
-		//DeshThreadManager->add_job({&parse_threaded_stub, (void*)ParserThreadInfo{parser, &preprocessed_files[preprocessed_files.count - 1 - i]}});		//parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
-		//DeshThreadManager->wake_threads();
-		parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
-		parser = Parser();
-	}
-	
+
+	ParserThread pt;
+	pt.parser = &parser;
+	pt.pfile = ppf;
+
+
+	DeshThreadManager->add_job({&parse_threaded_stub, &pt});
+	DeshThreadManager->wake_threads(1);
+
+	pt.wake.wait();
+
+	// forI(preprocessed_files.count){
+	// 	//DeshThreadManager->add_job({&parse_threaded_stub, (void*)ParserThreadInfo{parser, &preprocessed_files[preprocessed_files.count - 1 - i]}});		//parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
+	// 	//DeshThreadManager->wake_threads();
+	// 	parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
+	// 	parser = Parser();
+	// }
+*/	
 	//TODO(sushi) change the unit based on how long it took
 	suLog(0, "Compiling took ", peek_stopwatch(ctime), " ms");
   
