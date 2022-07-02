@@ -188,36 +188,10 @@ b32 is_identifier_char(u32 codepoint){
 
 #define stream_next { str8_advance(&stream); line_col++; } 
 
-LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
+LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 	Stopwatch lex_time = start_stopwatch();
-	logger_pop_indent(-1);
-	File* file = file_init(filepath, FileAccess_Read);
-	suLog(0, VTS_BlueFg, file->name, VTS_Default);
-	logger_push_indent();
 	suLog(1, "Lexing...");
-	logger_push_indent();
 
-	if(!file){
-		LogE("lexer", "Unable to open file '", filepath, "'");
-		return false;
-	}
-
-	str8 filename = file->name;
-
-	suLog(2, "Checking if file has already been lexed");
-
-	if(lexed_files.has(filename)){
-		suLog(2, VTS_GreenFg, "File has already been lexed.", VTS_Default);
-		return &lexed_files[filename];
-	}
-
-	suLog(2, "Adding file to lexed files");
-	lexed_files.add(filename);
-	lexfile = &lexed_files[filename];
-	lexfile->file = file;
-
-	suLog(2, "Reading file contents into a buffer");
-	str8 buffer = file_read_alloc(file, file->bytes, deshi_allocator); 
 	str8 stream = buffer;
 	u32 line_num = 1;
 	u32 line_col = 1;
@@ -231,16 +205,13 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 	u32 paren_depth = 0; 
 
 	suLog(2, "Beginning lex");
-
-	array<str8> struct_names;
-	array<u64> identifier_indexes;
-	array<u64> global_identifiers;
 	while(stream){
 		Token token={0};
-		token.file = filename;
+		token.file = lexfile->file->name;
 		token.l0 = line_num;
 		token.c0 = line_col;
 		token.scope_depth = scope_depth;
+		token.idx = lexfile->tokens.count;
 		token.raw.str = stream.str;
 		switch(decoded_codepoint_from_utf8(stream.str, 4).codepoint){
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
@@ -450,22 +421,23 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 							//if it is, determine what kind of declaration it is 						
 							if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Colon){
 								//we know its a declaration, but we need to know if its a variable or a function
+								Token* curt = &lexfile->tokens[lexfile->tokens.count-1];
 								if(lexfile->tokens[lexfile->tokens.count-2].type == Token_CloseParen){
 									//find where the function actually starts
-									Token* curt = &lexfile->tokens[lexfile->tokens.count-1];
 									while(curt->type!=Token_OpenParen) curt--;
 									curt--;
 
 									if(!scope_depth && !paren_depth){
-										lexfile->decl.glob.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt) - 1);
+										lexfile->global_identifiers.add(curt->raw, {curt->raw, curt, Identifier_Function, 0});
 									}else{
-										lexfile->decl.loc.funcs.add(lexfile->tokens.count - (&lexfile->tokens[lexfile->tokens.count-1] - curt) - 1);
+										lexfile->global_identifiers.add(curt->raw, {curt->raw, curt, Identifier_Function, 0});
 									}
 								}else{
+									curt--;
 									if(!scope_depth && !paren_depth){
-										lexfile->decl.glob.vars.add(lexfile->tokens.count-2);
+										lexfile->global_identifiers.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-1], Identifier_Variable, 0});
 									}else{
-										lexfile->decl.loc.vars.add(lexfile->tokens.count-2);
+										lexfile->local_identifiers.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-1], Identifier_Variable, 0});
 									}
 								}
 							}
@@ -473,19 +445,16 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 
 						case Token_StructDecl:{
 							//in this case we know its a declaration because thats the only reason to use this keyword
+							Token* curt = &lexfile->tokens[lexfile->tokens.count-2];
 							if(!scope_depth && !paren_depth){
-								lexfile->decl.glob.structs.add(lexfile->tokens.count-2);
+								lexfile->global_identifiers.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-2], Identifier_Structure, 0});
 							}else{
-								lexfile->decl.loc.structs.add(lexfile->tokens.count-2);
+								lexfile->local_identifiers.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-2], Identifier_Structure, 0});
 							}
-							struct_names.add(token.raw);
-						}        
+						}
 					}
 
-					if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_StructDecl){
-						struct_names.add(token.raw);
-					}
-					else if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Pound){
+					if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Pound){
 						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
 							lex_error(token, "Invalid directive following #. Directive was '", token.raw, "'");
@@ -506,19 +475,12 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 							token.type = type; 
 						}
 					}
-					if(token.type == Token_Identifier){
-						identifier_indexes.add(lexfile->tokens.count);
-						if(!scope_depth){
-							global_identifiers.add(lexfile->tokens.count);
-						}
-					}
 				}else{
 					lex_error(token, "Invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
 					token.type = Token_ERROR;
 					stream_next;
 				}
 			}break;
-
 		}
 
 			//set token's group
@@ -549,6 +511,18 @@ LexedFile* Lexer::lex(str8 filepath){DPZoneScoped;
 	}
 
 	lexfile->tokens.add(Token{Token_EOF, Token_EOF});	
+
+	//display debug information
+	if(globals.verbosity > 3){
+		if(lexfile->global_identifiers.count)
+			suLog(4, "Global identifiers:");
+		for(Identifier id : lexfile->global_identifiers)
+			suLog(4, "  ", id.alias);
+		if(lexfile->local_identifiers.count)
+			suLog(4, "Local identifiers");
+		for(Identifier id : lexfile->local_identifiers)
+			suLog(4, "  ", id.alias);
+	}
 
 	suLog(1, VTS_GreenFg, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 	logger_pop_indent();

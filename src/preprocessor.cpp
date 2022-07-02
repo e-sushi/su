@@ -37,20 +37,12 @@ suLog(0, WarningFormat("warning: "), (token).file, "(",(token).l0,",",(token).c0
                    
 PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
     suLog(1, "Preprocessing ", lexfile->file->name);
-    if(preprocessed_files.has(lexfile->file->front)){
-        suLog(2, "File has already been preprocessed.");
-        logger_pop_indent();
-        return &preprocessed_files[lexfile->file->front];
-    } 
 
     Stopwatch time = start_stopwatch();
-    
-    preprocessed_files.add(lexfile->file->front);
-    prefile = &preprocessed_files[lexfile->file->front];
-    prefile->lexfile = lexfile;
-
+   
     //first we look for imports, if they are founda we lex the file being imported from recursively
     //TODO(sushi) this can probably be multithreaded
+    array<str8> import_paths;
     for(u32 importidx : lexfile->preprocessor.imports){
         suLog(2, "Processing imports");
         Token* curt = &lexfile->tokens[importidx];
@@ -67,10 +59,10 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
                     //first check cwd
                     if(file_exists(curt->raw)){
                         suLog(2, "Processing import ", curt->raw);
-                        Preprocessor pp;
-                        PreprocessedFile* imported = pp.preprocess(lexer.lex(curt->raw));
-                        prefile->imported_files.add(imported);
-
+                        LexedFile* lexfile = compiler.start_lexer(curt->raw);
+                        PreprocessedFile* pfile = compiler.start_preprocessor(lexfile);
+                        prefile->imported_files.add(pfile);
+                        
                         suLog(2, "Continuing preprocessing of ", VTS_BlueFg, lexfile->file->name, VTS_Default);
                         logger_push_indent(2);
                         
@@ -93,10 +85,8 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
     }
     
     suLog(2, "Finding internal declarations.");
-    prefile->decl.exported.vars = lexfile->decl.glob.vars;
-    prefile->decl.exported.funcs = lexfile->decl.glob.funcs;
-    prefile->decl.exported.structs = lexfile->decl.glob.structs;
-    //TODO(sushi) we can warn about overlapping internal regions, but with how this is setup atm, it wouldnt actually affect anything, i think.
+    //TODO(sushi) this copying sucks, maybe preprocessedfile should just use lexedfile's maps?
+    prefile->exported_identifiers = lexfile->global_identifiers;
     for(u32 idx : lexfile->preprocessor.internals){
         Token* curt = &lexfile->tokens[idx];
         curt++;
@@ -118,88 +108,43 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
         }else{
             //the rest of the file is considered internal
             end = lexfile->tokens.count;
-        }
+        }   
 
-        forI(Max(prefile->decl.exported.vars.count, Max(prefile->decl.exported.funcs.count, prefile->decl.exported.structs.count))){
-            if(i < prefile->decl.exported.vars.count){
-                if(prefile->decl.exported.vars[i] > start && prefile->decl.exported.vars[i] < end){
-                    prefile->decl.internal.vars.add(prefile->decl.exported.vars[i]);
-                    prefile->decl.exported.vars.remove_unordered(i);
-                }
-            }
-
-            if(i < prefile->decl.exported.funcs.count){
-                if(prefile->decl.exported.funcs[i] > start && prefile->decl.exported.funcs[i] < end){
-                    prefile->decl.internal.funcs.add(prefile->decl.exported.funcs[i]);
-                    prefile->decl.exported.funcs.remove_unordered(i);
-                }
-            }
-
-            if(i < prefile->decl.exported.structs.count){
-                if(prefile->decl.exported.structs[i] > start && prefile->decl.exported.structs[i] < end){
-                    prefile->decl.internal.structs.add(prefile->decl.exported.structs[i]);
-                    prefile->decl.exported.structs.remove_unordered(i);
-                }
+        //move exported identifiers into internal
+        forI(prefile->exported_identifiers.count){
+            Identifier id = prefile->exported_identifiers[i];
+            u32 idx = id.token->idx;
+            if(idx > start && idx < end){
+                id.internal = 1;
+                prefile->internal_identifiers.add(id.alias, id);
+                prefile->exported_identifiers.remove(id.alias);
             }
         }
-
+        //local identifiers do not need to be declared internal
     }
 
-    if(globals.verbosity > 3){
-        logger_push_indent();
-        if(prefile->decl.exported.vars.count)
-            suLog(4, "Exported vars are: ");
-        logger_push_indent();
-        forI(prefile->decl.exported.vars.count){
-            suLog(4, lexfile->tokens[prefile->decl.exported.vars[i]].raw);
-        }
-        logger_pop_indent();
 
-        if(prefile->decl.exported.funcs.count)
-            suLog(4, " Exported funcs are: ");
-        logger_push_indent();
-        forI(prefile->decl.exported.funcs.count){
-            suLog(4, lexfile->tokens[prefile->decl.exported.funcs[i]].raw);
-        }
-        logger_pop_indent();
-
-        if(prefile->decl.exported.structs.count)
-            suLog(4, " Exported structs are: ");
-        logger_push_indent();
-        forI(prefile->decl.exported.structs.count){
-            suLog(4, lexfile->tokens[prefile->decl.exported.structs[i]].raw);
-        }
-        logger_pop_indent();
-
-        if(prefile->decl.internal.vars.count)
-            suLog(4, " Internal vars are: ");
-        logger_push_indent();
-        forI(prefile->decl.internal.vars.count){
-            suLog(4, lexfile->tokens[prefile->decl.internal.vars[i]].raw);
-        }
-        logger_pop_indent();
-
-        if(prefile->decl.internal.funcs.count)
-            suLog(4, " Internal funcs are: ");
-        logger_push_indent();
-        forI(prefile->decl.internal.funcs.count){
-            suLog(4, lexfile->tokens[prefile->decl.internal.funcs[i]].raw);
-        }
-        logger_pop_indent();
-
-        if(prefile->decl.internal.structs.count)
-            suLog(4, " Internal structs are: ");
-        logger_push_indent();
-        forI(prefile->decl.internal.structs.count){
-            suLog(4, lexfile->tokens[prefile->decl.internal.structs[i]].raw);
-        }
-        logger_pop_indent(2);
-    }
-    
     suLog(2, "Finding run directives (NotImplemented)");
     for(u32 idx : lexfile->preprocessor.runs){
         preprocess_error(lexfile->tokens[idx], "#run is not implemented yet.");
     }
+   
+
+    if(globals.verbosity > 3){
+        if(prefile->exported_identifiers.count)
+            suLog(4, "Exported identifiers");
+        for(Identifier& id : prefile->exported_identifiers){
+            suLog(4, "  ", id.alias);
+        }
+
+        if(prefile->internal_identifiers.count)
+            suLog(4, "Internal identifiers");
+        for(Identifier& id : prefile->internal_identifiers){
+            suLog(4, "  ", id.alias);
+        }
+    }
+    
+
 
     
     suLog(1, VTS_GreenFg, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
