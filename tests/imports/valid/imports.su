@@ -1,0 +1,8 @@
+#import {
+    "std/math.su" as math,
+    "std/io.su" as io,
+};
+
+main() : s32 {
+    io.print(sin(10.2));
+};

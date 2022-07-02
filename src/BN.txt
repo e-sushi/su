@@ -1,15 +1,20 @@
 <file>        = { <decl> }
 <directive>   = "#" ( "import" <import> | "run" <run> | "internal" [ <scope> ] )
-<import>      = { <decl-id> | <string> [ "." <import> ] { "," <import> } }  
+<import>      = { ( <decl-id> | <string> ) [ "{" <import> "}" ] [ "as" <string> ] { "," <import> } }  
 <run>         = <statement>
-<scope>       = "{" { ( <statement> | <decl> )  ";" } "}"
-<decl>        = <var-id> ":" [ <type> ] { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ]
-              | <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
-              | <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
-              | "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
+<scope>       = "{" { ( <statement> | <decl> ) } "}"
+<decl>        = <func-decl>
+              | <var-decl>
+              | <struct-decl>
+              | <op-decl>
+<func-decl>   = <var-id> ":" [ <type> ] { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ] ";"
+<var-decl>    = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
+<struct-decl> = <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
+<op-decl>     = "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
 <statement>   = <scope>  
               | <directive>
-              | ( <struct> | <exp> ) ";" 
+              | <struct>  
+              | <exp> ";" 
               | "using" (<var-id> | <scope-id>) [ "{" { <statement>} "}" ]  //var-id must be a var whose type is not scalar
               | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
               | "while" "(" <exp> ")" <statement>

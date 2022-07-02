@@ -1,0 +1,11 @@
+print(args:any) : void {
+    //...
+};
+
+
+file : struct {
+    handle : void*;
+    name : str;
+    path : str;
+    //...
+};
