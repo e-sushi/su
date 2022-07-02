@@ -22,6 +22,33 @@ enum ReturnCode {
 	ReturnCode_Assembler_Failed       = 9,
 };
 
+enum{
+	W_NULL = 0,
+	//// @level1 //// (warnings that are probably programmer errors, but are valid in rare cases)
+	W_Level1_Start = W_NULL,
+
+	WC_Overflow,
+	//WC_Implicit_Narrowing_Conversion,
+
+	W_Level1_End,
+	//// @level2 //// (all the other warnings)
+	W_Level2_Start = W_Level1_End,
+
+
+
+	W_Level2_End,
+	//// @level3 //// (warnings you might want to be aware of, but are valid in most cases)
+	W_Level3_Start = W_Level2_End,
+
+	WC_Unreachable_Code_After_Return,
+	WC_Unreachable_Code_After_Break,
+	WC_Unreachable_Code_After_Continue,
+	//WC_Negative_Constant_Assigned_To_Unsigned_Variable,
+
+	W_Level3_End,
+	W_COUNT = W_Level3_End
+};
+
 enum OSOut {
 	OSOut_Windows,
 	OSOut_Linux,
@@ -30,12 +57,61 @@ enum OSOut {
 
 struct {
 	u32 warning_level = 1;
-	b32 verbose_print      = false;
+	u32 verbosity = 4;
+	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
 	b32 warnings_as_errors = false;
+	b32 show_code = true;
 	OSOut osout = OSOut_Windows;
 } globals;
+
+/*	Verbosity
+
+	0: 
+		Shows the names of files as they are processed
+	1:
+		Shows the stages as they happen and the time it took for them to complete
+	2:
+		Shows parts of the stages as they happen
+	3:
+		Shows even more detail about whats happening in each stage
+	4:
+		Shows compiler debug information from each stage
+
+*/
+
+//a normal message that is based on verbosity
+template<typename...T>
+void suLog(u32 verbosity, T... args){
+	if(globals.verbosity < verbosity) return;
+	logger_pop_indent(-1);
+	logger_push_indent(verbosity);
+	Log("", args...);
+	logger_pop_indent(-1);
+}
+
+// void suWarn(Token* token, T... args){
+
+// }
+
+void su_set_indent(u32 indent){
+	logger_pop_indent(-1);
+	logger_push_indent(indent);
+}
+
+void su_push_indent(u32 count = 0){
+	logger_push_indent(count);
+}
+
+void su_pop_indent(u32 count = 0){
+	logger_pop_indent(count);
+}
+
+
+
+
+
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
@@ -167,20 +243,23 @@ const char* dataTypeStrs[] = {
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Lexer
-enum Token_Type : u32{
+enum{
 	Token_Null = 0,
 	Token_ERROR = 0,                // when something doesnt make sense during lexing
 	Token_EOF,                      // end of file
 	
-	Token_Identifier,               // function/variable names                 
+	TokenGroup_Identifier,
+	Token_Identifier,  // function, variable and struct names                 
 	
 	//// literal ////
+	TokenGroup_Literal,
 	Token_LiteralFloat,
 	Token_LiteralInteger,
 	Token_LiteralCharacter,
 	Token_LiteralString,
 	
 	//// control ////
+	TokenGroup_Control,
 	Token_Semicolon,                // ;
 	Token_OpenBrace,                // {
 	Token_CloseBrace,               // }
@@ -197,6 +276,7 @@ enum Token_Type : u32{
 	Token_Backtick,                 // `
 	
 	//// operators ////
+	TokenGroup_Operator,
 	Token_Plus,                     // +
 	Token_Increment,                // ++
 	Token_PlusAssignment,           // +=
@@ -233,6 +313,7 @@ enum Token_Type : u32{
 	Token_GreaterThanOrEqual,       // >=
 	
 	//// keywords ////
+	TokenGroup_Keyword,
 	Token_Return,                   // return
 	Token_If,                       // if
 	Token_Else,                     // else
@@ -245,6 +326,7 @@ enum Token_Type : u32{
 	Token_This,                     // this
 	
 	//// types  ////
+	TokenGroup_Type,
 	Token_Void,                     // void
 	Token_Signed8,                  // s8
 	Token_Signed16,                 // s16 
@@ -262,6 +344,7 @@ enum Token_Type : u32{
 
 
 	//// directives ////
+	TokenGroup_Directive,
 	Token_Directive_Import,
 	Token_Directive_Internal,
 	Token_Directive_Run,
@@ -357,24 +440,18 @@ const char* TokenTypes_Names[] = {
 };
 #undef NAME
 
-enum TokenGroups{
-	TokenGroup_NULL,
-	TokenGroup_Identifier,
-	TokenGroup_Literal,
-	TokenGroup_Control,
-	TokenGroup_Operator,
-	TokenGroup_Keyword,
-	TokenGroup_Type,
-}; typedef u32 TokenGroup;
+
 
 struct Token {
-	Token_Type  type;
-	TokenGroup group;
+	Type type;
+	Type group;
 	str8 raw; 
 	
 	str8 file;
 	u32 l0, l1;
 	u32 c0, c1;
+
+	u32 scope_depth;
 
 	union{
 		f64 f64_val;
@@ -545,7 +622,6 @@ struct Declaration {
 	
 	Type type;
 	str8 identifier;
-
 };
 #define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
 
@@ -560,14 +636,6 @@ struct Function {
 };
 #define FunctionFromDeclaration(x) CastFromMember(Function, decl, x)
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
-
-struct Struct {
-	Declaration decl;
-	
-	map<cstring, Declaration*> members;
-};
-#define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
-#define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
 
 struct Variable{
 	Declaration decl;
@@ -590,6 +658,17 @@ struct Variable{
 #define VariableFromDeclaration(x) CastFromMember(Variable, decl, x)
 #define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
 
+struct Struct {
+	Declaration decl;
+	
+	//TODO(sushi) make these maps and make map sorted and binary searched
+	array<Variable*> vars;
+	array<Function*> funcs;
+	array<Struct*>   structs;
+};
+#define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
+#define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
+
 struct Program {
 	Node node;
 	str8 filename;
@@ -597,42 +676,27 @@ struct Program {
 };
 
 enum ParseStage {
-	psGlobal,      // <program>       :: = { ( <function> | <struct> ) }
-	psStruct,      // <struct>        :: = "struct" <id> "{" { ( <declaration> ";" | <function> ) } "}" [<id>] ";"
-	psFunction,    // <function>      :: = <type> ( [ "[" [<integer>] "]" ] | "*" ) <id> "(" [ <declaration> {"," <declaration> } ] ")" <scope>
-	psScope,       // <scope>         :: = "{" { (<declaration> | <statement> | <scope>) } "}"
-	psDeclaration, // <declaration>   :: = <type> ( [ "[" [<integer>] "]" ] | "*" ) <id> [ = <exp> ]
-	psStatement,   // <statement>     :: = "return" <exp> ";" | <exp> ";" | <scope> 
-	//                                   | "if" "(" <exp> ")" <statement> | <scope> [ "else" <statement> | <scope> ]
-	//                                   | "for" "(" [<exp>] ";" [<exp>] ";" [<exp>] ")" <statement>
-	//                                   | "for" "(" <declaration> ";" [<exp>] ";" [<exp>] ")" <statement>
-	//                                   | "while" "(" <exp> ")" <statement>
-	//                                   | "break" [<integer>] ";" 
-	//                                   | "continue" ";"
-	//                                   | <struct>
-	psExpression,  // <exp>           :: = <id> "=" <exp> | <conditional>
-	psConditional, // <conditional>   :: = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp> 
-	psLogicalOR,   // <logical or>    :: = <logical and> { "||" <logical and> } 
-	psLogicalAND,  // <logical and>   :: = <bitwise or> { "&&" <bitwise or> } 
-	psBitwiseOR,   // <bitwise or>    :: = <bitwise xor> { "|" <bitwise xor> }
-	psBitwiseXOR,  // <bitwise xor>   :: = <bitwise and> { "^" <bitwise and> }
-	psBitwiseAND,  // <bitwise and>   :: = <equality> { "&" <equality> }
-	psEquality,    // <equality>      :: = <relational> { ("!=" | "==") <relational> }
-	psRelational,  // <relational>    :: = <bitwise shift> { ("<" | ">" | "<=" | ">=") <bitwise shift> }
-	psBitshift,    // <bitwise shift> :: = <additive> { ("<<" | ">>" ) <additive> }
-	psAdditive,    // <additive>      :: = <term> { ("+" | "-") <term> }
-	psTerm,        // <term>          :: = <factor> { ("*" | "/" | "%") <factor> }
-	psFactor,      // <factor>        :: = "(" <exp> ")" | <unary> <factor> | <literal> | <id> | <incdec> <id> | <id> <incdec> |  <funccall> | <memberaccess> | "if"
-	//                <funccall>      :: = < id> "("[( <exp> | <id> = <exp> ) {"," ( <exp> | <id> = <exp> ) }] ")"
-	//                <literal>       :: = <integer> | <float> | <string>
-	//                <memberaccess>  :: = <id> "." <id> { "." <id> }
-	//                <float>         :: = { <integer> } "." <integer> { <integer> }
-	//                <string>        :: = """ { <char> } """
-	//                <integer>       :: = (1|2|3|4|5|6|7|8|9|0) 
-	//                <char>          :: = you know what chars are
-	//                <type>          :: = (u8|u32|u64|s8|s32|s64|f32|f64|str|any)
-	//                <incdec>        :: = "++" | "--"
-	//                <unary>         :: = "!" | "~" | "-"
+	psFile,
+	psDirective,
+	psRun,
+	psScope,
+	psFunctionDecl,
+	psStructDecl,
+	psVarDecl,
+	psStatement,
+	psExpression,
+	psConditional,
+	psLogicalOR,  
+	psLogicalAND, 
+	psBitwiseOR,  
+	psBitwiseXOR, 
+	psBitwiseAND, 
+	psEquality,   
+	psRelational, 
+	psBitshift,   
+	psAdditive,   
+	psTerm,       
+	psFactor,     
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -643,6 +707,7 @@ struct LexedFile {
 
 	array<Token> tokens;
 
+	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
 		struct{
 			array<u32>   vars;
@@ -657,7 +722,7 @@ struct LexedFile {
 		}loc;
 	}decl;
 	
-
+	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
 		array<u32> imports;
 		array<u32> internals;
@@ -679,13 +744,18 @@ map<str8, LexedFile> lexed_files;
 struct PreprocessedFile{
 	LexedFile* lexfile;
 
+	array<PreprocessedFile*> imported_files;
+
+	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
+		//definitions that can be imported by other modules
 		struct{
 			array<u32> vars;
 			array<u32> funcs;
 			array<u32> structs;
 		}exported;
 
+		//definitions that only this module can access
 		struct{
 			array<u32> vars;
 			array<u32> funcs;
@@ -701,8 +771,6 @@ struct Preprocessor {
 	PreprocessedFile* prefile;
 
 	PreprocessedFile* preprocess(LexedFile* lexfile);
-	//str8 is the name of the file, it is the same as the lexer's map names
-
 }preprocessor;
 
 map<str8, PreprocessedFile> preprocessed_files;	
@@ -713,6 +781,7 @@ map<str8, PreprocessedFile> preprocessed_files;
 struct ParsedFile{
 	PreprocessedFile* prefile;
 
+	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
 		struct{
 			array<Variable*> vars;
@@ -724,85 +793,117 @@ struct ParsedFile{
 			array<Variable*> vars;
 			array<Function*> funcs;
 			array<Struct*> structs;
+		}imported;
+
+		struct{
+			array<Variable*> vars;
+			array<Function*> funcs;
+			array<Struct*> structs;
 		}internal;
 	}decl;
 };
 
+map<str8, ParsedFile> parsed_files;
+
 struct Parser {
+	//file the parser is working in
 	ParsedFile* parfile;
 
-	carray<Token> tokens;
 	Token* curt;
 
 	//stacks of known things 
-
 	struct{
-		array<u32> structs_pushed;
-		array<Struct*> structs;
-		array<u32> functions_pushed;
-		array<Function*> functions;
-		array<u32> variables_pushed;
-		array<Variable*> variables;
+		//stacks of declarations known in current scope
+		struct{
+			array<Struct*> structs;
+			array<u32> structs_pushed;
+			array<Function*> functions;
+			array<u32> functions_pushed;
+			array<Variable*> variables;
+			array<u32> variables_pushed;
+		}known;
+
+		//stacks of elements that we are working with
+		struct{
+			array<Scope*>      scopes;
+			array<Struct*>     structs;
+			array<Variable*>   variables;
+			array<Function*>   functions;
+			array<Expression*> expressions;
+		}nested;
+
 	}stacks;
 
+	//keeps track of what element we are working with 
 	struct{
-		Arena* functions;
-		Arena* variables;
-		Arena* structs;
-		Arena* scopes;
-		Arena* expressions;
+		Variable*   variable = 0;
+		Expression* expression = 0;
+		Struct*     structure = 0;
+		Scope*      scope = 0;
+		Function*   function = 0;
+	}current;	
 
-		FORCE_INLINE
-		Function* make_function(){
-			Function* ret = (Function*)functions->cursor;
-			functions->cursor += sizeof(Function);
-			functions->used += sizeof(Function);
-			return ret;
-		}
-
-		FORCE_INLINE
-		Struct* make_struct(){
-			Struct* ret = (Struct*)structs->cursor;
-			structs->cursor += sizeof(Struct);
-			structs->used += sizeof(Struct);
-			return ret;
-		}
-
-		FORCE_INLINE
-		Variable* make_variable(){
-			Variable* ret = (Variable*)variables->cursor;
-			variables->cursor += sizeof(Variable);
-			variables->used += sizeof(Variable);
-			return ret;
-		}
-
-		FORCE_INLINE
-		Expression* make_expression(){
-			Expression* ret = (Expression*)expressions->cursor;
-			expressions->cursor += sizeof(Expression);
-			expressions->used += sizeof(Expression);
-			return ret;
-		}
-
-		FORCE_INLINE
-		void init(){
-			functions   = memory_create_arena(Kilobytes(512));
-			variables   = memory_create_arena(Kilobytes(512));
-			structs     = memory_create_arena(Kilobytes(512));
-			scopes      = memory_create_arena(Kilobytes(512));
-			expressions = memory_create_arena(Kilobytes(512));
-		}
-
-	}arena;
-
-
+	FORCE_INLINE void push_scope();
+	FORCE_INLINE void pop_scope();
+	FORCE_INLINE void push_function();
+	FORCE_INLINE void pop_function();
+	FORCE_INLINE void push_expression();
+	FORCE_INLINE void pop_expression();
+	FORCE_INLINE void push_struct();
+	FORCE_INLINE void pop_struct();
+	FORCE_INLINE void push_variable();
+	FORCE_INLINE void pop_variable();
+	
 	TNode* declare(Type type);
 	TNode* define(TNode* node, ParseStage stage);
 	ParsedFile* parse(PreprocessedFile* prefile);
+	TNode* parse_import();
+
+	template<typename ...args> FORCE_INLINE b32
+	curr_match(args... in){
+		return (((curt)->type == in) || ...);
+	}
+
+	template<typename ...args> FORCE_INLINE b32
+	curr_match_group(args... in){
+		return (((curt)->group == in) || ...);
+	}
+
+	template<typename ...args> FORCE_INLINE b32
+	next_match(args... in){
+		return (((curt + 1)->type == in) || ...);
+	}
+
+	template<typename ...args> FORCE_INLINE b32
+	next_match_group(args... in){
+		return (((curt + 1)->group == in) || ...);
+	}
+
+	ParsedFile* init(PreprocessedFile* prefile){
+		LexedFile* lexfile = prefile->lexfile;
+		File* file = lexfile->file;
+
+		if(parsed_files.has(file->front)){
+			Log("", VTS_GreenFg, "File has already been parsed.", VTS_Default);
+			return &parsed_files[file->name];
+		}	
+
+		parsed_files.add(file->front);
+	}
+
 
 }parser;
 
-map<str8, ParsedFile> parsed_files;
+struct ParserThreadInfo{
+	Parser* parser;
+	PreprocessedFile* pfile;
+};
+
+void parse_threaded_stub(void* pthreadinfo){
+	((ParserThreadInfo*)pthreadinfo)->parser->parse(((ParserThreadInfo*)pthreadinfo)->pfile);
+}
+
+
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compiler
@@ -817,5 +918,65 @@ struct Compiler{
 	void compile(str8 filepath);
 }compiler;
 
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Memory
+
+struct{
+	Arena* functions;
+	Arena* variables;
+	Arena* structs;
+	Arena* scopes;
+	Arena* expressions;
+
+	FORCE_INLINE
+	Function* make_function(){
+		Function* ret = (Function*)functions->cursor;
+		functions->cursor += sizeof(Function);
+		functions->used += sizeof(Function);
+		return ret;
+	}
+
+	FORCE_INLINE
+	Variable* make_variable(){
+		Variable* ret = (Variable*)variables->cursor;
+		variables->cursor += sizeof(Variable);
+		variables->used += sizeof(Variable);
+		return ret;
+	}
+
+	FORCE_INLINE
+	Struct* make_struct(){
+		Struct* ret = (Struct*)structs->cursor;
+		structs->cursor += sizeof(Struct);
+		structs->used += sizeof(Struct);
+		return ret;
+	}
+
+	FORCE_INLINE
+	Scope* make_scope(){
+		Scope* ret = (Scope*)structs->cursor;
+		scopes->cursor += sizeof(Scope);
+		scopes->used += sizeof(Scope);
+		return ret;
+	}
+
+	FORCE_INLINE
+	Expression* make_expression(){
+		Expression* ret = (Expression*)expressions->cursor;
+		expressions->cursor += sizeof(Expression);
+		expressions->used += sizeof(Expression);
+		return ret;
+	}
+
+	FORCE_INLINE
+	void init(){
+		functions   = memory_create_arena(Kilobytes(512));
+		variables   = memory_create_arena(Kilobytes(512));
+		structs     = memory_create_arena(Kilobytes(512));
+		scopes      = memory_create_arena(Kilobytes(512));
+		expressions = memory_create_arena(Kilobytes(512));
+	}
+
+}arena;
 
 #endif //SU_TYPES_H
