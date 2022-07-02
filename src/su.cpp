@@ -33,20 +33,37 @@
 
 #include "compiler.cpp"
 
-int main(){
+int main(){DPZoneScoped;
+
    	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
-	
-	parser.arena.init();
+
+
+
+	arena.init();
+
+	DeshThreadManager->init(3);
+	DeshThreadManager->spawn_thread();
 
 	//compiler.compile(STR8("tests/lexer/lexer-full.su"));
 
-	LexedFile*         lf = lexer.lex(STR8("tests/lexer/lexer-full.su"));
+	Stopwatch ctime = start_stopwatch();
+
+	//LexedFile*         lf = lexer.lex(STR8("tests/imports/valid/imports.su"));
+	//LexedFile*         lf = lexer.lex(STR8("tests/_/main.su"));
+	LexedFile*         lf = lexer.lex(STR8("stresstest.su"));
+
 	PreprocessedFile* ppf = preprocessor.preprocess(lf);
 	forI(preprocessed_files.count){
+		//DeshThreadManager->add_job({&parse_threaded_stub, (void*)ParserThreadInfo{parser, &preprocessed_files[preprocessed_files.count - 1 - i]}});		//parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
+		//DeshThreadManager->wake_threads();
 		parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
+		parser = Parser();
 	}
+	
+	//TODO(sushi) change the unit based on how long it took
+	suLog(0, "Compiling took ", peek_stopwatch(ctime), " ms");
   
 	return 1;
 }

@@ -26,11 +26,12 @@
 .vscode/
 build/
 docs/
+docs/doxygen/
 
 #specific files
 TODOs.txt
 misc/shell.bat
-docs/doxygen/
+wlist_match12.txt
 
 #data ignores
 data/cfg/*
