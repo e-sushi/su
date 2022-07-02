@@ -7,8 +7,9 @@
               | <var-decl>
               | <struct-decl>
               | <op-decl>
-<func-decl>   = <var-id> ":" [ <type> ] { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ] ";"
-<var-decl>    = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
+<var-decl>    = <var-id> ":" <type> { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ] ";"
+              | <var-id> ":" "=" ( <scalar-type> | <string> | <struct-type> <initializer> )
+<func-decl>   = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
 <struct-decl> = <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
 <op-decl>     = "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
 <statement>   = <scope>  
@@ -21,7 +22,9 @@
               | "defer" <statement> 
               | "break"
               | "continue" 
-<exp>         = <var-id> "=" <exp> | <conditional>
+<exp>         = <assignment-exp> | <conditional> | <struct-type> <initializer>
+<assignment>  = <var-id> "=" ( <exp> | <initialzier> )
+<initializer> = "{" <assignment> { "," <assignment> } "}"
 <conditional> = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp>
 <logical or>  = <logical and> { "||" <logical and> } 
 <logical and> = <bit or> { "&&" <bit or> } 
