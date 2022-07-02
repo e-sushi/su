@@ -1,7 +1,21 @@
 main() : s32 {
-
-    func(a:str, b:str) : any {
-        
+    func() : vec2 {
+        return vec2{1,2} + vec2{2,1};
     }; 
 
+    return (s32)func().x;
+};
+
+vec2 : struct {
+    x,y : f32;
+
+    operator ADDITION_PRECEDENCE (lhs:vec2 "+" rhs:vec2) : vec2{
+        return vec2{lhs.x+rhs.x, lhs.y+rhs.y};
+    };
+};
+
+#internal
+
+vec3 : struct {
+    x,y,z : f32;
 }

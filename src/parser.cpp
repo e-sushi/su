@@ -71,6 +71,19 @@ TNode* Parser::parse_import(){DPZoneScoped;
                 module_name.count -= path_loc+1;
             }
             
+            if(!parsed_files.has(module_name)){
+                ParserThread pt;
+                Parser p;
+                
+                pt.parser = &p;
+                pt.pfile = &preprocessed_files[module_name];
+
+                DeshThreadManager->add_job({&parse_threaded_stub, &pt});
+                DeshThreadManager->wake_threads(1);
+                
+                pt.wake.wait();
+            }
+
             ParsedFile* pfile = &parsed_files[module_name];
 
             curt++;
@@ -174,7 +187,7 @@ TNode* Parser::parse_import(){DPZoneScoped;
                             }
                         }
                         stacks.known.structs.add(s);
-                        parfile->decl.imported.structs.add(s);
+                        parfile->decl.imported.structs.add(curt->raw, s);
                     }else parser_error(curt, "Expected an identifier after 'as'");
                 }else parser_error(curt, "Unknown identifier found after import specifier. Did you mean to use {} to specify defs? Did you mean to use 'as'?");
             }
@@ -271,6 +284,9 @@ TNode* Parser::define(TNode* node, ParseStage stage){DPZoneScoped;
             while(!next_match(Token_CloseBrace)){
                 curt++;
                 expect(Token_Identifier){
+                    //first we look to see if this identifier is one that we already know of 
+
+
                     //we need to determine what we are doing with this identifier, specifically if we are declaring 
                     //something for it. so we save it and look ahead
                     Token* save = curt;
@@ -384,6 +400,11 @@ ParsedFile* Parser::parse(PreprocessedFile* prefile){DPZoneScoped;
     stacks.known.functions_pushed.add(0);
     stacks.known.variables_pushed.add(0);
 
+    suLog(2, "Beginning parse from entry point \"main\".");
+    //TODO(sushi) mark where the entry point is in lexing 
+    //TODO(sushi) custom entrypoint names
+   
+
     suLog(2, "Checking that imported files are parsed");
 
     {// make sure that all imported modules have been parsed before parsing this one
@@ -402,105 +423,119 @@ ParsedFile* Parser::parse(PreprocessedFile* prefile){DPZoneScoped;
         }
     }
 
-    suLog(2, "Parsing top-level declarations");
-    logger_push_indent();
-
-    {//declare all global declarations
-        suLog(3, "Declaring global structs");
-        for(u32 idx : prefile->decl.exported.structs){
-            curt = &prefile->lexfile->tokens[idx];
-            Struct* s = StructFromNode(declare(decl_structure));
-            parfile->decl.exported.structs.add(s);
-            (*stacks.known.structs_pushed.last)++;
-            stacks.known.structs.add(s);
-        }   
-        suLog(3, "Declaring internal structs");
-        for(u32 idx : prefile->decl.internal.structs){
-            curt = &prefile->lexfile->tokens[idx];
-            Struct* s = StructFromNode(declare(decl_structure));
-            parfile->decl.internal.structs.add(s);
-            (*stacks.known.structs_pushed.last)++;
-            stacks.known.structs.add(s);
-        }
-
-        suLog(3, "Declaring global functions");
-        for(u32 idx : prefile->decl.exported.funcs){
-            curt = &prefile->lexfile->tokens[idx];
-            Function* f = FunctionFromNode(declare(decl_function));
-            parfile->decl.exported.funcs.add(f);
-            (*stacks.known.functions_pushed.last)++;
-            stacks.known.functions.add(f);
-        }
-
-        suLog(3, "Declaring internal functions");
-        for(u32 idx : prefile->decl.internal.funcs){
-            curt = &prefile->lexfile->tokens[idx];
-            Function* f = FunctionFromNode(declare(decl_function));
-            parfile->decl.internal.funcs.add(f);
-            (*stacks.known.functions_pushed.last)++;
-            stacks.known.functions.add(f);
-        }
-
-        suLog(3, "Declaring global vars");
-        for(u32 idx : prefile->decl.exported.vars){
-            curt = &prefile->lexfile->tokens[idx];
-            Variable* v = VariableFromNode(declare(decl_variable));
-            parfile->decl.exported.vars.add(v);
-            (*stacks.known.variables_pushed.last)++;
-            stacks.known.variables.add(v);
-        }
-
-        suLog(3, "Declaring internal vars");
-        for(u32 idx : prefile->decl.internal.vars){
-            curt = &prefile->lexfile->tokens[idx];
-            Variable* v = VariableFromNode(declare(decl_variable));
-            parfile->decl.internal.vars.add(v);
-            (*stacks.known.variables_pushed.last)++;
-            stacks.known.variables.add(v);
-        }
+    //TODO(sushi) custom entry point, or entry point 'build'
+    Identifier* id = prefile->internal_identifiers.at(STR8("main"));
+    if(!id) id = prefile->exported_identifiers.at(STR8("main"));
+    if(id){
+        curt = id->token;
+    }else{
+        suLog(0, "TODO MAKE THIS AN ERROR WHEN SUERROR IS MADE: unable to find entry point function.");
     }
 
-    {//define all global declarations
-        for(u32 idx : prefile->decl.exported.structs){
-            curt = &prefile->lexfile->tokens[idx];
-            Struct* s = StructFromNode(declare(decl_structure));
-            parfile->decl.exported.structs.add(s);
-        }   
-        suLog(3, "Declaring internal structs");
-        for(u32 idx : prefile->decl.internal.structs){
-            curt = &prefile->lexfile->tokens[idx];
-            Struct* s = StructFromNode(declare(decl_structure));
-            parfile->decl.internal.structs.add(s);
-        }
 
-        suLog(3, "Declaring global functions");
-        for(u32 idx : prefile->decl.exported.funcs){
-            curt = &prefile->lexfile->tokens[idx];
-            Function* f = FunctionFromNode(declare(decl_function));
-            parfile->decl.exported.funcs.add(f);
-        }
 
-        suLog(3, "Declaring internal functions");
-        for(u32 idx : prefile->decl.internal.funcs){
-            curt = &prefile->lexfile->tokens[idx];
-            Function* f = FunctionFromNode(declare(decl_function));
-            parfile->decl.internal.funcs.add(f);
-        }
 
-        suLog(3, "Declaring global vars");
-        for(u32 idx : prefile->decl.exported.vars){
-            curt = &prefile->lexfile->tokens[idx];
-            Variable* v = VariableFromNode(declare(decl_variable));
-            parfile->decl.exported.vars.add(v);
-        }
 
-        suLog(3, "Declaring internal vars");
-        for(u32 idx : prefile->decl.internal.vars){
-            curt = &prefile->lexfile->tokens[idx];
-            Variable* v = VariableFromNode(declare(decl_variable));
-            parfile->decl.internal.vars.add(v);
-        }
-    }
+
+    //suLog(2, "Parsing top-level declarations");
+    
+
+    // {//declare all global declarations
+    //     suLog(3, "Declaring global structs");
+    //     for(u32 idx : prefile->decl.exported.structs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Struct* s = StructFromNode(declare(decl_structure));
+    //         parfile->decl.exported.structs.add(s);
+    //         (*stacks.known.structs_pushed.last)++;
+    //         stacks.known.structs.add(s);
+    //     }   
+    //     suLog(3, "Declaring internal structs");
+    //     for(u32 idx : prefile->decl.internal.structs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Struct* s = StructFromNode(declare(decl_structure));
+    //         parfile->decl.internal.structs.add(s);
+    //         (*stacks.known.structs_pushed.last)++;
+    //         stacks.known.structs.add(s);
+    //     }
+
+    //     suLog(3, "Declaring global functions");
+    //     for(u32 idx : prefile->decl.exported.funcs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Function* f = FunctionFromNode(declare(decl_function));
+    //         parfile->decl.exported.funcs.add(f);
+    //         (*stacks.known.functions_pushed.last)++;
+    //         stacks.known.functions.add(f);
+    //     }
+
+    //     suLog(3, "Declaring internal functions");
+    //     for(u32 idx : prefile->decl.internal.funcs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Function* f = FunctionFromNode(declare(decl_function));
+    //         parfile->decl.internal.funcs.add(f);
+    //         (*stacks.known.functions_pushed.last)++;
+    //         stacks.known.functions.add(f);
+    //     }
+
+    //     suLog(3, "Declaring global vars");
+    //     for(u32 idx : prefile->decl.exported.vars){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Variable* v = VariableFromNode(declare(decl_variable));
+    //         parfile->decl.exported.vars.add(v);
+    //         (*stacks.known.variables_pushed.last)++;
+    //         stacks.known.variables.add(v);
+    //     }
+
+    //     suLog(3, "Declaring internal vars");
+    //     for(u32 idx : prefile->decl.internal.vars){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Variable* v = VariableFromNode(declare(decl_variable));
+    //         parfile->decl.internal.vars.add(v);
+    //         (*stacks.known.variables_pushed.last)++;
+    //         stacks.known.variables.add(v);
+    //     }
+    // }
+
+    // {//define all global declarations
+    //     for(u32 idx : prefile->decl.exported.structs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Struct* s = StructFromNode(declare(decl_structure));
+    //         parfile->decl.exported.structs.add(s);
+    //     }   
+    //     suLog(3, "Declaring internal structs");
+    //     for(u32 idx : prefile->decl.internal.structs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Struct* s = StructFromNode(declare(decl_structure));
+    //         parfile->decl.internal.structs.add(s);
+    //     }
+
+    //     suLog(3, "Declaring global functions");
+    //     for(u32 idx : prefile->decl.exported.funcs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Function* f = FunctionFromNode(declare(decl_function));
+    //         parfile->decl.exported.funcs.add(f);
+    //     }
+
+    //     suLog(3, "Declaring internal functions");
+    //     for(u32 idx : prefile->decl.internal.funcs){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Function* f = FunctionFromNode(declare(decl_function));
+    //         parfile->decl.internal.funcs.add(f);
+    //     }
+
+    //     suLog(3, "Declaring global vars");
+    //     for(u32 idx : prefile->decl.exported.vars){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Variable* v = VariableFromNode(declare(decl_variable));
+    //         parfile->decl.exported.vars.add(v);
+    //     }
+
+    //     suLog(3, "Declaring internal vars");
+    //     for(u32 idx : prefile->decl.internal.vars){
+    //         curt = &prefile->lexfile->tokens[idx];
+    //         Variable* v = VariableFromNode(declare(decl_variable));
+    //         parfile->decl.internal.vars.add(v);
+    //     }
+    // }
 
     logger_pop_indent();
     suLog(1, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);

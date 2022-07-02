@@ -5,6 +5,7 @@
 #include "kigu/array.h"
 #include "kigu/common.h"
 #include "kigu/string.h"
+#include "core/threading.h"
 #include "ctype.h"
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +58,7 @@ enum OSOut {
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = 4;
+	u32 verbosity = 1;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -81,32 +82,7 @@ struct {
 
 */
 
-//a normal message that is based on verbosity
-template<typename...T>
-void suLog(u32 verbosity, T... args){
-	if(globals.verbosity < verbosity) return;
-	logger_pop_indent(-1);
-	logger_push_indent(verbosity);
-	Log("", args...);
-	logger_pop_indent(-1);
-}
 
-// void suWarn(Token* token, T... args){
-
-// }
-
-void su_set_indent(u32 indent){
-	logger_pop_indent(-1);
-	logger_push_indent(indent);
-}
-
-void su_push_indent(u32 count = 0){
-	logger_push_indent(count);
-}
-
-void su_pop_indent(u32 count = 0){
-	logger_pop_indent(count);
-}
 
 
 
@@ -452,6 +428,7 @@ struct Token {
 	u32 c0, c1;
 
 	u32 scope_depth;
+	u32 idx;
 
 	union{
 		f64 f64_val;
@@ -459,9 +436,6 @@ struct Token {
 		u64 u64_val;
 	};
 };
-
-
-
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
@@ -702,31 +676,57 @@ enum ParseStage {
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Lexer
 
+enum{
+	Identifier_Unknown,
+	Identifier_Function,
+	Identifier_Variable,
+	Identifier_Structure,
+};
+
+struct Identifier{
+	//alias is the same thing that the str8 used in identifier maps is,
+	//this is only here so we can still tell the use what it was aliased as when giving errors
+	str8 alias;
+	Token* token;
+	Type type;
+	b32 internal; //determined in preprocessing
+};
+
 struct LexedFile {
 	File* file;
 
 	array<Token> tokens;
 
-	//TODO(sushi) make these maps and make map sorted and binary searched
-	struct{
-		struct{
-			array<u32>   vars;
-			array<u32>   funcs;
-			array<u32>   structs;
-		}glob;
+	//map of all known top-level identifiers in this lexed file
+	map<str8, Identifier> global_identifiers;
+	//map of all known local identifiers in this lexed file
+	map<str8, Identifier> local_identifiers;
+
+	//possibly return to this style, but use it to index the identifiers array instead
+	//as it allows us to filter nicely
+	// struct{
+	// 	struct{
+	// 		array<u32> vars;
+	// 		array<u32> funcs;
+	// 		array<u32> structs;
+	// 	}glob;
 		
-		struct{
-			array<u32>   vars;
-			array<u32>   funcs;
-			array<u32>   structs;
-		}loc;
-	}decl;
+	// 	struct{
+	// 		array<u32> vars;
+	// 		array<u32> funcs;
+	// 		array<u32> structs;
+	// 	}loc;
+	// }decl;
 	
 	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
 		array<u32> imports;
 		array<u32> internals;
 		array<u32> runs;
+		//a list of identifiers found in lexing that werent marked as anything else
+		//the preprocessor passes over these identifiers and tries to match them against types known after
+		//imported and after global declarations have been passed
+		array<u32> identifiers;
 	}preprocessor;
 };
 
@@ -738,13 +738,30 @@ struct Lexer {
 
 map<str8, LexedFile> lexed_files;
 
+struct LexerThread{
+	Lexer* lexer;
+	str8 buffer;
+	condvar wait;
+};
+
+void lexer_threaded_stub(void* lt){
+	LexerThread* lthread = (LexerThread*)lt;
+	lthread->lexer->lex(lthread->buffer);
+	lthread->wait.notify_all();
+}
+
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Preprocessor
+
+
 
 struct PreprocessedFile{
 	LexedFile* lexfile;
 
 	array<PreprocessedFile*> imported_files;
+	
+	map<str8, Identifier> exported_identifiers;
+	map<str8, Identifier> internal_identifiers;
 
 	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
@@ -764,7 +781,9 @@ struct PreprocessedFile{
 	}decl;
 
 	array<u32> runs;
-	
+
+	Identifier* find_identifier(str8 id){
+	}
 };
 
 struct Preprocessor {
@@ -773,7 +792,19 @@ struct Preprocessor {
 	PreprocessedFile* preprocess(LexedFile* lexfile);
 }preprocessor;
 
-map<str8, PreprocessedFile> preprocessed_files;	
+map<str8, PreprocessedFile> preprocessed_files;
+
+struct PreprocessorThread{
+	Preprocessor* preprocessor;
+	LexedFile* lexfile;
+	condvar wait;
+};
+
+void preprocessor_thread_stub(void* in){
+	PreprocessorThread* pt = (PreprocessorThread*)in;
+	pt->preprocessor->preprocess(pt->lexfile);
+	pt->wait.notify_all(); 
+}
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Parser
@@ -781,24 +812,28 @@ map<str8, PreprocessedFile> preprocessed_files;
 struct ParsedFile{
 	PreprocessedFile* prefile;
 
+	map<str8, Identifier> exported_identifiers;
+	map<str8, Identifier> imported_identifiers;
+	map<str8, Identifier> internal_identifiers;
+
 	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
 		struct{
-			array<Variable*> vars;
-			array<Function*> funcs;
-			array<Struct*> structs;
+			map<str8, Variable*> vars;
+			map<str8, Function*> funcs;
+			map<str8, Struct*> structs;
 		}exported;
 
 		struct{
-			array<Variable*> vars;
-			array<Function*> funcs;
-			array<Struct*> structs;
+			map<str8, Variable*> vars;
+			map<str8, Function*> funcs;
+			map<str8, Struct*> structs;
 		}imported;
 
 		struct{
-			array<Variable*> vars;
-			array<Function*> funcs;
-			array<Struct*> structs;
+			map<str8, Variable*> vars;
+			map<str8, Function*> funcs;
+			map<str8, Struct*> structs;
 		}internal;
 	}decl;
 };
@@ -860,26 +895,26 @@ struct Parser {
 	TNode* parse_import();
 
 	template<typename ...args> FORCE_INLINE b32
-	curr_match(args... in){
+	curr_match(args... in){DPZoneScoped;
 		return (((curt)->type == in) || ...);
 	}
 
 	template<typename ...args> FORCE_INLINE b32
-	curr_match_group(args... in){
+	curr_match_group(args... in){DPZoneScoped;
 		return (((curt)->group == in) || ...);
 	}
 
 	template<typename ...args> FORCE_INLINE b32
-	next_match(args... in){
+	next_match(args... in){DPZoneScoped;
 		return (((curt + 1)->type == in) || ...);
 	}
 
 	template<typename ...args> FORCE_INLINE b32
-	next_match_group(args... in){
+	next_match_group(args... in){DPZoneScoped;
 		return (((curt + 1)->group == in) || ...);
 	}
 
-	ParsedFile* init(PreprocessedFile* prefile){
+	ParsedFile* init(PreprocessedFile* prefile){DPZoneScoped;
 		LexedFile* lexfile = prefile->lexfile;
 		File* file = lexfile->file;
 
@@ -891,32 +926,67 @@ struct Parser {
 		parsed_files.add(file->front);
 	}
 
+	b32 identifier_exists(str8 id){
+		//search all of our catalogues of identifiers
+		
+
+	}
+
 
 }parser;
 
-struct ParserThreadInfo{
+struct ParserThread{
 	Parser* parser;
 	PreprocessedFile* pfile;
+	//optional condition variable that a parser may sleep on to wait for one that it creates to finish
+	condvar wake; 
 };
 
 void parse_threaded_stub(void* pthreadinfo){
-	((ParserThreadInfo*)pthreadinfo)->parser->parse(((ParserThreadInfo*)pthreadinfo)->pfile);
+	ParserThread* pt = (ParserThread*)pthreadinfo;
+	pt->parser->parse(pt->pfile);
+	pt->wake.notify_all();
 }
-
-
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compiler
 
+enum{
+	Stage_Lexer        = 1 << 0,
+	Stage_Preprocessor = 1 << 1,
+	Stage_Parser       = 1 << 2,
+};
+
 struct Compiler{
-	array<Lexer> lexers;
-	array<Preprocessor> preprocessors;
-	array<Parser> parsers;
+	struct{
+		array<Thread*> lexers;
+		array<Thread*> preprocessors;
+		array<Thread*> parsers;
+	}threads;
+
+	//locked when doing non-thread safe stuff 
+	//such as loading a File, and probably when we use memory functions as well
+	struct{
+		mutex lexer;
+		mutex preprocessor;
+		mutex parser;
+		mutex memory; //lock when using deshi's memory module
+	}mutexes;
 
 	u32 max_threads = 3;
 
 	void compile(str8 filepath);
+
+	LexedFile*        start_lexer(str8 filepath);
+	PreprocessedFile* start_preprocessor(LexedFile* lexfile);
+	ParsedFile*       start_parser(PreprocessedFile* prefile);
+
 }compiler;
+
+struct CompilerThread{
+	str8 filepath;
+	condvar wait;
+};
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Memory
@@ -978,5 +1048,30 @@ struct{
 	}
 
 }arena;
+
+//a normal message that is based on verbosity
+template<typename...T>
+void suLog(u32 verbosity, T... args){
+	if(globals.verbosity < verbosity) return;
+	logger_pop_indent(-1);
+	logger_push_indent(verbosity);
+	Log("", args...);
+	logger_pop_indent(-1);
+}
+
+// void suWarn(Token* token, T... args){
+
+// }
+template<typename...T>
+void suError(Token* token, T...args){
+	Log("", ErrorFormat("error: "), token->file, "(",token->l0,",",token->c0,"):", args...);
+}
+
+template<typename...T>
+void suError(T...args){
+	Log("", ErrorFormat("error: "), args...);
+}
+
+
 
 #endif //SU_TYPES_H
