@@ -14,8 +14,4 @@ vec2 : struct {
     };
 };
 
-#internal
-
-vec3 : struct {
-    x,y,z : f32;
-}
+ 

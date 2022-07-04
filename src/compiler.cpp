@@ -32,30 +32,66 @@
 
 
 
-void compile_threaded_func(void* in){
-
+void compile_threaded_func(void* in){DPZoneScoped;
     CompilerThread* ct = (CompilerThread*)in;
-
-    LexedFile* lexfile = compiler.start_lexer(ct->filepath);
-    PreprocessedFile* prefile = compiler.start_preprocessor(lexfile);
-
-    ct->wait.notify_all();
-
-}
-
-void Compiler::compile(str8 filepath){
-    suLog(1, "Starting compilation with ", filepath);
-
-    CompilerThread ct;
-    ct.filepath = filepath;
-
-    DeshThreadManager->add_job({&compile_threaded_func, &ct});
-    DeshThreadManager->wake_threads(1);
     
-    ct.wait.wait();
+    LexedFile*        lexfile = 0;
+    PreprocessedFile* prefile = 0;
+    ParsedFile*       parfile = 0;
+
+    //TODO(sushi) support for passing each stages file and starting compilation from stages passed lexing if 
+    //            necessary
+    if(HasFlag(ct->stages, Stage_Lexer)){
+        lexfile = compiler.start_lexer(ct->filepath);
+    }
+    if(lexfile && HasFlag(ct->stages, Stage_Preprocessor)){
+        prefile = compiler.start_preprocessor(lexfile);    
+    }
+    if(prefile && HasFlag(ct->stages, Stage_Parser)){
+        parfile = compiler.start_parser(prefile);
+    }
+
+    ct->finished = 1;
+    DPTracyMessageL("compiler: notifying condvar");
+    ct->wait.notify_all();
 }
 
-LexedFile* Compiler::start_lexer(str8 filepath){
+void Compiler::compile(CompilerRequest* request){DPZoneScoped;
+    DPTracyMessageL("compiler: compile requested");
+    suLog(1, "Beginning compiler request on ", request->filepaths.count, " files.");
+
+    if(globals.verbosity > 3){
+        for(str8 s : request->filepaths){
+            suLog(4, "Request to compile path ", s);
+        }
+    }
+
+    DPTracyMessageL("compiler: creating CompilerThreads");
+    CompilerThread* ct = (CompilerThread*)memalloc(sizeof(CompilerThread) * request->filepaths.count);
+
+    DPTracyMessageL("compiler: filling out CompilerThreads");
+    forI(request->filepaths.count){
+        ct[i].wait.init();
+        ct[i].filepath = request->filepaths[i];
+        ct[i].stages = request->stages;
+        DeshThreadManager->add_job({&compile_threaded_func, &ct[i]});
+    }
+
+    DPTracyMessageL("compiler: waking threads");
+    DeshThreadManager->wake_threads();
+
+    forI(request->filepaths.count){
+        while(!ct[i].finished){
+            DPTracyMessageL("compiler: waiting on compiler thread");
+            ct[i].wait.wait();
+            //Log("", "hi");
+        }
+        ct[i].wait.deinit();
+    }
+    int hey_there = 1;
+}
+
+LexedFile* Compiler::start_lexer(str8 filepath){DPZoneScoped;
     mutexes.lexer.lock();
 
     suLog(2, "Spawning a lexer");
@@ -96,13 +132,16 @@ LexedFile* Compiler::start_lexer(str8 filepath){
     LexerThread lt;
     lt.buffer = buffer;
     lt.lexer = lexer;
+    lt.wait.init();
 
     suLog(2, "Starting lexer thread.");
 
     DeshThreadManager->add_job({&lexer_threaded_stub, &lt});
     DeshThreadManager->wake_threads(1);
 
+    DPTracyMessageL("compiler: waiting on lexer thread");
     lt.wait.wait();
+    DPTracyMessageL("compiler: lexer thread finished");
 
     suLog(2, "Lexer thread ended.");
 
@@ -111,7 +150,7 @@ LexedFile* Compiler::start_lexer(str8 filepath){
     return ret;
 }
 
-PreprocessedFile* Compiler::start_preprocessor(LexedFile* lexfile){
+PreprocessedFile* Compiler::start_preprocessor(LexedFile* lexfile){DPZoneScoped;
     mutexes.preprocessor.lock();
 
     suLog(2, "Spawning a preprocessor.");
@@ -138,22 +177,25 @@ PreprocessedFile* Compiler::start_preprocessor(LexedFile* lexfile){
     PreprocessorThread pt;
     pt.lexfile = lexfile;
     pt.preprocessor = preprocessor;
+    pt.wait.init();
     
     suLog(2, "Starting preprocessor thread.");
 
     DeshThreadManager->add_job({&preprocessor_thread_stub, &pt});
     DeshThreadManager->wake_threads(1);
 
+    DPTracyMessageL("waiting on preprocessor thread");
     pt.wait.wait();
+    DPTracyMessageL("preprocessor thread finished");
+
 
     suLog(2, "Preprocessor thread ended.");
-
 
     PreprocessedFile* prefile = preprocessor->prefile;
     memzfree(preprocessor);
     return prefile;
 }
 
-ParsedFile* Compiler::start_parser(PreprocessedFile* prefile){
+ParsedFile* Compiler::start_parser(PreprocessedFile* prefile){DPZoneScoped;
     return 0;
 }

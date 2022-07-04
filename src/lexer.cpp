@@ -356,7 +356,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
 						lex_error(token, "Multi-line comment has no ending */ token.");
-						return false;
+						return 0;
 					}
 					stream_next; stream_next;
 					continue; //skip token creation

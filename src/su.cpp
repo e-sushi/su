@@ -33,24 +33,60 @@
 
 #include "compiler.cpp"
 
+struct uhuh{
+	b32 finished = 0;
+	condvar cv;
+};
+
+void wake_up_sub_thread(void* in){
+	platform_sleep(100);
+	((uhuh*)in)->finished = 1;
+	((uhuh*)in)->cv.notify_all();
+}
+
+void wake_up_main_thread(void* in){
+	const u32 n = 3;
+	uhuh test[n];
+
+	forI(n){
+		DeshThreadManager->add_job({&wake_up_sub_thread, &test[i]});
+	}
+
+	DeshThreadManager->wake_threads();
+	
+	forI(n){
+		if(!test[i].finished){
+			test[i].cv.wait();
+		}
+	}
+
+	((condvar*)in)->notify_all();
+}
+
 int main(){DPZoneScoped;
 
    	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
 
-
-
 	arena.init();
 
 	DeshThreadManager->init(5);
 	DeshThreadManager->spawn_thread(5);
+	platform_sleep(50); //sleep to allow threads to spawn (not necessary, so probably remove later)
+
+	//platform_sleep(100);
+
 
 	//compiler.compile(STR8("tests/lexer/lexer-full.su"));
 
 	Stopwatch ctime = start_stopwatch();
 
-	compiler.compile(STR8("tests/imports/valid/imports.su"));
+	CompilerRequest cr; 
+	cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
+	cr.stages = Stage_Lexer | Stage_Preprocessor | Stage_Parser;
+
+	compiler.compile(&cr);
 
 /*
 	LexedFile*         lf = lexer.lex(STR8("tests/imports/valid/imports.su"));

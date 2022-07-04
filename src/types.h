@@ -744,9 +744,10 @@ struct LexerThread{
 	condvar wait;
 };
 
-void lexer_threaded_stub(void* lt){
+void lexer_threaded_stub(void* lt){DPZoneScoped;
 	LexerThread* lthread = (LexerThread*)lt;
 	lthread->lexer->lex(lthread->buffer);
+	DPTracyMessageL("lexer: notifying convar")
 	lthread->wait.notify_all();
 }
 
@@ -800,9 +801,10 @@ struct PreprocessorThread{
 	condvar wait;
 };
 
-void preprocessor_thread_stub(void* in){
+void preprocessor_thread_stub(void* in){DPZoneScoped;
 	PreprocessorThread* pt = (PreprocessorThread*)in;
 	pt->preprocessor->preprocess(pt->lexfile);
+	DPTracyMessageL("preprocessor: notifying condvar")
 	pt->wait.notify_all(); 
 }
 
@@ -957,6 +959,17 @@ enum{
 	Stage_Parser       = 1 << 2,
 };
 
+struct CompilerRequest{
+	//request info
+	Flags stages;
+	array<str8> filepaths;
+
+	//info filled out by request
+	LexedFile*        lexfile = 0;
+	PreprocessedFile* prefile = 0;
+	ParsedFile*       parfile = 0;
+};
+
 struct Compiler{
 	struct{
 		array<Thread*> lexers;
@@ -967,25 +980,27 @@ struct Compiler{
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
 	struct{
-		mutex lexer;
-		mutex preprocessor;
-		mutex parser;
-		mutex memory; //lock when using deshi's memory module
+		DPTracyLockable(mutex, lexer);
+		DPTracyLockable(mutex, preprocessor);
+		DPTracyLockable(mutex, parser);
+		DPTracyLockable(mutex, memory); //lock when using deshi's memory module
 	}mutexes;
 
-	u32 max_threads = 3;
-
-	void compile(str8 filepath);
+	void compile(CompilerRequest* request);
 
 	LexedFile*        start_lexer(str8 filepath);
 	PreprocessedFile* start_preprocessor(LexedFile* lexfile);
 	ParsedFile*       start_parser(PreprocessedFile* prefile);
 
+	void              start_request(CompilerRequest* request);
+
 }compiler;
 
 struct CompilerThread{
 	str8 filepath;
+	Flags stages;
 	condvar wait;
+	b32 finished;
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////

@@ -42,6 +42,8 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
    
     //first we look for imports, if they are founda we lex the file being imported from recursively
     //TODO(sushi) this can probably be multithreaded
+    //we gather import paths so we can setup a job for each one 
+    // and lex then preprocess each one at the same time.
     array<str8> import_paths;
     for(u32 importidx : lexfile->preprocessor.imports){
         suLog(2, "Processing imports");
@@ -58,16 +60,12 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
                     //attempt to find the module in PATH and current working directory
                     //first check cwd
                     if(file_exists(curt->raw)){
-                        suLog(2, "Processing import ", curt->raw);
-                        LexedFile* lexfile = compiler.start_lexer(curt->raw);
-                        PreprocessedFile* pfile = compiler.start_preprocessor(lexfile);
-                        prefile->imported_files.add(pfile);
-                        
-                        suLog(2, "Continuing preprocessing of ", VTS_BlueFg, lexfile->file->name, VTS_Default);
+                        suLog(2, "Adding import path ", curt->raw);
+                        import_paths.add(curt->raw);
                         logger_push_indent(2);
                         
                     }else{
-                        //TODO(sushi) import paths
+                        //TODO(sushi) look for imports on PATH
                         preprocess_warn(*curt, "Finding files through PATH is not currently supported.");
                     }
                     //NOTE(sushi) we do not handle selective imports here, that is handled in parsing
@@ -75,13 +73,15 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
                     if(curt->type == Token_OpenBrace){
                         while(curt->type != Token_CloseBrace){curt++;}
                     }
-                }else{
-
                 }
                 curt++;
             }
         }
         logger_pop_indent();
+    }
+
+    for(str8 path : import_paths){
+        
     }
     
     suLog(2, "Finding internal declarations.");

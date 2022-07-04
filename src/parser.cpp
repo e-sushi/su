@@ -174,7 +174,8 @@ TNode* Parser::parse_import(){DPZoneScoped;
                 if(str8_equal_lazy(STR8("as"), curt->raw)){
                     expect(Token_Identifier){
                         Struct* s = arena.make_struct();
-                        memcpy(s, &Struct(), sizeof(Struct));
+                        Struct s_for_real;
+                        memcpy(s, &s_for_real, sizeof(Struct));
                         s->decl.identifier = curt->raw;
                         s->decl.token_start = curt;
                         s->decl.token_end = curt;
