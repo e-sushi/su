@@ -58,7 +58,7 @@ enum OSOut {
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = 1;
+	u32 verbosity = 0;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -81,13 +81,6 @@ struct {
 		Shows compiler debug information from each stage
 
 */
-
-
-
-
-
-
-
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
@@ -225,103 +218,105 @@ enum{
 	Token_EOF,                      // end of file
 	
 	TokenGroup_Identifier,
-	Token_Identifier,  // function, variable and struct names                 
+	Token_Identifier = TokenGroup_Identifier,  // function, variable and struct names                 
 	
 	//// literal ////
 	TokenGroup_Literal,
-	Token_LiteralFloat,
+	Token_LiteralFloat = TokenGroup_Literal,
 	Token_LiteralInteger,
 	Token_LiteralCharacter,
 	Token_LiteralString,
 	
 	//// control ////
 	TokenGroup_Control,
-	Token_Semicolon,                // ;
-	Token_OpenBrace,                // {
-	Token_CloseBrace,               // }
-	Token_OpenParen,                // (
-	Token_CloseParen,               // )
-	Token_OpenSquare,               // [
-	Token_CloseSquare,              // ]
-	Token_Comma,                    // ,
-	Token_QuestionMark,             // ?
-	Token_Colon,                    // :
-	Token_Dot,                      // .
-	Token_At,                       // @
-	Token_Pound,                    // #
-	Token_Backtick,                 // `
+	Token_Semicolon = TokenGroup_Control, // ;
+	Token_OpenBrace,                      // {
+	Token_CloseBrace,                     // }
+	Token_OpenParen,                      // (
+	Token_CloseParen,                     // )
+	Token_OpenSquare,                     // [
+	Token_CloseSquare,                    // ]
+	Token_Comma,                          // ,
+	Token_QuestionMark,                   // ?
+	Token_Colon,                          // :
+	Token_Dot,                            // .
+	Token_At,                             // @
+	Token_Pound,                          // #
+	Token_Backtick,                       // `
 	
 	//// operators ////
 	TokenGroup_Operator,
-	Token_Plus,                     // +
-	Token_Increment,                // ++
-	Token_PlusAssignment,           // +=
-	Token_Negation,                 // -
-	Token_Decrement,                // --
-	Token_NegationAssignment,       // -=
-	Token_Multiplication,           // *
-	Token_MultiplicationAssignment, // *=
-	Token_Division,                 // /
-	Token_DivisionAssignment,       // /=
-	Token_BitNOT,                   // ~
-	Token_BitNOTAssignment,         // ~=
-	Token_BitAND,                   // &
-	Token_BitANDAssignment,         // &=
-	Token_AND,                      // &&
-	Token_BitOR,                    // |
-	Token_BitORAssignment,          // |=
-	Token_OR,                       // ||
-	Token_BitXOR,                   // ^
-	Token_BitXORAssignment,         // ^=
-	Token_BitShiftLeft,             // <<
-	Token_BitShiftLeftAssignment,   // <<=
-	Token_BitShiftRight,            // >>
-	Token_BitShiftRightAssignment,  // >>=
-	Token_Modulo,                   // %
-	Token_ModuloAssignment,         // %=
-	Token_Assignment,               // =
-	Token_Equal,                    // ==
-	Token_LogicalNOT,               // !
-	Token_NotEqual,                 // !=
-	Token_LessThan,                 // <
-	Token_LessThanOrEqual,          // <=
-	Token_GreaterThan,              // >
-	Token_GreaterThanOrEqual,       // >=
+	Token_Plus = TokenGroup_Operator, // +
+	Token_Increment,                  // ++
+	Token_PlusAssignment,             // +=
+	Token_Negation,                   // -
+	Token_Decrement,                  // --
+	Token_NegationAssignment,         // -=
+	Token_Multiplication,             // *
+	Token_MultiplicationAssignment,   // *=
+	Token_Division,                   // /
+	Token_DivisionAssignment,         // /=
+	Token_BitNOT,                     // ~
+	Token_BitNOTAssignment,           // ~=
+	Token_BitAND,                     // &
+	Token_BitANDAssignment,           // &=
+	Token_AND,                        // &&
+	Token_BitOR,                      // |
+	Token_BitORAssignment,            // |=
+	Token_OR,                         // ||
+	Token_BitXOR,                     // ^
+	Token_BitXORAssignment,           // ^=
+	Token_BitShiftLeft,               // <<
+	Token_BitShiftLeftAssignment,     // <<=
+	Token_BitShiftRight,              // >>
+	Token_BitShiftRightAssignment,    // >>=
+	Token_Modulo,                     // %
+	Token_ModuloAssignment,           // %=
+	Token_Assignment,                 // =
+	Token_Equal,                      // ==
+	Token_LogicalNOT,                 // !
+	Token_NotEqual,                   // !=
+	Token_LessThan,                   // <
+	Token_LessThanOrEqual,            // <=
+	Token_GreaterThan,                // >
+	Token_GreaterThanOrEqual,         // >=
 	
 	//// keywords ////
 	TokenGroup_Keyword,
-	Token_Return,                   // return
-	Token_If,                       // if
-	Token_Else,                     // else
-	Token_For,                      // for
-	Token_While,                    // while 
-	Token_Break,                    // break
-	Token_Continue,                 // continue
-	Token_Defer,                    // defer
-	Token_StructDecl,               // struct
-	Token_This,                     // this
+	Token_Return = TokenGroup_Keyword, // return
+	Token_If,                          // if
+	Token_Else,                        // else
+	Token_For,                         // for
+	Token_While,                       // while 
+	Token_Break,                       // break
+	Token_Continue,                    // continue
+	Token_Defer,                       // defer
+	Token_StructDecl,                  // struct
+	Token_This,                        // this
+	Token_Using,                       // using
+	Token_As,                          // as
 	
 	//// types  ////
 	TokenGroup_Type,
-	Token_Void,                     // void
-	Token_Signed8,                  // s8
-	Token_Signed16,                 // s16 
-	Token_Signed32,                 // s32 
-	Token_Signed64,                 // s64
-	Token_Unsigned8,                // u8
-	Token_Unsigned16,               // u16
-	Token_Unsigned32,               // u32 
-	Token_Unsigned64,               // u64 
-	Token_Float32,                  // f32 
-	Token_Float64,                  // f64 
-	Token_String,                   // str
-	Token_Any,                      // any
-	Token_Struct,                   // user defined type
-
+	Token_Void = TokenGroup_Type, // void
+	Token_Signed8,                // s8
+	Token_Signed16,               // s16 
+	Token_Signed32,               // s32 
+	Token_Signed64,               // s64
+	Token_Unsigned8,              // u8
+	Token_Unsigned16,             // u16
+	Token_Unsigned32,             // u32 
+	Token_Unsigned64,             // u64 
+	Token_Float32,                // f32 
+	Token_Float64,                // f64 
+	Token_String,                 // str
+	Token_Any,                    // any
+	Token_Struct,                 // user defined type
 
 	//// directives ////
 	TokenGroup_Directive,
-	Token_Directive_Import,
+	Token_Directive_Import = TokenGroup_Directive,
+	Token_Directive_Include,
 	Token_Directive_Internal,
 	Token_Directive_Run,
 
@@ -426,6 +421,7 @@ struct Token {
 	str8 file;
 	u32 l0, l1;
 	u32 c0, c1;
+	u8* line_start;
 
 	u32 scope_depth;
 	u32 idx;
@@ -439,7 +435,7 @@ struct Token {
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
-enum ExpressionType : u32 {
+enum {
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
 	
@@ -529,9 +525,10 @@ struct Expression {
 	Token* token_start;
 	Token* token_end;
 	
-	cstring expstr;
-	ExpressionType type;
-	DataType datatype;
+	str8 expstr;
+
+	Type expr_type;
+	Type data_type;
 	Struct* struct_type;
 	union {
 		f32 float32;
@@ -549,7 +546,7 @@ struct Expression {
 };
 #define ExpressionFromNode(x) CastFromMember(Expression, node, x)
 
-enum StatementType : u32 {
+enum {
 	Statement_Unknown,
 	Statement_Return,
 	Statement_Expression,
@@ -568,7 +565,7 @@ struct Statement {
 	Token* token_start;
 	Token* token_end;
 	
-	StatementType type = Statement_Unknown;
+	Type type = Statement_Unknown;
 };
 #define StatementFromNode(x) CastFromMember(Statement, node, x)
 
@@ -587,24 +584,19 @@ enum{
 	decl_structure,
 };
 
-
-struct Declaration {
+struct Declaration;
+struct Function {
 	TNode node;
 	Token* token_start;
 	Token* token_end;
 	u64 token_idx = 0;
 	
-	Type type;
+	Type data_type;
 	str8 identifier;
-};
-#define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
 
-struct Function {
-	Declaration decl;
 	str8 internal_label;
-	DataType type;
 	u32 positional_args = 0;
-	map<cstring, Declaration*> args;
+	map<str8, Declaration*> args;
 	//TODO do this with a binary tree sort of thing instead later
 	array<Function*> overloads;
 };
@@ -612,7 +604,13 @@ struct Function {
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
 
 struct Variable{
-	Declaration decl;
+	TNode node;
+	Token* token_start;
+	Token* token_end;
+	u64 token_idx = 0;
+	
+	Type data_type;
+	str8 identifier;
 
 	Struct* struct_data;
 	union {
@@ -633,7 +631,13 @@ struct Variable{
 #define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
 
 struct Struct {
-	Declaration decl;
+	TNode node;
+	Token* token_start;
+	Token* token_end;
+	u64 token_idx = 0;
+	
+	Type type;
+	str8 identifier;
 	
 	//TODO(sushi) make these maps and make map sorted and binary searched
 	array<Variable*> vars;
@@ -677,19 +681,25 @@ enum ParseStage {
 //// Lexer
 
 enum{
-	Identifier_Unknown,
-	Identifier_Function,
-	Identifier_Variable,
-	Identifier_Structure,
+	Declaration_Unknown,
+	Declaration_Function,
+	Declaration_Variable,
+	Declaration_Structure,
 };
 
-struct Identifier{
+//represents information about any declaration found 
+struct Declaration{
 	//alias is the same thing that the str8 used in identifier maps is,
-	//this is only here so we can still tell the use what it was aliased as when giving errors
+	//this is only here so we can still tell the user what it was aliased as when giving errors
 	str8 alias;
 	Token* token;
 	Type type;
 	b32 internal; //determined in preprocessing
+	union{
+		Variable* variable;
+		Struct* structure;
+		Function* function;
+	};
 };
 
 struct LexedFile {
@@ -698,9 +708,9 @@ struct LexedFile {
 	array<Token> tokens;
 
 	//map of all known top-level identifiers in this lexed file
-	map<str8, Identifier> global_identifiers;
+	map<str8, Declaration> global_decl;
 	//map of all known local identifiers in this lexed file
-	map<str8, Identifier> local_identifiers;
+	map<str8, Declaration> local_decl;
 
 	//possibly return to this style, but use it to index the identifiers array instead
 	//as it allows us to filter nicely
@@ -733,10 +743,10 @@ struct LexedFile {
 struct Lexer {
 	LexedFile* lexfile;
 
-	LexedFile* lex(str8 filepath);
+	LexedFile* lex(str8 buffer);
 }lexer;
 
-map<str8, LexedFile> lexed_files;
+
 
 struct LexerThread{
 	Lexer* lexer;
@@ -761,8 +771,8 @@ struct PreprocessedFile{
 
 	array<PreprocessedFile*> imported_files;
 	
-	map<str8, Identifier> exported_identifiers;
-	map<str8, Identifier> internal_identifiers;
+	map<str8, Declaration> exported_decl;
+	map<str8, Declaration> internal_decl;
 
 	//TODO(sushi) make these maps and make map sorted and binary searched
 	struct{
@@ -783,8 +793,6 @@ struct PreprocessedFile{
 
 	array<u32> runs;
 
-	Identifier* find_identifier(str8 id){
-	}
 };
 
 struct Preprocessor {
@@ -792,8 +800,6 @@ struct Preprocessor {
 
 	PreprocessedFile* preprocess(LexedFile* lexfile);
 }preprocessor;
-
-map<str8, PreprocessedFile> preprocessed_files;
 
 struct PreprocessorThread{
 	Preprocessor* preprocessor;
@@ -814,33 +820,33 @@ void preprocessor_thread_stub(void* in){DPZoneScoped;
 struct ParsedFile{
 	PreprocessedFile* prefile;
 
-	map<str8, Identifier> exported_identifiers;
-	map<str8, Identifier> imported_identifiers;
-	map<str8, Identifier> internal_identifiers;
+	map<str8, Declaration> exported_identifiers;
+	map<str8, Declaration> imported_identifiers;
+	map<str8, Declaration> internal_identifiers;
 
 	//TODO(sushi) make these maps and make map sorted and binary searched
-	struct{
-		struct{
-			map<str8, Variable*> vars;
-			map<str8, Function*> funcs;
-			map<str8, Struct*> structs;
-		}exported;
+	// struct{
+	// 	struct{
+	// 		map<str8, Variable*> vars;
+	// 		map<str8, Function*> funcs;
+	// 		map<str8, Struct*> structs;
+	// 	}exported;
 
-		struct{
-			map<str8, Variable*> vars;
-			map<str8, Function*> funcs;
-			map<str8, Struct*> structs;
-		}imported;
+	// 	struct{
+	// 		map<str8, Variable*> vars;
+	// 		map<str8, Function*> funcs;
+	// 		map<str8, Struct*> structs;
+	// 	}imported;
 
-		struct{
-			map<str8, Variable*> vars;
-			map<str8, Function*> funcs;
-			map<str8, Struct*> structs;
-		}internal;
-	}decl;
+	// 	struct{
+	// 		map<str8, Variable*> vars;
+	// 		map<str8, Function*> funcs;
+	// 		map<str8, Struct*> structs;
+	// 	}internal;
+	// }decl;
 };
 
-map<str8, ParsedFile> parsed_files;
+
 
 struct Parser {
 	//file the parser is working in
@@ -916,25 +922,6 @@ struct Parser {
 		return (((curt + 1)->group == in) || ...);
 	}
 
-	ParsedFile* init(PreprocessedFile* prefile){DPZoneScoped;
-		LexedFile* lexfile = prefile->lexfile;
-		File* file = lexfile->file;
-
-		if(parsed_files.has(file->front)){
-			Log("", VTS_GreenFg, "File has already been parsed.", VTS_Default);
-			return &parsed_files[file->name];
-		}	
-
-		parsed_files.add(file->front);
-	}
-
-	b32 identifier_exists(str8 id){
-		//search all of our catalogues of identifiers
-		
-
-	}
-
-
 }parser;
 
 struct ParserThread{
@@ -960,22 +947,15 @@ enum{
 };
 
 struct CompilerRequest{
-	//request info
 	Flags stages;
 	array<str8> filepaths;
-
-	//info filled out by request
-	LexedFile*        lexfile = 0;
-	PreprocessedFile* prefile = 0;
-	ParsedFile*       parfile = 0;
 };
 
 struct Compiler{
-	struct{
-		array<Thread*> lexers;
-		array<Thread*> preprocessors;
-		array<Thread*> parsers;
-	}threads;
+
+	map<str8, LexedFile> lexed_files;
+	map<str8, PreprocessedFile> preprocessed_files;
+	map<str8, ParsedFile> parsed_files;
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
@@ -984,15 +964,22 @@ struct Compiler{
 		DPTracyLockable(mutex, preprocessor);
 		DPTracyLockable(mutex, parser);
 		DPTracyLockable(mutex, memory); //lock when using deshi's memory module
+		DPTracyLockable(mutex, log); //lock when using logger
 	}mutexes;
 
 	void compile(CompilerRequest* request);
 
-	LexedFile*        start_lexer(str8 filepath);
-	PreprocessedFile* start_preprocessor(LexedFile* lexfile);
-	ParsedFile*       start_parser(PreprocessedFile* prefile);
+	LexedFile*        start_lexer(str8 filepath, b32 spawn_thread = 0);
+	PreprocessedFile* start_preprocessor(LexedFile* lexfile, b32 spawn_thread = 0);
+	ParsedFile*       start_parser(PreprocessedFile* prefile, b32 spawn_thread = 0);
 
 	void              start_request(CompilerRequest* request);
+
+	//used to completely reset all compiled information
+	//this is mainly for performance testing, like running a compile on the same file
+	//repeatedly to get an average time
+	//or to test for memory leaks
+	void reset(); 
 
 }compiler;
 
@@ -1064,14 +1051,38 @@ struct{
 
 }arena;
 
-//a normal message that is based on verbosity
 template<typename...T>
-void suLog(u32 verbosity, T... args){
+void suLog(u32 verbosity, const char* prefix, T... args){
 	if(globals.verbosity < verbosity) return;
-	logger_pop_indent(-1);
-	logger_push_indent(verbosity);
-	Log("", args...);
-	logger_pop_indent(-1);
+	compiler.mutexes.log.lock();
+	if(prefix){
+		str8b prefixb = toStr8(VTS_CyanFg, prefix, VTS_Default, ": ");
+		// forI(verbosity){
+		// 	str8_builder_append(&prefixb, STR8(" "));
+		// }
+		Log("", prefixb.fin, args...);
+	}else{
+		Log("", args...);
+	}
+	
+	compiler.mutexes.log.unlock();
+}
+
+template<typename...T>
+void suLog(u32 verbosity, str8 prefix, T... args){
+	if(globals.verbosity < verbosity) return;
+	compiler.mutexes.log.lock();
+	if(prefix){
+		str8b prefixb = toStr8(VTS_CyanFg, prefix, VTS_Default, ": ");
+		// forI(verbosity){
+		// 	str8_builder_append(&prefixb, STR8(" "));
+		// }
+		Log("", prefixb.fin, args...);
+	}else{
+		Log("", args...);
+	}
+	
+	compiler.mutexes.log.unlock();
 }
 
 // void suWarn(Token* token, T... args){
@@ -1079,12 +1090,17 @@ void suLog(u32 verbosity, T... args){
 // }
 template<typename...T>
 void suError(Token* token, T...args){
-	Log("", ErrorFormat("error: "), token->file, "(",token->l0,",",token->c0,"):", args...);
+	compiler.mutexes.log.lock();
+	Log("", VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"):", ErrorFormat("error: "), args...);
+	compiler.mutexes.log.unlock();
+
 }
 
 template<typename...T>
 void suError(T...args){
+	compiler.mutexes.log.lock();
 	Log("", ErrorFormat("error: "), args...);
+	compiler.mutexes.log.unlock();
 }
 
 
