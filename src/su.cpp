@@ -29,39 +29,50 @@
 #include "lexer.cpp"
 #include "preprocessor.cpp"
 #include "parser.cpp"
-
-
 #include "compiler.cpp"
 
-struct uhuh{
-	b32 finished = 0;
-	condvar cv;
-};
-
-void wake_up_sub_thread(void* in){
-	platform_sleep(100);
-	((uhuh*)in)->finished = 1;
-	((uhuh*)in)->cv.notify_all();
+//this is temp allocated, so just clear temp mem or free the str yourself
+str8 format_time(f64 ms){
+	if(floor(Minutes(ms))){
+		//hope it never gets this far :)
+		f64 fmin = floor(Minutes(ms));
+		f64 fsec = floor(Seconds(ms)) - fmin * 60;
+		f64 fms  = ms - fmin*60*1000 - fsec*1000;
+		return toStr8(fmin, "m ", fsec, "s ", fms, " ms").fin;
+	}else if(floor(Seconds(ms))){
+		f64 fsec = floor(Seconds(ms));
+		f64 fms  = ms - fsec*SecondsToMS(1);
+		return toStr8(fsec, "s ", fms, "ms").fin;
+	}else{
+		return toStr8(ms, " ms").fin;
+	}
 }
 
-void wake_up_main_thread(void* in){
-	const u32 n = 3;
-	uhuh test[n];
-
-	forI(n){
-		DeshThreadManager->add_job({&wake_up_sub_thread, &test[i]});
-	}
-
-	DeshThreadManager->wake_threads();
+void speed_test(const u64 samples, str8 filepath){
+	f64 sum = 0;
 	
-	forI(n){
-		if(!test[i].finished){
-			test[i].cv.wait();
-		}
+	suLog(0, "performing speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples.");
+
+	Stopwatch ttime = start_stopwatch();
+	forI(samples){
+		Stopwatch ctime = start_stopwatch();
+
+		CompilerRequest cr; 
+		cr.filepaths.add(filepath);
+		cr.stages = Stage_Lexer | Stage_Preprocessor | Stage_Parser;
+
+		compiler.compile(&cr);
+
+		sum += peek_stopwatch(ctime);
+
+		compiler.reset();
 	}
 
-	((condvar*)in)->notify_all();
+	suLog(0, "speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
 }
+
+
+
 
 int main(){DPZoneScoped;
 
@@ -70,15 +81,12 @@ int main(){DPZoneScoped;
    	logger_init();
 
 	arena.init();
-
-	DeshThreadManager->init(5);
-	DeshThreadManager->spawn_thread(5);
-	platform_sleep(50); //sleep to allow threads to spawn (not necessary, so probably remove later)
-
-	//platform_sleep(100);
-
+	DeshThreadManager->init(255);
+	DeshThreadManager->spawn_thread(7);
 
 	//compiler.compile(STR8("tests/lexer/lexer-full.su"));
+	//speed_test(5000, STR8("tests/imports/valid/imports.su"));
+
 
 	Stopwatch ctime = start_stopwatch();
 
@@ -88,32 +96,7 @@ int main(){DPZoneScoped;
 
 	compiler.compile(&cr);
 
-/*
-	LexedFile*         lf = lexer.lex(STR8("tests/imports/valid/imports.su"));
-	//LexedFile*         lf = lexer.lex(STR8("tests/_/main.su"));
-	//LexedFile*         lf = lexer.lex(STR8("stresstest.su"));
-
-	PreprocessedFile* ppf = preprocessor.preprocess(lf);
-
-	ParserThread pt;
-	pt.parser = &parser;
-	pt.pfile = ppf;
-
-
-	DeshThreadManager->add_job({&parse_threaded_stub, &pt});
-	DeshThreadManager->wake_threads(1);
-
-	pt.wake.wait();
-
-	// forI(preprocessed_files.count){
-	// 	//DeshThreadManager->add_job({&parse_threaded_stub, (void*)ParserThreadInfo{parser, &preprocessed_files[preprocessed_files.count - 1 - i]}});		//parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
-	// 	//DeshThreadManager->wake_threads();
-	// 	parser.parse(&preprocessed_files[preprocessed_files.count - 1 - i]);
-	// 	parser = Parser();
-	// }
-*/	
-	//TODO(sushi) change the unit based on how long it took
-	suLog(0, "Compiling took ", peek_stopwatch(ctime), " ms");
+	suLog(0, "Compiling took ", format_time(peek_stopwatch(ctime)));
   
 	return 1;
 }

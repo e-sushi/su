@@ -1,0 +1,16 @@
+arch() : str{
+
+};
+
+system() : str{
+
+};
+
+release() : str{
+
+};
+
+version() : str{
+
+};
+
