@@ -36,17 +36,18 @@ suLog(0, WarningFormat("warning: "), (token).file, "(",(token).l0,",",(token).c0
 
                    
 PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
-    suLog(1, "Preprocessing ", lexfile->file->name);
+    str8 filename = lexfile->file->name;
+    suLog(1, CyanFormatDyn(lexfile->file->name), ": Preprocessing... ");
 
     Stopwatch time = start_stopwatch();
    
-    //first we look for imports, if they are founda we lex the file being imported from recursively
+    //first we look for imports, if they are found we lex the file being imported from recursively
     //TODO(sushi) this can probably be multithreaded
     //we gather import paths so we can setup a job for each one 
     // and lex then preprocess each one at the same time.
-    array<str8> import_paths;
+    CompilerRequest cr;
     for(u32 importidx : lexfile->preprocessor.imports){
-        suLog(2, "Processing imports");
+        suLog(2, filename, "Processing imports");
         Token* curt = &lexfile->tokens[importidx];
         curt++;
         if(curt->type == Token_OpenBrace){
@@ -60,9 +61,8 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
                     //attempt to find the module in PATH and current working directory
                     //first check cwd
                     if(file_exists(curt->raw)){
-                        suLog(2, "Adding import path ", curt->raw);
-                        import_paths.add(curt->raw);
-                        logger_push_indent(2);
+                        suLog(2, filename, "Adding import path ", curt->raw);
+                        cr.filepaths.add(curt->raw);
                         
                     }else{
                         //TODO(sushi) look for imports on PATH
@@ -77,16 +77,15 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
                 curt++;
             }
         }
-        logger_pop_indent();
     }
-
-    for(str8 path : import_paths){
-        
+    if(cr.filepaths.count){
+        cr.stages = Stage_Lexer | Stage_Preprocessor;
+        compiler.compile(&cr);
     }
     
-    suLog(2, "Finding internal declarations.");
+    suLog(2, filename, "Finding internal declarations.");
     //TODO(sushi) this copying sucks, maybe preprocessedfile should just use lexedfile's maps?
-    prefile->exported_identifiers = lexfile->global_identifiers;
+    prefile->exported_decl = lexfile->global_decl;
     for(u32 idx : lexfile->preprocessor.internals){
         Token* curt = &lexfile->tokens[idx];
         curt++;
@@ -111,44 +110,42 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
         }   
 
         //move exported identifiers into internal
-        forI(prefile->exported_identifiers.count){
-            Identifier id = prefile->exported_identifiers[i];
+        forI(prefile->exported_decl.count){
+            Declaration id = prefile->exported_decl[i];
             u32 idx = id.token->idx;
             if(idx > start && idx < end){
                 id.internal = 1;
-                prefile->internal_identifiers.add(id.alias, id);
-                prefile->exported_identifiers.remove(id.alias);
+                prefile->internal_decl.add(id.alias, id);
+                prefile->exported_decl.remove(id.alias);
             }
         }
         //local identifiers do not need to be declared internal
     }
 
 
-    suLog(2, "Finding run directives (NotImplemented)");
+    suLog(2, filename, "Finding run directives ", ErrorFormat("(NotImplemented)"));
     for(u32 idx : lexfile->preprocessor.runs){
         preprocess_error(lexfile->tokens[idx], "#run is not implemented yet.");
     }
    
 
     if(globals.verbosity > 3){
-        if(prefile->exported_identifiers.count)
-            suLog(4, "Exported identifiers");
-        for(Identifier& id : prefile->exported_identifiers){
-            suLog(4, "  ", id.alias);
+        if(prefile->exported_decl.count)
+            suLog(4, filename, "Exported declarations");
+        for(Declaration& id : prefile->exported_decl){
+            suLog(4, filename, "  ", id.alias);
         }
 
-        if(prefile->internal_identifiers.count)
-            suLog(4, "Internal identifiers");
-        for(Identifier& id : prefile->internal_identifiers){
-            suLog(4, "  ", id.alias);
+        if(prefile->internal_decl.count)
+            suLog(4, filename, "Internal declarations");
+        for(Declaration& id : prefile->internal_decl){
+            suLog(4, filename, "  ", id.alias);
         }
     }
     
 
 
     
-    suLog(1, VTS_GreenFg, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
-    logger_pop_indent(2);
-
+    suLog(1, filename, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
     return prefile;
 }

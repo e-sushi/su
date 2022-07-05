@@ -27,17 +27,17 @@
 
 #endif
 
-#define parser_error(token, ...)\
-suLog(0, ErrorFormat("error: "), (token)->file, "(",(token)->l0,",",(token)->c0,"): ", __VA_ARGS__)
+#define perror(token, ...)\
+suError(token, __VA_ARGS__)
 
-#define parser_error_goto(token, label, ...){\
-suLog(0, ErrorFormat("error: "), (token)->file, "(",(token)->l0,",",(token)->c0,"): ", __VA_ARGS__);\
+#define perror_goto(token, label, ...){\
+suError(token, __VA_ARGS__);\
 goto label;\
 }
 
 
-#define parser_warn(token, ...)\
-suLog(0, WarningFormat("warning: "), (token)->file, "(",(token)->l0,",",(token)->c0,"): ", __VA_ARGS__)
+#define pwarn(token, ...)\
+suWarn(token, __VA_ARGS__)
 
 #define expect(...) if(curr_match(__VA_ARGS__))
 #define expect_group(...) if(curr_match_group(__VA_ARGS__))
@@ -71,197 +71,189 @@ TNode* Parser::parse_import(){DPZoneScoped;
                 module_name.count -= path_loc+1;
             }
             
-            if(!parsed_files.has(module_name)){
-                ParserThread pt;
-                Parser p;
-                
-                pt.parser = &p;
-                pt.pfile = &preprocessed_files[module_name];
-
-                DeshThreadManager->add_job({&parse_threaded_stub, &pt});
-                DeshThreadManager->wake_threads(1);
-                
-                pt.wake.wait();
+            if(!compiler.parsed_files.has(module_name)){
+                CompilerRequest cr;
+                cr.filepaths.add(curt->raw);
+                //TODO(sushi) just make this Stage_Parser when supported, because we know by this point all files will have been lexed and parsed
+                //also, we can probably start parsing early on files with no imports
+                cr.stages = Stage_Lexer | Stage_Parser | Stage_Preprocessor;
+                compiler.compile(&cr);
             }
 
-            ParsedFile* pfile = &parsed_files[module_name];
+            ParsedFile* pfile = &compiler.parsed_files[module_name];
 
             curt++;
-            expect(Token_OpenBrace){
-                //we are including specific defintions from the import
-                while(1){
-                    curt++;
-                    expect(Token_Identifier){
-                        //now we must make sure it exists
-                        Type type = 0;
-                        Declaration* decl = 0;
-                        forI(Max(pfile->decl.exported.funcs.count, Max(pfile->decl.exported.structs.count, pfile->decl.exported.vars.count))){
-                            if(i < pfile->decl.exported.funcs.count && str8_equal(pfile->decl.exported.funcs[i]->decl.identifier, curt->raw)){
-                                decl = &pfile->decl.exported.funcs[i]->decl;
-                                break;           
-                            }
+            // expect(Token_OpenBrace){
+            //     //we are including specific defintions from the import
+            //     while(1){
+            //         curt++;
+            //         expect(Token_Identifier){
+            //             //now we must make sure it exists
+            //             Type type = 0;
+            //             Declaration* decl = 0;
+            //             forI(Max(pfile->decl.exported.funcs.count, Max(pfile->decl.exported.structs.count, pfile->decl.exported.vars.count))){
+            //                 if(i < pfile->decl.exported.funcs.count && str8_equal(pfile->decl.exported.funcs[i]->decl.identifier, curt->raw)){
+            //                     decl = &pfile->decl.exported.funcs[i]->decl;
+            //                     break;           
+            //                 }
 
-                            if(i < pfile->decl.exported.structs.count && str8_equal(pfile->decl.exported.structs[i]->decl.identifier, curt->raw)){
-                                decl = &pfile->decl.exported.structs[i]->decl;
-                                break;           
-                            }
+            //                 if(i < pfile->decl.exported.structs.count && str8_equal(pfile->decl.exported.structs[i]->decl.identifier, curt->raw)){
+            //                     decl = &pfile->decl.exported.structs[i]->decl;
+            //                     break;           
+            //                 }
 
-                             if(i < pfile->decl.exported.vars.count && str8_equal(pfile->decl.exported.vars[i]->decl.identifier, curt->raw)){
-                                decl = &pfile->decl.exported.vars[i]->decl;
-                                break;           
-                            }
-                        }
+            //                  if(i < pfile->decl.exported.vars.count && str8_equal(pfile->decl.exported.vars[i]->decl.identifier, curt->raw)){
+            //                     decl = &pfile->decl.exported.vars[i]->decl;
+            //                     break;           
+            //                 }
+            //             }
 
-                        if(!decl) parser_error(curt, "Attempted to include declaration ", curt->raw, " from module ", pfile->prefile->lexfile->file->front, " but it is either internal or doesn't exist.");
-                        else{
-                            expect(Token_Identifier){
-                                curt++;
-                                if(str8_equal_lazy(STR8("as"), curt->raw)){
-                                    //in this case we must duplicate the declaration and give it a new identifier
-                                    //TODO(sushi) duplication may not be necessary, instead we can store a local name
-                                    //            and just use the same declaration node.
-                                    curt++;
-                                    expect(Token_Identifier){
-                                        switch(decl->type){
-                                            case decl_structure:{
-                                                Struct* s = arena.make_struct();
-                                                memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
-                                                s->decl.identifier = curt->raw;
-                                                decl = &s->decl;
-                                            }break;
-                                            case decl_function:{
-                                                Function* s = arena.make_function();
-                                                memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
-                                                s->decl.identifier = curt->raw;
-                                                decl = &s->decl;
-                                            }break;
-                                            case decl_variable:{
-                                                Variable* s = arena.make_variable();
-                                                memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
-                                                s->decl.identifier = curt->raw;
-                                                decl = &s->decl;
-                                            }break;
-                                        }
-                                    }else parser_error(curt, "Expected an identifier after 'as'");
-                                }else parser_error(curt, "Unknown identifier found after import specifier. Did you mean to use {} to specify defs? Did you mean to use 'as'?");
-                            }
-                            expect(Token_Comma){} 
-                            else expect(Token_CloseBrace) {
-                                break;
-                            }else parser_error(curt, "Unknown token.");
+            //             if(!decl) perror(curt, "Attempted to include declaration ", curt->raw, " from module ", pfile->prefile->lexfile->file->front, " but it is either internal or doesn't exist.");
+            //             else{
+            //                 expect(Token_Identifier){
+            //                     curt++;
+            //                     if(str8_equal_lazy(STR8("as"), curt->raw)){
+            //                         //in this case we must duplicate the declaration and give it a new identifier
+            //                         //TODO(sushi) duplication may not be necessary, instead we can store a local name
+            //                         //            and just use the same declaration node.
+            //                         curt++;
+            //                         expect(Token_Identifier){
+            //                             switch(decl->type){
+            //                                 case decl_structure:{
+            //                                     Struct* s = arena.make_struct();
+            //                                     memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
+            //                                     s->decl.identifier = curt->raw;
+            //                                     decl = &s->decl;
+            //                                 }break;
+            //                                 case decl_function:{
+            //                                     Function* s = arena.make_function();
+            //                                     memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
+            //                                     s->decl.identifier = curt->raw;
+            //                                     decl = &s->decl;
+            //                                 }break;
+            //                                 case decl_variable:{
+            //                                     Variable* s = arena.make_variable();
+            //                                     memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
+            //                                     s->decl.identifier = curt->raw;
+            //                                     decl = &s->decl;
+            //                                 }break;
+            //                             }
+            //                         }else perror(curt, "Expected an identifier after 'as'");
+            //                     }else perror(curt, "Unknown identifier found after import specifier. Did you mean to use {} to specify defs? Did you mean to use 'as'?");
+            //                 }
+            //                 expect(Token_Comma){} 
+            //                 else expect(Token_CloseBrace) {
+            //                     break;
+            //                 }else perror(curt, "Unknown token.");
 
-                        }
-                        imported_decls.add(decl);
-                    }else parser_error(curt, "Expected an identifier for including specific definitions from a module.");
-                }
-            }else{
-                //in this case the user isnt specifying anything specific so we import all public declarations from the module
-                 forI(Max(pfile->decl.exported.funcs.count, Max(pfile->decl.exported.structs.count, pfile->decl.exported.vars.count))){
-                    if(i < pfile->decl.exported.funcs.count){
-                        imported_decls.add(&pfile->decl.exported.funcs[i]->decl);
-                    }
-                    if(i < pfile->decl.exported.structs.count){
-                        imported_decls.add(&pfile->decl.exported.structs[i]->decl);
-                    }
-                    if(i < pfile->decl.exported.vars.count){
-                        imported_decls.add(&pfile->decl.exported.vars[i]->decl);
-                    }
-                }
-            }
-            expect(Token_Identifier){
-                //in this case the user must be using 'as' to give the module a namespace
-                //so we make a new struct and add the declarations to it
-                if(str8_equal_lazy(STR8("as"), curt->raw)){
-                    expect(Token_Identifier){
-                        Struct* s = arena.make_struct();
-                        Struct s_for_real;
-                        memcpy(s, &s_for_real, sizeof(Struct));
-                        s->decl.identifier = curt->raw;
-                        s->decl.token_start = curt;
-                        s->decl.token_end = curt;
-                        s->decl.type = decl_structure;
-                        forI(imported_decls.count){
-                            switch(imported_decls[i]->type){
-                                case decl_structure:{s->structs.add(StructFromDeclaration(imported_decls[i]));}break;
-                                case decl_function :{s->funcs.add(FunctionFromDeclaration(imported_decls[i]));}break;
-                                case decl_variable :{s->vars.add(VariableFromDeclaration(imported_decls[i]));}break;
-                            }
-                        }
-                        stacks.known.structs.add(s);
-                        parfile->decl.imported.structs.add(curt->raw, s);
-                    }else parser_error(curt, "Expected an identifier after 'as'");
-                }else parser_error(curt, "Unknown identifier found after import specifier. Did you mean to use {} to specify defs? Did you mean to use 'as'?");
-            }
-        }else parser_error(curt, "Import specifier is not a string or identifier.");
+            //             }
+            //             imported_decls.add(decl);
+            //         }else perror(curt, "Expected an identifier for including specific definitions from a module.");
+            //     }
+            // }else{
+            //     //in this case the user isnt specifying anything specific so we import all public declarations from the module
+            //      forI(Max(pfile->decl.exported.funcs.count, Max(pfile->decl.exported.structs.count, pfile->decl.exported.vars.count))){
+            //         if(i < pfile->decl.exported.funcs.count){
+            //             imported_decls.add(&pfile->decl.exported.funcs[i]->decl);
+            //         }
+            //         if(i < pfile->decl.exported.structs.count){
+            //             imported_decls.add(&pfile->decl.exported.structs[i]->decl);
+            //         }
+            //         if(i < pfile->decl.exported.vars.count){
+            //             imported_decls.add(&pfile->decl.exported.vars[i]->decl);
+            //         }
+            //     }
+            // }
+            // expect(Token_Identifier){
+            //     //in this case the user must be using 'as' to give the module a namespace
+            //     //so we make a new struct and add the declarations to it
+            //     if(str8_equal_lazy(STR8("as"), curt->raw)){
+            //         expect(Token_Identifier){
+            //             Struct* s = arena.make_struct();
+            //             Struct s_for_real;
+            //             memcpy(s, &s_for_real, sizeof(Struct));
+            //             s->decl.identifier = curt->raw;
+            //             s->decl.token_start = curt;
+            //             s->decl.token_end = curt;
+            //             s->decl.type = decl_structure;
+            //             forI(imported_decls.count){
+            //                 switch(imported_decls[i]->type){
+            //                     case decl_structure:{s->structs.add(StructFromDeclaration(imported_decls[i]));}break;
+            //                     case decl_function :{s->funcs.add(FunctionFromDeclaration(imported_decls[i]));}break;
+            //                     case decl_variable :{s->vars.add(VariableFromDeclaration(imported_decls[i]));}break;
+            //                 }
+            //             }
+            //             stacks.known.structs.add(s);
+            //             parfile->imported_identifiers.add();
+            //         }else perror(curt, "Expected an identifier after 'as'");
+            //     }else perror(curt, "Unknown identifier found after import specifier. Did you mean to use {} to specify defs? Did you mean to use 'as'?");
+            // }
+        }else perror(curt, "Import specifier is not a string or identifier.");
         
     }else expect(Token_LiteralString){
 
-    }else parser_error(curt, "Import specifier is not a string or identifier.");
+    }else perror(curt, "Import specifier is not a string or identifier.");
 
     return 0;
 }
 
 TNode* Parser::declare(Type type){DPZoneScoped;
-    logger_push_indent();
     TNode* ret = 0;
     switch(type){
         case decl_structure:{
-            Struct* s = arena.make_struct();
-            s->decl.identifier = curt->raw;
-            s->decl.token_start = curt;
-            while(curt->type!=Token_CloseBrace){
-                curt++;
-            }
-            s->decl.token_end = curt;
-            ret = &s->decl.node;
+            // Struct* s = arena.make_struct();
+            // s->decl.identifier = curt->raw;
+            // s->decl.token_start = curt;
+            // while(curt->type!=Token_CloseBrace){
+            //     curt++;
+            // }
+            // s->decl.token_end = curt;
+            // ret = &s->decl.node;
         }break;
 
         case decl_function:{
-            expect(Token_Identifier){
-                Function* f = arena.make_function();
-                f->decl.identifier = curt->raw;
-                f->decl.token_start = curt;
-                curt++;
-                if(curt->type == Token_OpenParen){
-                    curt++;
-                    while(curt->type != Token_CloseParen){
-                        expect(Token_Identifier){
-                            str8 id = curt->raw;
-                            curt++;
-                            expect(Token_Colon){
-                                curt++;
-                                expect_group(TokenGroup_Type){
+            // expect(Token_Identifier){
+            //     Function* f = arena.make_function();
+            //     f->decl.identifier = curt->raw;
+            //     f->decl.token_start = curt;
+            //     curt++;
+            //     if(curt->type == Token_OpenParen){
+            //         curt++;
+            //         while(curt->type != Token_CloseParen){
+            //             expect(Token_Identifier){
+            //                 str8 id = curt->raw;
+            //                 curt++;
+            //                 expect(Token_Colon){
+            //                     curt++;
+            //                     expect_group(TokenGroup_Type){
                                     
-                                }else expect(Token_Assignment){
+            //                     }else expect(Token_Assignment){
 
-                                }else parser_error_goto(curt, earlyout, "Expected either a type or assignment after colon in function parameter declaration.");
-                            }else parser_error_goto(curt, earlyout, "Expected a : after identifer in function parameter declaration.");
-                        }else parser_error_goto(curt, earlyout, "Expected an identifier or ) in function declaration.");
-                        curt++;
-                        expect(Token_Comma){curt++;}
-                        else expect(Token_CloseParen){break;}
-                        else parser_error(curt, "Missing comma before function parameter declaration.");
-                    }
-                }else parser_error(curt, "Expected ( before parameters in function declaration.");
-                ret =  &f->decl.node;
-            } else {
-                expect_group(TokenGroup_Keyword) {
-                    parser_error(curt, "Attempted to declare a function using a reserved keyword, '", curt->raw, "'");
-                } else expect_group(TokenGroup_Type) {
-                    parser_error(curt, "Attempted to declare a function using a type keyword, '", curt->raw, "'");
-                }
-            } 
+            //                     }else perror_goto(curt, earlyout, "Expected either a type or assignment after colon in function parameter declaration.");
+            //                 }else perror_goto(curt, earlyout, "Expected a : after identifer in function parameter declaration.");
+            //             }else perror_goto(curt, earlyout, "Expected an identifier or ) in function declaration.");
+            //             curt++;
+            //             expect(Token_Comma){curt++;}
+            //             else expect(Token_CloseParen){break;}
+            //             else perror(curt, "Missing comma before function parameter declaration.");
+            //         }
+            //     }else perror(curt, "Expected ( before parameters in function declaration.");
+            //     ret =  &f->decl.node;
+            // } else {
+            //     expect_group(TokenGroup_Keyword) {
+            //         perror(curt, "Attempted to declare a function using a reserved keyword, '", curt->raw, "'");
+            //     } else expect_group(TokenGroup_Type) {
+            //         perror(curt, "Attempted to declare a function using a type keyword, '", curt->raw, "'");
+            //     }
+            // } 
         }break;
     }
 
 earlyout:
-    logger_pop_indent();
-
     return ret;
 }
 
 TNode* Parser::define(TNode* node, ParseStage stage){DPZoneScoped;
-    logger_push_indent();
 
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
@@ -300,8 +292,6 @@ TNode* Parser::define(TNode* node, ParseStage stage){DPZoneScoped;
                             Token* save2 = curt;  
                             curt = save;
                             TNode* n = declare(decl_function);
-                            Function* f = FunctionFromNode(n);
-                    
                             
 
                         }
@@ -370,43 +360,28 @@ TNode* Parser::define(TNode* node, ParseStage stage){DPZoneScoped;
 
     }
 
-    logger_pop_indent();
 
     return 0;
 }
 
 ParsedFile* Parser::parse(PreprocessedFile* prefile){DPZoneScoped;
+    str8 filename = prefile->lexfile->file->name;
+    
     Stopwatch time = start_stopwatch();
-    suLog(1, "Parsing ", VTS_BlueFg, prefile->lexfile->file->name, VTS_Default);
-    logger_push_indent();
+    suLog(1, filename, "Parsing ", VTS_BlueFg, prefile->lexfile->file->name, VTS_Default);
 
     LexedFile* lexfile = prefile->lexfile;
     File* file = lexfile->file;
-
-    suLog(2, "Checking if the file has already been parsed");
-
-    if(parsed_files.has(file->name)){
-        suLog(2, VTS_GreenFg, "File has already been parsed.", VTS_Default);
-        logger_pop_indent();
-        return &parsed_files[file->name];
-    }
-
-    suLog(2, "Adding file to parsed files");
-
-    parsed_files.add(file->name);
-    parfile = &parsed_files[file->name];
-    parfile->prefile = prefile;
 
     stacks.known.structs_pushed.add(0);
     stacks.known.functions_pushed.add(0);
     stacks.known.variables_pushed.add(0);
 
-    suLog(2, "Beginning parse from entry point \"main\".");
+    suLog(2, filename, "Beginning parse from entry point \"main\".");
     //TODO(sushi) mark where the entry point is in lexing 
     //TODO(sushi) custom entrypoint names
    
-
-    suLog(2, "Checking that imported files are parsed");
+    suLog(2, filename, "Checking that imported files are parsed");
 
     {// make sure that all imported modules have been parsed before parsing this one
      // then gather the defintions from them that this file wants to use
@@ -424,23 +399,26 @@ ParsedFile* Parser::parse(PreprocessedFile* prefile){DPZoneScoped;
         }
     }
 
-    //TODO(sushi) custom entry point, or entry point 'build'
-    Identifier* id = prefile->internal_identifiers.at(STR8("main"));
-    if(!id) id = prefile->exported_identifiers.at(STR8("main"));
-    if(id){
-        curt = id->token;
-    }else{
-        suLog(0, "TODO MAKE THIS AN ERROR WHEN SUERROR IS MADE: unable to find entry point function.");
+    //TODO(sushi) custom entry point or build entry point
+    if(prefile->exported_decl.has(STR8("main"))){
+
+    } else if (prefile->internal_decl.has(STR8("main"))){
+
+    } else {
+        suError("Unable to find entry point 'main'. TODO(sushi) custom entry point name or entry point 'build'");
     }
 
-
-
-
-
+    //TODO(sushi) custom entry point, or entry point 'build'
+    // Decalration* id = prefile->internal_decl.at(STR8("main"));
+    // if(!id) id = prefile->exported_decl.at(STR8("main"));
+    // if(id){
+    //     curt = id->token;
+    // }else{
+    //     suLog(0, "TODO MAKE THIS AN ERROR WHEN SUERROR IS MADE: unable to find entry point function.");
+    // }
 
     //suLog(2, "Parsing top-level declarations");
     
-
     // {//declare all global declarations
     //     suLog(3, "Declaring global structs");
     //     for(u32 idx : prefile->decl.exported.structs){
@@ -538,9 +516,7 @@ ParsedFile* Parser::parse(PreprocessedFile* prefile){DPZoneScoped;
     //     }
     // }
 
-    logger_pop_indent();
-    suLog(1, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
-    logger_pop_indent();
+    suLog(1, filename, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
     return 0;
 
 }
