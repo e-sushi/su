@@ -12,7 +12,7 @@
 #include "kigu/node.h"
 
 #define DESHI_DISABLE_IMGUI
-#include "core/logger.h"
+#include "core/logger."
 #include "core/platform.h"
 #include "core/file.h"
 #include "core/threading.h"
@@ -77,37 +77,6 @@ LogW("lexer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
 
 #define str8case(str) str8_static_hash64(str8_static_t(str))
 
-
-	//keywords
-const u64 kh_return     = str8_static_hash64(str8_static_t("return"));
-const u64 kh_if         = str8_static_hash64(str8_static_t("if"));
-const u64 kh_else       = str8_static_hash64(str8_static_t("else"));
-const u64 kh_for        = str8_static_hash64(str8_static_t("for"));
-const u64 kh_while      = str8_static_hash64(str8_static_t("while"));
-const u64 kh_break      = str8_static_hash64(str8_static_t("break"));
-const u64 kh_continue   = str8_static_hash64(str8_static_t("continue"));
-const u64 kh_defer      = str8_static_hash64(str8_static_t("defer"));
-const u64 kh_struct     = str8_static_hash64(str8_static_t("struct"));
-const u64 kh_this       = str8_static_hash64(str8_static_t("this"));
-const u64 kh_void       = str8_static_hash64(str8_static_t("void"));
-const u64 kh_s8         = str8_static_hash64(str8_static_t("s8"));
-const u64 kh_s16        = str8_static_hash64(str8_static_t("s16"));
-const u64 kh_s32        = str8_static_hash64(str8_static_t("s32"));
-const u64 kh_s64        = str8_static_hash64(str8_static_t("s64"));
-const u64 kh_u8         = str8_static_hash64(str8_static_t("u8"));
-const u64 kh_u16        = str8_static_hash64(str8_static_t("u16"));
-const u64 kh_u32        = str8_static_hash64(str8_static_t("u32"));
-const u64 kh_u64        = str8_static_hash64(str8_static_t("u64"));
-const u64 kh_f32        = str8_static_hash64(str8_static_t("f32"));
-const u64 kh_f64        = str8_static_hash64(str8_static_t("f64"));
-const u64 kh_str        = str8_static_hash64(str8_static_t("str"));
-const u64 kh_any        = str8_static_hash64(str8_static_t("any"));
-
-//directives
-const u64 kh_import     = str8_static_hash64(str8_static_t("import"));
-const u64 kh_internal   = str8_static_hash64(str8_static_t("internal"));
-const u64 kh_run        = str8_static_hash64(str8_static_t("run"));
-
 local Type
 token_is_keyword_or_identifier(str8 raw){DPZoneScoped;
 	u64 a = str8_hash64(raw);
@@ -135,20 +104,22 @@ token_is_keyword_or_identifier(str8 raw){DPZoneScoped;
 		case str8case("f64"):      return Token_Float64;
 		case str8case("str"):      return Token_String;
 		case str8case("any"):      return Token_Any;
+		case str8case("as"):       return Token_As;
+		case str8case("using"):    return Token_Using;
 	}
     return Token_Identifier;
 }
 
+//NOTE(sushi) this is separate from the keyword checker because we dont want to reserve these keywords unless they follow our directive
 local Type
 token_is_directive_or_identifier(str8 raw){DPZoneScoped;
 	u64 a = str8_hash64(raw);
 	switch(a){
-		case kh_import:   return Token_Directive_Import;
-		case kh_internal: return Token_Directive_Internal;
-		case kh_run:      return Token_Directive_Run;
+		case str8case("import"):   return Token_Directive_Import;
+		case str8case("internal"): return Token_Directive_Internal;
+		case str8case("run"):      return Token_Directive_Run;
 	}
 	return Token_Identifier;
-
 }
 
 b32 is_white_space(u32 codepoint){
@@ -190,11 +161,13 @@ b32 is_identifier_char(u32 codepoint){
 
 #define stream_next { str8_advance(&stream); line_col++; } 
 
-LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
-	Stopwatch lex_time = start_stopwatch();
-	suLog(1, lexfile->file->name, "Lexing...");
+void Lexer::lex(){DPZoneScoped;
+	suLogger& logger = sufile->logger; 
+	logger.log(1, "Lexing...");
 
-	str8 stream = buffer;
+	Stopwatch lex_time = start_stopwatch();
+	
+	str8 stream = sufile->file_buffer;
 	u32 line_num = 1;
 	u32 line_col = 1;
 	u8* line_start = stream.str;
@@ -206,15 +179,15 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 	//arent considered global and arent exported
 	u32 paren_depth = 0; 
 
-	suLog(2, lexfile->file->name, "Beginning lex");
+	logger.log(2, "Beginning lex");
 	while(stream){
 		Token token={0};
-		token.file = lexfile->file->name;
+		token.file = sufile->file->name;
 		token.l0 = line_num;
 		token.c0 = line_col;
 		token.line_start = line_start;
 		token.scope_depth = scope_depth;
-		token.idx = lexfile->tokens.count;
+		token.idx = sufile->lexer.tokens.count;
 		token.raw.str = stream.str;
 		switch(decoded_codepoint_from_utf8(stream.str, 4).codepoint){
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
@@ -255,7 +228,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 
 				token.l1 = line_num;
 	 			token.c1 = line_col;
-	 			lexfile->tokens.add(token);
+	 			sufile->lexer.tokens.add(token);
 			}continue;
 
 			case '\'':{
@@ -273,7 +246,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				lexfile->tokens.add(token);
+				sufile->lexer.tokens.add(token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 
@@ -287,7 +260,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				lexfile->tokens.add(token);
+				sufile->lexer.tokens.add(token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 			
@@ -316,7 +289,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 			case '{':{ //NOTE special for scope tracking and internals 
 				token.type = Token_OpenBrace;
 				//NOTE(sushi) internal directive scopes do affect scope level
-				if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Directive_Internal){
+				if(sufile->lexer.tokens.count && sufile->lexer.tokens[sufile->lexer.tokens.count-1].type == Token_Directive_Internal){
 					internal_scope_depth = scope_depth;
 				}else{
 					scope_depth++;
@@ -359,7 +332,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
 						lex_error(token, "Multi-line comment has no ending */ token.");
-						return 0;
+						return;
 					}
 					stream_next; stream_next;
 					continue; //skip token creation
@@ -422,25 +395,32 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 						case Token_Any:{
 							//if this token is a type we can check if its a declaration and 
 							//if it is, determine what kind of declaration it is 						
-							if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Colon){
+							if(sufile->lexer.tokens.count && sufile->lexer.tokens[sufile->lexer.tokens.count-1].type == Token_Colon){
 								//we know its a declaration, but we need to know if its a variable or a function
-								Token* curt = &lexfile->tokens[lexfile->tokens.count-1];
-								if(lexfile->tokens[lexfile->tokens.count-2].type == Token_CloseParen){
+								Token* curt = &sufile->lexer.tokens[sufile->lexer.tokens.count-1];
+								if(sufile->lexer.tokens[sufile->lexer.tokens.count-2].type == Token_CloseParen){
 									//find where the function actually starts
 									while(curt->type!=Token_OpenParen) curt--;
 									curt--;
-
+									Function* f = arena.make_function(); *f = Function();
+									f->decl.type = Declaration_Function;
+									f->decl.declared_identifier = curt->raw;
+									f->decl.token_start = curt;
 									if(!scope_depth && !paren_depth){
-										lexfile->global_decl.add(curt->raw, {curt->raw, curt, Declaration_Function, 0});
+										sufile->lexer.global_decl.add(&f->decl);
 									}else{
-										lexfile->global_decl.add(curt->raw, {curt->raw, curt, Declaration_Function, 0});
+										sufile->lexer.global_decl.add(&f->decl);
 									}
 								}else{
 									curt--;
+									Variable* v = arena.make_variable(); *v = Variable();
+									v->decl.type = Declaration_Variable;
+									v->decl.declared_identifier = curt->raw;
+									v->decl.token_start = curt;
 									if(!scope_depth && !paren_depth){
-										lexfile->global_decl.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-1], Declaration_Variable, 0});
+										sufile->lexer.global_decl.add(&v->decl);
 									}else{
-										lexfile->local_decl.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-1], Declaration_Variable, 0});
+										sufile->lexer.local_decl.add(&v->decl);
 									}
 								}
 							}
@@ -448,16 +428,20 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 
 						case Token_StructDecl:{
 							//in this case we know its a declaration because thats the only reason to use this keyword
-							Token* curt = &lexfile->tokens[lexfile->tokens.count-2];
+							Token* curt = &sufile->lexer.tokens[sufile->lexer.tokens.count-2];
+							Struct* s = arena.make_struct(); *s = Struct();
+							s->decl.type = Declaration_Structure;
+							s->decl.declared_identifier = curt->raw;
+							s->decl.token_start = curt;
 							if(!scope_depth && !paren_depth){
-								lexfile->global_decl.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-2], Declaration_Structure, 0});
+								sufile->lexer.global_decl.add(&s->decl);
 							}else{
-								lexfile->local_decl.add(curt->raw, {curt->raw, &lexfile->tokens[lexfile->tokens.count-2], Declaration_Structure, 0});
+								sufile->lexer.local_decl.add(&s->decl);
 							}
 						}
 					}
 
-					if(lexfile->tokens.count && lexfile->tokens[lexfile->tokens.count-1].type == Token_Pound){
+					if(sufile->lexer.tokens.count && sufile->lexer.tokens[sufile->lexer.tokens.count-1].type == Token_Pound){
 						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
 							lex_error(token, "Invalid directive following #. Directive was '", token.raw, "'");
@@ -465,13 +449,13 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 						}else{
 							switch(type){
 								case Token_Directive_Import:{
-									lexfile->preprocessor.imports.add(lexfile->tokens.count);
+									sufile->lexer.imports.add(sufile->lexer.tokens.count);
 								}break;
 								case Token_Directive_Internal:{
-									lexfile->preprocessor.internals.add(lexfile->tokens.count);
+									sufile->lexer.internals.add(sufile->lexer.tokens.count);
 								}break;
 								case Token_Directive_Run:{
-									lexfile->preprocessor.runs.add(lexfile->tokens.count);
+									sufile->lexer.runs.add(sufile->lexer.tokens.count);
 								}break;
 							}
 
@@ -479,7 +463,7 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 						}
 					}
 				}else{
-					suError(&token, "Invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
+					logger.error(&token, "Invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
 					token.type = Token_ERROR;
 					stream_next;
 				}
@@ -508,27 +492,33 @@ LexedFile* Lexer::lex(str8 buffer){DPZoneScoped;
 			token.l1 = line_num;
 			token.c1 = line_col;
 			token.raw.count = stream.str - token.raw.str;
-			lexfile->tokens.add(token);
+			sufile->lexer.tokens.add(token);
 		}
-		
 	}
 
-	lexfile->tokens.add(Token{Token_EOF, Token_EOF});	
+	sufile->lexer.tokens.add(Token{Token_EOF, Token_EOF});	
 
 	//display debug information
 	if(globals.verbosity > 3){
-		if(lexfile->global_decl.count)
-			suLog(4, lexfile->file->name, "Global declarations:");
-		for(Declaration id : lexfile->global_decl)
-			suLog(4, lexfile->file->name, "  ", id.alias);
-		if(lexfile->local_decl.count)
-			suLog(4, lexfile->file->name, "Local declarations");
-		for(Declaration id : lexfile->local_decl)
-			suLog(4, lexfile->file->name, "  ", id.alias);
+		if(sufile->lexer.global_decl.count)
+			logger.log(4, "Global declarations:");
+		for(Declaration* id : sufile->lexer.global_decl)
+			switch(id->type){
+				case Declaration_Structure: logger.log(4, "  ", id->declared_identifier, "->", "struct"); break;
+				case Declaration_Function:  logger.log(4, "  ", id->declared_identifier, "->", "func"); break;
+				case Declaration_Variable:  logger.log(4, "  ", id->declared_identifier, "->", "var"); break;
+			};
+		if(sufile->lexer.local_decl.count)
+			logger.log(4, "Local declarations");
+		for(Declaration* id : sufile->lexer.local_decl)
+			switch(id->type){
+				case Declaration_Structure: logger.log(4, "  ", id->declared_identifier, "->", "struct"); break;
+				case Declaration_Function:  logger.log(4, "  ", id->declared_identifier, "->", "func"); break;
+				case Declaration_Variable:  logger.log(4, "  ", id->declared_identifier, "->", "var"); break;
+			};
 	}
 
-	suLog(1, lexfile->file->name, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
-	return lexfile;
+	logger.log(1, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 }
 
 #undef LINE_COLUMN

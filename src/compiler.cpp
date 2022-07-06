@@ -30,20 +30,16 @@
 void compile_threaded_func(void* in){DPZoneScoped;
     CompilerThread* ct = (CompilerThread*)in;
     
-    LexedFile*        lexfile = 0;
-    PreprocessedFile* prefile = 0;
-    ParsedFile*       parfile = 0;
-
     //TODO(sushi) support for passing each stages file and starting compilation from stages passed lexing if 
     //            necessary
-    if(HasFlag(ct->stages, Stage_Lexer)){
-        lexfile = compiler.start_lexer(ct->filepath);
+    if(ct->stage > FileStage_Null){
+        compiler.start_lexer(ct->sufile);
     }
-    if(lexfile && HasFlag(ct->stages, Stage_Preprocessor)){
-        prefile = compiler.start_preprocessor(lexfile);    
+    if(ct->stage > FileStage_Lexer){
+        compiler.start_preprocessor(ct->sufile);    
     }
-    if(prefile && HasFlag(ct->stages, Stage_Parser)){
-        parfile = compiler.start_parser(prefile);
+    if(ct->stage > FileStage_Preprocessor){
+        compiler.start_parser(ct->sufile);
     }
 
     ct->finished = 1;
@@ -53,11 +49,11 @@ void compile_threaded_func(void* in){DPZoneScoped;
 
 void Compiler::compile(CompilerRequest* request){DPZoneScoped;
     DPTracyMessageL("compiler: compile requested");
-    suLog(1, "compiler", "Beginning compiler request on ", request->filepaths.count, " files.");
+    logger.log(1, "Beginning compiler request on ", request->filepaths.count, " files.");
 
     if(globals.verbosity > 3){
         for(str8 s : request->filepaths){
-            suLog(4, "compiler", "Request to compile path ", s);
+            logger.log(4, "Request to compile path ", s);
         }
     }
 
@@ -66,9 +62,36 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
 
     DPTracyMessageL("compiler: filling out CompilerThreads");
     forI(request->filepaths.count){
+        str8 filepath = request->filepaths[i];
+        //TODO(sushi) it may be better to just interate the string backwards and look for / or \ instead
+        u32 last_slash = str8_find_last(filepath, '/');
+        if(last_slash == npos) last_slash = str8_find_last(filepath, '\\');
+        if(last_slash == npos) last_slash = 0;
+        str8 filename = str8{filepath.str+last_slash+1, filepath.count-(last_slash+1)};
+        
+        suFile* sufile = files.at(filename);
+
+        //make a new suFile if it doesnt exist already
+        if(!sufile){
+            logger.log(2, "File has not been loaded yet, making a new suFile.");
+            File* file = file_init(filepath, FileAccess_Read);
+            if(!file){
+                logger.error("Unable to open file at path ", filepath);
+                return;
+            } 
+
+            suFile nufile;
+            nufile.file = file;
+            nufile.stage = FileStage_Null;
+            
+            sufile = files.atIdx(files.add(filename, nufile));
+            sufile->logger.sufile = sufile;
+        } 
+
         ct[i].wait.init();
         ct[i].filepath = request->filepaths[i];
-        ct[i].stages = request->stages;
+        ct[i].stage = request->stage;
+        ct[i].sufile = sufile;
         DeshThreadManager->add_job({&compile_threaded_func, &ct[i]});
     }
 
@@ -84,92 +107,70 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
     }
 }
 
-LexedFile* Compiler::start_lexer(str8 filepath, b32 spawn_thread){DPZoneScoped;
-    suLog(2, "compiler", "Starting a lexer");
-
-    mutexes.lexer.lock();
-
-    File* file = file_init(filepath, FileAccess_Read);
-    if(!file){
-		suError("Unable to open file at path ", filepath);
-		return 0;
-	} 
-
-	str8 filename = file->name;
-
-    suLog(2, filename, "Checking if file has already been lexed");
-
-	if(lexed_files.has(filename)){
-		suLog(2, filename, SuccessFormat("File has already been lexed."));
-        mutexes.lexer.unlock();
-		return &lexed_files[filename];
+suFile* Compiler::start_lexer(suFile* sufile, b32 spawn_thread){DPZoneScoped;
+    Assert(sufile, "Compiler::start_lexer was passed a null suFile*");
+    
+    logger.log(2, "Starting a lexer");
+    logger.log(2, "Checking if file has already been lexed");
+	if(sufile->stage >= FileStage_Lexer){
+		logger.log(2, SuccessFormat("File has already been lexed."));
+		return sufile;
 	}
 
+    mutexes.lexer.lock();
     Lexer* lexer = (Lexer*)memalloc(sizeof(Lexer));
-
-	suLog(2, filename, "Adding file to lexed files");
-	lexed_files.add(filename);
-	lexer->lexfile = &lexed_files[filename];
-	lexer->lexfile->file = file;
     mutexes.lexer.unlock();
-
-	suLog(2, filename, "Reading file contents into a buffer");
-    str8 buffer = file_read_alloc(file, file->bytes, deshi_temp_allocator); 
+	
+    logger.log(2, "Reading file contents into a buffer");
+    sufile->file_buffer = file_read_alloc(sufile->file, sufile->file->bytes, deshi_temp_allocator); 
+    lexer->sufile = sufile;
 
     if(spawn_thread){
         LexerThread lt;
-        lt.buffer = buffer;
         lt.lexer = lexer;
         lt.wait.init();
 
-        suLog(2, filename, "Starting lexer thread.");
+        logger.log(2, "Starting lexer thread.");
         DeshThreadManager->add_job({&lexer_threaded_stub, &lt});
         DeshThreadManager->wake_threads(1);
 
         DPTracyMessageL("compiler: waiting on lexer thread");
         lt.wait.wait();
         DPTracyMessageL("compiler: lexer thread finished");
-        suLog(2, filename, "Lexer thread ended.");
+        logger.log(2, "Lexer thread ended.");
     }else{
-        lexer->lex(buffer);
+        lexer->lex();
     }
 
-    LexedFile* ret = lexer->lexfile;
+    sufile->stage = FileStage_Lexer;
+
     memzfree(lexer);
-    return ret;
+    return sufile;
 }
 
-PreprocessedFile* Compiler::start_preprocessor(LexedFile* lexfile, b32 spawn_thread){DPZoneScoped;
-    mutexes.preprocessor.lock();
+suFile* Compiler::start_preprocessor(suFile* sufile, b32 spawn_thread){DPZoneScoped;
+    Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
+    Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_preprocessor was given a sufile that has not completed previous stages.");
 
-    str8 filename = lexfile->file->name;
-
-    suLog(2, "compiler", "Starting a preprocessor.");
-
-    suLog(2, filename, "Checking if file has already been preprocessed.");
-
-    if(preprocessed_files.has(lexfile->file->name)){
-        suLog(2, filename, SuccessFormat("File has already been preprocessed."));
-        mutexes.preprocessor.unlock();        
-        return &preprocessed_files[lexfile->file->name];
+    logger.log(2, "Starting a preprocessor.");
+    logger.log(2, "Checking if file has already been preprocessed.");
+    if(sufile->stage >= FileStage_Preprocessor){
+        logger.log(2, SuccessFormat("File has already been preprocessed."));
+        return sufile;
     } 
 
+    mutexes.preprocessor.lock();
     Preprocessor* preprocessor = (Preprocessor*)memalloc(sizeof(Preprocessor)); 
+    mutexes.preprocessor.unlock();        
 
-    suLog(2, filename, "Adding file to preprocessed files.");
-    preprocessed_files.add(lexfile->file->name);
-    preprocessor->prefile = &preprocessed_files[lexfile->file->name];
-    preprocessor->prefile->lexfile = lexfile;
-
-    mutexes.preprocessor.unlock();
+    preprocessor->sufile = sufile;
 
     if(spawn_thread){
         PreprocessorThread pt;
-        pt.lexfile = lexfile;
         pt.preprocessor = preprocessor;
         pt.wait.init();
         
-        suLog(2, filename, "Starting preprocessor thread.");
+        logger.log(2, "Starting preprocessor thread.");
 
         DeshThreadManager->add_job({&preprocessor_thread_stub, &pt});
         DeshThreadManager->wake_threads(1);
@@ -178,48 +179,41 @@ PreprocessedFile* Compiler::start_preprocessor(LexedFile* lexfile, b32 spawn_thr
         pt.wait.wait();
         DPTracyMessageL("preprocessor thread finished");
 
-        suLog(2, filename, "Preprocessor thread ended.");
+        logger.log(2, "Preprocessor thread ended.");
     }else{
-        preprocessor->preprocess(lexfile);
+        preprocessor->preprocess();
     }
-    
 
-    PreprocessedFile* prefile = preprocessor->prefile;
+    sufile->stage = FileStage_Preprocessor;
+
     memzfree(preprocessor);
-    return prefile;
+    return sufile;
 }
 
-ParsedFile* Compiler::start_parser(PreprocessedFile* prefile, b32 spawn_thread){DPZoneScoped;
-    mutexes.parser.lock();
+suFile* Compiler::start_parser(suFile* sufile, b32 spawn_thread){DPZoneScoped;
+    Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
+    Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_parser was given a sufile that has not completed previous stages.");
 
-    str8 filename = prefile->lexfile->file->name;
-
-    suLog(2, filename, "Starting a parser.");
-
-    suLog(2, filename, "Checking if file has already been parsed");
-
-    if(parsed_files.has(prefile->lexfile->file->name)){
-        suLog(2, filename, SuccessFormat("File has already been parsed."));
-        mutexes.parser.unlock();
-        return &parsed_files[prefile->lexfile->file->name];
+    logger.log(2, "Starting a parser.");
+    logger.log(2, "Checking if file has already been parsed");
+    if(sufile->stage >= FileStage_Parser){
+        logger.log(2, SuccessFormat("File has already been parsed."));
+        return sufile;
     }
     
-    Parser* parser = (Parser*)memalloc(sizeof(Parser));
-
-    suLog(2, filename, "Adding file to parsed files.");
-    parsed_files.add(prefile->lexfile->file->name);
-    parser->parfile = &parsed_files[prefile->lexfile->file->name];
-    parser->parfile->prefile = prefile;
-
+    mutexes.parser.lock();
+    Parser* parser = (Parser*)memalloc(sizeof(Parser)); 
     mutexes.parser.unlock();
+    parser->init();
+    parser->sufile = sufile;
+
 
     if(spawn_thread){
         ParserThread pt;
-        pt.pfile = prefile;
         pt.parser = parser;
         pt.wake.init();
 
-        suLog(2, filename, "Starting parser thread.");
+        logger.log(2, "Starting parser thread.");
 
         DeshThreadManager->add_job({&parse_threaded_stub, &pt});
         DeshThreadManager->wake_threads(1);
@@ -228,21 +222,17 @@ ParsedFile* Compiler::start_parser(PreprocessedFile* prefile, b32 spawn_thread){
         pt.wake.wait();
         DPTracyMessageL("Parser thread finished.");
     }else{
-        parser->parse(prefile);
+        parser->parse();
     }
 
-    ParsedFile* parfile = parser->parfile;
+    sufile->stage = FileStage_Parser;
+
     memzfree(parser);
-    return parfile;
+    return sufile;
 }
 
 void Compiler::reset(){
-    forI(lexed_files.count){
-        file_deinit(lexed_files[i].file);
-    }
-    lexed_files.clear();
-    preprocessed_files.clear();
-    parsed_files.clear();
+    files.clear();
     memory_clear_arena(arena.functions);
 	memory_clear_arena(arena.variables);
 	memory_clear_arena(arena.structs);

@@ -58,29 +58,30 @@ enum OSOut {
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = 0;
+	u32 verbosity = 4;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
 	b32 warnings_as_errors = false;
 	b32 show_code = true;
+	b32 log_immediatly           = true;
+	b32 assert_compiler_on_error = true;
 	OSOut osout = OSOut_Windows;
 } globals;
 
 /*	Verbosity
-
-	0: 
-		Shows the names of files as they are processed
-	1:
-		Shows the stages as they happen and the time it took for them to complete
-	2:
-		Shows parts of the stages as they happen
-	3:
-		Shows even more detail about whats happening in each stage
-	4:
-		Shows compiler debug information from each stage
-
+	0: Shows the names of files as they are processed 
+	1: Shows the stages as they happen and the time it took for them to complete
+	2: Shows parts of the stages as they happen
+	3: Shows even more detail about whats happening in each stage
+	4: Shows compiler debug information from each stage
 */
+
+enum{
+	Message_Log,
+	Message_Error,
+	Message_Warn,
+};
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
@@ -578,21 +579,31 @@ struct Scope {
 };
 #define ScopeFromNode(x) CastFromMember(Scope, node, x)
 
-enum{
-	decl_function,
-	decl_variable,
-	decl_structure,
-};
-
-struct Declaration;
-struct Function {
+//represents information about an original declaration and is stored on 
+//Struct,Function,and Variable.
+//TODO(sushi) this setup is kind of scuffed, maybe just store the 3 structs on decl in a union so we can avoid having 2 layers of casting (eg. VariableFromDeclaration)
+struct Struct;
+struct Variable;
+struct Function;
+struct Declaration{
 	TNode node;
 	Token* token_start;
 	Token* token_end;
 	u64 token_idx = 0;
 	
-	Type data_type;
+	//name of declaration as it was first found 
 	str8 identifier;
+	str8 declared_identifier;
+	Type type;
+	b32 internal; //determined in preprocessing
+};
+
+#define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
+
+struct Function {
+	Declaration decl;
+
+	Type data_type;
 
 	str8 internal_label;
 	u32 positional_args = 0;
@@ -604,13 +615,9 @@ struct Function {
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
 
 struct Variable{
-	TNode node;
-	Token* token_start;
-	Token* token_end;
-	u64 token_idx = 0;
-	
+	Declaration decl;
+
 	Type data_type;
-	str8 identifier;
 
 	Struct* struct_data;
 	union {
@@ -631,21 +638,28 @@ struct Variable{
 #define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
 
 struct Struct {
-	TNode node;
-	Token* token_start;
-	Token* token_end;
-	u64 token_idx = 0;
-	
+	Declaration decl;
+
 	Type type;
-	str8 identifier;
 	
 	//TODO(sushi) make these maps and make map sorted and binary searched
+	//TODO(sushi) possibly just make this a map of Declaration*
 	array<Variable*> vars;
 	array<Function*> funcs;
 	array<Struct*>   structs;
 };
 #define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
 #define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
+
+
+enum{
+	Declaration_Unknown,
+	Declaration_Function,
+	Declaration_Variable,
+	Declaration_Structure,
+};
+
+
 
 struct Program {
 	Node node;
@@ -677,76 +691,194 @@ enum ParseStage {
 	psFactor,     
 };
 
-//~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Lexer
-
 enum{
-	Declaration_Unknown,
-	Declaration_Function,
-	Declaration_Variable,
-	Declaration_Structure,
+	FileStage_Null,
+	FileStage_Lexer,
+	FileStage_Preprocessor,
+	FileStage_Parser,
 };
 
-//represents information about any declaration found 
-struct Declaration{
-	//alias is the same thing that the str8 used in identifier maps is,
-	//this is only here so we can still tell the user what it was aliased as when giving errors
-	str8 alias;
+struct Token;
+struct suFile;
+struct suMessage{
+	u32 verbosity;
 	Token* token;
-	Type type;
-	b32 internal; //determined in preprocessing
-	union{
-		Variable* variable;
-		Struct* structure;
-		Function* function;
-	};
+	Type type; //log, error, or warn	
+	u32 indent;
+	f64 time_made;
+	str8 prefix;
+	suFile* sufile;
+	array<str8> message_parts;
 };
 
-struct LexedFile {
-	File* file;
+struct suLogger{
+	// instead of immediatly logging messages we collect them to format and display later
+	// we do this to prevent threads' messages from overlapping each other, to prevent
+	// actually printing anything during compiling, and so we can do much nicer formatting later on
+	// this behavoir is disabled by globals.log_immediatly
+	//TODO(sushi) implement an arena instead of array so that we know this will be thread safe
+	array<suMessage> messages;
 
-	array<Token> tokens;
-
-	//map of all known top-level identifiers in this lexed file
-	map<str8, Declaration> global_decl;
-	//map of all known local identifiers in this lexed file
-	map<str8, Declaration> local_decl;
-
-	//possibly return to this style, but use it to index the identifiers array instead
-	//as it allows us to filter nicely
-	// struct{
-	// 	struct{
-	// 		array<u32> vars;
-	// 		array<u32> funcs;
-	// 		array<u32> structs;
-	// 	}glob;
-		
-	// 	struct{
-	// 		array<u32> vars;
-	// 		array<u32> funcs;
-	// 		array<u32> structs;
-	// 	}loc;
-	// }decl;
+	suFile* sufile = 0;
+	str8 owner_str_if_sufile_is_0 = {0,0};
 	
-	//TODO(sushi) make these maps and make map sorted and binary searched
-	struct{
+	template<typename...T>
+	void log(u32 verbosity, T... args){
+		if(globals.supress_messages) return;
+		if(globals.verbosity < verbosity) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", args...);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Log;
+			message.verbosity = verbosity;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+	}
+
+	template<typename...T>
+	void error(Token* token, T...args){
+		if(globals.supress_messages) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error: "), args...);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Error;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			message.token = token;
+			messages.add(message);
+		}
+		if(globals.assert_compiler_on_error) DebugBreakpoint;
+	}
+
+	template<typename...T>
+	void error(T...args){
+		if(globals.supress_messages) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), ErrorFormat("error: "), args...);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Error;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+		if(globals.assert_compiler_on_error) DebugBreakpoint;
+	}
+
+	template<typename...T>
+	void warn(Token* token, T...args){
+		if(globals.supress_messages) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("error: "), args...);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Warn;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+	}
+	
+	template<typename...T>
+	void warn(T...args){
+		if(globals.supress_messages) return;
+
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), WarningFormat("warning: "), args...);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Warn;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+	}
+};
+
+struct suFile{
+	File* file;
+	str8 file_buffer;
+	Type stage;
+
+	suLogger logger;
+
+	struct{ // lexer
+		array<Token> tokens;
+		array<Declaration*> global_decl;
+		array<Declaration*> local_decl;
 		array<u32> imports;
 		array<u32> internals;
 		array<u32> runs;
-		//a list of identifiers found in lexing that werent marked as anything else
-		//the preprocessor passes over these identifiers and tries to match them against types known after
-		//imported and after global declarations have been passed
-		array<u32> identifiers;
+	}lexer;
+
+	struct{ // preprocessor
+		array<suFile*> imported_files;
+		//point into the lexer's global_decl array to show 
+		array<Declaration*> exported_decl;
+		array<Declaration*> internal_decl;
+		array<u32> runs;
 	}preprocessor;
+
+	struct{ // parser
+		map<str8, Declaration*> exported_decl;
+		map<str8, Declaration*> imported_decl;
+		map<str8, Declaration*> internal_decl;
+		
+		Declaration*
+		find_identifier(str8 id){
+			if(Declaration* d = *exported_decl.at(id)) return d;
+			if(Declaration* d = *imported_decl.at(id)) return d;
+			if(Declaration* d = *internal_decl.at(id)) return d;
+			return 0;
+		}
+
+		//used by a parser parsing a different file
+		Declaration*
+		find_identifier_externally(str8 id){
+			if(Declaration* d = *exported_decl.at(id)) return d;
+			if(Declaration* d = *imported_decl.at(id)) return d;
+			return 0;
+		}
+	}parser;
 };
 
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Lexer
+
 struct Lexer {
-	LexedFile* lexfile;
-
-	LexedFile* lex(str8 buffer);
-}lexer;
-
-
+	suFile* sufile;
+	void lex();
+};
 
 struct LexerThread{
 	Lexer* lexer;
@@ -756,7 +888,7 @@ struct LexerThread{
 
 void lexer_threaded_stub(void* lt){DPZoneScoped;
 	LexerThread* lthread = (LexerThread*)lt;
-	lthread->lexer->lex(lthread->buffer);
+	lthread->lexer->lex();
 	DPTracyMessageL("lexer: notifying convar")
 	lthread->wait.notify_all();
 }
@@ -764,52 +896,20 @@ void lexer_threaded_stub(void* lt){DPZoneScoped;
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Preprocessor
 
-
-
-struct PreprocessedFile{
-	LexedFile* lexfile;
-
-	array<PreprocessedFile*> imported_files;
-	
-	map<str8, Declaration> exported_decl;
-	map<str8, Declaration> internal_decl;
-
-	//TODO(sushi) make these maps and make map sorted and binary searched
-	struct{
-		//definitions that can be imported by other modules
-		struct{
-			array<u32> vars;
-			array<u32> funcs;
-			array<u32> structs;
-		}exported;
-
-		//definitions that only this module can access
-		struct{
-			array<u32> vars;
-			array<u32> funcs;
-			array<u32> structs;
-		}internal;
-	}decl;
-
-	array<u32> runs;
-
-};
-
 struct Preprocessor {
-	PreprocessedFile* prefile;
-
-	PreprocessedFile* preprocess(LexedFile* lexfile);
-}preprocessor;
+	suFile* sufile;
+	void preprocess();
+};
 
 struct PreprocessorThread{
 	Preprocessor* preprocessor;
-	LexedFile* lexfile;
+	suFile* lexfile;
 	condvar wait;
 };
 
 void preprocessor_thread_stub(void* in){DPZoneScoped;
 	PreprocessorThread* pt = (PreprocessorThread*)in;
-	pt->preprocessor->preprocess(pt->lexfile);
+	pt->preprocessor->preprocess();
 	DPTracyMessageL("preprocessor: notifying condvar")
 	pt->wait.notify_all(); 
 }
@@ -817,55 +917,17 @@ void preprocessor_thread_stub(void* in){DPZoneScoped;
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Parser
 
-struct ParsedFile{
-	PreprocessedFile* prefile;
-
-	map<str8, Declaration> exported_identifiers;
-	map<str8, Declaration> imported_identifiers;
-	map<str8, Declaration> internal_identifiers;
-
-	//TODO(sushi) make these maps and make map sorted and binary searched
-	// struct{
-	// 	struct{
-	// 		map<str8, Variable*> vars;
-	// 		map<str8, Function*> funcs;
-	// 		map<str8, Struct*> structs;
-	// 	}exported;
-
-	// 	struct{
-	// 		map<str8, Variable*> vars;
-	// 		map<str8, Function*> funcs;
-	// 		map<str8, Struct*> structs;
-	// 	}imported;
-
-	// 	struct{
-	// 		map<str8, Variable*> vars;
-	// 		map<str8, Function*> funcs;
-	// 		map<str8, Struct*> structs;
-	// 	}internal;
-	// }decl;
-};
-
-
-
 struct Parser {
 	//file the parser is working in
-	ParsedFile* parfile;
-
+	suFile* sufile;
 	Token* curt;
 
 	//stacks of known things 
+	//TODO(sushi) replace with arenas
 	struct{
 		//stacks of declarations known in current scope
-		struct{
-			array<Struct*> structs;
-			array<u32> structs_pushed;
-			array<Function*> functions;
-			array<u32> functions_pushed;
-			array<Variable*> variables;
-			array<u32> variables_pushed;
-		}known;
-
+		array<u32> known_declarations_pushed;
+		map<str8, Declaration*> known_declarations;
 		//stacks of elements that we are working with
 		struct{
 			array<Scope*>      scopes;
@@ -874,7 +936,6 @@ struct Parser {
 			array<Function*>   functions;
 			array<Expression*> expressions;
 		}nested;
-
 	}stacks;
 
 	//keeps track of what element we are working with 
@@ -899,8 +960,8 @@ struct Parser {
 	
 	TNode* declare(Type type);
 	TNode* define(TNode* node, ParseStage stage);
-	ParsedFile* parse(PreprocessedFile* prefile);
 	TNode* parse_import();
+	void   parse();
 
 	template<typename ...args> FORCE_INLINE b32
 	curr_match(args... in){DPZoneScoped;
@@ -922,40 +983,46 @@ struct Parser {
 		return (((curt + 1)->group == in) || ...);
 	}
 
-}parser;
+	void init(){
+		stacks.known_declarations = array<Declaration*>(deshi_allocator);
+		stacks.known_declarations_pushed = array<u32>(deshi_allocator);
+		stacks.nested.scopes =      array<Scope*>(deshi_allocator);
+		stacks.nested.structs =     array<Struct*>(deshi_allocator);
+		stacks.nested.variables =   array<Variable*>(deshi_allocator);
+		stacks.nested.functions =   array<Function*>(deshi_allocator);
+		stacks.nested.expressions = array<Expression*>(deshi_allocator);
+	}
+
+};
 
 struct ParserThread{
 	Parser* parser;
-	PreprocessedFile* pfile;
+	suFile* pfile;
 	//optional condition variable that a parser may sleep on to wait for one that it creates to finish
 	condvar wake; 
 };
 
 void parse_threaded_stub(void* pthreadinfo){
 	ParserThread* pt = (ParserThread*)pthreadinfo;
-	pt->parser->parse(pt->pfile);
+	pt->parser->parse();
 	pt->wake.notify_all();
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compiler
 
-enum{
-	Stage_Lexer        = 1 << 0,
-	Stage_Preprocessor = 1 << 1,
-	Stage_Parser       = 1 << 2,
-};
-
 struct CompilerRequest{
-	Flags stages;
+	Type stage;
 	array<str8> filepaths;
 };
 
 struct Compiler{
 
-	map<str8, LexedFile> lexed_files;
-	map<str8, PreprocessedFile> preprocessed_files;
-	map<str8, ParsedFile> parsed_files;
+	Stopwatch ctime;
+
+	suLogger logger;
+
+	map<str8, suFile> files;
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
@@ -969,9 +1036,9 @@ struct Compiler{
 
 	void compile(CompilerRequest* request);
 
-	LexedFile*        start_lexer(str8 filepath, b32 spawn_thread = 0);
-	PreprocessedFile* start_preprocessor(LexedFile* lexfile, b32 spawn_thread = 0);
-	ParsedFile*       start_parser(PreprocessedFile* prefile, b32 spawn_thread = 0);
+	suFile* start_lexer       (suFile* sufile, b32 spawn_thread = 0);
+	suFile* start_preprocessor(suFile* sufile, b32 spawn_thread = 0);
+	suFile* start_parser      (suFile* sufile, b32 spawn_thread = 0);
 
 	void              start_request(CompilerRequest* request);
 
@@ -985,9 +1052,10 @@ struct Compiler{
 
 struct CompilerThread{
 	str8 filepath;
-	Flags stages;
+	Type stage;
 	condvar wait;
 	b32 finished;
+	suFile* sufile;
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1050,59 +1118,5 @@ struct{
 	}
 
 }arena;
-
-template<typename...T>
-void suLog(u32 verbosity, const char* prefix, T... args){
-	if(globals.verbosity < verbosity) return;
-	compiler.mutexes.log.lock();
-	if(prefix){
-		str8b prefixb = toStr8(VTS_CyanFg, prefix, VTS_Default, ": ");
-		// forI(verbosity){
-		// 	str8_builder_append(&prefixb, STR8(" "));
-		// }
-		Log("", prefixb.fin, args...);
-	}else{
-		Log("", args...);
-	}
-	
-	compiler.mutexes.log.unlock();
-}
-
-template<typename...T>
-void suLog(u32 verbosity, str8 prefix, T... args){
-	if(globals.verbosity < verbosity) return;
-	compiler.mutexes.log.lock();
-	if(prefix){
-		str8b prefixb = toStr8(VTS_CyanFg, prefix, VTS_Default, ": ");
-		// forI(verbosity){
-		// 	str8_builder_append(&prefixb, STR8(" "));
-		// }
-		Log("", prefixb.fin, args...);
-	}else{
-		Log("", args...);
-	}
-	
-	compiler.mutexes.log.unlock();
-}
-
-// void suWarn(Token* token, T... args){
-
-// }
-template<typename...T>
-void suError(Token* token, T...args){
-	compiler.mutexes.log.lock();
-	Log("", VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"):", ErrorFormat("error: "), args...);
-	compiler.mutexes.log.unlock();
-
-}
-
-template<typename...T>
-void suError(T...args){
-	compiler.mutexes.log.lock();
-	Log("", ErrorFormat("error: "), args...);
-	compiler.mutexes.log.unlock();
-}
-
-
 
 #endif //SU_TYPES_H

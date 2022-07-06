@@ -28,16 +28,12 @@
 #include "lexer.cpp"
 #endif
 
-#define preprocess_error(token, ...)\
-suLog(0, ErrorFormat("error: "), (token).file, "(",(token).l0,",",(token).c0,"):", __VA_ARGS__)
 
-#define preprocess_warn(token, ...)\
-suLog(0, WarningFormat("warning: "), (token).file, "(",(token).l0,",",(token).c0,"):", __VA_ARGS__)
 
                    
-PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
-    str8 filename = lexfile->file->name;
-    suLog(1, CyanFormatDyn(lexfile->file->name), ": Preprocessing... ");
+void Preprocessor::preprocess(){DPZoneScoped;
+    suLogger& logger = sufile->logger; 
+    logger.log(1, "Preprocessing...");
 
     Stopwatch time = start_stopwatch();
    
@@ -46,9 +42,9 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
     //we gather import paths so we can setup a job for each one 
     // and lex then preprocess each one at the same time.
     CompilerRequest cr;
-    for(u32 importidx : lexfile->preprocessor.imports){
-        suLog(2, filename, "Processing imports");
-        Token* curt = &lexfile->tokens[importidx];
+    for(u32 importidx : sufile->lexer.imports){
+        logger.log(2, "Processing imports");
+        Token* curt = &sufile->lexer.tokens[importidx];
         curt++;
         if(curt->type == Token_OpenBrace){
             //multiline directive 
@@ -61,12 +57,12 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
                     //attempt to find the module in PATH and current working directory
                     //first check cwd
                     if(file_exists(curt->raw)){
-                        suLog(2, filename, "Adding import path ", curt->raw);
+                        logger.log(2, "Adding import path ", curt->raw);
                         cr.filepaths.add(curt->raw);
                         
                     }else{
                         //TODO(sushi) look for imports on PATH
-                        preprocess_warn(*curt, "Finding files through PATH is not currently supported.");
+                        logger.warn(curt, "Finding files through PATH is not currently supported.");
                     }
                     //NOTE(sushi) we do not handle selective imports here, that is handled in parsing
                     curt++;
@@ -79,15 +75,14 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
         }
     }
     if(cr.filepaths.count){
-        cr.stages = Stage_Lexer | Stage_Preprocessor;
+        cr.stage = FileStage_Preprocessor;
         compiler.compile(&cr);
     }
     
-    suLog(2, filename, "Finding internal declarations.");
-    //TODO(sushi) this copying sucks, maybe preprocessedfile should just use lexedfile's maps?
-    prefile->exported_decl = lexfile->global_decl;
-    for(u32 idx : lexfile->preprocessor.internals){
-        Token* curt = &lexfile->tokens[idx];
+    logger.log(2, "Finding internal declarations.");
+    sufile->preprocessor.exported_decl = sufile->lexer.global_decl;
+    for(u32 idx : sufile->lexer.internals){
+        Token* curt = &sufile->lexer.tokens[idx];
         curt++;
         u32 start = idx, end;
         if(curt->type == Token_OpenBrace){
@@ -106,46 +101,45 @@ PreprocessedFile* Preprocessor::preprocess(LexedFile* lexfile){DPZoneScoped;
             end = idx;
         }else{
             //the rest of the file is considered internal
-            end = lexfile->tokens.count;
+            end = sufile->lexer.tokens.count;
         }   
 
         //move exported identifiers into internal
-        forI(prefile->exported_decl.count){
-            Declaration id = prefile->exported_decl[i];
-            u32 idx = id.token->idx;
+        forI(sufile->preprocessor.exported_decl.count){
+            Declaration* id = sufile->preprocessor.exported_decl[i];
+            u32 idx = id->token_start->idx;
             if(idx > start && idx < end){
-                id.internal = 1;
-                prefile->internal_decl.add(id.alias, id);
-                prefile->exported_decl.remove(id.alias);
+                id->internal = 1;
+                sufile->preprocessor.internal_decl.add(id);
+                TestMe;
+                sufile->preprocessor.exported_decl.remove_unordered(i);
             }
         }
         //local identifiers do not need to be declared internal
     }
 
 
-    suLog(2, filename, "Finding run directives ", ErrorFormat("(NotImplemented)"));
-    for(u32 idx : lexfile->preprocessor.runs){
-        preprocess_error(lexfile->tokens[idx], "#run is not implemented yet.");
+    logger.log(2, "Finding run directives ", ErrorFormat("(NotImplemented)"));
+    for(u32 idx : sufile->lexer.runs){
+        logger.error(&sufile->lexer.tokens[idx], "#run is not implemented yet.");
     }
    
-
     if(globals.verbosity > 3){
-        if(prefile->exported_decl.count)
-            suLog(4, filename, "Exported declarations");
-        for(Declaration& id : prefile->exported_decl){
-            suLog(4, filename, "  ", id.alias);
+        if(sufile->preprocessor.exported_decl.count)
+            logger.log(4, "Exported declarations");
+        for(Declaration* id : sufile->preprocessor.exported_decl){
+            logger.log(4, "  ", id->declared_identifier);
         }
 
-        if(prefile->internal_decl.count)
-            suLog(4, filename, "Internal declarations");
-        for(Declaration& id : prefile->internal_decl){
-            suLog(4, filename, "  ", id.alias);
+        if(sufile->preprocessor.internal_decl.count)
+            logger.log(4, "Internal declarations");
+        for(Declaration* id : sufile->preprocessor.internal_decl){
+            logger.log(4, "  ", id->declared_identifier);
         }
     }
     
 
 
     
-    suLog(1, filename, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
-    return prefile;
+    logger.log(1, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
 }
