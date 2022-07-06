@@ -134,7 +134,7 @@ TNode* Parser::parse_import(){DPZoneScoped;
                 }
             }else{
                 //in this case the user isnt specifying anything specific so we import all public declarations from the module
-                imported_decls.add_array(sufileex->parser.exported_decl);
+                imported_decls.add_array(sufileex->parser.exported_decl.data);
             }
             expect(Token_As){
                 curt++;
@@ -155,13 +155,15 @@ TNode* Parser::parse_import(){DPZoneScoped;
                             case Declaration_Variable :{s->vars.add(VariableFromDeclaration(imported_decls[i]));}break;
                         }
                     }
-                    stacks.known.structs.add(s);
+                    stacks.known_declarations.add(s->decl.identifier, &s->decl);
                     sufile->parser.imported_decl.add(s->decl.identifier, &s->decl);
                 }else perror(curt, "Expected an identifier after 'as'");
             }else{
                 //we are just importing all decls into the global space
-                stacks.declarations.add_array(imported_decls);
-                (*stacks.declarations_pushed.last) += imported_decls.count;
+                forI(imported_decls.count){
+                    stacks.known_declarations.add(imported_decls[i]->identifier, imported_decls[i]);
+                    (*stacks.known_declarations_pushed.last)++;
+                }
             }
         }else perror(curt, "Import specifier is not a string or identifier.");
         
@@ -172,9 +174,9 @@ TNode* Parser::parse_import(){DPZoneScoped;
     return 0;
 }
 
-TNode* Parser::declare(Type type){DPZoneScoped;
+void Parser::declare(Declaration* d){DPZoneScoped;
     TNode* ret = 0;
-    switch(type){
+    switch(d->type){
         case Declaration_Structure:{
             // Struct* s = arena.make_struct();
             // s->decl.identifier = curt->raw;
@@ -192,11 +194,8 @@ TNode* Parser::declare(Type type){DPZoneScoped;
                 curt++;
                 expect(Token_OpenParen){
                     while(!next_match(Token_CloseParen)){
-                        curt++;
-                        expect(Token_Identifier){
-                            Variable* v = VariableFromNode(declare(Declaration_Variable));
-
-                        } else perror(curt, "expected identifier for function parameter declaration.");
+                       Variable* v = arena.make_variable();
+                       declare(&v->decl);
                     }
                 } else perror(curt, "expected ( after identifier in function declaration.");
             } else perror(curt, "perror() was called with Declaration_Function, but the initial token is not an identifier.");
@@ -210,17 +209,14 @@ TNode* Parser::declare(Type type){DPZoneScoped;
                     curt++;
                     expect(TokenGroup_Type){
 
-                    } else expect(Token_Identifier) {
-                        //in this case previous stages were unable to mark this token as a struct, so we must look for it here
+                    }else expect(Token_Identifier){
+                        //in this case we expect this identifier to actually be a struct 
 
                     }
                 } else perror(curt, "Expected a ':' after identifier for variable decalration.");
             } else perror(curt, "perror() was called with Declaration_Variable, but the initial token is not an identifier.");
         }break;
     }
-
-earlyout:
-    return ret;
 }
 
 TNode* Parser::define(TNode* node, ParseStage stage){DPZoneScoped;
@@ -261,7 +257,7 @@ TNode* Parser::define(TNode* node, ParseStage stage){DPZoneScoped;
                             // we are declaring a function, so we set the token back to the identifier and call declare
                             Token* save2 = curt;  
                             curt = save;
-                            TNode* n = declare(Declaration_Function);
+                            //TNode* n = declare(Declaration_Function);
                             
 
                         }
@@ -338,9 +334,7 @@ void Parser::parse(){DPZoneScoped;
     Stopwatch time = start_stopwatch();
     sufile->logger.log(1, "Parsing...");
 
-    stacks.known.structs_pushed.add(0);
-    stacks.known.functions_pushed.add(0);
-    stacks.known.variables_pushed.add(0);
+    stacks.known_declarations_pushed.add(0);
    
     sufile->logger.log(2, "Checking that imported files are parsed");
 
@@ -363,17 +357,16 @@ void Parser::parse(){DPZoneScoped;
 
    
     forI(sufile->preprocessor.internal_decl.count){
-        Declaration* decl = sufile->preprocessor.internal_decl[i];
-        sufile->logger.log(4, "Parsing internal declaration '", decl->identifier, "'");
-        curt = decl->token_start;
-        TNode* n = declare(decl->type);
+        sufile->logger.log(4, "Parsing internal declaration '", sufile->lexer.tokens[sufile->preprocessor.internal_decl[i]].raw, "'");
+        //curt = decl->token_start;
+        //declare(decl);
     }
 
     forI(sufile->preprocessor.exported_decl.count){
-        Declaration* decl = sufile->preprocessor.exported_decl[i];
-        sufile->logger.log(4, "Parsing exported declaration '", decl->identifier, "'");
-        curt = decl->token_start;
-        TNode* n = declare(decl->type);
+        sufile->logger.log(4, "Parsing exported declaration '", sufile->lexer.tokens[sufile->preprocessor.exported_decl[i]].raw, "'");
+        //curt = decl->token_start;
+        //declare(decl);
+        //sufile->parser.exported_decl.add(decl->identifier, decl);
     }
     
     sufile->logger.log(1, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);

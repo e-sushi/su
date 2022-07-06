@@ -232,6 +232,9 @@ suFile* Compiler::start_parser(suFile* sufile, b32 spawn_thread){DPZoneScoped;
 }
 
 void Compiler::reset(){
+    for(suFile& f : files){
+        file_deinit(f.file);
+    }
     files.clear();
     memory_clear_arena(arena.functions);
 	memory_clear_arena(arena.variables);

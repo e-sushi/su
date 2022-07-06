@@ -38,3 +38,11963 @@ round(x:f32) : f32{
     return (f32)((u32)(x+0.5));
 }
 
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+
+sin(x:f64) : f64{ 
+    //... 
+}
+
+cos(x:f64) : f64{
+    //...
+}
+
+floor(x:f64) : f64{
+    return (f64)((u64)x);
+}
+
+ceil(x:f64) : f64{
+    return (f64)((u64)(x))+1;
+}
+
+round(x:f64) : f64{
+    return (f64)((u64)(x+0.5));
+}
+
+sin(x:f32) : f32{ 
+    //... 
+}
+
+cos(x:f32) : f32{
+    //...
+}
+
+floor(x:f32) : f32{
+    return (f64)((u64)x);
+}
+
+ceil(x:f32) : f32{
+    return (f32)((u32)(x))+1;
+}
+
+round(x:f32) : f32{
+    return (f32)((u32)(x+0.5));
+}
+

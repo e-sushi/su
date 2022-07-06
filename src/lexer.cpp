@@ -175,7 +175,7 @@ void Lexer::lex(){DPZoneScoped;
 	u32 scope_depth = 0;
 	u32 internal_scope_depth = -1; //set to the scope of an internal directive if it is scoped
 
-	//need to track so that varaibles declared in stuff like for loops or functions
+	//need to track so that variables declared in stuff like for loops or functions
 	//arent considered global and arent exported
 	u32 paren_depth = 0; 
 
@@ -189,6 +189,7 @@ void Lexer::lex(){DPZoneScoped;
 		token.scope_depth = scope_depth;
 		token.idx = sufile->lexer.tokens.count;
 		token.raw.str = stream.str;
+		if(!paren_depth && !scope_depth) token.is_global = 1;
 		switch(decoded_codepoint_from_utf8(stream.str, 4).codepoint){
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
 			case ' ': case 133: case 160: case 5760: case 8192:
@@ -280,7 +281,11 @@ void Lexer::lex(){DPZoneScoped;
 			CASE1(']', Token_CloseSquare);
 			CASE1(',', Token_Comma);
 			CASE1('?', Token_QuestionMark);
-			CASE1(':', Token_Colon);
+			case ':':{ //NOTE special for declarations
+				token.type = Token_Colon; 
+				sufile->lexer.declarations.add(sufile->lexer.tokens.count);
+				stream_next; 
+			}break;
 			CASE1('.', Token_Dot);
 			CASE1('@', Token_At);
 			CASE1('#', Token_Pound);
@@ -331,7 +336,7 @@ void Lexer::lex(){DPZoneScoped;
 				}else if(*stream.str == '*'){
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
-						lex_error(token, "Multi-line comment has no ending */ token.");
+						logger.error(&token, "Multi-line comment has no ending */ token.");
 						return;
 					}
 					stream_next; stream_next;
@@ -379,72 +384,10 @@ void Lexer::lex(){DPZoneScoped;
                 	token.raw.count = stream.str - token.raw.str;
                 	token.type = token_is_keyword_or_identifier(token.raw);
 
-					switch(token.type){
-						case Token_Void:                    
-						case Token_Signed8:                 
-						case Token_Signed16:                
-						case Token_Signed32:                
-						case Token_Signed64:                
-						case Token_Unsigned8:               
-						case Token_Unsigned16:              
-						case Token_Unsigned32:              
-						case Token_Unsigned64:              
-						case Token_Float32:                 
-						case Token_Float64:                 
-						case Token_String:                  
-						case Token_Any:{
-							//if this token is a type we can check if its a declaration and 
-							//if it is, determine what kind of declaration it is 						
-							if(sufile->lexer.tokens.count && sufile->lexer.tokens[sufile->lexer.tokens.count-1].type == Token_Colon){
-								//we know its a declaration, but we need to know if its a variable or a function
-								Token* curt = &sufile->lexer.tokens[sufile->lexer.tokens.count-1];
-								if(sufile->lexer.tokens[sufile->lexer.tokens.count-2].type == Token_CloseParen){
-									//find where the function actually starts
-									while(curt->type!=Token_OpenParen) curt--;
-									curt--;
-									Function* f = arena.make_function(); *f = Function();
-									f->decl.type = Declaration_Function;
-									f->decl.declared_identifier = curt->raw;
-									f->decl.token_start = curt;
-									if(!scope_depth && !paren_depth){
-										sufile->lexer.global_decl.add(&f->decl);
-									}else{
-										sufile->lexer.global_decl.add(&f->decl);
-									}
-								}else{
-									curt--;
-									Variable* v = arena.make_variable(); *v = Variable();
-									v->decl.type = Declaration_Variable;
-									v->decl.declared_identifier = curt->raw;
-									v->decl.token_start = curt;
-									if(!scope_depth && !paren_depth){
-										sufile->lexer.global_decl.add(&v->decl);
-									}else{
-										sufile->lexer.local_decl.add(&v->decl);
-									}
-								}
-							}
-						}break;        
-
-						case Token_StructDecl:{
-							//in this case we know its a declaration because thats the only reason to use this keyword
-							Token* curt = &sufile->lexer.tokens[sufile->lexer.tokens.count-2];
-							Struct* s = arena.make_struct(); *s = Struct();
-							s->decl.type = Declaration_Structure;
-							s->decl.declared_identifier = curt->raw;
-							s->decl.token_start = curt;
-							if(!scope_depth && !paren_depth){
-								sufile->lexer.global_decl.add(&s->decl);
-							}else{
-								sufile->lexer.local_decl.add(&s->decl);
-							}
-						}
-					}
-
 					if(sufile->lexer.tokens.count && sufile->lexer.tokens[sufile->lexer.tokens.count-1].type == Token_Pound){
 						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
-							lex_error(token, "Invalid directive following #. Directive was '", token.raw, "'");
+							logger.error(&token, "Invalid directive following #. Directive was '", token.raw, "'");
 							type = Token_ERROR;
 						}else{
 							switch(type){
@@ -458,7 +401,6 @@ void Lexer::lex(){DPZoneScoped;
 									sufile->lexer.runs.add(sufile->lexer.tokens.count);
 								}break;
 							}
-
 							token.type = type; 
 						}
 					}
@@ -497,27 +439,6 @@ void Lexer::lex(){DPZoneScoped;
 	}
 
 	sufile->lexer.tokens.add(Token{Token_EOF, Token_EOF});	
-
-	//display debug information
-	if(globals.verbosity > 3){
-		if(sufile->lexer.global_decl.count)
-			logger.log(4, "Global declarations:");
-		for(Declaration* id : sufile->lexer.global_decl)
-			switch(id->type){
-				case Declaration_Structure: logger.log(4, "  ", id->declared_identifier, "->", "struct"); break;
-				case Declaration_Function:  logger.log(4, "  ", id->declared_identifier, "->", "func"); break;
-				case Declaration_Variable:  logger.log(4, "  ", id->declared_identifier, "->", "var"); break;
-			};
-		if(sufile->lexer.local_decl.count)
-			logger.log(4, "Local declarations");
-		for(Declaration* id : sufile->lexer.local_decl)
-			switch(id->type){
-				case Declaration_Structure: logger.log(4, "  ", id->declared_identifier, "->", "struct"); break;
-				case Declaration_Function:  logger.log(4, "  ", id->declared_identifier, "->", "func"); break;
-				case Declaration_Variable:  logger.log(4, "  ", id->declared_identifier, "->", "var"); break;
-			};
-	}
-
 	logger.log(1, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 }
 

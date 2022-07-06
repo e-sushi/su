@@ -41,9 +41,9 @@ void Preprocessor::preprocess(){DPZoneScoped;
     //TODO(sushi) this can probably be multithreaded
     //we gather import paths so we can setup a job for each one 
     // and lex then preprocess each one at the same time.
+    logger.log(2, "Processing imports");
     CompilerRequest cr;
     for(u32 importidx : sufile->lexer.imports){
-        logger.log(2, "Processing imports");
         Token* curt = &sufile->lexer.tokens[importidx];
         curt++;
         if(curt->type == Token_OpenBrace){
@@ -79,8 +79,47 @@ void Preprocessor::preprocess(){DPZoneScoped;
         compiler.compile(&cr);
     }
     
+    logger.log(2, "Resolving colon tokens as possible valid declarations.");
+    array<u32> decls_glob;
+    array<u32> decls_loc; //this is really only for debug info, not skipping local tokens because they still need to be marked as declarations
+    for(u32 idx : sufile->lexer.declarations){
+        Token* tok = &sufile->lexer.tokens[idx];
+        if((tok-1)->type == Token_Identifier){
+            // this must be a variable declaration, so we check that the next token is either in token group 
+            // type or is just another identifier, we check both because it is possible a struct type is being used
+            // also it is possible for there to be no type specifier and an assignment instead
+            if((tok+1)->group == TokenGroup_Type || (tok+1)->type == Token_Identifier || (tok+1)->type == Token_Assignment){
+                (tok-1)->is_declaration = 1;
+                if(tok->is_global) decls_glob.add((tok-1)->idx);
+                else               decls_loc.add((tok-1)->idx);
+                
+            }
+        }else if((tok-1)->type == Token_CloseParen){
+            // this must be a function declaration, so we check that the next token is either in a token group type
+            // or is another identifier
+            if((tok+1)->group == TokenGroup_Type || (tok+1)->type == Token_Identifier){
+                // now we look back for the function's identifier
+                Token* cur = tok;
+                while(cur->type != Token_OpenParen){
+                    if(!cur->idx){
+                        //TODO(sushi) this error probably isnt valid after custom operators are implemented
+                        logger.error(tok, "Malformed syntax at start of file. ')' followed by ':' followed by a type or identifier implies a function declaration (for now). TODO(sushi) need better detection of what is happening here.");
+                        break;
+                    }
+                    cur--;
+                }
+                cur--;
+                if(cur->type == Token_Identifier){
+                    cur->is_declaration = 1;
+                    if(tok->is_global) decls_glob.add(cur->idx);
+                    else               decls_loc.add(cur->idx);
+                }
+            }
+        }
+    }
+
     logger.log(2, "Finding internal declarations.");
-    sufile->preprocessor.exported_decl = sufile->lexer.global_decl;
+    sufile->preprocessor.exported_decl = decls_glob;
     for(u32 idx : sufile->lexer.internals){
         Token* curt = &sufile->lexer.tokens[idx];
         curt++;
@@ -93,9 +132,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                 if(curt->type == Token_OpenBrace) scope_depth++;
                 else if(curt->type == Token_CloseBrace){
                     if(!scope_depth) break;
-                    else{
-                        scope_depth--;
-                    }
+                    else scope_depth--;
                 }
             }
             end = idx;
@@ -105,13 +142,9 @@ void Preprocessor::preprocess(){DPZoneScoped;
         }   
 
         //move exported identifiers into internal
-        forI(sufile->preprocessor.exported_decl.count){
-            Declaration* id = sufile->preprocessor.exported_decl[i];
-            u32 idx = id->token_start->idx;
-            if(idx > start && idx < end){
-                id->internal = 1;
-                sufile->preprocessor.internal_decl.add(id);
-                TestMe;
+        forI(decls_glob.count){
+            if(decls_glob[i] > start && decls_glob[i] < end){
+                sufile->preprocessor.internal_decl.add(decls_glob[i]);
                 sufile->preprocessor.exported_decl.remove_unordered(i);
             }
         }
@@ -123,18 +156,24 @@ void Preprocessor::preprocess(){DPZoneScoped;
     for(u32 idx : sufile->lexer.runs){
         logger.error(&sufile->lexer.tokens[idx], "#run is not implemented yet.");
     }
-   
+
     if(globals.verbosity > 3){
         if(sufile->preprocessor.exported_decl.count)
             logger.log(4, "Exported declarations");
-        for(Declaration* id : sufile->preprocessor.exported_decl){
-            logger.log(4, "  ", id->declared_identifier);
+        for(u32 idx : sufile->preprocessor.exported_decl){
+            logger.log(4, "  ", sufile->lexer.tokens[idx].raw);
         }
 
         if(sufile->preprocessor.internal_decl.count)
             logger.log(4, "Internal declarations");
-        for(Declaration* id : sufile->preprocessor.internal_decl){
-            logger.log(4, "  ", id->declared_identifier);
+        for(u32 idx : sufile->preprocessor.internal_decl){
+            logger.log(4, "  ", sufile->lexer.tokens[idx].raw);
+        }
+
+        if(decls_loc.count)
+            logger.log(4, "Local declarations");
+        for(u32 idx : decls_loc){
+            logger.log(4, "  ", sufile->lexer.tokens[idx].raw);
         }
     }
     

@@ -1,6 +1,7 @@
 #import {
     "std/math.su" as math,
     "std/io.su" as io,
+    "std/platform.su" as platform,
 };
 
 main() : s32 {

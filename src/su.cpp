@@ -63,7 +63,6 @@ void speed_test(const u64 samples, str8 filepath){
 		cr.stage = FileStage_Parser;
 
 		compiler.compile(&cr);
-
 		sum += peek_stopwatch(compiler.ctime);
 
 		compiler.reset();
@@ -84,20 +83,20 @@ int main(){DPZoneScoped;
 	arena.init();
 	DeshThreadManager->init(255);
 	DeshThreadManager->spawn_thread(7);
-
-	//speed_test(5000, STR8("tests/imports/valid/imports.su"));
-
 	compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
 
-	compiler.ctime = start_stopwatch();
+	speed_test(50, STR8("tests/imports/valid/imports.su"));
 
-	CompilerRequest cr; 
-	cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
-	cr.stage = FileStage_Parser;
 
-	compiler.compile(&cr);
+	// compiler.ctime = start_stopwatch();
 
-	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
+	// CompilerRequest cr; 
+	// cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
+	// cr.stage = FileStage_Parser;
+
+	// compiler.compile(&cr);
+
+	// compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
   
 	return 1;
 }

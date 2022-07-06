@@ -58,7 +58,7 @@ enum OSOut {
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = 4;
+	u32 verbosity = 0;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -427,6 +427,10 @@ struct Token {
 	u32 scope_depth;
 	u32 idx;
 
+
+	b32 is_global; //set true on tokens that are in global scope 
+	b32 is_declaration; //set true on identifier tokens that are the identifier of a declaration
+
 	union{
 		f64 f64_val;
 		s64 s64_val;
@@ -769,7 +773,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), ErrorFormat("error: "), args...);
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error: "), args...);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
@@ -833,18 +837,18 @@ struct suFile{
 
 	struct{ // lexer
 		array<Token> tokens;
-		array<Declaration*> global_decl;
-		array<Declaration*> local_decl;
-		array<u32> imports;
-		array<u32> internals;
-		array<u32> runs;
+		array<u32> identifiers;  // list of identifier tokens
+		array<u32> declarations; // list of : tokens
+		array<u32> imports;      // list of import tokens
+		array<u32> internals;    // list of internal tokens
+		array<u32> runs;         // list of run tokens
 	}lexer;
 
 	struct{ // preprocessor
 		array<suFile*> imported_files;
 		//point into the lexer's global_decl array to show 
-		array<Declaration*> exported_decl;
-		array<Declaration*> internal_decl;
+		array<u32> exported_decl;
+		array<u32> internal_decl;
 		array<u32> runs;
 	}preprocessor;
 
@@ -921,6 +925,7 @@ struct Parser {
 	//file the parser is working in
 	suFile* sufile;
 	Token* curt;
+	u32 local_decl_iter = 0;
 
 	//stacks of known things 
 	//TODO(sushi) replace with arenas
@@ -958,7 +963,7 @@ struct Parser {
 	FORCE_INLINE void push_variable();
 	FORCE_INLINE void pop_variable();
 	
-	TNode* declare(Type type);
+	void declare(Declaration* d);
 	TNode* define(TNode* node, ParseStage stage);
 	TNode* parse_import();
 	void   parse();
@@ -984,7 +989,7 @@ struct Parser {
 	}
 
 	void init(){
-		stacks.known_declarations = array<Declaration*>(deshi_allocator);
+		stacks.known_declarations = map<str8, Declaration*>(deshi_allocator);
 		stacks.known_declarations_pushed = array<u32>(deshi_allocator);
 		stacks.nested.scopes =      array<Scope*>(deshi_allocator);
 		stacks.nested.structs =     array<Struct*>(deshi_allocator);
@@ -1039,8 +1044,7 @@ struct Compiler{
 	suFile* start_lexer       (suFile* sufile, b32 spawn_thread = 0);
 	suFile* start_preprocessor(suFile* sufile, b32 spawn_thread = 0);
 	suFile* start_parser      (suFile* sufile, b32 spawn_thread = 0);
-
-	void              start_request(CompilerRequest* request);
+	void    start_request(CompilerRequest* request);
 
 	//used to completely reset all compiled information
 	//this is mainly for performance testing, like running a compile on the same file
