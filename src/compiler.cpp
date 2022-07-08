@@ -107,7 +107,7 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
     }
 }
 
-suFile* Compiler::start_lexer(suFile* sufile, b32 spawn_thread){DPZoneScoped;
+suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_lexer was passed a null suFile*");
     
     logger.log(2, "Starting a lexer");
@@ -124,23 +124,7 @@ suFile* Compiler::start_lexer(suFile* sufile, b32 spawn_thread){DPZoneScoped;
     logger.log(2, "Reading file contents into a buffer");
     sufile->file_buffer = file_read_alloc(sufile->file, sufile->file->bytes, deshi_temp_allocator); 
     lexer->sufile = sufile;
-
-    if(spawn_thread){
-        LexerThread lt;
-        lt.lexer = lexer;
-        lt.wait.init();
-
-        logger.log(2, "Starting lexer thread.");
-        DeshThreadManager->add_job({&lexer_threaded_stub, &lt});
-        DeshThreadManager->wake_threads(1);
-
-        DPTracyMessageL("compiler: waiting on lexer thread");
-        lt.wait.wait();
-        DPTracyMessageL("compiler: lexer thread finished");
-        logger.log(2, "Lexer thread ended.");
-    }else{
-        lexer->lex();
-    }
+    lexer->lex();
 
     sufile->stage = FileStage_Lexer;
 
@@ -148,7 +132,7 @@ suFile* Compiler::start_lexer(suFile* sufile, b32 spawn_thread){DPZoneScoped;
     return sufile;
 }
 
-suFile* Compiler::start_preprocessor(suFile* sufile, b32 spawn_thread){DPZoneScoped;
+suFile* Compiler::start_preprocessor(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
     Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_preprocessor was given a sufile that has not completed previous stages.");
 
@@ -164,25 +148,7 @@ suFile* Compiler::start_preprocessor(suFile* sufile, b32 spawn_thread){DPZoneSco
     mutexes.preprocessor.unlock();        
 
     preprocessor->sufile = sufile;
-
-    if(spawn_thread){
-        PreprocessorThread pt;
-        pt.preprocessor = preprocessor;
-        pt.wait.init();
-        
-        logger.log(2, "Starting preprocessor thread.");
-
-        DeshThreadManager->add_job({&preprocessor_thread_stub, &pt});
-        DeshThreadManager->wake_threads(1);
-
-        DPTracyMessageL("waiting on preprocessor thread");
-        pt.wait.wait();
-        DPTracyMessageL("preprocessor thread finished");
-
-        logger.log(2, "Preprocessor thread ended.");
-    }else{
-        preprocessor->preprocess();
-    }
+    preprocessor->preprocess();
 
     sufile->stage = FileStage_Preprocessor;
 
@@ -190,7 +156,7 @@ suFile* Compiler::start_preprocessor(suFile* sufile, b32 spawn_thread){DPZoneSco
     return sufile;
 }
 
-suFile* Compiler::start_parser(suFile* sufile, b32 spawn_thread){DPZoneScoped;
+suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
     Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_parser was given a sufile that has not completed previous stages.");
 
@@ -204,26 +170,10 @@ suFile* Compiler::start_parser(suFile* sufile, b32 spawn_thread){DPZoneScoped;
     mutexes.parser.lock();
     Parser* parser = (Parser*)memalloc(sizeof(Parser)); 
     mutexes.parser.unlock();
+    
     parser->init();
     parser->sufile = sufile;
-
-
-    if(spawn_thread){
-        ParserThread pt;
-        pt.parser = parser;
-        pt.wake.init();
-
-        logger.log(2, "Starting parser thread.");
-
-        DeshThreadManager->add_job({&parse_threaded_stub, &pt});
-        DeshThreadManager->wake_threads(1);
-
-        DPTracyMessageL("Waiting on parser thread");
-        pt.wake.wait();
-        DPTracyMessageL("Parser thread finished.");
-    }else{
-        parser->parse();
-    }
+    parser->parse();
 
     sufile->stage = FileStage_Parser;
 
