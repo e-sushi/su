@@ -25,6 +25,7 @@
 #include "kigu/common.h"
 #include "kigu/unicode.h"
 #include "kigu/hash.h"
+
 #include "types.h"
 
 #include "lexer.cpp"
@@ -71,9 +72,6 @@ void speed_test(const u64 samples, str8 filepath){
 	compiler.logger.log(0, "speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
 }
 
-
-
-
 int main(){DPZoneScoped;
 
    	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
@@ -82,21 +80,23 @@ int main(){DPZoneScoped;
 
 	arena.init();
 	DeshThreadManager->init(255);
-	DeshThreadManager->spawn_thread(7);
+	DeshThreadManager->spawn_thread(20);
 	compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
 
-	speed_test(50, STR8("tests/imports/valid/imports.su"));
 
+	//speed_test(50, STR8("tests/imports/valid/imports.su"));
 
-	// compiler.ctime = start_stopwatch();
+	compiler.ctime = start_stopwatch();
 
-	// CompilerRequest cr; 
-	// cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
-	// cr.stage = FileStage_Parser;
+	CompilerRequest cr; 
+	cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
+	//cr.filepaths.add(STR8("tests/_/main.su"));
 
-	// compiler.compile(&cr);
+	cr.stage = FileStage_Parser;
 
-	// compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
+	compiler.compile(&cr);
+
+	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
   
 	return 1;
 }

@@ -1,0 +1,37 @@
+Each stage's parts are listed in more or less the order they occur in. Lexer is different in that all of its 
+things happen repeatedly.
+
+Lexing:
+    Turn the file into an array of tokens.
+    Mark where in the file certain things occur:
+        Where ':' occur (possible declarations).
+        Where '#' occur and check that the directives following them are valid. 
+    Mark tokens with their scope depth.
+    Mark tokens with their line and column numbers, both start and end.
+    Set the raw string that the token represents.
+    Set the file string that the token resides in.
+
+Preprocessing:
+    Iterate where lexer marked import directives and run lexer and preprocessor on files that are imported:
+        Error on invalid filenames and syntax. Note that this does not parse specific imports, as in it 
+        does not care about importing only 'sin' from "math.su", all it does is start lexing and 
+        preprocessing on files.
+    Resolve ':' tokens as possible declarations:
+        This simply checks that the colons marked by lexer are actually declarations. Following su's rule of
+        <identifier> [<funcargs>] ":" <typeid> we parse around the colon to see if it is a valid declaration
+        and if it is mark the <identifier> token as a declaration. This is useful so that in parsing we dont 
+        have to look for a : when we come across every identifier.
+    Parse marked internal directives:
+        Before this is started, preprocessor's exported decls array takes in all global decls. Then we parse
+        internal directives and as needed pull indexes from the exported decls array into the internal
+        decls array.
+    Parse run directives:
+        This is possibly going to be removed from this stage as I'm not sure if #run will be allowed to be
+        used in a global space to indicate some code to run immediately, so if not this part would be 
+        irrelevant.
+    
+Parsing:
+    
+    
+
+

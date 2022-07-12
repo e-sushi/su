@@ -88,11 +88,18 @@ void Preprocessor::preprocess(){DPZoneScoped;
             // this must be a variable declaration, so we check that the next token is either in token group 
             // type or is just another identifier, we check both because it is possible a struct type is being used
             // also it is possible for there to be no type specifier and an assignment instead
+            // if it is none of these things we check if its a struct declaration, which is just simply checking if "struct" was found after :
             if((tok+1)->group == TokenGroup_Type || (tok+1)->type == Token_Identifier || (tok+1)->type == Token_Assignment){
                 (tok-1)->is_declaration = 1;
+                (tok-1)->decl_type = Declaration_Variable;
                 if(tok->is_global) decls_glob.add((tok-1)->idx);
                 else               decls_loc.add((tok-1)->idx);
-                
+            }
+            else if((tok+1)->type == Token_StructDecl){
+                (tok-1)->is_declaration = 1;
+                (tok-1)->decl_type = Declaration_Structure;
+                if(tok->is_global) decls_glob.add((tok-1)->idx);
+                else               decls_loc.add((tok-1)->idx);
             }
         }else if((tok-1)->type == Token_CloseParen){
             // this must be a function declaration, so we check that the next token is either in a token group type
@@ -111,6 +118,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                 cur--;
                 if(cur->type == Token_Identifier){
                     cur->is_declaration = 1;
+                    cur->decl_type = Declaration_Function;
                     if(tok->is_global) decls_glob.add(cur->idx);
                     else               decls_loc.add(cur->idx);
                 }
@@ -158,22 +166,33 @@ void Preprocessor::preprocess(){DPZoneScoped;
     }
 
     if(globals.verbosity > 3){
+
+        auto decltypestr = [](Type type){
+            switch(type){
+                case Declaration_Function:  return STR8("func");
+                case Declaration_Variable:  return STR8("var");
+                case Declaration_Structure: return STR8("struct");
+
+            }
+            return STR8(ErrorFormat("UNKNOWN"));
+        };
+
         if(sufile->preprocessor.exported_decl.count)
             logger.log(4, "Exported declarations");
         for(u32 idx : sufile->preprocessor.exported_decl){
-            logger.log(4, "  ", sufile->lexer.tokens[idx].raw);
+            logger.log(4, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
         }
 
         if(sufile->preprocessor.internal_decl.count)
             logger.log(4, "Internal declarations");
         for(u32 idx : sufile->preprocessor.internal_decl){
-            logger.log(4, "  ", sufile->lexer.tokens[idx].raw);
+            logger.log(4, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
         }
 
         if(decls_loc.count)
             logger.log(4, "Local declarations");
         for(u32 idx : decls_loc){
-            logger.log(4, "  ", sufile->lexer.tokens[idx].raw);
+            logger.log(4, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
         }
     }
     

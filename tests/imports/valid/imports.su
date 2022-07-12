@@ -5,5 +5,5 @@
 };
 
 main() : s32 {
-    io.print(sin(10.2));
+    io.print(math.sin(10.2));
 };

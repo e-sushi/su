@@ -387,15 +387,20 @@ void Lexer::lex(){DPZoneScoped;
 					if(sufile->lexer.tokens.count && sufile->lexer.tokens[sufile->lexer.tokens.count-1].type == Token_Pound){
 						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
-							logger.error(&token, "Invalid directive following #. Directive was '", token.raw, "'");
+							logger.error(&token, "invalid directive following #. Directive was '", token.raw, "'");
 							type = Token_ERROR;
 						}else{
 							switch(type){
 								case Token_Directive_Import:{
+								
 									sufile->lexer.imports.add(sufile->lexer.tokens.count);
 								}break;
 								case Token_Directive_Internal:{
-									sufile->lexer.internals.add(sufile->lexer.tokens.count);
+									if(scope_depth){
+										logger.error(&token, "attempt to use #internal inside of a scope. #internal only applies to top-level definitions.");
+									}else{
+										sufile->lexer.internals.add(sufile->lexer.tokens.count);
+									}
 								}break;
 								case Token_Directive_Run:{
 									sufile->lexer.runs.add(sufile->lexer.tokens.count);
@@ -405,7 +410,7 @@ void Lexer::lex(){DPZoneScoped;
 						}
 					}
 				}else{
-					logger.error(&token, "Invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
+					logger.error(&token, "invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
 					token.type = Token_ERROR;
 					stream_next;
 				}

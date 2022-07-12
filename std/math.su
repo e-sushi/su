@@ -1,4 +1,8 @@
-sin(x:f64) : f64{ 
+file : struct {
+
+};
+
+sin(x:file) : f64{ 
     //... 
 }
 

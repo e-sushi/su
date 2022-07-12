@@ -1,17 +1,15 @@
 main() : s32 {
-    func() : vec2 {
-        return vec2{1,2} + vec2{2,1};
-    }; 
-
-    return (s32)func().x;
+    return 0;
 };
 
-vec2 : struct {
-    x,y : f32;
-
-    operator ADDITION_PRECEDENCE (lhs:vec2 "+" rhs:vec2) : vec2{
-        return vec2{lhs.x+rhs.x, lhs.y+rhs.y};
-    };
+add(x:s32, y:s32) : s32 {
+    return x + y;
 };
+
+add(x:u32, y:u32) : u32 {
+    return x + y;
+};
+
+
 
  

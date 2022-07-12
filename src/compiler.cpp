@@ -171,7 +171,6 @@ suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
     Parser* parser = (Parser*)memalloc(sizeof(Parser)); 
     mutexes.parser.unlock();
     
-    parser->init();
     parser->sufile = sufile;
     parser->parse();
 

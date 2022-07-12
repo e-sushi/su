@@ -83,6 +83,153 @@ enum{
 	Message_Warn,
 };
 
+//sorted binary searched map for matching identifiers with
+//their declarations. this map supports storing keys who have collided
+//by storing them as neighbors and storing the unhashed key with the value
+//this was delle's idea
+//TODO(sushi) decide if we should store pair<str8,Decl*> in data or just use the str8 `identifier`
+//            that is on Declaration already, this way we just pass a Declaration* and no str8
+struct Declaration;
+struct declmap{
+	array<u64> hashes; 
+	array<pair<str8, Declaration*>> data;
+
+	declmap(){DPZoneScoped;
+		hashes = array<u64>(deshi_allocator);
+		data = array<pair<str8,Declaration*>>(deshi_allocator);
+	}
+
+	u32 find_key(u64 key){DPZoneScoped;
+		spt index = -1;
+		spt middle = -1;
+		if(hashes.count){
+			spt left = 0;
+			spt right = hashes.count-1;
+			while(left <= right){
+				middle = left+((right-left)/2);
+				if(hashes[middle] == key){
+					index = middle;
+					break;
+				}
+				if(hashes[middle] < key){
+					left = middle+1;
+					middle = left+((right-left)/2);
+				}else{
+					right = middle-1;
+				}
+			}
+		}
+		return index;
+	}
+
+	u32 find_key(str8 key){DPZoneScoped;
+		return find_key(str8_hash64(key));
+	}
+
+	//note there is no overload for giving the key as a u64 because this struct requires
+	//storing the original key value in the data.
+	u32 add(str8 key, Declaration* val){DPZoneScoped;
+		u64 key_hash = str8_hash64(key);
+		spt index = -1;
+		spt middle = 0;
+		if(hashes.count){
+			spt left = 0;
+			spt right = hashes.count-1;
+			while(left <= right){
+				middle = left+((right-left)/2);
+				if(hashes[middle] == key_hash){
+					index = middle;
+					break;
+				}
+				if(hashes[middle] < key_hash){
+					left = middle+1;
+					middle = left+((right-left)/2);
+				}else{
+					right = middle-1;
+				}
+			}
+		}
+		//if the index was found AND this is not a collision, we can just return 
+		//but if the second check fails then this is a collision and we must still insert it as a neighbor 
+		if(index != -1 && str8_equal_lazy(key, data[index].first)){
+			return index;
+		}else{
+			hashes.insert(key_hash, middle);
+			data.insert({key, val}, middle);
+			return middle;
+		}
+	}
+
+	b32 has(str8 key){DPZoneScoped;
+
+	}
+
+	b32 has_collided(u64 key){DPZoneScoped;
+		u32 index = find_key(key);
+		if(index != -1 && 
+		   index > 0            && hashes[index-1] != hashes[index] &&
+	       index < hashes.count && hashes[index+1] != hashes[index]){
+			return true;
+		}
+		return false;
+	}
+
+	//find the first instance of a key in the hashes array to simplify looking for a match
+	//when things have collided. I'm not sure this is the best way to go about this.
+	//this expects the duplicated key to have already been found 
+	u32 find_key_first_entry(u64 idx){DPZoneScoped;
+		while(idx!=0 && hashes[idx-1] == hashes[idx]) idx--;
+		return idx;
+	}
+
+	//tests if the hash array at the found index has neighbors that are the same
+	b32 has_collided(str8 key){DPZoneScoped;
+		return has_collided(str8_hash64(key));
+	}
+
+	Declaration* at(str8 key){DPZoneScoped;
+		u32 index = find_key(key);
+		if(index != -1){
+			if(hashes.count == 1){
+				return data[0].second;
+			}else if(index && index < hashes.count-1 && hashes[index-1] != hashes[index] && hashes[index+1] != hashes[index]){
+				return data[index].second;
+			}else if (!index && hashes.count > 1 && hashes[1] != hashes[0]){
+				return data[index].second;
+			}else if(index == hashes.count-1 && hashes[index-1] != hashes[index]){
+				return data[index].second;
+			}else{
+				Log("declmap", "A collision happened in a declmap, which is NOT tested, so you should test this if it appears");
+				TestMe;
+				//a collision happened so we must find the right neighbor
+				u32 idx = index;
+				//iterate backwards as far as we can
+				while(idx!=0 && hashes[idx-1] == hashes[idx]){
+					idx--;
+					if(str8_equal_lazy(data[idx].first, key)){
+						return data[idx].second;
+					}
+				}
+				idx = index;
+				//iterate forwards as far as we can
+				while(idx!=hashes.count-1 && hashes[idx+1] == hashes[idx]){
+					idx++;
+					if(str8_equal_lazy(data[idx].first, key)){
+						return data[idx].second;
+					}
+				}
+				return 0;
+			}
+		}
+		if(index != -1){
+			return data[index].second;
+		}else{
+			return 0;
+		}
+		return 0;
+	}
+};
+
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
 enum NodeType : u32 {
@@ -185,7 +332,6 @@ typedef u32 DataType; enum {
 	DataType_Float32,    // f32 
 	DataType_Float64,    // f64 
 	DataType_String,     // str
-	DataType_Pointer,    // type*
 	DataType_Any,
 	DataType_Structure,  // data type of types and functions
 }; 
@@ -207,9 +353,7 @@ const char* dataTypeStrs[] = {
 	"str",    
 	"ptr",   
 	"any",
-	"struct", 
 }; 
-
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Lexer
@@ -412,12 +556,11 @@ const char* TokenTypes_Names[] = {
 };
 #undef NAME
 
-
-
 struct Token {
 	Type type;
 	Type group;
 	str8 raw; 
+	u64  raw_hash;
 	
 	str8 file;
 	u32 l0, l1;
@@ -427,9 +570,9 @@ struct Token {
 	u32 scope_depth;
 	u32 idx;
 
-
 	b32 is_global; //set true on tokens that are in global scope 
 	b32 is_declaration; //set true on identifier tokens that are the identifier of a declaration
+	Type decl_type;
 
 	union{
 		f64 f64_val;
@@ -589,17 +732,25 @@ struct Scope {
 struct Struct;
 struct Variable;
 struct Function;
+struct ParserThread;
 struct Declaration{
 	TNode node;
 	Token* token_start;
 	Token* token_end;
-	u64 token_idx = 0;
 	
 	//name of declaration as it was first found 
 	str8 identifier;
 	str8 declared_identifier;
 	Type type;
-	b32 internal; //determined in preprocessing
+
+	//set true when the declaration has been fully parsed
+	b32 complete = 0;
+	//set true when a thread starts working on this struct. this is necessary to block other threads from 
+	//thinking a declaration is not complete and therefore doesnt exist
+	b32 in_progress = 0;
+	//used to identify which thread is working on this
+	//and so a thread does not wait on itself to finish a declaration (ex. member functions using the type that is being worked on)
+	ParserThread* working_thread = 0;
 };
 
 #define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
@@ -608,7 +759,11 @@ struct Function {
 	Declaration decl;
 
 	Type data_type;
-
+	Struct* struct_data;
+	//this label is how a function is internally referred to in the case of overloading
+	//it is where name mangling happens
+	//format:
+	//    func_name@argtype1,argtype2,...@rettype1,rettype2,...
 	str8 internal_label;
 	u32 positional_args = 0;
 	map<str8, Declaration*> args;
@@ -622,6 +777,9 @@ struct Variable{
 	Declaration decl;
 
 	Type data_type;
+
+	//number of times * appears on a variable's type specifier
+	u32 pointer_depth;
 
 	Struct* struct_data;
 	union {
@@ -646,11 +804,7 @@ struct Struct {
 
 	Type type;
 	
-	//TODO(sushi) make these maps and make map sorted and binary searched
-	//TODO(sushi) possibly just make this a map of Declaration*
-	array<Variable*> vars;
-	array<Function*> funcs;
-	array<Struct*>   structs;
+	declmap members;
 };
 #define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
 #define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
@@ -671,14 +825,13 @@ struct Program {
 	//TODO add entrypoint string
 };
 
-enum ParseStage {
+enum {
 	psFile,
 	psDirective,
+	psImport,
 	psRun,
 	psScope,
-	psFunctionDecl,
-	psStructDecl,
-	psVarDecl,
+	psDeclaration,
 	psStatement,
 	psExpression,
 	psConditional,
@@ -693,6 +846,29 @@ enum ParseStage {
 	psAdditive,   
 	psTerm,       
 	psFactor,     
+};
+
+const str8 psStrs[] = {
+	STR8("File"),
+	STR8("Directive"),
+	STR8("Import"),
+	STR8("Run"),
+	STR8("Scope"),
+	STR8("Declaration"),
+	STR8("Statement"),
+	STR8("Expression"),
+	STR8("Conditional"),
+	STR8("LogicalOR"),  
+	STR8("LogicalAND"), 
+	STR8("BitwiseOR"),  
+	STR8("BitwiseXOR"), 
+	STR8("BitwiseAND"), 
+	STR8("Equality"),   
+	STR8("Relational"), 
+	STR8("Bitshift"),   
+	STR8("Additive"),   
+	STR8("Term"),       
+	STR8("Factor"),     
 };
 
 enum{
@@ -727,7 +903,7 @@ struct suLogger{
 	str8 owner_str_if_sufile_is_0 = {0,0};
 	
 	template<typename...T>
-	void log(u32 verbosity, T... args){
+	void log(u32 verbosity, T... args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
@@ -748,7 +924,29 @@ struct suLogger{
 	}
 
 	template<typename...T>
-	void error(Token* token, T...args){
+	void log(Token* t, u32 verbosity, T... args){DPZoneScoped;
+		if(globals.supress_messages) return;
+		if(globals.verbosity < verbosity) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0),  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Log;
+			message.verbosity = verbosity;
+			message.token = t;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+	}
+
+	template<typename...T>
+	void error(Token* token, T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
@@ -769,7 +967,7 @@ struct suLogger{
 	}
 
 	template<typename...T>
-	void error(T...args){
+	void error(T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
@@ -789,7 +987,7 @@ struct suLogger{
 	}
 
 	template<typename...T>
-	void warn(Token* token, T...args){
+	void warn(Token* token, T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
@@ -808,7 +1006,7 @@ struct suLogger{
 	}
 	
 	template<typename...T>
-	void warn(T...args){
+	void warn(T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 
 		if(globals.log_immediatly){
@@ -837,7 +1035,6 @@ struct suFile{
 
 	struct{ // lexer
 		array<Token> tokens;
-		array<u32> identifiers;  // list of identifier tokens
 		array<u32> declarations; // list of : tokens
 		array<u32> imports;      // list of import tokens
 		array<u32> internals;    // list of internal tokens
@@ -846,30 +1043,35 @@ struct suFile{
 
 	struct{ // preprocessor
 		array<suFile*> imported_files;
-		//point into the lexer's global_decl array to show 
 		array<u32> exported_decl;
 		array<u32> internal_decl;
 		array<u32> runs;
+	
 	}preprocessor;
 
 	struct{ // parser
-		map<str8, Declaration*> exported_decl;
-		map<str8, Declaration*> imported_decl;
-		map<str8, Declaration*> internal_decl;
-		
+		//node that all top-level declarations attach to 
+		TNode base;
+
+		//toplevel declarations known to the parser, these can be maps (i think :) because 
+		//we should never allow a global variable to shadow another global variable
+		declmap exported_decl;
+		declmap imported_decl;
+		declmap internal_decl;
+
 		Declaration*
-		find_identifier(str8 id){
-			if(Declaration* d = *exported_decl.at(id)) return d;
-			if(Declaration* d = *imported_decl.at(id)) return d;
-			if(Declaration* d = *internal_decl.at(id)) return d;
+		find_identifier(str8 id){DPZoneScoped;
+			if(Declaration* d = exported_decl.at(id)) return d;
+			if(Declaration* d = imported_decl.at(id)) return d;
+			if(Declaration* d = internal_decl.at(id)) return d;
 			return 0;
 		}
 
 		//used by a parser parsing a different file
 		Declaration*
-		find_identifier_externally(str8 id){
-			if(Declaration* d = *exported_decl.at(id)) return d;
-			if(Declaration* d = *imported_decl.at(id)) return d;
+		find_identifier_externally(str8 id){DPZoneScoped;
+			if(Declaration* d = exported_decl.at(id)) return d;
+			if(Declaration* d = imported_decl.at(id)) return d;
 			return 0;
 		}
 	}parser;
@@ -884,19 +1086,6 @@ struct Lexer {
 	void lex();
 };
 
-struct LexerThread{
-	Lexer* lexer;
-	str8 buffer;
-	condvar wait;
-};
-
-void lexer_threaded_stub(void* lt){DPZoneScoped;
-	LexerThread* lthread = (LexerThread*)lt;
-	lthread->lexer->lex();
-	DPTracyMessageL("lexer: notifying convar")
-	lthread->wait.notify_all();
-}
-
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Preprocessor
 
@@ -905,34 +1094,32 @@ struct Preprocessor {
 	void preprocess();
 };
 
-struct PreprocessorThread{
-	Preprocessor* preprocessor;
-	suFile* lexfile;
-	condvar wait;
-};
-
-void preprocessor_thread_stub(void* in){DPZoneScoped;
-	PreprocessorThread* pt = (PreprocessorThread*)in;
-	pt->preprocessor->preprocess();
-	DPTracyMessageL("preprocessor: notifying condvar")
-	pt->wait.notify_all(); 
-}
-
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Parser
 
-struct Parser {
-	//file the parser is working in
+struct Parser;
+struct ParserThread{
 	suFile* sufile;
+	
+	Parser* parser;
+	Type stage; //entry stage
+
+	TNode* node;
 	Token* curt;
-	u32 local_decl_iter = 0;
+
+	b32 is_internal;
+
+	b32 finished=0;
+	condvar cv;
 
 	//stacks of known things 
 	//TODO(sushi) replace with arenas
 	struct{
 		//stacks of declarations known in current scope
+		//this array stores the number of declarations that have been pushed in the current scope
+		//so we know how many to pop when going out of the scope
 		array<u32> known_declarations_pushed;
-		map<str8, Declaration*> known_declarations;
+		array<Declaration*> known_declarations;
 		//stacks of elements that we are working with
 		struct{
 			array<Scope*>      scopes;
@@ -951,22 +1138,10 @@ struct Parser {
 		Scope*      scope = 0;
 		Function*   function = 0;
 	}current;	
-
-	FORCE_INLINE void push_scope();
-	FORCE_INLINE void pop_scope();
-	FORCE_INLINE void push_function();
-	FORCE_INLINE void pop_function();
-	FORCE_INLINE void push_expression();
-	FORCE_INLINE void pop_expression();
-	FORCE_INLINE void push_struct();
-	FORCE_INLINE void pop_struct();
-	FORCE_INLINE void push_variable();
-	FORCE_INLINE void pop_variable();
 	
-	void declare(Declaration* d);
-	TNode* define(TNode* node, ParseStage stage);
-	TNode* parse_import();
-	void   parse();
+	Declaration* declare();
+	TNode* define(TNode* node, Type stage);
+	TNode* parse_import(Token* start);
 
 	template<typename ...args> FORCE_INLINE b32
 	curr_match(args... in){DPZoneScoped;
@@ -988,9 +1163,7 @@ struct Parser {
 		return (((curt + 1)->group == in) || ...);
 	}
 
-	void init(){
-		stacks.known_declarations = map<str8, Declaration*>(deshi_allocator);
-		stacks.known_declarations_pushed = array<u32>(deshi_allocator);
+	void init(){DPZoneScoped;
 		stacks.nested.scopes =      array<Scope*>(deshi_allocator);
 		stacks.nested.structs =     array<Struct*>(deshi_allocator);
 		stacks.nested.variables =   array<Variable*>(deshi_allocator);
@@ -998,19 +1171,35 @@ struct Parser {
 		stacks.nested.expressions = array<Expression*>(deshi_allocator);
 	}
 
+	void wait_for_dependency(str8 id){
+
+	}
 };
 
-struct ParserThread{
-	Parser* parser;
-	suFile* pfile;
-	//optional condition variable that a parser may sleep on to wait for one that it creates to finish
-	condvar wake; 
+struct Parser {
+	//maps a str8 indicating what identifier the thread is working on to a parser thread
+	array<ParserThread> threads;
+
+	//map of identifiers to global declarations
+	declmap pending_globals;
+
+	//file the parser is working in
+	suFile* sufile;
+
+	void parse();
+
+	void spawn_parser(ParserThread pt);
+
+	void wait_for_dependency(str8 id);
 };
 
-void parse_threaded_stub(void* pthreadinfo){
+
+void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 	ParserThread* pt = (ParserThread*)pthreadinfo;
-	pt->parser->parse();
-	pt->wake.notify_all();
+	pt->sufile = pt->parser->sufile;
+	pt->define(pt->node, pt->stage);
+	pt->finished = 1;
+	pt->cv.notify_all();
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1041,9 +1230,9 @@ struct Compiler{
 
 	void compile(CompilerRequest* request);
 
-	suFile* start_lexer       (suFile* sufile, b32 spawn_thread = 0);
-	suFile* start_preprocessor(suFile* sufile, b32 spawn_thread = 0);
-	suFile* start_parser      (suFile* sufile, b32 spawn_thread = 0);
+	suFile* start_lexer       (suFile* sufile);
+	suFile* start_preprocessor(suFile* sufile);
+	suFile* start_parser      (suFile* sufile);
 	void    start_request(CompilerRequest* request);
 
 	//used to completely reset all compiled information
@@ -1073,7 +1262,7 @@ struct{
 	Arena* expressions;
 
 	FORCE_INLINE
-	Function* make_function(){
+	Function* make_function(){DPZoneScoped;
 		Function* ret = (Function*)functions->cursor;
 		functions->cursor += sizeof(Function);
 		functions->used += sizeof(Function);
@@ -1081,7 +1270,7 @@ struct{
 	}
 
 	FORCE_INLINE
-	Variable* make_variable(){
+	Variable* make_variable(){DPZoneScoped;
 		Variable* ret = (Variable*)variables->cursor;
 		variables->cursor += sizeof(Variable);
 		variables->used += sizeof(Variable);
@@ -1089,7 +1278,7 @@ struct{
 	}
 
 	FORCE_INLINE
-	Struct* make_struct(){
+	Struct* make_struct(){DPZoneScoped;
 		Struct* ret = (Struct*)structs->cursor;
 		structs->cursor += sizeof(Struct);
 		structs->used += sizeof(Struct);
@@ -1097,7 +1286,7 @@ struct{
 	}
 
 	FORCE_INLINE
-	Scope* make_scope(){
+	Scope* make_scope(){DPZoneScoped;
 		Scope* ret = (Scope*)structs->cursor;
 		scopes->cursor += sizeof(Scope);
 		scopes->used += sizeof(Scope);
@@ -1105,7 +1294,7 @@ struct{
 	}
 
 	FORCE_INLINE
-	Expression* make_expression(){
+	Expression* make_expression(){DPZoneScoped;
 		Expression* ret = (Expression*)expressions->cursor;
 		expressions->cursor += sizeof(Expression);
 		expressions->used += sizeof(Expression);
@@ -1113,7 +1302,7 @@ struct{
 	}
 
 	FORCE_INLINE
-	void init(){
+	void init(){DPZoneScoped;
 		functions   = memory_create_arena(Kilobytes(512));
 		variables   = memory_create_arena(Kilobytes(512));
 		structs     = memory_create_arena(Kilobytes(512));
