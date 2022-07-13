@@ -26,6 +26,9 @@
 #include "kigu/unicode.h"
 #include "kigu/hash.h"
 
+//so we can easily disable in release
+#define ThreadSetName(name) DeshThreadManager->set_thread_name(name)
+
 #include "types.h"
 
 #include "lexer.cpp"
@@ -78,7 +81,19 @@ int main(){DPZoneScoped;
    	platform_init();
    	logger_init();
 
-	arena.init();
+	suArena<u64> test;
+	test.init(3);
+
+	forI(27){
+		test.add(i);
+	}
+
+	test.remove(1);
+
+	forI(26){
+		Log("",test.read(i));
+	}
+
 	DeshThreadManager->init(255);
 	DeshThreadManager->spawn_thread(20);
 	compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");

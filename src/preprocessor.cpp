@@ -35,6 +35,8 @@ void Preprocessor::preprocess(){DPZoneScoped;
     suLogger& logger = sufile->logger; 
     logger.log(1, "Preprocessing...");
 
+    ThreadSetName(suStr8("preprocessing ", sufile->file->name));
+
     Stopwatch time = start_stopwatch();
    
     //first we look for imports, if they are found we lex the file being imported from recursively

@@ -40,7 +40,7 @@ return 0;\
 
 TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
     sufile->logger.log(4, "Parsing token ", curt->raw, " in ", curt->file, "(",curt->l0,",",curt->c0,")", " on stage ", psStrs[stage]);
-    
+    ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
             // i dont think this stage will ever be touched
@@ -276,7 +276,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Function:{
-                    str8 fname = toStr8(curt->raw, curt->l0, curt->c0);
+                    str8 fname = suStr8(curt->raw, curt->l0, curt->c0);
                     Declaration* decl = parser->pending_globals.at(fname);
 
                     if(curt->is_global && !decl){
@@ -302,7 +302,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             else expect(Token_Comma){}
                             else expect(Token_Identifier){
                                 Variable* v = VariableFromDeclaration(define(&f->decl.node, psDeclaration));
-                                f->internal_label = str8_concat(f->internal_label, toStr8("@", (v->decl.token_start + 2)->raw, ","), deshi_temp_allocator);
+                                f->internal_label = str8_concat(f->internal_label, suStr8("@", (v->decl.token_start + 2)->raw, ","), deshi_temp_allocator);
                                 forI(v->pointer_depth){
                                     f->internal_label = str8_concat(f->internal_label, STR8("*"), deshi_temp_allocator);
                                 }
@@ -518,7 +518,7 @@ void Parser::parse(){DPZoneScoped;
             case Declaration_Function:{
                 Function* f = arena.make_function();
                 f->decl.working_thread = pt;
-                str8 fname = toStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
+                str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
                 pending_globals.add(fname, &f->decl);
             }break;
             case Declaration_Variable:{
@@ -555,7 +555,7 @@ void Parser::parse(){DPZoneScoped;
                 //map by name. we also dont want to parse the function for its signature here either
                 //so we store its name followed by its line and column number
                 //like so:  main10
-                str8 fname = toStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
+                str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
                 pending_globals.add(fname, &f->decl);
             }break;
             case Declaration_Variable:{

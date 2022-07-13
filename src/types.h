@@ -8,6 +8,18 @@
 #include "core/threading.h"
 #include "ctype.h"
 
+//attempt at making str8 building thread safe
+#define suStr8(...) to_str8_su(__VA_ARGS__)
+template<class...T>
+str8 to_str8_su(T... args){
+	persist DPTracyLockable(mutex, tostr8_lock);
+	tostr8_lock.lock();
+	str8 ret = toStr8(args...);
+	tostr8_lock.unlock();
+	return ret;
+}
+
+
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compile Options
 enum ReturnCode {
@@ -83,6 +95,132 @@ enum{
 	Message_Warn,
 };
 
+mutex global_mem_lock;
+
+void* su_memalloc(upt size){
+	global_mem_lock.lock();
+	void* ret = memalloc(size);
+	global_mem_lock.unlock();
+	return ret;
+}
+
+void su_memzfree(void* ptr){
+	global_mem_lock.lock();
+	memzfree(ptr);
+	global_mem_lock.unlock();
+}
+
+//attempt at implementing a thread safe memory region 
+//this is chunked, so memory never moves unless you use something like remove
+//TODO(sushi) non-chunked variant
+template<typename T>
+struct suArena{
+	Arena** arenas;
+	u64 arena_count = 0;
+	u64 arena_space = 16;
+	u64 count = 0;
+	mutex write_lock;
+	mutex read_lock;
+
+	void init(upt n_obj_per_chunk){
+		arena_count = 1;
+		arenas = (Arena**)su_memalloc(sizeof(Arena*)*arena_space);
+		global_mem_lock.lock();
+		arenas[arena_count-1] = memory_create_arena(sizeof(T)*n_obj_per_chunk); 
+		global_mem_lock.unlock();
+	}
+
+	void deinit(){
+		global_mem_lock.lock();
+		forI(arena_count){
+			memory_delete_arena(arenas[i]);
+		}
+		global_mem_lock.unlock();
+		su_memzfree(arenas);
+	}
+
+	void add(const T& in){
+		write_lock.lock();
+
+		//make a new arena if needed
+		if(arenas[arena_count-1]->used + sizeof(T) > arenas[arena_count-1]->size){
+			global_mem_lock.lock();
+			if(arena_space == arena_count){
+				arena_space += 16;
+				arenas = (Arena**)memrealloc(arenas, arena_space*sizeof(Arena*));
+			}
+			arenas[arena_count] = memory_create_arena(arenas[arena_count-1]->size);
+			arena_count++;
+			global_mem_lock.unlock();
+		}
+		count++;
+		memcpy(arenas[arena_count-1]->cursor, &in, sizeof(T));
+		arenas[arena_count-1]->used += sizeof(T);
+		arenas[arena_count-1]->cursor += sizeof(T);
+		write_lock.unlock();
+	}
+
+	T read(upt idx){
+		persist u64 read_count = 0;
+		read_lock.lock();
+		read_count++;
+		if(read_count==1){
+			write_lock.lock();
+		}
+		read_lock.unlock();
+
+		Assert(idx < count);
+
+		u64 chunk_size = arenas[0]->size;
+		u64 offset = idx * sizeof(T);
+		u64 arenaidx = offset / chunk_size;
+
+		T ret = *(T*)(arenas[arenaidx]->start + (offset - arenaidx * chunk_size));
+
+		read_lock.lock();
+		read_count--;
+		if(!read_count){
+			write_lock.unlock();
+		}
+		read_lock.unlock();
+
+		return ret; 
+	}
+
+	void remove(upt idx){
+		write_lock.lock();
+		Assert(idx < count);
+
+		u64 chunk_size = arenas[0]->size;
+		u64 offset = idx * sizeof(T);
+		u64 arenaidx = offset / chunk_size;
+		T* removee = (T*)(arenas[arenaidx]->start + (offset-arenaidx*chunk_size));
+
+		memmove(removee, removee+1, chunk_size - (offset - arenaidx * chunk_size));
+
+		forI(arena_count - arenaidx){
+			u64 idx = arenaidx + i;
+			if(idx+1 < arena_count){
+				//there is another arena ahead of this one, so we replace this one's last value with its first
+				//and then move it back one
+				memcpy(arenas[idx]->start + arenas[idx]->size-sizeof(T), arenas[idx+1]->start, sizeof(T));
+				memmove(arenas[idx+1]->start, arenas[idx+1]->start+sizeof(T), arenas[idx+1]->used-sizeof(T));
+				arenas[idx+1]->used -= sizeof(T);
+			}else{
+				//this is the last arena so just move its data back
+				memmove(arenas[idx]->start, arenas[idx]->start+sizeof(T), arenas[idx]->used-sizeof(T));
+				arenas[idx]->used -= sizeof(T);
+				arenas[idx]->cursor -= sizeof(T);
+			}
+		}
+
+		write_lock.unlock();
+	}
+
+};
+
+
+
 //sorted binary searched map for matching identifiers with
 //their declarations. this map supports storing keys who have collided
 //by storing them as neighbors and storing the unhashed key with the value
@@ -129,6 +267,7 @@ struct declmap{
 	//note there is no overload for giving the key as a u64 because this struct requires
 	//storing the original key value in the data.
 	u32 add(str8 key, Declaration* val){DPZoneScoped;
+		persist mutex add_lock;
 		u64 key_hash = str8_hash64(key);
 		spt index = -1;
 		spt middle = 0;
@@ -152,6 +291,7 @@ struct declmap{
 		//if the index was found AND this is not a collision, we can just return 
 		//but if the second check fails then this is a collision and we must still insert it as a neighbor 
 		if(index != -1 && str8_equal_lazy(key, data[index].first)){
+			add_lock.unlock();
 			return index;
 		}else{
 			hashes.insert(key_hash, middle);
@@ -229,6 +369,8 @@ struct declmap{
 		return 0;
 	}
 };
+
+
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
