@@ -114,7 +114,7 @@ void su_memzfree(void* ptr){
 //this is chunked, so memory never moves unless you use something like remove
 //TODO(sushi) non-chunked variant
 template<typename T>
-struct suArena{
+struct suChunkedArena{
 	Arena** arenas;
 	u64 arena_count = 0;
 	u64 arena_space = 16;
@@ -218,6 +218,75 @@ struct suArena{
 	}
 
 };
+
+template<typename T>
+struct suArena{
+	Arena* arena;
+	mutex write_lock;
+	mutex read_lock;
+
+
+	void init(upt initial_size = 16){
+		global_mem_lock.lock();
+		arena = memory_create_arena(sizeof(T)*initial_size); 
+		global_mem_lock.unlock();
+	}
+
+	void deinit(){
+		global_mem_lock.lock();
+		memory_delete_arena(arena);
+		global_mem_lock.unlock();
+	}
+
+	void add(const T& in){
+		write_lock.lock();
+		if(arena->used + sizeof(T) > arena->size){
+			global_mem_lock.lock();
+			memory_grow_arena(arena, sizeof(T)*16);
+			global_mem_lock.unlock();
+		}
+		memcpy(arena->cursor, &in, sizeof(T));
+		arena->used += sizeof(T);
+		arena->cursor += sizeof(T);
+		write_lock.unlock();
+	}
+
+	T read(upt idx){
+		persist u64 read_count = 0;
+		read_lock.lock();
+		read_count++;
+		if(read_count==1){
+			write_lock.lock();
+		}
+		read_lock.unlock();
+
+		Assert(idx < arena->used / sizeof(T));
+
+		T ret = *((T*)arena->start + idx);
+
+		read_lock.lock();
+		read_count--;
+		if(!read_count){
+			write_lock.unlock();
+		}
+		read_lock.unlock();
+
+		return ret; 
+	}
+
+	void remove(upt idx){
+		write_lock.lock();
+		Assert(idx < arena->used / sizeof(T));
+
+		memmove((T*)arena->start + idx, (T*)arena->start + idx + 1, arena->used - sizeof(T)*idx);
+		arena->used -= sizeof(T);
+		arena->cursor -= sizeof(T);
+
+		write_lock.unlock();
+	}
+
+};
+
 
 
 
