@@ -85,19 +85,8 @@ int main(){DPZoneScoped;
 	DeshThreadManager->spawn_thread(20);
 	compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
 
+	arena.init();
 
-	suArena<u64> test;
-	test.init(4);
-
-	forI(20){
-		test.add(i);
-	}
-
-	test.remove(5);
-
-	forI(19){
-		Log("", test.read(i));
-	}
 
 	//speed_test(50, STR8("tests/imports/valid/imports.su"));
 

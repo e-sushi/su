@@ -139,7 +139,7 @@ struct suChunkedArena{
 		su_memzfree(arenas);
 	}
 
-	void add(const T& in){
+	T* add(const T& in){
 		write_lock.lock();
 
 		//make a new arena if needed
@@ -155,9 +155,11 @@ struct suChunkedArena{
 		}
 		count++;
 		memcpy(arenas[arena_count-1]->cursor, &in, sizeof(T));
+		T* ret = (T*)arenas[arena_count-1]->cursor;
 		arenas[arena_count-1]->used += sizeof(T);
 		arenas[arena_count-1]->cursor += sizeof(T);
 		write_lock.unlock();
+		return ret;
 	}
 
 	T read(upt idx){
@@ -224,7 +226,16 @@ struct suArena{
 	Arena* arena;
 	mutex write_lock;
 	mutex read_lock;
+	u64 count = 0;
 
+
+	suArena(){
+
+	}
+
+	~suArena(){
+		
+	}
 
 	void init(upt initial_size = 16){
 		global_mem_lock.lock();
@@ -245,13 +256,14 @@ struct suArena{
 			memory_grow_arena(arena, sizeof(T)*16);
 			global_mem_lock.unlock();
 		}
+		count++;
 		memcpy(arena->cursor, &in, sizeof(T));
 		arena->used += sizeof(T);
 		arena->cursor += sizeof(T);
 		write_lock.unlock();
 	}
 
-	T read(upt idx){
+	T read(upt idx) {
 		persist u64 read_count = 0;
 		read_lock.lock();
 		read_count++;
@@ -274,10 +286,45 @@ struct suArena{
 		return ret; 
 	}
 
+	void modify(upt idx, const T& val){
+		write_lock.lock();
+		Assert(idx < count)
+		memcpy((T*)arena->start + idx, &val, sizeof(T));
+		write_lock.unlock();
+	}
+
+	void insert(upt idx, const T& val){
+		write_lock.lock();
+		Assert(idx <= count);
+		if(idx == count) add(val);
+		else if(arena->used + sizeof(T) > arena->size){
+			global_mem_lock.lock();
+			memory_grow_arena(arena, sizeof(T)*16);
+			global_mem_lock.unlock();
+			memmove((T*)arena->start+idx+1, (T*)arena->start+idx, (count-idx)*sizeof(T));
+			memcpy(arena->start+idx, &val, sizeof(T));
+			count++;
+			arena->used += sizeof(T);
+			arena->cursor += sizeof(T);
+			write_lock.unlock();
+		}else{
+			memmove((T*)arena->start+idx+1, (T*)arena->start+idx, (count-idx)*sizeof(T));
+			memcpy(arena->start+idx, &val, sizeof(T));
+			count++;
+			arena->used += sizeof(T);
+			arena->cursor += sizeof(T);
+			write_lock.unlock();
+		}
+	}
+
+	T operator [](u64 idx){
+		return read(idx);
+	}
+
 	void remove(upt idx){
 		write_lock.lock();
 		Assert(idx < arena->used / sizeof(T));
-
+		count--;
 		memmove((T*)arena->start + idx, (T*)arena->start + idx + 1, arena->used - sizeof(T)*idx);
 		arena->used -= sizeof(T);
 		arena->cursor -= sizeof(T);
@@ -298,12 +345,12 @@ struct suArena{
 //            that is on Declaration already, this way we just pass a Declaration* and no str8
 struct Declaration;
 struct declmap{
-	array<u64> hashes; 
-	array<pair<str8, Declaration*>> data;
+	suArena<u64> hashes; 
+	suArena<pair<str8, Declaration*>> data;
 
 	declmap(){DPZoneScoped;
-		hashes = array<u64>(deshi_allocator);
-		data = array<pair<str8,Declaration*>>(deshi_allocator);
+		hashes.init(256);
+		data.init(256);
 	}
 
 	u32 find_key(u64 key){DPZoneScoped;
@@ -363,8 +410,8 @@ struct declmap{
 			add_lock.unlock();
 			return index;
 		}else{
-			hashes.insert(key_hash, middle);
-			data.insert({key, val}, middle);
+			hashes.insert(middle, key_hash);
+			data.insert(middle, {key, val});
 			return middle;
 		}
 	}
@@ -1466,59 +1513,44 @@ struct CompilerThread{
 //// Memory
 
 struct{
-	Arena* functions;
-	Arena* variables;
-	Arena* structs;
-	Arena* scopes;
-	Arena* expressions;
+	suChunkedArena<Function> functions;
+	suChunkedArena<Variable> variables;
+	suChunkedArena<Struct> structs;
+	suChunkedArena<Scope> scopes;
+	suChunkedArena<Expression> expressions;
 
 	FORCE_INLINE
 	Function* make_function(){DPZoneScoped;
-		Function* ret = (Function*)functions->cursor;
-		functions->cursor += sizeof(Function);
-		functions->used += sizeof(Function);
-		return ret;
+		return functions.add(Function());
 	}
 
 	FORCE_INLINE
 	Variable* make_variable(){DPZoneScoped;
-		Variable* ret = (Variable*)variables->cursor;
-		variables->cursor += sizeof(Variable);
-		variables->used += sizeof(Variable);
-		return ret;
+		return variables.add(Variable());
 	}
 
 	FORCE_INLINE
 	Struct* make_struct(){DPZoneScoped;
-		Struct* ret = (Struct*)structs->cursor;
-		structs->cursor += sizeof(Struct);
-		structs->used += sizeof(Struct);
-		return ret;
+		return structs.add(Struct());
 	}
 
 	FORCE_INLINE
 	Scope* make_scope(){DPZoneScoped;
-		Scope* ret = (Scope*)structs->cursor;
-		scopes->cursor += sizeof(Scope);
-		scopes->used += sizeof(Scope);
-		return ret;
+		return scopes.add(Scope());
 	}
 
 	FORCE_INLINE
 	Expression* make_expression(){DPZoneScoped;
-		Expression* ret = (Expression*)expressions->cursor;
-		expressions->cursor += sizeof(Expression);
-		expressions->used += sizeof(Expression);
-		return ret;
+		return expressions.add(Expression());
 	}
 
 	FORCE_INLINE
 	void init(){DPZoneScoped;
-		functions   = memory_create_arena(Kilobytes(512));
-		variables   = memory_create_arena(Kilobytes(512));
-		structs     = memory_create_arena(Kilobytes(512));
-		scopes      = memory_create_arena(Kilobytes(512));
-		expressions = memory_create_arena(Kilobytes(512));
+		functions.init(256);   
+		variables.init(256);   
+		structs.init(256);     
+		scopes.init(256);      
+		expressions.init(256); 
 	}
 
 }arena;

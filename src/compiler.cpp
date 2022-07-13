@@ -185,11 +185,6 @@ void Compiler::reset(){
         file_deinit(f.file);
     }
     files.clear();
-    memory_clear_arena(arena.functions);
-	memory_clear_arena(arena.variables);
-	memory_clear_arena(arena.structs);
-	memory_clear_arena(arena.scopes);
-	memory_clear_arena(arena.expressions);
-    memory_clear_temp();
+
 }
 
