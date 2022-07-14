@@ -83,9 +83,14 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
             suFile nufile;
             nufile.file = file;
             nufile.stage = FileStage_Null;
+
             
             sufile = files.atIdx(files.add(filename, nufile));
+            sufile->parser.exported_decl.init();
+            sufile->parser.imported_decl.init();
+            sufile->parser.internal_decl.init();
             sufile->logger.sufile = sufile;
+
         } 
 
         ct[i].wait.init();

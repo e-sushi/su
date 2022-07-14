@@ -11,10 +11,12 @@
 //attempt at making str8 building thread safe
 #define suStr8(...) to_str8_su(__VA_ARGS__)
 template<class...T>
-str8 to_str8_su(T... args){
-	persist DPTracyLockable(mutex, tostr8_lock);
+str8 to_str8_su(T... args){DPZoneScoped;
+	persist mutex tostr8_lock = init_mutex();
 	tostr8_lock.lock();
+	DPTracyMessageL("using toStr8");
 	str8 ret = toStr8(args...);
+	DPTracyDynMessage(toStr("made '", ret, "'"));
 	tostr8_lock.unlock();
 	return ret;
 }
@@ -95,7 +97,7 @@ enum{
 	Message_Warn,
 };
 
-mutex global_mem_lock;
+mutex global_mem_lock = init_mutex();
 
 void* su_memalloc(upt size){
 	global_mem_lock.lock();
@@ -123,6 +125,8 @@ struct suChunkedArena{
 	mutex read_lock;
 
 	void init(upt n_obj_per_chunk){
+		write_lock.init();
+		read_lock.init();
 		arena_count = 1;
 		arenas = (Arena**)su_memalloc(sizeof(Arena*)*arena_space);
 		global_mem_lock.lock();
@@ -223,118 +227,103 @@ struct suChunkedArena{
 
 template<typename T>
 struct suArena{
-	Arena* arena;
+	T* data;
 	mutex write_lock;
 	mutex read_lock;
 	u64 count = 0;
+	u64 space = 0;
 
-
-	suArena(){
-
-	}
-
-	~suArena(){
-		
-	}
-
-	void init(upt initial_size = 16){
+	void init(upt initial_size = 16){DPZoneScoped;
+		write_lock.init();
+		read_lock.init();
 		global_mem_lock.lock();
-		arena = memory_create_arena(sizeof(T)*initial_size); 
+		space = initial_size;
+		data = (T*)memalloc(sizeof(T)*space); 
 		global_mem_lock.unlock();
 	}
 
-	void deinit(){
+	void deinit(){DPZoneScoped;
+		write_lock.deinit();
+		read_lock.deinit();
 		global_mem_lock.lock();
-		memory_delete_arena(arena);
+		memzfree(data);
 		global_mem_lock.unlock();
+		count = 0;
+		space = 0;
 	}
 
-	void add(const T& in){
+	void add(const T& in){DPZoneScoped;
 		write_lock.lock();
-		if(arena->used + sizeof(T) > arena->size){
+		if(count == space){
 			global_mem_lock.lock();
-			memory_grow_arena(arena, sizeof(T)*16);
+			space += 16;
+			data = (T*)memrealloc(data, sizeof(T)*space);
 			global_mem_lock.unlock();
 		}
+		memcpy(data+count, &in, sizeof(T));
 		count++;
-		memcpy(arena->cursor, &in, sizeof(T));
-		arena->used += sizeof(T);
-		arena->cursor += sizeof(T);
 		write_lock.unlock();
 	}
 
-	T read(upt idx) {
+	//TODO(sushi) need to implement a system for allowing an arbitrary amount of threads to read while blocking writing
+	T read(upt idx) {DPZoneScoped;
 		persist u64 read_count = 0;
-		read_lock.lock();
-		read_count++;
-		if(read_count==1){
-			write_lock.lock();
-		}
-		read_lock.unlock();
+		write_lock.lock();
 
-		Assert(idx < arena->used / sizeof(T));
+		Assert(idx < count);
 
-		T ret = *((T*)arena->start + idx);
+		T ret = *(data + idx);
 
-		read_lock.lock();
-		read_count--;
-		if(!read_count){
-			write_lock.unlock();
-		}
-		read_lock.unlock();
+		write_lock.unlock();
 
 		return ret; 
 	}
 
-	void modify(upt idx, const T& val){
+	void modify(upt idx, const T& val){DPZoneScoped;
 		write_lock.lock();
 		Assert(idx < count)
-		memcpy((T*)arena->start + idx, &val, sizeof(T));
+		memcpy(data+idx, &val, sizeof(T));
 		write_lock.unlock();
 	}
 
-	void insert(upt idx, const T& val){
+	void insert(upt idx, const T& val){DPZoneScoped;
 		write_lock.lock();
 		Assert(idx <= count);
-		if(idx == count) add(val);
-		else if(arena->used + sizeof(T) > arena->size){
+		if(idx == count){
+			add(val);
+			write_lock.unlock();
+		} else if(count == space){
 			global_mem_lock.lock();
-			memory_grow_arena(arena, sizeof(T)*16);
+			space += 16;
+			data = (T*)memrealloc(data, sizeof(T)*space);
 			global_mem_lock.unlock();
-			memmove((T*)arena->start+idx+1, (T*)arena->start+idx, (count-idx)*sizeof(T));
-			memcpy(arena->start+idx, &val, sizeof(T));
+			memmove(data+idx+1, data+idx, (count-idx)*sizeof(T));
+			memcpy(data+idx, &val, sizeof(T));
 			count++;
-			arena->used += sizeof(T);
-			arena->cursor += sizeof(T);
 			write_lock.unlock();
 		}else{
-			memmove((T*)arena->start+idx+1, (T*)arena->start+idx, (count-idx)*sizeof(T));
-			memcpy(arena->start+idx, &val, sizeof(T));
+			memmove(data+idx+1, data+idx, (count-idx)*sizeof(T));
+			memcpy(data+idx, &val, sizeof(T));
 			count++;
-			arena->used += sizeof(T);
-			arena->cursor += sizeof(T);
 			write_lock.unlock();
 		}
 	}
 
-	T operator [](u64 idx){
+	T operator [](u64 idx){DPZoneScoped;
 		return read(idx);
 	}
 
-	void remove(upt idx){
+	void remove(upt idx){DPZoneScoped;
 		write_lock.lock();
-		Assert(idx < arena->used / sizeof(T));
+		Assert(idx < data->used / sizeof(T));
 		count--;
-		memmove((T*)arena->start + idx, (T*)arena->start + idx + 1, arena->used - sizeof(T)*idx);
-		arena->used -= sizeof(T);
-		arena->cursor -= sizeof(T);
+		memmove((T*)data->start + idx, (T*)data->start + idx + 1, data->used - sizeof(T)*idx);
+		data->used -= sizeof(T);
+		data->cursor -= sizeof(T);
 
 		write_lock.unlock();
 	}
-
 };
-
-
 
 
 //sorted binary searched map for matching identifiers with
@@ -348,7 +337,7 @@ struct declmap{
 	suArena<u64> hashes; 
 	suArena<pair<str8, Declaration*>> data;
 
-	declmap(){DPZoneScoped;
+	void init(){DPZoneScoped;
 		hashes.init(256);
 		data.init(256);
 	}
@@ -1479,11 +1468,10 @@ struct Compiler{
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
 	struct{
-		DPTracyLockable(mutex, lexer);
-		DPTracyLockable(mutex, preprocessor);
-		DPTracyLockable(mutex, parser);
-		DPTracyLockable(mutex, memory); //lock when using deshi's memory module
-		DPTracyLockable(mutex, log); //lock when using logger
+		mutex lexer;
+		mutex preprocessor;
+		mutex parser;
+		mutex log; //lock when using logger
 	}mutexes;
 
 	void compile(CompilerRequest* request);

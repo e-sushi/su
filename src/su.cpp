@@ -85,16 +85,29 @@ int main(){DPZoneScoped;
 	DeshThreadManager->spawn_thread(20);
 	compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
 
-	arena.init();
+	compiler.mutexes.log.init();
+	compiler.mutexes.preprocessor.init();
+	compiler.mutexes.parser.init();
+	compiler.mutexes.lexer.init();
 
+	suArena<u64> test;
+	test.init();
+	test.add(5);
+	test.add(4);
+	test.add(3);
+	test.add(2);
+	test.add(1);
+
+
+	arena.init();
 
 	//speed_test(50, STR8("tests/imports/valid/imports.su"));
 
 	compiler.ctime = start_stopwatch();
 
 	CompilerRequest cr; 
-	cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
-	//cr.filepaths.add(STR8("tests/_/main.su"));
+	//cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
+	cr.filepaths.add(STR8("tests/_/main.su"));
 
 	cr.stage = FileStage_Parser;
 

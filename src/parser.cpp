@@ -40,7 +40,7 @@ return 0;\
 
 TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
     sufile->logger.log(4, "Parsing token ", curt->raw, " in ", curt->file, "(",curt->l0,",",curt->c0,")", " on stage ", psStrs[stage]);
-    ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
+    //ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
             // i dont think this stage will ever be touched
@@ -235,7 +235,8 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     }
 
                     Struct* s = StructFromDeclaration(decl);
-                    s->members = declmap();
+                    s->members.init();
+
                     s->decl.in_progress = 1;
                     s->decl.token_start = curt;
                     s->decl.type = Declaration_Structure;
@@ -476,7 +477,7 @@ void Parser::parse(){DPZoneScoped;
 
 
     threads = array<ParserThread>(deshi_allocator);
-    pending_globals = declmap();
+    pending_globals.init();
 
     //stacks.known_declarations_pushed.add(0);
    
