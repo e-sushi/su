@@ -14,11 +14,14 @@ template<class...T>
 str8 to_str8_su(T... args){DPZoneScoped;
 	persist mutex tostr8_lock = init_mutex();
 	tostr8_lock.lock();
-	DPTracyMessageL("using toStr8");
-	str8 ret = toStr8(args...);
-	DPTracyDynMessage(toStr("made '", ret, "'"));
+	global_mem_lock.lock();
+	str8b str; str8_builder_init(&str, {0}, deshi_temp_allocator);
+	constexpr auto arg_count{sizeof...(T)};
+	str8 arr[arg_count] = {to_str8(args, deshi_temp_allocator)...};
+	forI(arg_count) str8_builder_append(&str, arr[i]);
+	global_mem_lock.unlock();
 	tostr8_lock.unlock();
-	return ret;
+	return str.fin;
 }
 
 
@@ -72,7 +75,7 @@ enum OSOut {
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = 0;
+	u32 verbosity = 4;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -267,7 +270,6 @@ struct suArena{
 
 	//TODO(sushi) need to implement a system for allowing an arbitrary amount of threads to read while blocking writing
 	T read(upt idx) {DPZoneScoped;
-		persist u64 read_count = 0;
 		write_lock.lock();
 
 		Assert(idx < count);
@@ -313,6 +315,20 @@ struct suArena{
 		return read(idx);
 	}
 
+	T* readptr(u64 idx){
+		write_lock.lock();
+		//NOTE(sushi) its probably possible that once the thread gets into here 
+		//            that another thread has removed enough elements to make this idx invalid
+		//            the solution is to just avoid situations where this would happen
+		Assert(idx < count);
+
+		T* ret = data + idx;
+
+		write_lock.unlock();
+
+		return ret;
+	}
+
 	void remove(upt idx){DPZoneScoped;
 		write_lock.lock();
 		Assert(idx < data->used / sizeof(T));
@@ -323,6 +339,20 @@ struct suArena{
 
 		write_lock.unlock();
 	}
+
+	void remove_unordered(upt idx){
+		Assert(idx < count);
+		T endval = data[count-1];
+		count--;
+		if(count){
+			data[idx] = endval;
+		}
+	}
+
+	inline T* begin(){ return &data[0]; }
+	inline T* end()  { return &data[count]; }
+	inline const T* begin()const{ return &data[0]; }
+	inline const T* end()  const{ return &data[count]; }
 };
 
 
@@ -372,7 +402,6 @@ struct declmap{
 	//note there is no overload for giving the key as a u64 because this struct requires
 	//storing the original key value in the data.
 	u32 add(str8 key, Declaration* val){DPZoneScoped;
-		persist mutex add_lock;
 		u64 key_hash = str8_hash64(key);
 		spt index = -1;
 		spt middle = 0;
@@ -396,7 +425,6 @@ struct declmap{
 		//if the index was found AND this is not a collision, we can just return 
 		//but if the second check fails then this is a collision and we must still insert it as a neighbor 
 		if(index != -1 && str8_equal_lazy(key, data[index].first)){
-			add_lock.unlock();
 			return index;
 		}else{
 			hashes.insert(middle, key_hash);
@@ -1281,18 +1309,18 @@ struct suFile{
 	suLogger logger;
 
 	struct{ // lexer
-		array<Token> tokens;
-		array<u32> declarations; // list of : tokens
-		array<u32> imports;      // list of import tokens
-		array<u32> internals;    // list of internal tokens
-		array<u32> runs;         // list of run tokens
+		suArena<Token> tokens;
+		suArena<u32> declarations; // list of : tokens
+		suArena<u32> imports;      // list of import tokens
+		suArena<u32> internals;    // list of internal tokens
+		suArena<u32> runs;         // list of run tokens
 	}lexer;
 
 	struct{ // preprocessor
-		array<suFile*> imported_files;
-		array<u32> exported_decl;
-		array<u32> internal_decl;
-		array<u32> runs;
+		suArena<suFile*> imported_files;
+		suArena<u32> exported_decl;
+		suArena<u32> internal_decl;
+		suArena<u32> runs;
 	
 	}preprocessor;
 
@@ -1322,6 +1350,21 @@ struct suFile{
 			return 0;
 		}
 	}parser;
+
+	void init(){
+		lexer.tokens.init();
+		lexer.declarations.init();
+		lexer.imports.init();
+		lexer.internals.init();
+		lexer.runs.init();
+		preprocessor.imported_files.init();
+		preprocessor.exported_decl.init();
+		preprocessor.internal_decl.init();
+		preprocessor.runs.init();
+		parser.exported_decl.init();
+		parser.imported_decl.init();
+		parser.internal_decl.init();
+	}
 };
 
 

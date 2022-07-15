@@ -46,7 +46,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
     logger.log(2, "Processing imports");
     CompilerRequest cr;
     for(u32 importidx : sufile->lexer.imports){
-        Token* curt = &sufile->lexer.tokens[importidx];
+        Token* curt = sufile->lexer.tokens.readptr(importidx);
         curt++;
         if(curt->type == Token_OpenBrace){
             //multiline directive 
@@ -82,10 +82,12 @@ void Preprocessor::preprocess(){DPZoneScoped;
     }
     
     logger.log(2, "Resolving colon tokens as possible valid declarations.");
-    array<u32> decls_glob;
-    array<u32> decls_loc; //this is really only for debug info, not skipping local tokens because they still need to be marked as declarations
+    suArena<u32> decls_glob;
+    suArena<u32> decls_loc; //this is really only for debug info, not skipping local tokens because they still need to be marked as declarations
+    decls_glob.init();
+    decls_loc.init();
     for(u32 idx : sufile->lexer.declarations){
-        Token* tok = &sufile->lexer.tokens[idx];
+        Token* tok = sufile->lexer.tokens.readptr(idx);
         if((tok-1)->type == Token_Identifier){
             // this must be a variable declaration, so we check that the next token is either in token group 
             // type or is just another identifier, we check both because it is possible a struct type is being used
@@ -131,7 +133,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
     logger.log(2, "Finding internal declarations.");
     sufile->preprocessor.exported_decl = decls_glob;
     for(u32 idx : sufile->lexer.internals){
-        Token* curt = &sufile->lexer.tokens[idx];
+        Token* curt = sufile->lexer.tokens.readptr(idx);
         curt++;
         u32 start = idx, end;
         if(curt->type == Token_OpenBrace){

@@ -77,6 +77,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                         cr.filepaths.add(curt->raw);
                         cr.stage = FileStage_Parser;
                         compiler.compile(&cr);
+                        sufileex = compiler.files.at(filename);
                     }
 
                     curt++;
@@ -144,7 +145,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                         //so we make a new struct and add the declarations to it
                         expect(Token_Identifier){
                             Struct* s = arena.make_struct();
-                            *s = Struct(); 
+                            s->members.init(); 
                             s->decl.identifier = curt->raw;
                             s->decl.declared_identifier = curt->raw;
                             s->decl.token_start = curt;
@@ -295,6 +296,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     stacks.known_declarations.add(&f->decl);
                     str8 id = curt->raw;
                     f->internal_label = id;
+                    f->internal_label = str8_concat(f->internal_label, STR8("@"), deshi_temp_allocator);
                     curt++;
                     expect(Token_OpenParen){ // name(
                         while(1){
@@ -303,7 +305,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             else expect(Token_Comma){}
                             else expect(Token_Identifier){
                                 Variable* v = VariableFromDeclaration(define(&f->decl.node, psDeclaration));
-                                f->internal_label = str8_concat(f->internal_label, suStr8("@", (v->decl.token_start + 2)->raw, ","), deshi_temp_allocator);
+                                f->internal_label = str8_concat(f->internal_label, suStr8((v->decl.token_start + 2)->raw, ","), deshi_temp_allocator);
                                 forI(v->pointer_depth){
                                     f->internal_label = str8_concat(f->internal_label, STR8("*"), deshi_temp_allocator);
                                 }
@@ -486,7 +488,7 @@ void Parser::parse(){DPZoneScoped;
     {// make sure that all imported modules have been parsed before parsing this one
      // then gather the defintions from them that this file wants to use
         forI(sufile->lexer.imports.count){
-            Token* itok = &sufile->lexer.tokens[sufile->lexer.imports[i]];
+            Token* itok = sufile->lexer.tokens.readptr(sufile->lexer.imports[i]);
             if(!itok->scope_depth){
                 //dummy thread, this shouldnt actually be concurrent
                 ParserThread pt;
@@ -510,7 +512,7 @@ void Parser::parse(){DPZoneScoped;
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
         pt->cv.init();
-        pt->curt = &sufile->lexer.tokens[idx];
+        pt->curt = sufile->lexer.tokens.readptr(idx);
         pt->parser = this;
         pt->node = &sufile->parser.base;
         pt->stage = psDeclaration;
@@ -540,7 +542,7 @@ void Parser::parse(){DPZoneScoped;
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
         pt->cv.init();
-        pt->curt = &sufile->lexer.tokens[idx];
+        pt->curt = sufile->lexer.tokens.readptr(idx);
         pt->parser = this;
         pt->node = &sufile->parser.base;
         pt->stage = psDeclaration;
