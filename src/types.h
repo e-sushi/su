@@ -1183,7 +1183,8 @@ struct suLogger{
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", args...);
+			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
@@ -1204,7 +1205,8 @@ struct suLogger{
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0),  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0),  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
+			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
@@ -1225,7 +1227,8 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error: "), args...);
+			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
@@ -1246,7 +1249,8 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error: "), args...);
+			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
@@ -1266,7 +1270,8 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("error: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("error: "), args...);
+			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
@@ -1283,10 +1288,10 @@ struct suLogger{
 	template<typename...T>
 	void warn(T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
-
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			Log("", VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), WarningFormat("warning: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), WarningFormat("warning: "), args...);
+			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;

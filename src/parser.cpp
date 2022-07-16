@@ -52,11 +52,12 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         }break;
 
         case psImport:{ //---------------------------------------------------------------------------------------------Import
+            //#import 
             array<Declaration*> imported_decls;
             curt++;
-            expect(Token_OpenBrace){
+            expect(Token_OpenBrace){ //#import {
                 curt++; 
-                expect(Token_LiteralString){
+                expect(Token_LiteralString){ //#import { "..." 
                     str8 filename = curt->raw;
                     u32 path_loc;
                     path_loc = str8_find_last(filename, '/');
@@ -81,50 +82,49 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     }
 
                     curt++;
-                    expect(Token_OpenBrace){
+                    expect(Token_OpenBrace){ //#import { "..." { 
                         //we are including specific defintions from the import
                         while(1){
                             curt++;
-                            expect(Token_Identifier){
+                            expect(Token_Identifier){ //#import { "..." { <id> 
                                 //now we must make sure it exists
                                 Type type = 0;
                                 Declaration* decl = 0;
                                 sufileex->parser.find_identifier_externally(curt->raw);
                                 if(!decl) perror(curt, "Attempted to include declaration '", curt->raw, "' from module '", sufileex->file->front, "' but it is either internal or doesn't exist.");
-                                else{
-                                    expect(Token_As){
-                                        //in this case we must duplicate the declaration and give it a new identifier
-                                        //TODO(sushi) duplication may not be necessary, instead we can store a local name
-                                        //            and just use the same declaration node.
-                                        curt++;
-                                        expect(Token_Identifier){
-                                            switch(decl->type){
-                                                case Declaration_Structure:{
-                                                    Struct* s = arena.make_struct();
-                                                    memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
-                                                    s->decl.identifier = curt->raw;
-                                                    decl = &s->decl;
-                                                }break;
-                                                case Declaration_Function:{
-                                                    Function* s = arena.make_function();
-                                                    memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
-                                                    s->decl.identifier = curt->raw;
-                                                    decl = &s->decl;
-                                                }break;
-                                                case Declaration_Variable:{
-                                                    Variable* s = arena.make_variable();
-                                                    memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
-                                                    s->decl.identifier = curt->raw;
-                                                    decl = &s->decl;
-                                                }break;
-                                            }
-                                        }else perror(curt, "Expected an identifier after 'as'");
-                                    }else{
-                                        
-                                    }
+                                else expect(Token_As){ //#import { "..." { <id> as
+                                    //in this case we must duplicate the declaration and give it a new identifier
+                                    //TODO(sushi) duplication may not be necessary, instead we can store a local name
+                                    //            and just use the same declaration node.
+                                    //TODO(sushi) dont duplicate the declaration
+                                    curt++;
+                                    expect(Token_Identifier) {//#import { "..." { <id> as <id>
+                                        switch(decl->type){
+                                            case Declaration_Structure:{
+                                                Struct* s = arena.make_struct();
+                                                memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
+                                                s->decl.identifier = curt->raw;
+                                                decl = &s->decl;
+                                            }break;
+                                            case Declaration_Function:{
+                                                Function* s = arena.make_function();
+                                                memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
+                                                s->decl.identifier = curt->raw;
+                                                decl = &s->decl;
+                                            }break;
+                                            case Declaration_Variable:{
+                                                Variable* s = arena.make_variable();
+                                                memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
+                                                s->decl.identifier = curt->raw;
+                                                decl = &s->decl;
+                                            }break;
+                                        }
+                                    }else perror(curt, "Expected an identifier after 'as'");
+                                }else{
+                                    
                                 }
-                                expect(Token_Comma){} 
-                                else expect(Token_CloseBrace) {
+                                expect(Token_Comma){} //#import { "..." ... ,
+                                else expect(Token_CloseBrace) { //#import { "..." ... } 
                                     break;
                                 }else perror(curt, "Unknown token.");
 
@@ -296,7 +296,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     stacks.known_declarations.add(&f->decl);
                     str8 id = curt->raw;
                     f->internal_label = id;
-                    f->internal_label = str8_concat(f->internal_label, STR8("@"), deshi_temp_allocator);
+                    f->internal_label = suStr8(f->internal_label, "@");
                     curt++;
                     expect(Token_OpenParen){ // name(
                         while(1){
@@ -305,16 +305,12 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             else expect(Token_Comma){}
                             else expect(Token_Identifier){
                                 Variable* v = VariableFromDeclaration(define(&f->decl.node, psDeclaration));
-                                f->internal_label = str8_concat(f->internal_label, suStr8((v->decl.token_start + 2)->raw, ","), deshi_temp_allocator);
+                                f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
-                                    f->internal_label = str8_concat(f->internal_label, STR8("*"), deshi_temp_allocator);
+                                    f->internal_label = suStr8(f->internal_label, STR8("*"));
                                 }
 
                             } else perror_ret(curt, "expected an identifier for function variable declaration.");
-                        }
-                        if(is_global){
-                            if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
-                            else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
                         }
                         curt++;
                         expect(Token_Colon){ // name(...) :
@@ -322,10 +318,11 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             //TODO(sushi) multiple return types
                             expect_group(TokenGroup_Type){ // name(...) : <type>
                                 f->data_type = curt->type;
-                                curt++;
-                                expect(Token_OpenBrace){ // name(...) : <type> {
-                                    define(&f->decl.node, psScope);
-                                } else perror(curt, "expected '{' after function declaration.");
+                                f->internal_label = suStr8(f->internal_label, "@", curt->raw);
+                                if(is_global){
+                                    if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
+                                    else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
+                                }
                             }else expect(Token_Identifier){ // name(...) : <type>
                                 //we are most likely referencing a struct type in this case, so we must look to see if it exists
                                 b32 found = 0;
@@ -334,6 +331,11 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                     if(str8_equal_lazy(d->identifier, curt->raw)){
                                         if(d->type == Declaration_Structure){
                                             f->data_type = curt->type;
+                                            f->internal_label = suStr8(f->internal_label, "@", curt->raw);
+                                            if(is_global){
+                                                if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
+                                                else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
+                                            }
                                         } else perror(curt, "expected a struct identifier for type specifier in declaration of function '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this.");
                                     }
                                 }
@@ -348,9 +350,19 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                         }
                                         f->data_type = Token_Struct;
                                         f->struct_data = StructFromDeclaration(d);
+                                        f->internal_label = suStr8(f->internal_label, "@", curt->raw);
+                                        if(is_global){
+                                            if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
+                                            else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
+                                        }
                                     } else perror(curt, "unknown identifier '", curt->raw, "' used as return type for function declaration of '", id, "'");
                                 }
+                                
                             } else perror(curt, "expected a type specifier after ':' in function declaration.");
+                            curt++;
+                            expect(Token_OpenBrace) {
+                                define(&f->decl.node, psScope);
+                            } else perror(curt, "expected '{' after function declaration.");
                         } else perror(curt, "expected : after function definition.");
                     } else perror(curt, "expected ( after identifier in function declaration.");
                 }break;
@@ -476,7 +488,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 void Parser::parse(){DPZoneScoped;
     Stopwatch time = start_stopwatch();
     sufile->logger.log(1, "Parsing...");
-
 
     threads = array<ParserThread>(deshi_allocator);
     pending_globals.init();
