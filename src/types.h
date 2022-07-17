@@ -73,9 +73,27 @@ enum OSOut {
 	OSOut_OSX,
 };
 
+/*	Verbosity
+	0: Does not display any information other than warnings, errors, and notes that may come with them
+	1: Shows each files name as it is reached in compilation 
+	2: Shows the stages as they happen and the time it took for them to complete
+	3: Shows parts of the stages as they happen
+	4: Shows even more detail about whats happening in each stage
+	5: Shows compiler debug information from each stage
+*/
+
+enum{
+	Verbosity_Always,
+	Verbosity_FileNames,
+	Verbosity_Stages,
+	Verbosity_StageParts,
+	Verbosity_Detailed,
+	Verbosity_Debug,
+};
+
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = 4;
+	u32 verbosity = Verbosity_Debug;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -85,14 +103,6 @@ struct {
 	b32 assert_compiler_on_error = true;
 	OSOut osout = OSOut_Windows;
 } globals;
-
-/*	Verbosity
-	0: Shows the names of files as they are processed 
-	1: Shows the stages as they happen and the time it took for them to complete
-	2: Shows parts of the stages as they happen
-	3: Shows even more detail about whats happening in each stage
-	4: Shows compiler debug information from each stage
-*/
 
 enum{
 	Message_Log,

@@ -163,9 +163,9 @@ b32 is_identifier_char(u32 codepoint){
 
 void Lexer::lex(){DPZoneScoped;
 	suLogger& logger = sufile->logger; 
-	logger.log(1, "Lexing...");
+	logger.log(Verbosity_Stages, "Lexing...");
 
-	ThreadSetName(suStr8("lexing ", sufile->file->name));
+	//ThreadSetName(suStr8("lexing ", sufile->file->name));
 
 	Stopwatch lex_time = start_stopwatch();
 	
@@ -181,7 +181,7 @@ void Lexer::lex(){DPZoneScoped;
 	//arent considered global and arent exported
 	u32 paren_depth = 0; 
 
-	logger.log(2, "Beginning lex");
+	logger.log(Verbosity_StageParts, "Beginning lex");
 	while(stream){
 		Token token={0};
 		token.file = sufile->file->name;
@@ -394,7 +394,6 @@ void Lexer::lex(){DPZoneScoped;
 						}else{
 							switch(type){
 								case Token_Directive_Import:{
-								
 									sufile->lexer.imports.add(sufile->lexer.tokens.count);
 								}break;
 								case Token_Directive_Internal:{
@@ -446,7 +445,7 @@ void Lexer::lex(){DPZoneScoped;
 	}
 
 	sufile->lexer.tokens.add(Token{Token_EOF, Token_EOF});	
-	logger.log(1, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
+	logger.log(Verbosity_Stages, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 }
 
 #undef LINE_COLUMN

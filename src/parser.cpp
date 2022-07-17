@@ -39,7 +39,7 @@ return 0;\
 #define expect_group(...) if(curr_match_group(__VA_ARGS__))
 
 TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
-    sufile->logger.log(4, "Parsing token ", curt->raw, " in ", curt->file, "(",curt->l0,",",curt->c0,")", " on stage ", psStrs[stage]);
+    sufile->logger.log(Verbosity_Debug, "Parsing token ", curt->raw, " in ", curt->file, "(",curt->l0,",",curt->c0,")", " on stage ", psStrs[stage]);
     //ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
@@ -57,118 +57,128 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
             curt++;
             expect(Token_OpenBrace){ //#import {
                 curt++; 
-                expect(Token_LiteralString){ //#import { "..." 
-                    str8 filename = curt->raw;
-                    u32 path_loc;
-                    path_loc = str8_find_last(filename, '/');
-                    if(path_loc == npos)
-                        path_loc = str8_find_last(filename, '\\');
-                    if(path_loc != npos){
-                        filename.str += path_loc+1;
-                        filename.count -= path_loc+1;
-                    }
-
-                    suFile* sufileex = compiler.files.at(filename);
-                    
-                    if(!sufileex || sufileex->stage < FileStage_Parser){
-                        //this warning indicates that something isnt behaving right in the compiler
-                        //if its long after 2022/07/05 then this warning can probably be removed
-                        if(!sufileex) compiler.logger.warn("INTERNAL: A file path was found in parsing that does not exist yet. All files that are dependencies of other files should be lexed and preprocessed before files that depend on them are parsed.");
-                        CompilerRequest cr;
-                        cr.filepaths.add(curt->raw);
-                        cr.stage = FileStage_Parser;
-                        compiler.compile(&cr);
-                        sufileex = compiler.files.at(filename);
-                    }
-
-                    curt++;
-                    expect(Token_OpenBrace){ //#import { "..." { 
-                        //we are including specific defintions from the import
-                        while(1){
-                            curt++;
-                            expect(Token_Identifier){ //#import { "..." { <id> 
-                                //now we must make sure it exists
-                                Type type = 0;
-                                Declaration* decl = 0;
-                                sufileex->parser.find_identifier_externally(curt->raw);
-                                if(!decl) perror(curt, "Attempted to include declaration '", curt->raw, "' from module '", sufileex->file->front, "' but it is either internal or doesn't exist.");
-                                else expect(Token_As){ //#import { "..." { <id> as
-                                    //in this case we must duplicate the declaration and give it a new identifier
-                                    //TODO(sushi) duplication may not be necessary, instead we can store a local name
-                                    //            and just use the same declaration node.
-                                    //TODO(sushi) dont duplicate the declaration
-                                    curt++;
-                                    expect(Token_Identifier) {//#import { "..." { <id> as <id>
-                                        switch(decl->type){
-                                            case Declaration_Structure:{
-                                                Struct* s = arena.make_struct();
-                                                memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
-                                                s->decl.identifier = curt->raw;
-                                                decl = &s->decl;
-                                            }break;
-                                            case Declaration_Function:{
-                                                Function* s = arena.make_function();
-                                                memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
-                                                s->decl.identifier = curt->raw;
-                                                decl = &s->decl;
-                                            }break;
-                                            case Declaration_Variable:{
-                                                Variable* s = arena.make_variable();
-                                                memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
-                                                s->decl.identifier = curt->raw;
-                                                decl = &s->decl;
-                                            }break;
-                                        }
-                                    }else perror(curt, "Expected an identifier after 'as'");
-                                }else{
-                                    
-                                }
-                                expect(Token_Comma){} //#import { "..." ... ,
-                                else expect(Token_CloseBrace) { //#import { "..." ... } 
-                                    break;
-                                }else perror(curt, "Unknown token.");
-
-        
-                                imported_decls.add(decl);
-                            }else perror(curt, "Expected an identifier for including specific definitions from a module.");
+                while(1){
+                    expect(Token_LiteralString){ //#import { "..." 
+                        str8 filename = curt->raw;
+                        u32 path_loc;
+                        path_loc = str8_find_last(filename, '/');
+                        if(path_loc == npos)
+                            path_loc = str8_find_last(filename, '\\');
+                        if(path_loc != npos){
+                            filename.str += path_loc+1;
+                            filename.count -= path_loc+1;
                         }
-                    }else{
-                        //in this case the user isnt specifying anything specific so we import all public declarations from the module
-                        imported_decls.reserve(sufileex->parser.exported_decl.data.count);
-                        forI(sufileex->parser.exported_decl.data.count){
-                            imported_decls.add(sufileex->parser.exported_decl.data[i].second);
+
+                        suFile* sufileex = compiler.files.at(filename);
+                        
+                        if(!sufileex || sufileex->stage < FileStage_Parser){
+                            //this warning indicates that something isnt behaving right in the compiler
+                            //if its long after 2022/07/05 then this warning can probably be removed
+                            if(!sufileex) compiler.logger.warn("INTERNAL: A file path was found in parsing that does not exist yet. All files that are dependencies of other files should be lexed and preprocessed before files that depend on them are parsed.");
+                            CompilerRequest cr;
+                            cr.filepaths.add(curt->raw);
+                            cr.stage = FileStage_Parser;
+                            compiler.compile(&cr);
+                            sufileex = compiler.files.at(filename);
                         }
-                    }
-                    expect(Token_As){
+
                         curt++;
-                        //in this case the user must be using 'as' to give the module a namespace
-                        //so we make a new struct and add the declarations to it
-                        expect(Token_Identifier){
-                            Struct* s = arena.make_struct();
-                            s->members.init(); 
-                            s->decl.identifier = curt->raw;
-                            s->decl.declared_identifier = curt->raw;
-                            s->decl.token_start = curt;
-                            s->decl.token_end = curt;
-                            s->decl.type = Declaration_Structure;
-                            forI(imported_decls.count){
-                                s->members.add(imported_decls[i]->identifier, imported_decls[i]);
+                        expect(Token_OpenBrace){ //#import { "..." { 
+                            //we are including specific defintions from the import
+                            while(1){
+                                curt++;
+                                expect(Token_Identifier){ //#import { "..." { <id> 
+                                    //now we must make sure it exists
+                                    Type type = 0;
+                                    Declaration* decl = 0;
+                                    sufileex->parser.find_identifier_externally(curt->raw);
+                                    if(!decl) perror(curt, "Attempted to include declaration '", curt->raw, "' from module '", sufileex->file->front, "' but it is either internal or doesn't exist.");
+                                    else expect(Token_As){ //#import { "..." { <id> as
+                                        //in this case we must duplicate the declaration and give it a new identifier
+                                        //TODO(sushi) duplication may not be necessary, instead we can store a local name
+                                        //            and just use the same declaration node.
+                                        //TODO(sushi) dont duplicate the declaration
+                                        curt++;
+                                        expect(Token_Identifier) {//#import { "..." { <id> as <id>
+                                            switch(decl->type){
+                                                case Declaration_Structure:{
+                                                    Struct* s = arena.make_struct();
+                                                    memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
+                                                    s->decl.identifier = curt->raw;
+                                                    decl = &s->decl;
+                                                }break;
+                                                case Declaration_Function:{
+                                                    Function* s = arena.make_function();
+                                                    memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
+                                                    s->decl.identifier = curt->raw;
+                                                    decl = &s->decl;
+                                                }break;
+                                                case Declaration_Variable:{
+                                                    Variable* s = arena.make_variable();
+                                                    memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
+                                                    s->decl.identifier = curt->raw;
+                                                    decl = &s->decl;
+                                                }break;
+                                            }
+                                        }else perror(curt, "Expected an identifier after 'as'");
+                                    }else{
+                                        
+                                    }
+                                    expect(Token_Comma){} //#import { "..." ... ,
+                                    else expect(Token_CloseBrace) { //#import { "..." ... } 
+                                        break;
+                                    }else perror(curt, "Unknown token.");
+
+            
+                                    imported_decls.add(decl);
+                                }else perror(curt, "Expected an identifier for including specific definitions from a module.");
                             }
-                            stacks.known_declarations.add(&s->decl);
-                            sufile->parser.imported_decl.add(s->decl.identifier, &s->decl);
-                        }else perror(curt, "Expected an identifier after 'as'");
-                    }else{
-                        //we are just importing all decls into the global space
-                        forI(imported_decls.count){
-                            stacks.known_declarations.add(imported_decls[i]);
-                            (*stacks.known_declarations_pushed.last)++;
+                        }else{
+                            //in this case the user isnt specifying anything specific so we import all public declarations from the module
+                            imported_decls.reserve(sufileex->parser.exported_decl.data.count);
+                            forI(sufileex->parser.exported_decl.data.count){
+                                imported_decls.add(sufileex->parser.exported_decl.data[i].second);
+                            }
                         }
-                    }
-                }else perror(curt, "Import specifier is not a string or identifier.");
-                
+                        expect(Token_As){
+                            curt++;
+                            //in this case the user must be using 'as' to give the module a namespace
+                            //so we make a new struct and add the declarations to it
+                            expect(Token_Identifier){
+                                Struct* s = arena.make_struct();
+                                s->members.init(); 
+                                s->decl.identifier = curt->raw;
+                                s->decl.declared_identifier = curt->raw;
+                                s->decl.token_start = curt;
+                                s->decl.token_end = curt;
+                                s->decl.type = Declaration_Structure;
+                                forI(imported_decls.count){
+                                    s->members.add(imported_decls[i]->identifier, imported_decls[i]);
+                                }
+                                stacks.known_declarations.add(&s->decl);
+                                sufile->parser.imported_decl.add(s->decl.identifier, &s->decl);
+                            }else perror(curt, "Expected an identifier after 'as'");
+                        }else{
+                            //we are just importing all decls into the global space
+                            forI(imported_decls.count){
+                                stacks.known_declarations.add(imported_decls[i]);
+                                (*stacks.known_declarations_pushed.last)++;
+                            }
+                        }
+                    }else perror(curt, "Import specifier is not a string or identifier.");
+                    curt++;
+                    expect(Token_Comma){
+                        curt++;
+                        //support having a comma after the last entry, because it slighty eases adding new entries to the list
+                        expect(Token_CloseBrace) break;
+                    } 
+                    else expect(Token_CloseBrace) break;
+                    else perror_ret(curt, "unexpected token '", curt->raw, "' in import directive.");
+                }
             }else expect(Token_LiteralString){
 
             }else perror(curt, "Import specifier is not a string or identifier.");
+            curt++;
         }break;
 
         case psRun:{ //---------------------------------------------------------------------------------------------------Run
@@ -487,14 +497,14 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
 void Parser::parse(){DPZoneScoped;
     Stopwatch time = start_stopwatch();
-    sufile->logger.log(1, "Parsing...");
+    sufile->logger.log(Verbosity_Stages, "Parsing...");
 
     threads = array<ParserThread>(deshi_allocator);
     pending_globals.init();
 
     //stacks.known_declarations_pushed.add(0);
    
-    sufile->logger.log(2, "Checking that imported files are parsed");
+    sufile->logger.log(Verbosity_StageParts, "Checking that imported files are parsed");
 
     {// make sure that all imported modules have been parsed before parsing this one
      // then gather the defintions from them that this file wants to use
@@ -596,5 +606,5 @@ void Parser::parse(){DPZoneScoped;
         }
     }
     
-    sufile->logger.log(1, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
+    sufile->logger.log(Verbosity_Stages, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
 }

@@ -49,11 +49,11 @@ void compile_threaded_func(void* in){DPZoneScoped;
 
 void Compiler::compile(CompilerRequest* request){DPZoneScoped;
     DPTracyMessageL("compiler: compile requested");
-    logger.log(1, "Beginning compiler request on ", request->filepaths.count, " files.");
+    logger.log(Verbosity_StageParts, "Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
     if(globals.verbosity > 3){
         for(str8 s : request->filepaths){
-            logger.log(4, "Request to compile path ", s);
+            logger.log(Verbosity_Debug, "Request to compile path ", s);
         }
     }
 
@@ -73,7 +73,7 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
 
         //make a new suFile if it doesnt exist already
         if(!sufile){
-            logger.log(2, "File has not been loaded yet, making a new suFile.");
+            logger.log(Verbosity_StageParts, "File has not been loaded yet, making a new suFile.");
             File* file = file_init(filepath, FileAccess_Read);
             if(!file){
                 logger.error("Unable to open file at path ", filepath);
@@ -112,10 +112,10 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
 suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_lexer was passed a null suFile*");
     
-    logger.log(2, "Starting a lexer");
-    logger.log(2, "Checking if file has already been lexed");
+    logger.log(Verbosity_StageParts, "Starting a lexer");
+    logger.log(Verbosity_StageParts, "Checking if file has already been lexed");
 	if(sufile->stage >= FileStage_Lexer){
-		logger.log(2, SuccessFormat("File has already been lexed."));
+		logger.log(Verbosity_StageParts, SuccessFormat("File has already been lexed."));
 		return sufile;
 	}
 
@@ -123,7 +123,7 @@ suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
     Lexer* lexer = (Lexer*)memalloc(sizeof(Lexer));
     mutexes.lexer.unlock();
 	
-    logger.log(2, "Reading file contents into a buffer");
+    logger.log(Verbosity_StageParts, "Reading file contents into a buffer");
     sufile->file_buffer = file_read_alloc(sufile->file, sufile->file->bytes, deshi_temp_allocator); 
     lexer->sufile = sufile;
     lexer->lex();
@@ -138,10 +138,10 @@ suFile* Compiler::start_preprocessor(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
     Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_preprocessor was given a sufile that has not completed previous stages.");
 
-    logger.log(2, "Starting a preprocessor.");
-    logger.log(2, "Checking if file has already been preprocessed.");
+    logger.log(Verbosity_StageParts, "Starting a preprocessor.");
+    logger.log(Verbosity_StageParts, "Checking if file has already been preprocessed.");
     if(sufile->stage >= FileStage_Preprocessor){
-        logger.log(2, SuccessFormat("File has already been preprocessed."));
+        logger.log(Verbosity_StageParts, SuccessFormat("File has already been preprocessed."));
         return sufile;
     } 
 
@@ -162,10 +162,10 @@ suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
     Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_parser was given a sufile that has not completed previous stages.");
 
-    logger.log(2, "Starting a parser.");
-    logger.log(2, "Checking if file has already been parsed");
+    logger.log(Verbosity_StageParts, "Starting a parser.");
+    logger.log(Verbosity_StageParts, "Checking if file has already been parsed");
     if(sufile->stage >= FileStage_Parser){
-        logger.log(2, SuccessFormat("File has already been parsed."));
+        logger.log(Verbosity_StageParts, SuccessFormat("File has already been parsed."));
         return sufile;
     }
     

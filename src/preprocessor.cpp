@@ -33,7 +33,7 @@
                    
 void Preprocessor::preprocess(){DPZoneScoped;
     suLogger& logger = sufile->logger; 
-    logger.log(1, "Preprocessing...");
+    logger.log(Verbosity_Stages, "Preprocessing...");
 
     ThreadSetName(suStr8("preprocessing ", sufile->file->name));
 
@@ -43,7 +43,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
     //TODO(sushi) this can probably be multithreaded
     //we gather import paths so we can setup a job for each one 
     // and lex then preprocess each one at the same time.
-    logger.log(2, "Processing imports");
+    logger.log(Verbosity_StageParts, "Processing imports");
     CompilerRequest cr;
     for(u32 importidx : sufile->lexer.imports){
         Token* curt = sufile->lexer.tokens.readptr(importidx);
@@ -59,7 +59,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                     //attempt to find the module in PATH and current working directory
                     //first check cwd
                     if(file_exists(curt->raw)){
-                        logger.log(2, "Adding import path ", curt->raw);
+                        logger.log(Verbosity_StageParts, "Adding import path ", curt->raw);
                         cr.filepaths.add(curt->raw);
                         
                     }else{
@@ -81,7 +81,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
         compiler.compile(&cr);
     }
     
-    logger.log(2, "Resolving colon tokens as possible valid declarations.");
+    logger.log(Verbosity_StageParts, "Resolving colon tokens as possible valid declarations.");
     suArena<u32> decls_glob;
     suArena<u32> decls_loc; //this is really only for debug info, not skipping local tokens because they still need to be marked as declarations
     decls_glob.init();
@@ -130,7 +130,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
         }
     }
 
-    logger.log(2, "Finding internal declarations.");
+    logger.log(Verbosity_StageParts, "Finding internal declarations.");
     sufile->preprocessor.exported_decl = decls_glob;
     for(u32 idx : sufile->lexer.internals){
         Token* curt = sufile->lexer.tokens.readptr(idx);
@@ -164,12 +164,12 @@ void Preprocessor::preprocess(){DPZoneScoped;
     }
 
 
-    logger.log(2, "Finding run directives ", ErrorFormat("(NotImplemented)"));
+    logger.log(Verbosity_StageParts, "Finding run directives ", ErrorFormat("(NotImplemented)"));
     for(u32 idx : sufile->lexer.runs){
         logger.error(&sufile->lexer.tokens[idx], "#run is not implemented yet.");
     }
 
-    if(globals.verbosity > 3){
+    if(globals.verbosity >= Verbosity_Debug){
 
         auto decltypestr = [](Type type){
             switch(type){
@@ -182,26 +182,26 @@ void Preprocessor::preprocess(){DPZoneScoped;
         };
 
         if(sufile->preprocessor.exported_decl.count)
-            logger.log(4, "Exported declarations");
+            logger.log(Verbosity_Debug, "Exported declarations");
         for(u32 idx : sufile->preprocessor.exported_decl){
-            logger.log(4, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
+            logger.log(Verbosity_Debug, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
         }
 
         if(sufile->preprocessor.internal_decl.count)
-            logger.log(4, "Internal declarations");
+            logger.log(Verbosity_Debug, "Internal declarations");
         for(u32 idx : sufile->preprocessor.internal_decl){
-            logger.log(4, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
+            logger.log(Verbosity_Debug, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
         }
 
         if(decls_loc.count)
-            logger.log(4, "Local declarations");
+            logger.log(Verbosity_Debug, "Local declarations");
         for(u32 idx : decls_loc){
-            logger.log(4, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
+            logger.log(Verbosity_Debug, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
         }
     }
     
 
 
     
-    logger.log(1, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
+    logger.log(Verbosity_Stages, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
 }
