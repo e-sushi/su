@@ -97,8 +97,8 @@ int main(){DPZoneScoped;
 	compiler.ctime = start_stopwatch();
 
 	CompilerRequest cr; 
-	cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
-	//cr.filepaths.add(STR8("tests/_/main.su"));
+	//cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
+	cr.filepaths.add(STR8("tests/_/main.su"));
 
 	cr.stage = FileStage_Parser;
 

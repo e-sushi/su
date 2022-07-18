@@ -22,7 +22,7 @@
               | "defer" <statement> 
               | "break"
               | "continue" 
-<exp>         = <assignment-exp> | <conditional> | <struct-type> <initializer>
+<exp>         = <assignment> | <conditional> | <struct-type> <initializer>
 <assignment>  = <var-id> "=" ( <exp> | <initialzier> )
 <initializer> = "{" <assignment> { "," <assignment> } "}"
 <conditional> = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp>

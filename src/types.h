@@ -57,6 +57,8 @@ enum{
 	W_Level2_End,
 	//// @level3 //// (warnings you might want to be aware of, but are valid in most cases)
 	W_Level3_Start = W_Level2_End,
+	
+	WC_Empty_Import_Directive,
 
 	WC_Unreachable_Code_After_Return,
 	WC_Unreachable_Code_After_Break,
@@ -108,6 +110,7 @@ enum{
 	Message_Log,
 	Message_Error,
 	Message_Warn,
+	Message_Note
 };
 
 mutex global_mem_lock = init_mutex();
@@ -341,22 +344,33 @@ struct suArena{
 
 	void remove(upt idx){DPZoneScoped;
 		write_lock.lock();
-		Assert(idx < data->used / sizeof(T));
+		Assert(idx < count);
 		count--;
-		memmove((T*)data->start + idx, (T*)data->start + idx + 1, data->used - sizeof(T)*idx);
-		data->used -= sizeof(T);
-		data->cursor -= sizeof(T);
-
+		memmove(data + idx, data + idx + 1, count - idx);
 		write_lock.unlock();
 	}
 
 	void remove_unordered(upt idx){
+		write_lock.lock();
 		Assert(idx < count);
 		T endval = data[count-1];
 		count--;
 		if(count){
 			data[idx] = endval;
 		}
+		write_lock.unlock();
+	}
+
+	T pop(u64 _count = 1){ 
+		write_lock.lock();
+		Assert(_count <= count);
+		T ret;
+		forI(_count){
+			if(i==_count) memcpy(&ret, data+count-1, sizeof(T));
+			count--;
+		}
+		write_lock.unlock();
+		return ret;
 	}
 
 	inline T* begin(){ return &data[0]; }
@@ -754,90 +768,106 @@ enum{
 
 #define NAME(code) STRINGIZE(code)
 const char* TokenTypes_Names[] = {
-	"null/error",
-	NAME(Token_EOF),
+	NAME(Token_Null),
+	NAME(Token_ERROR),
+	NAME(Token_EOF),                      
+	
+	NAME(TokenGroup_Identifier),
 	NAME(Token_Identifier),
 	
+	NAME(TokenGroup_Literal),
 	NAME(Token_LiteralFloat),
 	NAME(Token_LiteralInteger),
 	NAME(Token_LiteralCharacter),
 	NAME(Token_LiteralString),
 	
+	NAME(TokenGroup_Control),
 	NAME(Token_Semicolon),
-	NAME(Token_OpenBrace),
-	NAME(Token_CloseBrace),
-	NAME(Token_OpenParen),
-	NAME(Token_CloseParen),
-	NAME(Token_OpenSquare),
-	NAME(Token_CloseSquare),
-	NAME(Token_Comma),
-	NAME(Token_QuestionMark),
-	NAME(Token_Colon),
-	NAME(Token_Dot),
-	NAME(Token_At),
-	NAME(Token_Pound),
-	NAME(Token_Backtick),
+	NAME(Token_OpenBrace),                      
+	NAME(Token_CloseBrace),                     
+	NAME(Token_OpenParen),                      
+	NAME(Token_CloseParen),                     
+	NAME(Token_OpenSquare),                     
+	NAME(Token_CloseSquare),                    
+	NAME(Token_Comma),                          
+	NAME(Token_QuestionMark),                   
+	NAME(Token_Colon),                          
+	NAME(Token_Dot),                            
+	NAME(Token_At),                             
+	NAME(Token_Pound),                          
+	NAME(Token_Backtick),                       
 	
+	NAME(TokenGroup_Operator),
 	NAME(Token_Plus),
-	NAME(Token_Increment),
-	NAME(Token_PlusAssignment),
-	NAME(Token_Negation),
-	NAME(Token_Decrement),
-	NAME(Token_NegationAssignment),
-	NAME(Token_Multiplication),
-	NAME(Token_MultiplicationAssignment),
-	NAME(Token_Division),
-	NAME(Token_DivisionAssignment),
-	NAME(Token_BitNOT),
-	NAME(Token_BitNOTAssignment),
-	NAME(Token_BitAND),
-	NAME(Token_BitANDAssignment),
-	NAME(Token_AND),
-	NAME(Token_BitOR),
-	NAME(Token_BitORAssignment),
-	NAME(Token_OR),
-	NAME(Token_BitXOR),
-	NAME(Token_BitXORAssignment),
-	NAME(Token_BitShiftLeft),
-	NAME(Token_BitShiftLeftAssignment),
-	NAME(Token_BitShiftRight),
-	NAME(Token_BitShiftRightAssignment),
-	NAME(Token_Modulo),
-	NAME(Token_ModuloAssignment),
-	NAME(Token_Assignment),
-	NAME(Token_Equal),
-	NAME(Token_LogicalNOT),
-	NAME(Token_NotEqual),
-	NAME(Token_LessThan),
-	NAME(Token_LessThanOrEqual),
-	NAME(Token_GreaterThan),
-	NAME(Token_GreaterThanOrEqual),
+	NAME(Token_Increment),                  
+	NAME(Token_PlusAssignment),             
+	NAME(Token_Negation),                   
+	NAME(Token_Decrement),                  
+	NAME(Token_NegationAssignment),         
+	NAME(Token_Multiplication),             
+	NAME(Token_MultiplicationAssignment),   
+	NAME(Token_Division),                   
+	NAME(Token_DivisionAssignment),         
+	NAME(Token_BitNOT),                     
+	NAME(Token_BitNOTAssignment),           
+	NAME(Token_BitAND),                     
+	NAME(Token_BitANDAssignment),           
+	NAME(Token_AND),                        
+	NAME(Token_BitOR),                      
+	NAME(Token_BitORAssignment),            
+	NAME(Token_OR),                         
+	NAME(Token_BitXOR),                     
+	NAME(Token_BitXORAssignment),           
+	NAME(Token_BitShiftLeft),               
+	NAME(Token_BitShiftLeftAssignment),     
+	NAME(Token_BitShiftRight),              
+	NAME(Token_BitShiftRightAssignment),    
+	NAME(Token_Modulo),                     
+	NAME(Token_ModuloAssignment),           
+	NAME(Token_Assignment),                 
+	NAME(Token_Equal),                      
+	NAME(Token_LogicalNOT),                 
+	NAME(Token_NotEqual),                   
+	NAME(Token_LessThan),                   
+	NAME(Token_LessThanOrEqual),            
+	NAME(Token_GreaterThan),                
+	NAME(Token_GreaterThanOrEqual),         
 	
+	NAME(TokenGroup_Keyword),
 	NAME(Token_Return),
-	NAME(Token_If),
-	NAME(Token_Else),
-	NAME(Token_For),
-	NAME(Token_While),
-	NAME(Token_Break),
-	NAME(Token_Continue),
-	NAME(Token_Defer),
-	NAME(Token_StructDecl),
-	NAME(Token_This),
+	NAME(Token_If),                          
+	NAME(Token_Else),                        
+	NAME(Token_For),                         
+	NAME(Token_While),                       
+	NAME(Token_Break),                       
+	NAME(Token_Continue),                    
+	NAME(Token_Defer),                       
+	NAME(Token_StructDecl),                  
+	NAME(Token_This),                        
+	NAME(Token_Using),                       
+	NAME(Token_As),                          
 	
+	NAME(TokenGroup_Type),
 	NAME(Token_Void),
-	NAME(Token_Signed8),
-	NAME(Token_Signed16),
-	NAME(Token_Signed32),
-	NAME(Token_Signed64),
-	NAME(Token_Unsigned8),
-	NAME(Token_Unsigned16),
-	NAME(Token_Unsigned32),
-	NAME(Token_Unsigned64),
-	NAME(Token_Float32),
-	NAME(Token_Float64),
-	NAME(Token_String),
-	NAME(Token_Any),
-	NAME(Token_Struct),
+	NAME(Token_Signed8),                
+	NAME(Token_Signed16),               
+	NAME(Token_Signed32),               
+	NAME(Token_Signed64),               
+	NAME(Token_Unsigned8),              
+	NAME(Token_Unsigned16),             
+	NAME(Token_Unsigned32),             
+	NAME(Token_Unsigned64),             
+	NAME(Token_Float32),                
+	NAME(Token_Float64),                
+	NAME(Token_String),                 
+	NAME(Token_Any),                    
+	NAME(Token_Struct),                 
+	
+	NAME(TokenGroup_Directive),
+	NAME(Token_Directive_Import),
+	NAME(Token_Directive_Include),
+	NAME(Token_Directive_Internal),
+	NAME(Token_Directive_Run),
 };
 #undef NAME
 
@@ -869,6 +899,8 @@ struct Token {
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Abstract Syntax Tree 
 enum {
+	Expression_NULL,
+
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
 	
@@ -952,30 +984,64 @@ static const char* ExTypeStrings[] = {
 	"accessor",
 };
 
+Type binop_token_to_expression(Type in){
+	switch(in){
+		case Token_Multiplication:     return Expression_BinaryOpMultiply;
+		case Token_Division:           return Expression_BinaryOpDivision;
+		case Token_Negation:           return Expression_BinaryOpMinus;
+		case Token_Plus:               return Expression_BinaryOpPlus;
+		case Token_AND:                return Expression_BinaryOpAND;
+		case Token_OR:                 return Expression_BinaryOpOR;
+		case Token_LessThan:           return Expression_BinaryOpLessThan;
+		case Token_GreaterThan:        return Expression_BinaryOpGreaterThan;
+		case Token_LessThanOrEqual:    return Expression_BinaryOpLessThanOrEqual;
+		case Token_GreaterThanOrEqual: return Expression_BinaryOpGreaterThanOrEqual;
+		case Token_Equal:              return Expression_BinaryOpEqual;
+		case Token_NotEqual:           return Expression_BinaryOpNotEqual;
+		case Token_BitAND:             return Expression_BinaryOpBitAND;
+		case Token_BitOR:              return Expression_BinaryOpBitOR;
+		case Token_BitXOR:             return Expression_BinaryOpBitXOR;
+		case Token_BitShiftLeft:       return Expression_BinaryOpBitShiftLeft;
+		case Token_BitShiftRight:      return Expression_BinaryOpBitShiftRight;
+		case Token_Modulo:             return Expression_BinaryOpModulo;
+		case Token_BitNOT:             return Expression_UnaryOpBitComp;
+		case Token_LogicalNOT:         return Expression_UnaryOpLogiNOT;
+	}
+	return Expression_NULL;
+}
+
+//held by anything that can represent a value at compile time, currently variables and expressions
+//this helps with doing compile time evaluations between variables and expressions
 struct Struct;
+struct TypedValue{
+	Type type;
+	u32 pointer_depth;
+	b32 modifiable = 0;
+	Struct* struct_type;
+	union {
+		f32  float32;
+		f64  float64;
+		s8   int8;
+		s16  int16;
+		s32  int32;
+		s64  int64;
+		u8   uint8;
+		u16  uint16;
+		u32  uint32;
+		u64  uint64;
+		str8 str;
+	};
+};
+
 struct Expression {
 	TNode node;
 	Token* token_start;
 	Token* token_end;
 	
 	str8 expstr;
-
 	Type expr_type;
-	Type data_type;
-	Struct* struct_type;
-	union {
-		f32 float32;
-		f64 float64;
-		s8  int8;
-		s16 int16;
-		s32 int32;
-		s64 int64;
-		u8  uint8;
-		u16 uint16;
-		u32 uint32;
-		u64 uint64;
-		cstring str;
-	};
+
+	TypedValue data;
 };
 #define ExpressionFromNode(x) CastFromMember(Expression, node, x)
 
@@ -1061,25 +1127,10 @@ struct Function {
 struct Variable{
 	Declaration decl;
 
-	Type data_type;
-
 	//number of times * appears on a variable's type specifier
 	u32 pointer_depth;
 
-	Struct* struct_data;
-	union {
-		f32 float32;
-		f64 float64;
-		s8  int8;
-		s16 int16;
-		s32 int32;
-		s64 int64;
-		u8  uint8;
-		u16 uint16;
-		u32 uint32;
-		u64 uint64;
-		str8 str;
-	};
+	TypedValue data;
 };
 #define VariableFromDeclaration(x) CastFromMember(Variable, decl, x)
 #define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
@@ -1237,7 +1288,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1259,7 +1310,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1280,7 +1331,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("error: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1300,13 +1351,53 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), WarningFormat("warning: "), args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), WarningFormat("warning"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
 			suMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Warn;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+	}
+
+	template<typename...T>
+	void note(Token* token, T...args){DPZoneScoped;
+		if(globals.supress_messages) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", MagentaFormat("note"), ": ", args...);
+			Log("", out);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Note;
+			constexpr auto arg_count{sizeof...(T)};
+			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
+			message.message_parts.resize(arg_count);
+			memcpy(message.message_parts.data, arr, sizeof(str8)*arg_count);
+			messages.add(message);
+		}
+	}
+	
+	template<typename...T>
+	void note(T...args){DPZoneScoped;
+		if(globals.supress_messages) return;
+		if(globals.log_immediatly){
+			compiler.mutexes.log.lock();
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), MagenetaFormat("note"), ": ", args...);
+			Log("", out);
+			compiler.mutexes.log.unlock();
+		}else{
+			suMessage message;
+			message.time_made = peek_stopwatch(compiler.ctime);
+			message.type = Message_Note;
 			constexpr auto arg_count{sizeof...(T)};
 			str8 arr[arg_count] = {to_str8(args, deshi_allocator)...};
 			message.message_parts.resize(arg_count);
@@ -1421,17 +1512,16 @@ struct ParserThread{
 	//TODO(sushi) replace with arenas
 	struct{
 		//stacks of declarations known in current scope
-		//this array stores the number of declarations that have been pushed in the current scope
-		//so we know how many to pop when going out of the scope
-		array<u32> known_declarations_pushed;
-		array<Declaration*> known_declarations;
+		//this array stores the index of the last declaration that was pushed before a new scope begins
+		suArena<u32> known_declarations_scope_begin_offsets;
+		suArena<Declaration*> known_declarations;
 		//stacks of elements that we are working with
 		struct{
-			array<Scope*>      scopes;
-			array<Struct*>     structs;
-			array<Variable*>   variables;
-			array<Function*>   functions;
-			array<Expression*> expressions;
+			suArena<Scope*>      scopes;
+			suArena<Struct*>     structs;
+			suArena<Variable*>   variables;
+			suArena<Function*>   functions;
+			suArena<Expression*> expressions;
 		}nested;
 	}stacks;
 
@@ -1469,16 +1559,46 @@ struct ParserThread{
 	}
 
 	void init(){DPZoneScoped;
-		stacks.nested.scopes =      array<Scope*>(deshi_allocator);
-		stacks.nested.structs =     array<Struct*>(deshi_allocator);
-		stacks.nested.variables =   array<Variable*>(deshi_allocator);
-		stacks.nested.functions =   array<Function*>(deshi_allocator);
-		stacks.nested.expressions = array<Expression*>(deshi_allocator);
+		stacks.nested.scopes.init();
+		stacks.nested.structs.init();
+		stacks.nested.variables.init();
+		stacks.nested.functions.init();
+		stacks.nested.expressions.init();
+		stacks.known_declarations.init();
+		stacks.known_declarations_scope_begin_offsets.init();
 	}
 
-	void wait_for_dependency(str8 id){
+	template<typename... T>
+	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks){
+		TNode* out = ret;
+		while(next_match(tokchecks...)){
+			curt++;
+			//make binary op expression
+			Expression* op = arena.make_expression();
+			op->expr_type = binop_token_to_expression(curt->type);
+			op->token_start = curt;
 
+			//readjust parents to make the binary op the new child of the parent node
+			//and the ret node a child of the new binary op
+			change_parent(node, &op->node);
+			change_parent(&op->node, ret);
+
+			//evaluate next expression
+			Expression* e = ExpressionFromNode(define(node, next_stage));
+
+		}
+		return out;
 	}
+
+	//just checks if a type conversion is possible
+	b32 can_type_convert(Type to, Type from);
+	//attempts to actually perform a type conversion on a TypedValue
+	b32 type_conversion(Type to, Type from, TypedValue* tv);
+
+
+	//attempts to find an identifier's declaration, first searching our known stack, then if its not found
+	//searching our initial global declarations map
+	Declaration* resolve_identifier(Token* tok);
 };
 
 struct Parser {
@@ -1497,6 +1617,8 @@ struct Parser {
 
 	void wait_for_dependency(str8 id);
 };
+
+
 
 
 void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;

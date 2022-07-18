@@ -35,11 +35,103 @@ sufile->logger.error(token, __VA_ARGS__);\
 return 0;\
 }
 
+#define pwarn(token, ...)\
+sufile->logger.warn(token, __VA_ARGS__);
+
+
 #define expect(...) if(curr_match(__VA_ARGS__))
 #define expect_group(...) if(curr_match_group(__VA_ARGS__))
 
+#define push_variable(in)   {stacks.nested.variables.add(current.variable); current.variable = in;}
+#define pop_variable()      {current.variable = stacks.nested.variables.pop();}
+#define push_expression(in) {stacks.nested.expressions.add(current.expression); current.expression = in;}
+#define pop_expression()    {current.expression = stacks.nested.expressions.pop();}
+#define push_struct(in)     {stacks.nested.structs.add(current.structure); current.structure = in;}
+#define pop_struct()        {current.structure = stacks.nested.structs.pop();}
+#define push_scope(in)      {stacks.nested.scopes.add(current.scope); current.scope = in;}
+#define pop_scope()         {current.scope = stacks.nested.scopes.pop();}
+#define push_function(in)   {stacks.nested.functions.add(current.function); current.function = in;}
+#define pop_function()      {current.function = stacks.nested.functions.pop();}
+
+str8 type_token_to_str(Type type){
+    switch(type){
+        case Token_Void:       return STR8("void");
+        case Token_Signed8:    return STR8("s8");
+        case Token_Signed16:   return STR8("s16");
+        case Token_Signed32:   return STR8("s32");
+        case Token_Signed64:   return STR8("s64");
+        case Token_Unsigned8:  return STR8("u8");
+        case Token_Unsigned16: return STR8("u16");
+        case Token_Unsigned32: return STR8("u32");
+        case Token_Unsigned64: return STR8("u64");
+        case Token_Float32:    return STR8("f32");
+        case Token_Float64:    return STR8("f64");
+        case Token_String:     return STR8("str");
+        case Token_Any:        return STR8("any");
+        case Token_Struct:     return STR8("struct-type");
+    }
+    return STR8("UNKNOWN DATA TYPE");
+}
+
+Declaration* ParserThread::resolve_identifier(Token* tok){
+	b32 found = 0;
+	forI(stacks.known_declarations.count){
+		Declaration* d = stacks.known_declarations[stacks.known_declarations.count-1-i];
+		if(str8_equal_lazy(d->identifier, tok->raw)) return d;
+	}
+	//if it is not found in our known stack its possible it is a global declaration that has yet to be parsed
+	if(Declaration* d = parser->pending_globals.at(tok->raw)) return d;
+	return 0;
+}
+
+
+
+#define ConvertAndThatsIt(actualtype,type1,type2)\
+actualtype og_val = tv->type1; tv->type2 = og_val;
+
+//only valid for integer conversions if they are both either signed or unsigned
+#define ConvertAndDetectOverflow(actualtype, type1, type2)\
+ConvertAndThatsIt(actualtype,type1,type2);\
+if(og_val!=tv->type2){\
+    sufile->logger.warn(curt, "conversion from ", STRINGIZE(type1), " to ", STRINGIZE(type2), " causes overflow.");\
+    sufile->logger.note(curt, "original value of ", og_val, " becomes ", tv->type2);\
+}
+
+#define ConvertGroup(a,b)                                                             \
+switch(to){                                                              \
+    case Token_Signed8:    { ConvertAndDetectOverflow(a, b,    int8); return true; } \
+    case Token_Signed16:   { ConvertAndDetectOverflow(a, b,   int16); return true; } \
+    case Token_Signed32:   { ConvertAndDetectOverflow(a, b,   int32); return true; } \
+    case Token_Signed64:   { ConvertAndDetectOverflow(a, b,   int64); return true; } \
+    case Token_Unsigned8:  { ConvertAndDetectOverflow(a, b,   uint8); return true; } \
+    case Token_Unsigned16: { ConvertAndDetectOverflow(a, b,  uint16); return true; } \
+    case Token_Unsigned32: { ConvertAndDetectOverflow(a, b,  uint32); return true; } \
+    case Token_Unsigned64: { ConvertAndDetectOverflow(a, b,  uint64); return true; } \
+    case Token_Float32:    { ConvertAndThatsIt(a, b, float32); return true; } \
+    case Token_Float64:    { ConvertAndThatsIt(a, b, float64); return true; } \
+    case Token_Struct:     { NotImplemented; }                                    \
+}
+
+//attempts to convert a type to another 
+//currently this will only handle built in coercion, but should handle custom conversions later as well 
+b32 ParserThread::type_conversion(Type to, Type from, TypedValue* tv){
+    switch(from){
+        case Token_Signed8:    ConvertGroup( s8,    int8); break;
+		case Token_Signed16:   ConvertGroup(s16,   int16); break;
+		case Token_Signed32:   ConvertGroup(s32,   int32); break;
+		case Token_Signed64:   ConvertGroup(s64,   int64); break;
+		case Token_Unsigned8:  ConvertGroup( u8,   uint8); break;
+		case Token_Unsigned16: ConvertGroup(u16,  uint16); break;
+		case Token_Unsigned32: ConvertGroup(u32,  uint32); break;
+		case Token_Unsigned64: ConvertGroup(u64,  uint64); break;
+		case Token_Float32:    ConvertGroup(f32, float32); break;
+		case Token_Float64:    ConvertGroup(f64, float64); break;
+		case Token_Struct:     NotImplemented; break;
+    }
+    return false;
+}
+
 TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
-    sufile->logger.log(Verbosity_Debug, "Parsing token ", curt->raw, " in ", curt->file, "(",curt->l0,",",curt->c0,")", " on stage ", psStrs[stage]);
     //ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
@@ -162,9 +254,12 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             //we are just importing all decls into the global space
                             forI(imported_decls.count){
                                 stacks.known_declarations.add(imported_decls[i]);
-                                (*stacks.known_declarations_pushed.last)++;
                             }
                         }
+                    }else expect(Token_CloseBrace){
+                        //handle empty import directives and warn about it
+                        pwarn(curt, "empty import directive.");
+                        return 0;
                     }else perror(curt, "Import specifier is not a string or identifier.");
                     curt++;
                     expect(Token_Comma){
@@ -246,6 +341,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     }
 
                     Struct* s = StructFromDeclaration(decl);
+                    push_struct(s);
                     s->members.init();
 
                     s->decl.in_progress = 1;
@@ -270,10 +366,14 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                     expect(Token_Identifier){
                                         if(!curt->is_declaration){
                                             perror(curt, "only declarations are allowed inside struct definitions. NOTE(sushi) if this is a declaration, then this error indicates something wrong internally, please let me know.");
+                                            pop_struct();
                                             return 0;
                                         }
                                         TNode* fin = define(&s->decl.node, psDeclaration);
-                                        if(!fin) return 0;
+                                        if(!fin){
+                                            pop_struct();
+                                            return 0;
+                                        } 
                                         Declaration* d = DeclarationFromNode(fin);
                                         s->members.add(d->identifier, d);
                                     }
@@ -284,7 +384,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
                     s->decl.complete = 1;
                     this->cv.notify_all();
-
+                    pop_struct();
                 }break;
 
                 case Declaration_Function:{
@@ -300,6 +400,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     }
 
                     Function* f = FunctionFromDeclaration(decl);
+                    push_function(f);
                     f->decl.token_start = curt;
                     b32 is_global = curt->is_global;
                     
@@ -314,7 +415,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             expect(Token_CloseParen) { break; }
                             else expect(Token_Comma){}
                             else expect(Token_Identifier){
-                                Variable* v = VariableFromDeclaration(define(&f->decl.node, psDeclaration));
+                                Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
                                 f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
                                     f->internal_label = suStr8(f->internal_label, STR8("*"));
@@ -335,39 +436,24 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                 }
                             }else expect(Token_Identifier){ // name(...) : <type>
                                 //we are most likely referencing a struct type in this case, so we must look to see if it exists
-                                b32 found = 0;
-                                forI(stacks.known_declarations.count){
-                                    Declaration* d = stacks.known_declarations[stacks.known_declarations.count-1-i];
-                                    if(str8_equal_lazy(d->identifier, curt->raw)){
-                                        if(d->type == Declaration_Structure){
-                                            f->data_type = curt->type;
-                                            f->internal_label = suStr8(f->internal_label, "@", curt->raw);
-                                            if(is_global){
-                                                if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
-                                                else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
-                                            }
-                                        } else perror(curt, "expected a struct identifier for type specifier in declaration of function '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this.");
-                                    }
+                                Declaration* d = resolve_identifier(curt);
+                                if(!d){
+                                    perror(curt, "unknown identifier '", curt->raw, "' used as return type for function declaration of '", id, "'");
+                                    pop_function();
+                                    return 0;
                                 }
-                                //if it is not found in our known stack its possible it is a global declaration that has yet to be parsed
-                                if(!found){
-                                    if(Declaration* d = parser->pending_globals.at(curt->raw)){
-                                        //NOTE(sushi) there is no need to wait here
-                                        if(d->type != Declaration_Structure){
-                                            perror(curt, "using a declaration identifier that does not pertain to a structure as the return type of function '", id, "'");
-                                            sufile->logger.log(d->token_start, 0, "see declaration of identifier.");
-                                            return 0;
-                                        }
-                                        f->data_type = Token_Struct;
-                                        f->struct_data = StructFromDeclaration(d);
-                                        f->internal_label = suStr8(f->internal_label, "@", curt->raw);
-                                        if(is_global){
-                                            if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
-                                            else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
-                                        }
-                                    } else perror(curt, "unknown identifier '", curt->raw, "' used as return type for function declaration of '", id, "'");
+                                if(d->type != Declaration_Structure){
+                                    perror(curt, "expected a struct identifier for type specifier in declaration of function '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this.");
+                                    pop_function();
+                                    return 0;
                                 }
-                                
+                                f->data_type = Token_Struct;
+                                f->struct_data = StructFromDeclaration(d);
+                                f->internal_label = suStr8(f->internal_label, "@", curt->raw);
+                                if(curt->is_global){
+                                    if(is_internal) sufile->parser.internal_decl.add(f->internal_label, &f->decl);
+                                    else            sufile->parser.exported_decl.add(f->internal_label, &f->decl);
+                                }
                             } else perror(curt, "expected a type specifier after ':' in function declaration.");
                             curt++;
                             expect(Token_OpenBrace) {
@@ -375,10 +461,12 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             } else perror(curt, "expected '{' after function declaration.");
                         } else perror(curt, "expected : after function definition.");
                     } else perror(curt, "expected ( after identifier in function declaration.");
+                    pop_function();
                 }break;
 
-                case Declaration_Variable:{
+                case Declaration_Variable:{ //name
                     Variable* v = arena.make_variable();
+                    push_variable(v);
                     if(curt->is_global){
                         if(is_internal) sufile->parser.internal_decl.add(curt->raw, &v->decl);
                         else            sufile->parser.exported_decl.add(curt->raw, &v->decl);
@@ -389,45 +477,45 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     v->decl.token_start = curt;
                     str8 id = curt->raw;
                     curt++;
-                    expect(Token_Colon){
+                    expect(Token_Colon){ // name :
                         curt++;
-                        expect_group(TokenGroup_Type){
-                            v->data_type = curt->type;
-                            return &v->decl.node;
-                        }else expect(Token_Identifier){
+                        b32 implicit_type = 0;
+                        expect_group(TokenGroup_Type){ // name : <type>
+                            v->data.type = curt->type;
+                        }else expect(Token_Identifier){ // name : <type>
                             //in this case we expect this identifier to actually be a struct so we must look for it
                             //first check known declarations 
-                            b32 found = 0;
-                            forI(stacks.known_declarations.count){
-                                Declaration* d = stacks.known_declarations[stacks.known_declarations.count-1-i];
-                                if(str8_equal_lazy(d->identifier, curt->raw)){
-                                    if(d->type == Declaration_Structure){
-                                        v->data_type = Token_Struct;
-                                        return &v->decl.node;
-                                    }else perror(curt, "expected a struct identifier for type specifier in declaration of variable '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this, or make it so that this is valid and which id you use is based on context.");
-                                    found = 1;
+                            Declaration* d = resolve_identifier(curt);
+                            if(!d){
+                                perror(curt, "unknown identifier '", curt->raw, "' used as type specifier for variable declaration of '", id, "'");
+                                pop_variable();
+                                return 0;
+                            }
+                            if(d->type != Declaration_Structure){
+                                perror(curt, "expected a struct identifier for type specifier in declaration of variable '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this.");
+                                pop_variable();
+                                return 0;
+                            }
+                            v->data.type = Token_Struct;
+                            v->data.struct_type = StructFromDeclaration(d);
+                        }else implicit_type = 1;
+                        curt++;
+                        expect(Token_Assignment){
+                            Token* before = curt;
+                            curt++;
+                            Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
+                            if(implicit_type){
+                                v->data.type = e->data.type;
+                            }else if(e->data.type != v->data.type){
+                                //try to coerce the expression's type to the one the variable wants, if it fails error out
+                                if(!type_conversion(v->data.type, e->data.type, &e->data)){
+                                    perror(curt, "there is no known conversion from ", type_token_to_str(e->data.type), " to ", (v->decl.token_start + 2)->raw);
+                                    return 0;
                                 }
+                                int i = 0;
                             }
-                            //if it is not found in our known stack its possible it is a global declaration that has yet to be parsed
-                            if(!found){
-                                if(Declaration* d = parser->pending_globals.at(curt->raw)){
-                                    //NOTE(sushi) there is no need to wait here because we are just making a variable of a certain type
-                                    if(d->type != Declaration_Structure){
-                                        perror(curt, "attempt to use a declaration identifier that is not a structure as the type specifier of variable '", id, "'");
-                                        sufile->logger.log(d->token_start, 0, "see declaration of identifier.");
-                                        return 0;
-                                    }
-                                    v->data_type = Token_Struct;
-                                    v->struct_data = StructFromDeclaration(d);
-                                    return &v->decl.node;
-                                } else perror(curt, "unknown identifier '", curt->raw, "' used as type specifier in declaration of variable '", id, "'");
-                            }
-                        }else expect(Token_Assignment){
-                            //in this case the variable's type is implicit and depends on what the return of the expression is
-                            //this is not parsed here, so this variables type is determined later
-                            //TODO(sushi) implicit variable declaration type
-                            NotImplemented;
-                        } else perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+                        } else if(implicit_type) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+                        return &v->decl.node;
                     } else perror(curt, "Expected a ':' after identifier for variable decalration.");
                 }break;
             }
@@ -438,55 +526,91 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         }break;
 
         case psExpression:{ //-------------------------------------------------------------------------------------Expression
+            expect(Token_Identifier){
+                Declaration* d = resolve_identifier(curt);
+
+            }else{
+                Expression* e = ExpressionFromNode(define(node, psConditional));
+                return &e->node;
+            }
 
         }break;
 
         case psConditional:{ //-----------------------------------------------------------------------------------Conditional
-
+            expect(Token_If){
+                NotImplemented;
+            }else{
+                Expression* e = ExpressionFromNode(define(node, psLogicalOR));
+                return &e->node;
+            }
         }break;
 
         case psLogicalOR:{ //---------------------------------------------------------------------------------------LogicalOR
-
+            Expression* e = ExpressionFromNode(define(node, psLogicalAND));
+            return binop_parse(node, &e->node, psLogicalAND, Token_OR);
         }break;
 
         case psLogicalAND:{ //-------------------------------------------------------------------------------------LogicalAND
-
+            Expression* e = ExpressionFromNode(define(node, psBitwiseOR));
+            return binop_parse(node, &e->node, psBitwiseOR, Token_AND);
         }break;
 
         case psBitwiseOR:{ //---------------------------------------------------------------------------------------BitwiseOR
-
+            Expression* e = ExpressionFromNode(define(node, psBitwiseXOR));
+            return binop_parse(node, &e->node, psBitwiseXOR, Token_BitOR);
         }break;
 
         case psBitwiseXOR:{ //-------------------------------------------------------------------------------------BitwiseXOR
-
+            Expression* e = ExpressionFromNode(define(node, psBitwiseAND));
+            return binop_parse(node, &e->node, psBitwiseAND, Token_BitXOR);
         }break;
 
         case psBitwiseAND:{ //-------------------------------------------------------------------------------------BitwiseAND
-
+            Expression* e = ExpressionFromNode(define(node, psEquality));
+            return binop_parse(node, &e->node, psEquality, Token_BitAND);
         }break;
 
         case psEquality:{ //-----------------------------------------------------------------------------------------Equality
-
+            Expression* e = ExpressionFromNode(define(node, psRelational));
+            return binop_parse(node, &e->node, psRelational, Token_NotEqual, Token_Equal);
         }break;
 
         case psRelational:{ //-------------------------------------------------------------------------------------Relational
-
+            Expression* e = ExpressionFromNode(define(node, psBitshift));
+            return binop_parse(node, &e->node, psBitshift, Token_LessThan, Token_GreaterThan, Token_LessThanOrEqual, Token_GreaterThanOrEqual);
         }break;
 
         case psBitshift:{ //-----------------------------------------------------------------------------------------Bitshift
-
+            Expression* e = ExpressionFromNode(define(node, psAdditive));
+            return binop_parse(node, &e->node, psAdditive, Token_BitShiftLeft, Token_BitShiftRight);
         }break;
 
         case psAdditive:{ //-----------------------------------------------------------------------------------------Additive
-
+            Expression* e = ExpressionFromNode(define(node, psTerm));
+            return binop_parse(node, &e->node, psTerm, Token_Plus, Token_Negation);
         }break;
 
         case psTerm:{ //-------------------------------------------------------------------------------------------------Term
-
+            Expression* e = ExpressionFromNode(define(node, psFactor));
+            return binop_parse(node, &e->node, psFactor, Token_Multiplication, Token_Division, Token_Modulo);
         }break;
 
         case psFactor:{ //---------------------------------------------------------------------------------------------Factor
+            switch(curt->type){
+                case Token_LiteralFloat:{
+                    Expression* e = arena.make_expression();
+                    e->expr_type = Expression_Literal;
+                    e->data.type = Token_Float64;
+                    e->data.float64 = curt->f64_val;
+                    insert_last(node, &e->node);
+                    return &e->node;
+                }break;
 
+                case Token_OpenParen:{
+                    curt++;
+                    TNode* ret = define(&current.expression->node, psExpression);
+                }break;
+            }
         }break;
 
     }
@@ -532,6 +656,7 @@ void Parser::parse(){DPZoneScoped;
     for(u32 idx : sufile->preprocessor.internal_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
+        pt->init();
         pt->cv.init();
         pt->curt = sufile->lexer.tokens.readptr(idx);
         pt->parser = this;
@@ -562,6 +687,7 @@ void Parser::parse(){DPZoneScoped;
     for(u32 idx : sufile->preprocessor.exported_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
+        pt->init();
         pt->cv.init();
         pt->curt = sufile->lexer.tokens.readptr(idx);
         pt->parser = this;
