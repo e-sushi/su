@@ -77,6 +77,7 @@ void speed_test(const u64 samples, str8 filepath){
 
 int main(){DPZoneScoped;
 
+
    	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();

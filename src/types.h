@@ -1571,21 +1571,32 @@ struct ParserThread{
 	template<typename... T>
 	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks){
 		TNode* out = ret;
+		TNode* lhs_node = ret;
 		while(next_match(tokchecks...)){
 			curt++;
 			//make binary op expression
-			Expression* op = arena.make_expression();
+			Expression* op = arena.make_expression(curt->raw);
 			op->expr_type = binop_token_to_expression(curt->type);
 			op->token_start = curt;
 
 			//readjust parents to make the binary op the new child of the parent node
 			//and the ret node a child of the new binary op
 			change_parent(node, &op->node);
-			change_parent(&op->node, ret);
+			change_parent(&op->node, out);
 
 			//evaluate next expression
-			Expression* e = ExpressionFromNode(define(node, next_stage));
+			curt++;
+			Expression* rhs = ExpressionFromNode(define(node, next_stage));
 
+			insert_last(&op->node, &rhs->node);
+
+			//check types on each side and make sure they're compatible
+			Expression* lhs = ExpressionFromNode(lhs_node);
+			if(lhs->data.type != rhs->data.type){
+				
+			}
+
+			out = &op->node;
 		}
 		return out;
 	}
@@ -1687,29 +1698,40 @@ struct{
 	suChunkedArena<Scope> scopes;
 	suChunkedArena<Expression> expressions;
 
+	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
-	Function* make_function(){DPZoneScoped;
-		return functions.add(Function());
+	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
+		Function* function = functions.add(Function());
+		function->decl.node.debug = debugmsg;
+		return function;
 	}
 
 	FORCE_INLINE
-	Variable* make_variable(){DPZoneScoped;
-		return variables.add(Variable());
+	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
+		Variable* variable = variables.add(Variable());
+		variable->decl.node.debug = debugmsg;
+		return variable;
 	}
 
 	FORCE_INLINE
-	Struct* make_struct(){DPZoneScoped;
-		return structs.add(Struct());
+	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
+		Struct* structure = structs.add(Struct());
+		structure->decl.node.debug = debugmsg;
+		return structure;
 	}
 
 	FORCE_INLINE
-	Scope* make_scope(){DPZoneScoped;
-		return scopes.add(Scope());
+	Scope* make_scope(str8 debugmsg = STR8("")){DPZoneScoped;
+		Scope* scope = scopes.add(Scope());
+		scope->node.debug = debugmsg;
+		return scope;
 	}
 
 	FORCE_INLINE
-	Expression* make_expression(){DPZoneScoped;
-		return expressions.add(Expression());
+	Expression* make_expression(str8 debugmsg = STR8("")){DPZoneScoped;
+		Expression* expression = expressions.add(Expression());
+		expression->node.debug = debugmsg;
+		return expression;
 	}
 
 	FORCE_INLINE

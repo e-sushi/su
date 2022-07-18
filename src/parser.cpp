@@ -237,7 +237,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             //in this case the user must be using 'as' to give the module a namespace
                             //so we make a new struct and add the declarations to it
                             expect(Token_Identifier){
-                                Struct* s = arena.make_struct();
+                                Struct* s = arena.make_struct(curt->raw);
                                 s->members.init(); 
                                 s->decl.identifier = curt->raw;
                                 s->decl.declared_identifier = curt->raw;
@@ -282,7 +282,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
         case psScope:{ //-----------------------------------------------------------------------------------------------Scope
             stacks.nested.scopes.add(current.scope);
-            current.scope = arena.make_scope();
+            current.scope = arena.make_scope(curt->raw);
             current.scope->token_start = curt;
             TNode* me = &current.scope->node;
             insert_last(node, &current.scope->node);
@@ -331,7 +331,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                         //otherwise just make a new one
                         //TODO(sushi) we should probably check for already existant struct defs here too, since someone could try and redefine a 
                         //            struct in a local scope
-                        Struct* s = arena.make_struct();
+                        Struct* s = arena.make_struct(curt->raw);
                         decl = &s->decl;
                         if(is_internal){
                             sufile->parser.internal_decl.add(curt->raw, decl);
@@ -395,7 +395,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                         perror(curt, "INTERNAL: a global declaration token does not have a corresponding pending_globals entry.");
                         return 0;
                     }else if(!decl){
-                        Function* f = arena.make_function();
+                        Function* f = arena.make_function(curt->raw);
                         decl = &f->decl;
                     }
 
@@ -465,7 +465,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Variable:{ //name
-                    Variable* v = arena.make_variable();
+                    Variable* v = arena.make_variable(curt->raw);
                     push_variable(v);
                     if(curt->is_global){
                         if(is_internal) sufile->parser.internal_decl.add(curt->raw, &v->decl);
@@ -512,7 +512,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                     perror(curt, "there is no known conversion from ", type_token_to_str(e->data.type), " to ", (v->decl.token_start + 2)->raw);
                                     return 0;
                                 }
-                                int i = 0;
                             }
                         } else if(implicit_type) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
                         return &v->decl.node;
@@ -598,10 +597,19 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         case psFactor:{ //---------------------------------------------------------------------------------------------Factor
             switch(curt->type){
                 case Token_LiteralFloat:{
-                    Expression* e = arena.make_expression();
+                    Expression* e = arena.make_expression(curt->raw);
                     e->expr_type = Expression_Literal;
                     e->data.type = Token_Float64;
                     e->data.float64 = curt->f64_val;
+                    insert_last(node, &e->node);
+                    return &e->node;
+                }break;
+
+                case Token_LiteralInteger:{
+                    Expression* e = arena.make_expression(curt->raw);
+                    e->expr_type = Expression_Literal;
+                    e->data.type = Token_Signed64;
+                    e->data.int64 = curt->s64_val;
                     insert_last(node, &e->node);
                     return &e->node;
                 }break;
