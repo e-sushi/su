@@ -95,7 +95,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Always;
+	u32 verbosity = Verbosity_Stages;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -524,6 +524,11 @@ struct declmap{
 			return 0;
 		}
 		return 0;
+	}
+
+	Declaration* atIdx(u64 idx){
+		Assert(idx < data.count);
+		return data[idx].second;
 	}
 };
 
@@ -1589,9 +1594,8 @@ struct ParserThread{
 
 			//evaluate next expression
 			curt++;
-			Expression* rhs = ExpressionFromNode(define(node, next_stage));
+			Expression* rhs = ExpressionFromNode(define(&op->node, next_stage));
 
-			insert_last(&op->node, &rhs->node);
 
 			//check types on each side and make sure they're compatible
 			//if they are we set the operator's type to the type whose data loss is minimized in the conversion
@@ -1641,9 +1645,6 @@ struct Parser {
 	void wait_for_dependency(str8 id);
 };
 
-
-
-
 void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 	ParserThread* pt = (ParserThread*)pthreadinfo;
 	pt->sufile = pt->parser->sufile;
@@ -1667,6 +1668,8 @@ struct Compiler{
 	suLogger logger;
 
 	map<str8, suFile> files;
+
+	TNode* finished;
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well

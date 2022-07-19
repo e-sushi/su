@@ -616,7 +616,12 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
                 case Token_OpenParen:{
                     curt++;
-                    TNode* ret = define(&current.expression->node, psExpression);
+                    Token* start = curt;
+                    TNode* ret = define(node, psExpression);
+                    curt++;
+                    expect(Token_CloseParen){
+                        return ret;
+                    }else perror(curt, "expected a ) to close ( in line ", start->l0, " on column ", start->c0);
                 }break;
             }
         }break;
@@ -673,18 +678,18 @@ void Parser::parse(){DPZoneScoped;
         pt->is_internal = 1;
         switch(sufile->lexer.tokens[idx].decl_type){
             case Declaration_Function:{
-                Function* f = arena.make_function();
+                Function* f = arena.make_function(pt->curt->raw);
                 f->decl.working_thread = pt;
                 str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
                 pending_globals.add(fname, &f->decl);
             }break;
             case Declaration_Variable:{
-                Variable* v = arena.make_variable();
+                Variable* v = arena.make_variable(pt->curt->raw);
                 v->decl.working_thread = pt;
                 sufile->parser.internal_decl.add(sufile->lexer.tokens[idx].raw, &v->decl);
             }break;
             case Declaration_Structure:{
-                Struct* s = arena.make_struct();
+                Struct* s = arena.make_struct(pt->curt->raw);
                 s->decl.working_thread = pt;
                 sufile->parser.internal_decl.add(sufile->lexer.tokens[idx].raw, &s->decl);
             }break;
@@ -706,7 +711,7 @@ void Parser::parse(){DPZoneScoped;
         //            functions dont matter because of overloading
         switch(sufile->lexer.tokens[idx].decl_type){
             case Declaration_Function:{
-                Function* f = arena.make_function();
+                Function* f = arena.make_function(pt->curt->raw);
                 f->decl.working_thread = pt;
                 f->decl.type = Declaration_Function;
                 //because we support overloaded functions we cant just store a function in this 
@@ -717,13 +722,13 @@ void Parser::parse(){DPZoneScoped;
                 pending_globals.add(fname, &f->decl);
             }break;
             case Declaration_Variable:{
-                Variable* v = arena.make_variable();
+                Variable* v = arena.make_variable(pt->curt->raw);
                 v->decl.working_thread = pt;
                 v->decl.type = Declaration_Variable;
                 pending_globals.add(sufile->lexer.tokens[idx].raw, &v->decl);
             }break;
             case Declaration_Structure:{
-                Struct* s = arena.make_struct();
+                Struct* s = arena.make_struct(pt->curt->raw);
                 s->decl.working_thread = pt;
                 s->decl.type = Declaration_Structure;
                 pending_globals.add(sufile->lexer.tokens[idx].raw, &s->decl);

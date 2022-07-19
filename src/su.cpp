@@ -75,10 +75,20 @@ void speed_test(const u64 samples, str8 filepath){
 	compiler.logger.log(0, "speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
 }
 
+void print_tree(TNode* node, u32 indent = 0){
+	logger_pop_indent(-1);
+	logger_push_indent(indent);
+	Log("", node->debug);
+	for_node(node->first_child){
+		print_tree(it, indent + 1);
+	}
+	logger_pop_indent(-1);
+}
+
 int main(){DPZoneScoped;
 
 
-   	memory_init(Megabytes(512), Megabytes(512));//this much memory should not be needed, will trim later
+   	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
 
@@ -106,6 +116,8 @@ int main(){DPZoneScoped;
 	compiler.compile(&cr);
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
+
+	//print_tree(&compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;
 }
