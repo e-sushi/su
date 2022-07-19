@@ -95,7 +95,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Debug;
+	u32 verbosity = Verbosity_Always;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -743,14 +743,16 @@ enum{
 	//// types  ////
 	TokenGroup_Type,
 	Token_Void = TokenGroup_Type, // void
-	Token_Signed8,                // s8
-	Token_Signed16,               // s16 
-	Token_Signed32,               // s32 
-	Token_Signed64,               // s64
+	//NOTE(sushi) the order of these entries matter, they determine in what order types are coerced in binary operations
+	//            see binary_parse for more info
 	Token_Unsigned8,              // u8
 	Token_Unsigned16,             // u16
 	Token_Unsigned32,             // u32 
 	Token_Unsigned64,             // u64 
+	Token_Signed8,                // s8
+	Token_Signed16,               // s16 
+	Token_Signed32,               // s32 
+	Token_Signed64,               // s64
 	Token_Float32,                // f32 
 	Token_Float64,                // f64 
 	Token_String,                 // str
@@ -1570,6 +1572,7 @@ struct ParserThread{
 
 	template<typename... T>
 	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks){
+		//TODO(sushi) need to detect floats being used in bitwise operations (or just allow it :) 
 		TNode* out = ret;
 		TNode* lhs_node = ret;
 		while(next_match(tokchecks...)){
@@ -1591,11 +1594,20 @@ struct ParserThread{
 			insert_last(&op->node, &rhs->node);
 
 			//check types on each side and make sure they're compatible
+			//if they are we set the operator's type to the type whose data loss is minimized in the conversion
+			//for lack of a better word.. what i mean is like the case of 1.2 + 1
+			//the result of the op will be a float because converting an integer to a float loses no data where as 
+			//converting from a float to an int does. please let me (sushi) know what this is called if you ever find this
+			//we dont actually change all the expression nodes types, only the binary op's
+			//TODO(sushi) this is probably easier if i just make it so its guaranteed that the order tokens are in in the token enum
+			//            is the order of precedence (?) of types.
 			Expression* lhs = ExpressionFromNode(lhs_node);
-			if(lhs->data.type != rhs->data.type){
-				
+			if(lhs->data.type >= rhs->data.type){
+				op->data.type = lhs->data.type;
+			}else if(rhs->data.type > lhs->data.type){
+				op->data.type = rhs->data.type;
 			}
-
+			
 			out = &op->node;
 		}
 		return out;

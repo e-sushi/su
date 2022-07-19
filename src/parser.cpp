@@ -499,7 +499,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             v->data.type = Token_Struct;
                             v->data.struct_type = StructFromDeclaration(d);
                         }else implicit_type = 1;
-                        curt++;
                         expect(Token_Assignment){
                             Token* before = curt;
                             curt++;
@@ -507,13 +506,14 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             if(implicit_type){
                                 v->data.type = e->data.type;
                             }else if(e->data.type != v->data.type){
-                                //try to coerce the expression's type to the one the variable wants, if it fails error out
+                                //check that the type of the expression's value has a conversion to the type of the variable
                                 if(!type_conversion(v->data.type, e->data.type, &e->data)){
                                     perror(curt, "there is no known conversion from ", type_token_to_str(e->data.type), " to ", (v->decl.token_start + 2)->raw);
                                     return 0;
                                 }
                             }
                         } else if(implicit_type) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+                        insert_last(node, &v->decl.node);
                         return &v->decl.node;
                     } else perror(curt, "Expected a ':' after identifier for variable decalration.");
                 }break;
