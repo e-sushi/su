@@ -95,7 +95,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Stages;
+	u32 verbosity = Verbosity_Always;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -366,7 +366,7 @@ struct suArena{
 		Assert(_count <= count);
 		T ret;
 		forI(_count){
-			if(i==_count) memcpy(&ret, data+count-1, sizeof(T));
+			if(i==_count-1) memcpy(&ret, data+count-1, sizeof(T));
 			count--;
 		}
 		write_lock.unlock();
@@ -1529,6 +1529,7 @@ struct ParserThread{
 			suArena<Variable*>   variables;
 			suArena<Function*>   functions;
 			suArena<Expression*> expressions;
+			suArena<Statement*>  statements;
 		}nested;
 	}stacks;
 
@@ -1539,6 +1540,7 @@ struct ParserThread{
 		Struct*     structure = 0;
 		Scope*      scope = 0;
 		Function*   function = 0;
+		Statement*  statement = 0;
 	}current;	
 	
 	Declaration* declare();
@@ -1571,6 +1573,7 @@ struct ParserThread{
 		stacks.nested.variables.init();
 		stacks.nested.functions.init();
 		stacks.nested.expressions.init();
+		stacks.nested.statements.init();
 		stacks.known_declarations.init();
 		stacks.known_declarations_scope_begin_offsets.init();
 	}
@@ -1668,11 +1671,12 @@ struct CompilerThread{
 //// Memory
 
 struct{
-	suChunkedArena<Function> functions;
-	suChunkedArena<Variable> variables;
-	suChunkedArena<Struct> structs;
-	suChunkedArena<Scope> scopes;
+	suChunkedArena<Function>   functions;
+	suChunkedArena<Variable>   variables;
+	suChunkedArena<Struct>     structs;
+	suChunkedArena<Scope>      scopes;
 	suChunkedArena<Expression> expressions;
+	suChunkedArena<Statement>  statements;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
@@ -1711,12 +1715,20 @@ struct{
 	}
 
 	FORCE_INLINE
+	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
+		Statement* statement = statements.add(Statement());
+		statement->node.debug = debugmsg;
+		return statement;
+	}
+
+	FORCE_INLINE
 	void init(){DPZoneScoped;
 		functions.init(256);   
 		variables.init(256);   
 		structs.init(256);     
 		scopes.init(256);      
 		expressions.init(256); 
+		statements.init(256);
 	}
 
 }arena;

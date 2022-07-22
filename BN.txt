@@ -14,14 +14,14 @@
 <op-decl>     = "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
 <statement>   = <scope>  
               | <directive>
-              | <struct-decl>  
               | <exp> ";" 
-              | "using" <var-id> [ "{" { <statement>} "}" ]  //var-id must be a var whose type is not scalar
+              | "using" <var-id> [ "{" { <statement>} "}" ] ";"  //var-id must be a var whose type is not scalar
               | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
               | "while" "(" <exp> ")" <statement>
-              | "defer" <statement> 
-              | "break"
-              | "continue" 
+              | "defer" <statement> ";"
+              | "break" ";"
+              | "continue" ";"
+              | "return" <exp> ";"
 <exp>         = <assignment> | <conditional> 
 <assignment>  = <var-id> "=" <exp>
 <conditional> = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp>
