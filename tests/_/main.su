@@ -1,3 +1,9 @@
+
+vec2 : struct {
+    x:f32;
+    y:f32;
+};
+
 main() : s32 {
-    
+    a:vec2 = 40+20;
 }

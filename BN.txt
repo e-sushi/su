@@ -1,6 +1,6 @@
-<file>        = { <decl> }
+<file>        = { <decl> | <directive> }
 <directive>   = "#" ( "import" <import> | "run" <run> | "internal" [ <scope> ] )
-<import>      = { ( <decl-id> | <string> ) [ "{" <import> "}" ] [ "as" <string> ] { "," <import> } }  
+<import>      = { ( <decl-id> | <string> ) [ "{" <import> "}" ] [ "as" <id> ] { "," <import> } }  
 <run>         = <statement>
 <scope>       = "{" { ( <statement> | <decl> ) } "}"
 <decl>        = <func-decl>
@@ -14,17 +14,16 @@
 <op-decl>     = "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
 <statement>   = <scope>  
               | <directive>
-              | <struct>  
+              | <struct-decl>  
               | <exp> ";" 
-              | "using" (<var-id> | <scope-id>) [ "{" { <statement>} "}" ]  //var-id must be a var whose type is not scalar
+              | "using" <var-id> [ "{" { <statement>} "}" ]  //var-id must be a var whose type is not scalar
               | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
               | "while" "(" <exp> ")" <statement>
               | "defer" <statement> 
               | "break"
               | "continue" 
-<exp>         = <assignment> | <conditional> | <struct-type> <initializer>
-<assignment>  = <var-id> "=" ( <exp> | <initialzier> )
-<initializer> = "{" <assignment> { "," <assignment> } "}"
+<exp>         = <assignment> | <conditional> 
+<assignment>  = <var-id> "=" <exp>
 <conditional> = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp>
 <logical or>  = <logical and> { "||" <logical and> } 
 <logical and> = <bit or> { "&&" <bit or> } 
@@ -43,9 +42,10 @@
               | <incdec> <var-id> | <var-id> <incdec> 
               | <call> 
               | <memaccess> 
-              | "if"
+              | <struct-type> <initializer>
 <call>        = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
               | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
+<initializer> = "{" <assignment> { "," <assignment> } "}"
 <arg>         = <exp> | <id> "=" <expr>
 <access>      = <id> "." <id>
 <type>        = <scalar-type> | <struct-type>
