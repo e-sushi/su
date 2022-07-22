@@ -1584,7 +1584,7 @@ struct ParserThread{
 	//just checks if a type conversion is possible
 	b32 can_type_convert(Type to, Type from);
 	//attempts to actually perform a type conversion on a TypedValue
-	b32 type_conversion(Type to, Type from, TypedValue* tv);
+	b32 type_conversion(Type to, Type from);
 
 
 	//attempts to find an identifier's declaration, first searching our known stack, then if its not found

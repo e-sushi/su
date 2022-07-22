@@ -16,6 +16,7 @@
               | <directive>
               | <exp> ";" 
               | "using" <var-id> [ "{" { <statement>} "}" ] ";"  //var-id must be a var whose type is not scalar
+              | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
               | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
               | "while" "(" <exp> ")" <statement>
               | "defer" <statement> ";"

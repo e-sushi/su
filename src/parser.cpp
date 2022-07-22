@@ -40,6 +40,7 @@ sufile->logger.warn(token, __VA_ARGS__);
 
 
 #define expect(...) if(curr_match(__VA_ARGS__))
+#define expect_next(...) if(next_match(__VA_ARGS__))
 #define expect_group(...) if(curr_match_group(__VA_ARGS__))
 
 #define push_variable(in)   {stacks.nested.variables.add(current.variable); current.variable = in;}
@@ -125,36 +126,23 @@ TNode* ParserThread::binop_parse(TNode* node, TNode* ret, Type next_stage, T... 
     return out;
 }
 
-
-#define ConvertAndThatsIt(actualtype,type1,type2)\
-actualtype og_val = tv->type1; tv->type2 = og_val;
-
-//only valid for integer conversions if they are both either signed or unsigned
-#define ConvertAndDetectOverflow(actualtype, type1, type2)\
-ConvertAndThatsIt(actualtype,type1,type2);\
-if(og_val!=tv->type2){\
-    sufile->logger.warn(curt, "conversion from ", STRINGIZE(type1), " to ", STRINGIZE(type2), " causes overflow.");\
-    sufile->logger.note(curt, "original value of ", og_val, " becomes ", tv->type2);\
+#define ConvertGroup(a,b)                      \
+switch(to){                                    \
+    case Token_Signed8:    {  return true; }   \
+    case Token_Signed16:   {  return true; }   \
+    case Token_Signed32:   {  return true; }   \
+    case Token_Signed64:   {  return true; }   \
+    case Token_Unsigned8:  {  return true; }   \
+    case Token_Unsigned16: {  return true; }   \
+    case Token_Unsigned32: {  return true; }   \
+    case Token_Unsigned64: {  return true; }   \
+    case Token_Float32:    {  return true; }   \
+    case Token_Float64:    {  return true; }   \
+    case Token_Struct:     { NotImplemented; } \
 }
 
-#define ConvertGroup(a,b)                                                             \
-switch(to){                                                              \
-    case Token_Signed8:    { ConvertAndDetectOverflow(a, b,    int8); return true; } \
-    case Token_Signed16:   { ConvertAndDetectOverflow(a, b,   int16); return true; } \
-    case Token_Signed32:   { ConvertAndDetectOverflow(a, b,   int32); return true; } \
-    case Token_Signed64:   { ConvertAndDetectOverflow(a, b,   int64); return true; } \
-    case Token_Unsigned8:  { ConvertAndDetectOverflow(a, b,   uint8); return true; } \
-    case Token_Unsigned16: { ConvertAndDetectOverflow(a, b,  uint16); return true; } \
-    case Token_Unsigned32: { ConvertAndDetectOverflow(a, b,  uint32); return true; } \
-    case Token_Unsigned64: { ConvertAndDetectOverflow(a, b,  uint64); return true; } \
-    case Token_Float32:    { ConvertAndThatsIt(a, b, float32); return true; } \
-    case Token_Float64:    { ConvertAndThatsIt(a, b, float64); return true; } \
-    case Token_Struct:     { NotImplemented; }                                    \
-}
-
-//attempts to convert a type to another 
-//currently this will only handle built in coercion, but should handle custom conversions later as well 
-b32 ParserThread::type_conversion(Type to, Type from, TypedValue* tv){
+//checks if a conversion from one type to another is valid
+b32 ParserThread::type_conversion(Type to, Type from){
     switch(from){
         case Token_Signed8:    ConvertGroup( s8,    int8); break;
 		case Token_Signed16:   ConvertGroup(s16,   int16); break;
@@ -517,7 +505,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Variable:{ //name
-                    Variable* v = arena.make_variable(curt->raw);
+                    Variable* v = arena.make_variable(suStr8(curt->raw, " -decl"));
                     push_variable(v);
                     if(curt->is_global){
                         if(is_internal) sufile->parser.internal_decl.add(curt->raw, &v->decl);
@@ -552,18 +540,13 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             v->data.type = Token_Struct;
                             v->data.struct_type = StructFromDeclaration(d);
                         }else implicit_type = 1;
+                        curt++;
                         expect(Token_Assignment){ // name : <type> = || name := 
                             Token* before = curt;
                             curt++;
                             Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
                             if(implicit_type){
                                 v->data.type = e->data.type;
-                            }else if(e->data.type != v->data.type){
-                                //check that the type of the expression's value has a conversion to the type of the variable
-                                if(!type_conversion(v->data.type, e->data.type, &e->data)){
-                                    perror(curt, "there is no known conversion from ", type_token_to_str(e->data.type), " to ", (v->decl.token_start + 2)->raw);
-                                    return 0;
-                                }
                             }
                         } else if(implicit_type) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
                         insert_last(node, &v->decl.node);
@@ -622,25 +605,69 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             perror_ret(curt, "attempt to return a value, but the function's return type is void.");
                         TNode* n = define(&s->node, psExpression);
                         if(!n) return 0;
-                        Expression* e = ExpressionFromNode(n);
-                        if(e->data.type != current.function->data_type){
-                            str8 etypename;
-                            str8 ftypename;
-                            if(e->data.type == Token_Struct){
-                                etypename = e->data.struct_type->decl.identifier;
-                            }else{
-                                etypename = type_token_to_str(e->data.type);
-                            }
-                            if(current.function->data_type == Token_Struct){
-                                ftypename = current.function->struct_data->decl.identifier;
-                            }else{
-                                ftypename = type_token_to_str(current.function->data_type);
-                            }
-                            perror_ret(curt, "expression does not evaluate to the function's return type. expression returns '", etypename, "', but function's return type is '", ftypename, "'.");
-                        }
-                        insert_last(&s->node, &e->node);
+                        change_parent(&s->node, n);
                     }
+                    return &s->node;
                 }break;
+
+                case Token_If:{
+                    Statement* s = arena.make_statement(curt->raw);
+                    s->token_start = curt;
+                    s->type = Statement_Conditional;
+                    insert_last(node, &s->node);
+                    curt++;
+                    expect(Token_OpenParen){
+                        curt++;
+                        expect(Token_CloseParen) perror_ret(curt, "expected an expression for if statement.");
+                        TNode* n = define(&s->node, psExpression);
+                        if(!n) return 0;
+                        curt++;
+                        expect(Token_CloseParen){
+                            curt++;
+                            expect(Token_OpenBrace){
+                                n = define(&s->node, psScope);
+                                if(!n) return 0;
+                                s->token_end = curt;
+                            }else{  
+                                //check that the user isnt trying to declare anything in an unbraced if statement
+                                expect(Token_Identifier)
+                                    if(curt->is_declaration) perror_ret(curt, "can't declare something in an unscoped if statement.");
+                                n = define(&s->node, psStatement);
+                                if(!n) return 0;
+                                curt++;
+                                expect(Token_Semicolon){}
+                                else perror_ret(curt, "expected a ;");
+                                s->token_end = curt;
+                            }
+
+                        }else perror_ret(curt, "expected a ) after if statement's expression.");
+                    }else perror_ret(curt, "expected a ( for if statement.");
+                    return &s->node;
+                }break;
+
+                case Token_Else:{
+                    Statement* s = arena.make_statement(curt->raw);
+                    s->type = Statement_Else;
+                    s->token_start = curt;
+                    insert_last(node, &s->node);
+                    curt++;
+                    expect(Token_OpenBrace){
+                        TNode* n = define(&s->node, psScope);
+                        if(!n) return 0;
+                        s->token_end = curt;
+                    }else{
+                        //check that the user isnt trying to declare anything in an unscoped else statement
+                        expect(Token_Identifier)
+                            if(curt->is_declaration) perror_ret(curt, "can't declare something in an unscoped else statement.");
+                        TNode* n = define(&s->node, psStatement);
+                        if(!n) return 0;
+                        curt++;
+                        expect(Token_Semicolon){}
+                        else perror_ret(curt, "expected a ;");
+                        s->token_end = curt;
+                    }
+                    return &s->node;
+                }break; 
 
                 default:{
                     //this is probably just some expression
@@ -661,28 +688,22 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         }break;
 
         case psExpression:{ //-------------------------------------------------------------------------------------Expression
-            
             expect(Token_Identifier){
                 Declaration* d = resolve_identifier(curt);
                 if(!d) perror_ret(curt, "unknown identifier '", curt->raw, "'.");
                 if(d->type == Declaration_Variable){
-                    Expression* e = arena.make_expression(curt->raw);
-            
-                    e->expr_type = Expression_IdentifierLHS;
-                    e->token_start = curt;
-                
-                    curt++;
+                    //go down expression chain first
+                    TNode* n = define(node, psConditional);
+                    if(!n) return 0;
+                    Expression* e = ExpressionFromNode(n);
+
                     expect(Token_Assignment){
                         Expression* op = arena.make_expression(curt->raw);
-                        insert_last(&op->node, &e->node);
+                        change_parent(&op->node, &e->node);
                         curt++;
                         TNode* ret = define(&op->node, psExpression);
                         insert_last(node, &op->node);
                         return &op->node;                                                
-                    }else{
-                        TNode* n = define(&e->node, psConditional);
-                        if(!n) return 0;
-                        insert_last(node, n);
                     }
                 }else if(d->type == Declaration_Function){
 
@@ -787,7 +808,26 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Token_Identifier:{
+                    Declaration* d = resolve_identifier(curt);
+                    if(!d) perror_ret(curt, "unknown identifier '", curt->raw, "' referenced.");
+                    if(d->type == Declaration_Function){
 
+                    }else if(d->type == Declaration_Variable){
+                        Expression* e = arena.make_expression(curt->raw);
+                        e->expr_type = Expression_IdentifierRHS;
+                        insert_last(node, &e->node);
+                        expect_next(Token_Increment, Token_Decrement){
+                            curt++;
+                            Expression* incdec = arena.make_expression((curt->type == Token_Increment ? STR8("++") : STR8("--")));
+                            incdec->expr_type = (curt->type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix);
+                            insert_last(node, &incdec->node);
+                            change_parent(&incdec->node, &e->node);
+                            return &incdec->node;
+                        }
+                        return &e->node;
+                    }else if(d->type == Declaration_Structure){
+
+                    }
                 }break;
             }
         }break;
