@@ -34,6 +34,7 @@
 #include "lexer.cpp"
 #include "preprocessor.cpp"
 #include "parser.cpp"
+#include "validator.cpp"
 #include "compiler.cpp"
 #include "astgraph.cpp"
 

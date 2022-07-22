@@ -1621,6 +1621,18 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Validator
+
+struct Validator{
+	suFile* sufile;
+
+	suArena<Declaration*> known_decls;
+
+	void start();
+	TNode* validate(TNode* node);
+};
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Compiler
 
 struct CompilerRequest{
@@ -1685,6 +1697,7 @@ struct{
 	FORCE_INLINE
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
+		function->node.type = NodeType_Function;
 		function->decl.node.debug = debugmsg;
 		return function;
 	}
@@ -1692,6 +1705,7 @@ struct{
 	FORCE_INLINE
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
+		variable->node.type = NodeType_Variable;
 		variable->decl.node.debug = debugmsg;
 		return variable;
 	}
@@ -1699,6 +1713,7 @@ struct{
 	FORCE_INLINE
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
+		structure->node.type = NodeType_Struct;
 		structure->decl.node.debug = debugmsg;
 		return structure;
 	}
@@ -1706,6 +1721,7 @@ struct{
 	FORCE_INLINE
 	Scope* make_scope(str8 debugmsg = STR8("")){DPZoneScoped;
 		Scope* scope = scopes.add(Scope());
+		scope->node.type = NodeType_Scope;
 		scope->node.debug = debugmsg;
 		return scope;
 	}
@@ -1713,6 +1729,7 @@ struct{
 	FORCE_INLINE
 	Expression* make_expression(str8 debugmsg = STR8("")){DPZoneScoped;
 		Expression* expression = expressions.add(Expression());
+		expression->node.type = NodeType_Expression;
 		expression->node.debug = debugmsg;
 		return expression;
 	}
@@ -1720,6 +1737,7 @@ struct{
 	FORCE_INLINE
 	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
 		Statement* statement = statements.add(Statement());
+		statement->node.type = NodeType_Statement;
 		statement->node.debug = debugmsg;
 		return statement;
 	}
