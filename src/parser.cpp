@@ -52,6 +52,8 @@ sufile->logger.warn(token, __VA_ARGS__);
 #define pop_scope()         {current.scope = stacks.nested.scopes.pop();}
 #define push_function(in)   {stacks.nested.functions.add(current.function); current.function = in;}
 #define pop_function()      {current.function = stacks.nested.functions.pop();}
+#define push_statement(in)   {stacks.nested.statements.add(current.statement); current.statement = in;}
+#define pop_statement()      {current.statement = stacks.nested.statements.pop();}
 
 str8 type_token_to_str(Type type){
     switch(type){
@@ -322,13 +324,21 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
             stacks.nested.scopes.add(current.scope);
             current.scope = arena.make_scope(curt->raw);
             current.scope->token_start = curt;
+            stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
             TNode* me = &current.scope->node;
             insert_last(node, &current.scope->node);
             while(!next_match(Token_CloseBrace)){
                 curt++;
                 expect(Token_Identifier){
                     if(curt->is_declaration){
-                        define(me, psDeclaration);
+                        TNode* ret = define(me, psDeclaration);
+                        if(!ret) return 0;
+                        Declaration* d = DeclarationFromNode(ret);
+                        if(d->type == Declaration_Variable){
+                            curt++;
+                            expect(Token_Semicolon){}
+                            else perror_ret(curt, "expected ; after variable declaration.");
+                        }
                     }else{
                         define(me, psStatement);
                     }
@@ -338,6 +348,8 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     define(me, psStatement);
                 }
             }
+            curt++;
+            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
             current.scope = stacks.nested.scopes.pop();
         }break;
 
@@ -442,8 +454,8 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     Function* f = FunctionFromDeclaration(decl);
                     push_function(f);
                     f->decl.token_start = curt;
+                    f->decl.type = Declaration_Function;
                     b32 is_global = curt->is_global;
-                    
                     stacks.known_declarations.add(&f->decl);
                     str8 id = curt->raw;
                     f->internal_label = id;
@@ -515,6 +527,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     v->decl.declared_identifier = curt->raw;
                     v->decl.identifier = curt->raw;
                     v->decl.token_start = curt;
+                    v->decl.type = Declaration_Variable;
                     str8 id = curt->raw;
                     curt++;
                     expect(Token_Colon){ // name :
@@ -563,15 +576,120 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         case psStatement:{ //---------------------------------------------------------------------------------------Statement
             switch(curt->type){
                 case Token_OpenBrace:{
-                    define()
+                    define(node, psScope);
                 }break;
+
+                case Token_Directive_Import:
+                case Token_Directive_Include:
+                case Token_Directive_Internal:
+                case Token_Directive_Run:{
+                    //not sure yet when this will happen and how it will be handled
+                    //the only place this should be encountered is #run, probably
+                    TestMe;
+                }break;
+
+                case Token_Using:{
+                    curt++;
+                    expect(Token_Identifier){
+                        Declaration* d = resolve_identifier(curt);
+                        if(!d) perror_ret(curt, "unknown identifier '", curt->raw, "' used as identifier of using statement.");
+                        if(d->type != Declaration_Variable) perror_ret(curt, "attempted to use an identifier that does not belong to a variable as identifier for using.");
+                        Variable* v = VariableFromDeclaration(d);
+                        if(v->data.type!=Token_Struct) perror_ret(curt, "attempt to use using on a type that is not a struct.");
+                        //expand the variable's vars into the scope
+                        forI(v->data.struct_type->members.data.count){
+                            stacks.known_declarations.add(v->data.struct_type->members.data[i].second);
+                        }
+                        curt++;
+                        expect(Token_Semicolon){curt++;}
+                        else perror_ret(curt, "expected a semicolon after using statement");
+                    } else perror_ret(curt, "expected a variable identifier after 'using'.");
+                }break;
+
+                case Token_Return:{
+                    Statement* s = arena.make_statement(curt->raw);
+                    s->type = Statement_Return;
+                    s->token_start = curt;
+                    insert_last(node, &s->node);
+                    curt++;
+                    expect(Token_Semicolon){
+                        if(current.function->data_type != Token_Void){
+                            perror_ret(curt, "attempt to return nothing, but the function's return type is not void.");
+                        }
+                        else{curt++;}
+                    }else{
+                        if(current.function->data_type == Token_Void)
+                            perror_ret(curt, "attempt to return a value, but the function's return type is void.");
+                        TNode* n = define(&s->node, psExpression);
+                        if(!n) return 0;
+                        Expression* e = ExpressionFromNode(n);
+                        if(e->data.type != current.function->data_type){
+                            str8 etypename;
+                            str8 ftypename;
+                            if(e->data.type == Token_Struct){
+                                etypename = e->data.struct_type->decl.identifier;
+                            }else{
+                                etypename = type_token_to_str(e->data.type);
+                            }
+                            if(current.function->data_type == Token_Struct){
+                                ftypename = current.function->struct_data->decl.identifier;
+                            }else{
+                                ftypename = type_token_to_str(current.function->data_type);
+                            }
+                            perror_ret(curt, "expression does not evaluate to the function's return type. expression returns '", etypename, "', but function's return type is '", ftypename, "'.");
+                        }
+                        insert_last(&s->node, &e->node);
+                    }
+                }break;
+
+                default:{
+                    //this is probably just some expression
+                    Statement* s = arena.make_statement();
+                    push_statement(s);
+                    s->token_start = curt;
+                    insert_last(node, &s->node);
+                    TNode* ret = define(node, psExpression);
+                    if(!ret) return 0;
+                    curt++;
+                    expect(Token_Semicolon){}
+                    else perror_ret(curt, "expected a ; after statement.");
+                    pop_statement();
+                    s->token_end = curt;
+                }break;
+
             }
         }break;
 
         case psExpression:{ //-------------------------------------------------------------------------------------Expression
+            
             expect(Token_Identifier){
                 Declaration* d = resolve_identifier(curt);
+                if(!d) perror_ret(curt, "unknown identifier '", curt->raw, "'.");
+                if(d->type == Declaration_Variable){
+                    Expression* e = arena.make_expression(curt->raw);
+            
+                    e->expr_type = Expression_IdentifierLHS;
+                    e->token_start = curt;
+                
+                    curt++;
+                    expect(Token_Assignment){
+                        Expression* op = arena.make_expression(curt->raw);
+                        insert_last(&op->node, &e->node);
+                        curt++;
+                        TNode* ret = define(&op->node, psExpression);
+                        insert_last(node, &op->node);
+                        return &op->node;                                                
+                    }else{
+                        TNode* n = define(&e->node, psConditional);
+                        if(!n) return 0;
+                        insert_last(node, n);
+                    }
+                }else if(d->type == Declaration_Function){
 
+                }else if(d->type == Declaration_Structure){
+
+                }
+               
             }else{
                 Expression* e = ExpressionFromNode(define(node, psConditional));
                 return &e->node;
@@ -666,6 +784,10 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     expect(Token_CloseParen){
                         return ret;
                     }else perror(curt, "expected a ) to close ( in line ", start->l0, " on column ", start->c0);
+                }break;
+
+                case Token_Identifier:{
+
                 }break;
             }
         }break;
