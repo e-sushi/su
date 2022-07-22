@@ -1576,46 +1576,7 @@ struct ParserThread{
 	}
 
 	template<typename... T>
-	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks){
-		//TODO(sushi) need to detect floats being used in bitwise operations (or just allow it :) 
-		TNode* out = ret;
-		TNode* lhs_node = ret;
-		while(next_match(tokchecks...)){
-			curt++;
-			//make binary op expression
-			Expression* op = arena.make_expression(curt->raw);
-			op->expr_type = binop_token_to_expression(curt->type);
-			op->token_start = curt;
-
-			//readjust parents to make the binary op the new child of the parent node
-			//and the ret node a child of the new binary op
-			change_parent(node, &op->node);
-			change_parent(&op->node, out);
-
-			//evaluate next expression
-			curt++;
-			Expression* rhs = ExpressionFromNode(define(&op->node, next_stage));
-
-
-			//check types on each side and make sure they're compatible
-			//if they are we set the operator's type to the type whose data loss is minimized in the conversion
-			//for lack of a better word.. what i mean is like the case of 1.2 + 1
-			//the result of the op will be a float because converting an integer to a float loses no data where as 
-			//converting from a float to an int does. please let me (sushi) know what this is called if you ever find this
-			//we dont actually change all the expression nodes types, only the binary op's
-			//TODO(sushi) this is probably easier if i just make it so its guaranteed that the order tokens are in in the token enum
-			//            is the order of precedence (?) of types.
-			Expression* lhs = ExpressionFromNode(lhs_node);
-			if(lhs->data.type >= rhs->data.type){
-				op->data.type = lhs->data.type;
-			}else if(rhs->data.type > lhs->data.type){
-				op->data.type = rhs->data.type;
-			}
-			
-			out = &op->node;
-		}
-		return out;
-	}
+	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks);
 
 	//just checks if a type conversion is possible
 	b32 can_type_convert(Type to, Type from);
