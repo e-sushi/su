@@ -174,6 +174,13 @@ void Lexer::lex(){DPZoneScoped;
 	u32 line_col = 1;
 	u8* line_start = stream.str;
 
+	//for tracking unbalanced parenthesis and braces
+	//index of a token
+	//there is a small issue where we rely on using braces and parenthesis to determine if a token is considered part of the global scope
+	//so if the user fails to close a parenthesis, tokens will improperly get marked as local so we must do this error detection in lexer
+	u32 last_open_paren = 0;
+	u32 last_open_brace = 0; 
+
 	u32 scope_depth = 0;
 	u32 internal_scope_depth = -1; //set to the scope of an internal directive if it is scoped
 
@@ -191,6 +198,8 @@ void Lexer::lex(){DPZoneScoped;
 		token.scope_depth = scope_depth;
 		token.idx = sufile->lexer.tokens.count;
 		token.raw.str = stream.str;
+		//TODO(sushi) this method of inferring global or local scope is prone to error 
+		//            either get rid of it or find a better way 
 		if(!paren_depth && !scope_depth) token.is_global = 1;
 		switch(decoded_codepoint_from_utf8(stream.str, 4).codepoint){
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
@@ -258,7 +267,13 @@ void Lexer::lex(){DPZoneScoped;
 				token.group = TokenGroup_Literal;
 				stream_next;
 				
-				while(*stream.str != '"') stream_next; //skip until closing double quotes
+				
+				while(*stream.str != '"'){
+					stream_next; //skip until closing double quotes
+					if(!stream){
+						logger.error("unexpected end of file. expected closing double quotes for double quotes starting on line ", token.l0, " column ", token.c0);
+					}	
+				} 
 				
 				token.l1 = line_num;
 				token.c1 = line_col;
@@ -271,10 +286,15 @@ void Lexer::lex(){DPZoneScoped;
 			case '(':{ 
 				token.type = Token_OpenParen;
 				paren_depth++;
+				last_open_paren = sufile->lexer.tokens.count;
 				stream_next;
 			}break;
 			case ')':{ 
 				token.type = Token_CloseParen; 
+				if(!paren_depth){
+					logger.error(&token, "closing parenthesis ')' with no opening parenthesis '('.");
+					return;
+				}
 				paren_depth--;
 				stream_next;
 			}break;
@@ -301,11 +321,15 @@ void Lexer::lex(){DPZoneScoped;
 				}else{
 					scope_depth++;
 				}
+				last_open_brace = sufile->lexer.tokens.count;
 				stream_next;
 			}break;
 			
 			case '}':{ //NOTE special for scope tracking and internals
 				token.type = Token_CloseBrace;
+				if(!scope_depth){
+					logger.error(&token, "closing brace '}' with no opening brace '{'.");
+				}
 				if(scope_depth == internal_scope_depth){
 					internal_scope_depth = -1;
 				}else{
@@ -338,7 +362,7 @@ void Lexer::lex(){DPZoneScoped;
 				}else if(*stream.str == '*'){
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
-						logger.error(&token, "Multi-line comment has no ending */ token.");
+						logger.error(&token, "multi-line comment has no ending */ token.");
 						return;
 					}
 					stream_next; stream_next;
@@ -418,7 +442,7 @@ void Lexer::lex(){DPZoneScoped;
 			}break;
 		}
 
-			//set token's group
+		//set token's group
 		if(token.type == Token_Identifier){
 			token.group = TokenGroup_Identifier;
 		}else if(token.type >= Token_LiteralFloat && token.type <= Token_LiteralString){
@@ -442,6 +466,18 @@ void Lexer::lex(){DPZoneScoped;
 			token.raw.count = stream.str - token.raw.str;
 			sufile->lexer.tokens.add(token);
 		}
+	}
+
+	if(scope_depth){
+		Token* lob = &sufile->lexer.tokens[last_open_brace];
+		logger.error("a brace was never closed");
+		logger.note(lob, "see last opened brace");
+	}
+
+	if(paren_depth){
+		Token* lop = &sufile->lexer.tokens[last_open_paren];
+		logger.error("a parenthesis was never closed.");
+		logger.note(lop, "see last opened parentheis.");
 	}
 
 	sufile->lexer.tokens.add(Token{Token_EOF, Token_EOF});	
