@@ -82,6 +82,10 @@ void print_tree(TNode* node, u32 indent = 0){
 	for_node(node->first_child){
 		print_tree(it, indent + 1);
 	}
+	if(str8_equal_lazy(node->debug, STR8("{"))){
+		logger_push_indent(indent);
+		Log("", "}");
+	}
 	logger_pop_indent(-1);
 }
 
@@ -117,7 +121,7 @@ int main(){DPZoneScoped;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
-	//print_tree(&compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
+	print_tree(&compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;
 }
