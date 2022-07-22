@@ -911,7 +911,7 @@ enum {
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
 	
-	Expression_Function_Call,
+	Expression_FunctionCall,
 	
 	//Special ternary conditional expression type
 	Expression_TernaryConditional,
@@ -1064,6 +1064,7 @@ enum {
 	Statement_Break,
 	Statement_Continue,
 	Statement_Struct,
+	Statement_Using,
 };
 
 struct Statement {
@@ -1188,7 +1189,8 @@ enum {
 	psBitshift,   
 	psAdditive,   
 	psTerm,       
-	psFactor,     
+	psAccess, 
+	psFactor,    
 };
 
 const str8 psStrs[] = {
@@ -1211,6 +1213,7 @@ const str8 psStrs[] = {
 	STR8("Bitshift"),   
 	STR8("Additive"),   
 	STR8("Term"),       
+	STR8("Access"),
 	STR8("Factor"),     
 };
 
@@ -1358,7 +1361,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), WarningFormat("warning"), ": ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{

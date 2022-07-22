@@ -54,7 +54,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                 if(curt->type == Token_LiteralString){
                     Token* mod = curt;
                     
-                    //TODO(sushi) when we implement searching PATH, we should also allow the use to omit .su
+                    //TODO(sushi) when we implement searching PATH, we should also allow the user to omit .su
 
                     //attempt to find the module in PATH and current working directory
                     //first check cwd
@@ -73,6 +73,17 @@ void Preprocessor::preprocess(){DPZoneScoped;
                     }
                 }
                 curt++;
+            }
+        }else{
+            if(curt->type == Token_LiteralString){
+                Token* mod = curt;
+                if(file_exists(curt->raw)){
+                    logger.log(Verbosity_StageParts, "Adding import path ", curt->raw);
+                    cr.filepaths.add(curt->raw);
+                }else{
+                    //TODO(sushi) look for imports on PATH
+                    logger.warn(curt, "Finding files through PATH is not currently supported.");
+                }
             }
         }
     }

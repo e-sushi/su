@@ -16,6 +16,9 @@
               | <directive>
               | <exp> ";" 
               | "using" <var-id> [ "{" { <statement>} "}" ] ";"  //var-id must be a var whose type is not scalar
+              | "using" <var-id> as <id> ";" //alias variable
+              | "using" <func-id> "(" <decl> { "," <decl> } ")" as <call> //alias function signature
+              | "using" <func-id> "as" <id> //alias function name
               | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
               | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
               | "while" "(" <exp> ")" <statement>
@@ -35,20 +38,20 @@
 <relational>  = <bit shift> { ("<" | ">" | "<=" | ">=") <bit shift> }
 <bit shift>   = <additive> { ("<<" | ">>" ) <additive> }
 <additive>    = <term> { ("+" | "-") <term> }
-<term>        = <factor> { ("*" | "/" | "%") <factor> }
-<factor>      = "(" <exp> ")" 
-              | <unary> <factor> 
+<term>        = <access> { ("*" | "/" | "%") <access> }
+<access>      = <factor> { "." <id> }
+<factor>      = <unary> <factor> 
               | <literal> 
-              | <var-id> 
-              | <incdec> <var-id> | <var-id> <incdec> 
+              | <access>
               | <call> 
-              | <memaccess> 
+              | "(" <exp> ")" 
+              | <incdec> <var-id> | <var-id> <incdec> 
               | <struct-type> <initializer>
+              | <var-id> 
 <call>        = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
               | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
 <initializer> = "{" <assignment> { "," <assignment> } "}"
 <arg>         = <exp> | <id> "=" <expr>
-<access>      = <id> "." <id>
 <type>        = <scalar-type> | <struct-type>
 <scalar-type> = ("void"|"u8"|"u16"|"u32"|"u64"|"s8"|"s16"|"s32"|"s64"|"f32"|"f64")
 <struct-type> = ("str"|"any"|<struct-id>)
