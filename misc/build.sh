@@ -191,6 +191,8 @@ misc_folder="$( cd -- "$( dirname -- "${BASH_SOURCE[0]:-$0}"; )" &> /dev/null &&
 root_folder="$misc_folder/.."
 vulkan_folder="$VULKAN_SDK"
 tracy_folder="H:/src/tracy-0.7.8" #TODO(sushi) make this an env var
+graphviz_folder="H:/src/graphviz_debug"
+
 
 if [ $vulkan_override != 0 ]; then
   vulkan_folder=$vulkan_override
@@ -208,7 +210,9 @@ includes="
   -Ideshi/src
   -Ideshi/src/external
   -I$vulkan_folder/include
-  -I$tracy_folder"
+  -I$tracy_folder
+  -I$graphviz_folder/include
+"
 deshi_sources="deshi/src/deshi.cpp"
 dll_sources="src/ui2.cpp"
 app_sources="src/su.cpp"
@@ -217,6 +221,7 @@ app_sources="src/su.cpp"
 #### Specifiy libs ####
 lib_paths=(
   $vulkan_folder/lib
+  $graphviz_folder/lib
 )
 libs=(
   gdi32
@@ -226,6 +231,11 @@ libs=(
   opengl32
   vulkan-1
   shaderc_combined
+
+  #graphviz libs
+  cdt
+  cgraph
+  gvc
 )
 #_____________________________________________________________________________________________________
 #                                         Global Defines
@@ -265,10 +275,11 @@ fi
 
 defines_misc="-D_CRT_SECURE_NO_WARNINGS"
 if [ "$build_profiler" == "profile" ]; then
-  defines_misc="-DTRACY_ENABLE"
+  defines_misc="$defines_misc -DTRACY_ENABLE"
 elif [ "$build_profiler" == "wait and profile" ]; then
-  defines_misc="-DTRACY_ENABLE -DDESHI_WAIT_FOR_TRACY_CONNECTION"
+  defines_misc="$defines_misc -DTRACY_ENABLE -DDESHI_WAIT_FOR_TRACY_CONNECTION"
 fi
+#defines_misc="$defines_misc -DSU_GRAPHVIZ"
 
 defines_shared=""
 if [ $build_shared == 1 ]; then

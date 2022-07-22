@@ -35,6 +35,7 @@
 #include "preprocessor.cpp"
 #include "parser.cpp"
 #include "compiler.cpp"
+#include "astgraph.cpp"
 
 //this is temp allocated, so just clear temp mem or free the str yourself
 str8 format_time(f64 ms){
@@ -122,6 +123,7 @@ int main(){DPZoneScoped;
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
 	print_tree(&compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
+	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;
 }
