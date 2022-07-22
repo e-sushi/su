@@ -323,7 +323,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                         if(!ret) return 0;
                         Declaration* d = DeclarationFromNode(ret);
                         if(d->type == Declaration_Variable){
-                            curt++;
                             expect(Token_Semicolon){}
                             else perror_ret(curt, "expected ; after variable declaration.");
                         }
@@ -385,6 +384,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     s->members.init();
 
                     s->decl.in_progress = 1;
+                    s->decl.working_thread = this;
                     s->decl.token_start = curt;
                     s->decl.type = Declaration_Structure;
                     s->decl.identifier = curt->raw;
@@ -579,12 +579,34 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                         if(d->type != Declaration_Variable) perror_ret(curt, "attempted to use an identifier that does not belong to a variable as identifier for using.");
                         Variable* v = VariableFromDeclaration(d);
                         if(v->data.type!=Token_Struct) perror_ret(curt, "attempt to use using on a type that is not a struct.");
+                        //we must make sure this variable's type has been fully parsed
+                        while(!v->data.struct_type->decl.complete) v->data.struct_type->decl.working_thread->cv.wait();
+                        
                         //expand the variable's vars into the scope
+                        u32 ogcount = stacks.known_declarations.count;
+                        
+                        
                         forI(v->data.struct_type->members.data.count){
+                            //warn the user of any possible shadowing that would occur by using this variable
+                            //TODO(sushi) there is probably a more efficient way to do this
+                            Declaration* md = v->data.struct_type->members.data[i].second;
+                            forX(o, ogcount){
+                                Declaration* ld = stacks.known_declarations[o];
+                                if(str8_equal_lazy(ld->identifier, md->identifier)){
+                                        sufile->logger.warn(curt, 
+                                        "using variable '", curt->raw, "' causes shadowing of variable '",
+                                         ld->identifier,
+                                         "' declared on line ", 
+                                         ld->token_start->l0, " column ",
+                                         ld->token_start->c0);
+
+                                }
+                            }
                             stacks.known_declarations.add(v->data.struct_type->members.data[i].second);
                         }
+
                         curt++;
-                        expect(Token_Semicolon){curt++;}
+                        expect(Token_Semicolon){}
                         else perror_ret(curt, "expected a semicolon after using statement");
                     } else perror_ret(curt, "expected a variable identifier after 'using'.");
                 }break;
@@ -949,6 +971,10 @@ void Parser::parse(){DPZoneScoped;
         while(!threads[i].finished){
             threads[i].cv.wait();
         }
+    }
+
+    forI(sufile->parser.exported_decl.data.count){
+        change_parent(&sufile->parser.base, &sufile->parser.exported_decl.atIdx(i)->node);
     }
     
     sufile->logger.log(Verbosity_Stages, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);

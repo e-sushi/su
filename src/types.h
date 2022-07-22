@@ -1477,6 +1477,7 @@ struct suFile{
 		parser.exported_decl.init();
 		parser.imported_decl.init();
 		parser.internal_decl.init();
+		parser.base.debug = STR8("base");
 	}
 };
 
@@ -1593,7 +1594,6 @@ struct ParserThread{
 };
 
 struct Parser {
-	//maps a str8 indicating what identifier the thread is working on to a parser thread
 	array<ParserThread> threads;
 
 	//map of identifiers to global declarations

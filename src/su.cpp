@@ -122,7 +122,7 @@ int main(){DPZoneScoped;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
-	print_tree(&compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
+	print_tree(&compiler.files.atIdx(0)->parser.base);
 	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;

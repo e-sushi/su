@@ -1,15 +1,13 @@
-main() : s32 {
-    if(1){
-        a:u32 = 1;
-        return a;
-    } else {
-        b:u32 = 2;
-        return b;
-    }
+vec2 : struct {
+    x:f32;
+    y:f32;
+}
 
-    if(0){
-        return 0;
-    }else if(1){
-        return 1;
+main() : s32 {
+    a:vec2;
+    {
+        using a;
+        x = 2;
     }
+    x=1;
 }
