@@ -1222,6 +1222,7 @@ enum{
 	FileStage_Lexer,
 	FileStage_Preprocessor,
 	FileStage_Parser,
+	FileStage_Validator,
 };
 
 struct Token;
@@ -1571,16 +1572,7 @@ struct ParserThread{
 		return (((curt + 1)->group == in) || ...);
 	}
 
-	void init(){DPZoneScoped;
-		stacks.nested.scopes.init();
-		stacks.nested.structs.init();
-		stacks.nested.variables.init();
-		stacks.nested.functions.init();
-		stacks.nested.expressions.init();
-		stacks.nested.statements.init();
-		stacks.known_declarations.init();
-		stacks.known_declarations_scope_begin_offsets.init();
-	}
+	
 
 	template<typename... T>
 	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks);
@@ -1626,7 +1618,42 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 struct Validator{
 	suFile* sufile;
 
-	suArena<Declaration*> known_decls;
+	//keeps track of what element we are currently
+	struct{
+		Variable*   variable = 0;
+		Expression* expression = 0;
+		Struct*     structure = 0;
+		Scope*      scope = 0;
+		Function*   function = 0;
+		Statement*  statement = 0;
+	}current;	
+
+	struct{
+		//stacks of declarations known in current scope
+		//this array stores the index of the last declaration that was pushed before a new scope begins
+		suArena<u32> known_declarations_scope_begin_offsets;
+		suArena<Declaration*> known_declarations;
+		//stacks of elements that we are working with
+		struct{
+			suArena<Scope*>      scopes;
+			suArena<Struct*>     structs;
+			suArena<Variable*>   variables;
+			suArena<Function*>   functions;
+			suArena<Expression*> expressions;
+			suArena<Statement*>  statements;
+		}nested;
+	}stacks;
+
+	void init(){DPZoneScoped;
+		stacks.nested.scopes.init();
+		stacks.nested.structs.init();
+		stacks.nested.variables.init();
+		stacks.nested.functions.init();
+		stacks.nested.expressions.init();
+		stacks.nested.statements.init();
+		stacks.known_declarations.init();
+		stacks.known_declarations_scope_begin_offsets.init();
+	}
 
 	void start();
 	TNode* validate(TNode* node);
@@ -1664,6 +1691,7 @@ struct Compiler{
 	suFile* start_lexer       (suFile* sufile);
 	suFile* start_preprocessor(suFile* sufile);
 	suFile* start_parser      (suFile* sufile);
+	suFile* start_validator   (suFile* sufile);
 	void    start_request(CompilerRequest* request);
 
 	//used to completely reset all compiled information
@@ -1697,7 +1725,7 @@ struct{
 	FORCE_INLINE
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
-		function->node.type = NodeType_Function;
+		function->decl.node.type = NodeType_Function;
 		function->decl.node.debug = debugmsg;
 		return function;
 	}
@@ -1705,7 +1733,7 @@ struct{
 	FORCE_INLINE
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
-		variable->node.type = NodeType_Variable;
+		variable->decl.node.type = NodeType_Variable;
 		variable->decl.node.debug = debugmsg;
 		return variable;
 	}
@@ -1713,7 +1741,7 @@ struct{
 	FORCE_INLINE
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
-		structure->node.type = NodeType_Struct;
+		structure->decl.node.type = NodeType_Structure;
 		structure->decl.node.debug = debugmsg;
 		return structure;
 	}

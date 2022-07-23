@@ -117,7 +117,7 @@ int main(){DPZoneScoped;
 	//cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
 	cr.filepaths.add(STR8("tests/_/main.su"));
 
-	cr.stage = FileStage_Parser;
+	cr.stage = FileStage_Validator;
 
 	compiler.compile(&cr);
 

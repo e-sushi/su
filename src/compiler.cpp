@@ -41,6 +41,9 @@ void compile_threaded_func(void* in){DPZoneScoped;
     if(ct->stage > FileStage_Preprocessor){
         compiler.start_parser(ct->sufile);
     }
+    if(ct->stage > FileStage_Parser){
+        compiler.start_validator(ct->sufile);
+    }
 
     ct->finished = 1;
     DPTracyMessageL("compiler: notifying condvar");
@@ -119,9 +122,9 @@ suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
 		return sufile;
 	}
 
-    mutexes.lexer.lock();
+    global_mem_lock.lock();
     Lexer* lexer = (Lexer*)memalloc(sizeof(Lexer));
-    mutexes.lexer.unlock();
+    global_mem_lock.unlock();
 	
     logger.log(Verbosity_StageParts, "Reading file contents into a buffer");
     sufile->file_buffer = file_read_alloc(sufile->file, sufile->file->bytes, deshi_temp_allocator); 
@@ -145,9 +148,9 @@ suFile* Compiler::start_preprocessor(suFile* sufile){DPZoneScoped;
         return sufile;
     } 
 
-    mutexes.preprocessor.lock();
+    global_mem_lock.lock();
     Preprocessor* preprocessor = (Preprocessor*)memalloc(sizeof(Preprocessor)); 
-    mutexes.preprocessor.unlock();        
+    global_mem_lock.unlock();        
 
     preprocessor->sufile = sufile;
     preprocessor->preprocess();
@@ -169,9 +172,9 @@ suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
         return sufile;
     }
     
-    mutexes.parser.lock();
+    global_mem_lock.lock();
     Parser* parser = (Parser*)memalloc(sizeof(Parser)); 
-    mutexes.parser.unlock();
+    global_mem_lock.unlock();
     
     parser->sufile = sufile;
     parser->parse();
@@ -179,6 +182,30 @@ suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
     sufile->stage = FileStage_Parser;
 
     memzfree(parser);
+    return sufile;
+}
+
+suFile* Compiler::start_validator(suFile* sufile){
+    Assert(sufile, "Compiler::start_validator was passed a null suFile*.");
+    Assert(sufile->stage >= FileStage_Parser, "Compiler::start_validator was given a sufile that has not completed previous stages.");
+
+    logger.log(Verbosity_StageParts, "Starting a validator.");
+    logger.log(Verbosity_StageParts, "Checking if file has already been validated.");
+    if(sufile->stage >= FileStage_Validator){
+        logger.log(Verbosity_StageParts, SuccessFormat("File has already been validated."));
+        return sufile;
+    }
+
+    global_mem_lock.lock();
+    Validator* validator = (Validator*)memalloc(sizeof(Validator));
+    global_mem_lock.unlock();
+
+    validator->sufile = sufile;
+    validator->start();
+
+    sufile->stage = FileStage_Validator;
+
+    memzfree(validator);
     return sufile;
 }
 

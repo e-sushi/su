@@ -43,19 +43,6 @@ sufile->logger.warn(token, __VA_ARGS__);
 #define expect_next(...) if(next_match(__VA_ARGS__))
 #define expect_group(...) if(curr_match_group(__VA_ARGS__))
 
-#define push_variable(in)   {stacks.nested.variables.add(current.variable); current.variable = in;}
-#define pop_variable()      {current.variable = stacks.nested.variables.pop();}
-#define push_expression(in) {stacks.nested.expressions.add(current.expression); current.expression = in;}
-#define pop_expression()    {current.expression = stacks.nested.expressions.pop();}
-#define push_struct(in)     {stacks.nested.structs.add(current.structure); current.structure = in;}
-#define pop_struct()        {current.structure = stacks.nested.structs.pop();}
-#define push_scope(in)      {stacks.nested.scopes.add(current.scope); current.scope = in;}
-#define pop_scope()         {current.scope = stacks.nested.scopes.pop();}
-#define push_function(in)   {stacks.nested.functions.add(current.function); current.function = in;}
-#define pop_function()      {current.function = stacks.nested.functions.pop();}
-#define push_statement(in)   {stacks.nested.statements.add(current.statement); current.statement = in;}
-#define pop_statement()      {current.statement = stacks.nested.statements.pop();}
-
 str8 type_token_to_str(Type type){
     switch(type){
         case Token_Void:       return STR8("void");
@@ -424,8 +411,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 }
             }
             curt++;
-            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
-            current.scope = stacks.nested.scopes.pop();
         }break;
 
         case psDeclaration:{ //-----------------------------------------------------------------------------------Declaration
@@ -468,7 +453,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     }
 
                     Struct* s = StructFromDeclaration(decl);
-                    push_struct(s);
                     s->members.init();
 
                     s->decl.in_progress = 1;
@@ -494,12 +478,10 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                     expect(Token_Identifier){
                                         if(!curt->is_declaration){
                                             perror(curt, "only declarations are allowed inside struct definitions. NOTE(sushi) if this is a declaration, then this error indicates something wrong internally, please let me know.");
-                                            pop_struct();
                                             return 0;
                                         }
                                         TNode* fin = define(&s->decl.node, psDeclaration);
                                         if(!fin){
-                                            pop_struct();
                                             return 0;
                                         } 
                                         Declaration* d = DeclarationFromNode(fin);
@@ -512,7 +494,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
                     s->decl.complete = 1;
                     this->cv.notify_all();
-                    pop_struct();
                 }break;
 
                 case Declaration_Function:{
@@ -528,7 +509,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     }
 
                     Function* f = FunctionFromDeclaration(decl);
-                    push_function(f);
                     f->decl.token_start = curt;
                     f->decl.type = Declaration_Function;
                     b32 is_global = curt->is_global;
@@ -567,12 +547,10 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                 Declaration* d = resolve_identifier(curt);
                                 if(!d){
                                     perror(curt, "unknown identifier '", curt->raw, "' used as return type for function declaration of '", id, "'");
-                                    pop_function();
                                     return 0;
                                 }
                                 if(d->type != Declaration_Structure){
                                     perror(curt, "expected a struct identifier for type specifier in declaration of function '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this.");
-                                    pop_function();
                                     return 0;
                                 }
                                 f->data_type = Token_Struct;
@@ -589,12 +567,10 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             } else perror(curt, "expected '{' after function declaration.");
                         } else perror(curt, "expected : after function definition.");
                     } else perror(curt, "expected ( after identifier in function declaration.");
-                    pop_function();
                 }break;
 
                 case Declaration_Variable:{ //name
                     Variable* v = arena.make_variable(suStr8(curt->raw, " -decl"));
-                    push_variable(v);
                     if(curt->is_global){
                         if(is_internal) sufile->parser.internal_decl.add(curt->raw, &v->decl);
                         else            sufile->parser.exported_decl.add(curt->raw, &v->decl);
@@ -617,12 +593,10 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                             Declaration* d = resolve_identifier(curt);
                             if(!d){
                                 perror(curt, "unknown identifier '", curt->raw, "' used as type specifier for variable declaration of '", id, "'");
-                                pop_variable();
                                 return 0;
                             }
                             if(d->type != Declaration_Structure){
                                 perror(curt, "expected a struct identifier for type specifier in declaration of variable '", id, "'. You may have shadowed a structure's identifier by making a variable with its name. TODO(sushi) we can check for this.");
-                                pop_variable();
                                 return 0;
                             }
                             v->data.type = Token_Struct;
@@ -754,7 +728,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 default:{
                     //this is probably just some expression
                     Statement* s = arena.make_statement();
-                    push_statement(s);
                     s->token_start = curt;
                     insert_last(node, &s->node);
                     TNode* ret = define(node, psExpression);
@@ -762,7 +735,6 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     curt++;
                     expect(Token_Semicolon){}
                     else perror_ret(curt, "expected a ; after statement.");
-                    pop_statement();
                     s->token_end = curt;
                 }break;
 
@@ -965,7 +937,6 @@ void Parser::parse(){DPZoneScoped;
             if(!itok->scope_depth){
                 //dummy thread, this shouldnt actually be concurrent
                 ParserThread pt;
-                pt.init();
                 pt.curt = itok;
                 pt.sufile = sufile;
                 pt.parser = this;
@@ -985,7 +956,6 @@ void Parser::parse(){DPZoneScoped;
     for(u32 idx : sufile->preprocessor.internal_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
-        pt->init();
         pt->cv.init();
         pt->curt = sufile->lexer.tokens.readptr(idx);
         pt->parser = this;
@@ -1016,7 +986,6 @@ void Parser::parse(){DPZoneScoped;
     for(u32 idx : sufile->preprocessor.exported_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
-        pt->init();
         pt->cv.init();
         pt->curt = sufile->lexer.tokens.readptr(idx);
         pt->parser = this;
