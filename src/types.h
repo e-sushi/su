@@ -1519,34 +1519,6 @@ struct ParserThread{
 
 	b32 finished=0;
 	condvar cv;
-
-	//stacks of known things 
-	//TODO(sushi) replace with arenas
-	struct{
-		//stacks of declarations known in current scope
-		//this array stores the index of the last declaration that was pushed before a new scope begins
-		suArena<u32> known_declarations_scope_begin_offsets;
-		suArena<Declaration*> known_declarations;
-		//stacks of elements that we are working with
-		struct{
-			suArena<Scope*>      scopes;
-			suArena<Struct*>     structs;
-			suArena<Variable*>   variables;
-			suArena<Function*>   functions;
-			suArena<Expression*> expressions;
-			suArena<Statement*>  statements;
-		}nested;
-	}stacks;
-
-	//keeps track of what element we are working with 
-	struct{
-		Variable*   variable = 0;
-		Expression* expression = 0;
-		Struct*     structure = 0;
-		Scope*      scope = 0;
-		Function*   function = 0;
-		Statement*  statement = 0;
-	}current;	
 	
 	Declaration* declare();
 	TNode* define(TNode* node, Type stage);
@@ -1572,20 +1544,8 @@ struct ParserThread{
 		return (((curt + 1)->group == in) || ...);
 	}
 
-	
-
 	template<typename... T>
 	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks);
-
-	//just checks if a type conversion is possible
-	b32 can_type_convert(Type to, Type from);
-	//attempts to actually perform a type conversion on a TypedValue
-	b32 type_conversion(Type to, Type from);
-
-
-	//attempts to find an identifier's declaration, first searching our known stack, then if its not found
-	//searching our initial global declarations map
-	Declaration* resolve_identifier(Token* tok);
 };
 
 struct Parser {

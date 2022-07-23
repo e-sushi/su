@@ -201,6 +201,7 @@ suFile* Compiler::start_validator(suFile* sufile){
     global_mem_lock.unlock();
 
     validator->sufile = sufile;
+    validator->init();
     validator->start();
 
     sufile->stage = FileStage_Validator;

@@ -40,16 +40,44 @@
 #define push_statement(in)  {stacks.nested.statements.add(current.statement); current.statement = in;}
 #define pop_statement()     {current.statement = stacks.nested.statements.pop();}
 
+#define ConvertGroup(a,b)                      \
+switch(to){                                    \
+    case Token_Signed8:    {  return true; }   \
+    case Token_Signed16:   {  return true; }   \
+    case Token_Signed32:   {  return true; }   \
+    case Token_Signed64:   {  return true; }   \
+    case Token_Unsigned8:  {  return true; }   \
+    case Token_Unsigned16: {  return true; }   \
+    case Token_Unsigned32: {  return true; }   \
+    case Token_Unsigned64: {  return true; }   \
+    case Token_Float32:    {  return true; }   \
+    case Token_Float64:    {  return true; }   \
+    case Token_Struct:     { NotImplemented; } \
+}
+
+//checks if a conversion from one type to another is valid
+b32 type_conversion(Type to, Type from){
+    switch(from){
+        case Token_Signed8:    ConvertGroup( s8,    int8); break;
+		case Token_Signed16:   ConvertGroup(s16,   int16); break;
+		case Token_Signed32:   ConvertGroup(s32,   int32); break;
+		case Token_Signed64:   ConvertGroup(s64,   int64); break;
+		case Token_Unsigned8:  ConvertGroup( u8,   uint8); break;
+		case Token_Unsigned16: ConvertGroup(u16,  uint16); break;
+		case Token_Unsigned32: ConvertGroup(u32,  uint32); break;
+		case Token_Unsigned64: ConvertGroup(u64,  uint64); break;
+		case Token_Float32:    ConvertGroup(f32, float32); break;
+		case Token_Float64:    ConvertGroup(f64, float64); break;
+		case Token_Struct:     NotImplemented; break;
+    }
+    return false;
+}
 
 TNode* Validator::validate(TNode* node){DPZoneScoped;
     switch(node->type){
         case NodeType_Variable:{
             Variable* v = VariableFromNode(node);
             push_variable(v);
-
-            
-
-                        
 
             pop_variable();
         }break;
@@ -82,8 +110,6 @@ TNode* Validator::validate(TNode* node){DPZoneScoped;
             Expression* e = ExpressionFromNode(node);
             push_expression(e);
             
-            
-            
             pop_expression();
         }break;
     }
@@ -91,8 +117,6 @@ TNode* Validator::validate(TNode* node){DPZoneScoped;
 }
 
 void Validator::start(){DPZoneScoped;
-    stacks.known_declarations_scope_begin_offsets.add(0);
-    
     //gather global declarations into our known array
     //TODO(sushi) this could possibly be a separate map from our known decls array
     //            because globals dont allow shadowing
