@@ -1222,8 +1222,7 @@ struct Expression {
 	Token* token_start;
 	Token* token_end;
 	
-	str8 expstr;
-	Type expr_type;
+	Type type;
 
 	TypedValue data;
 };

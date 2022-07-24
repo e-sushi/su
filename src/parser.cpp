@@ -72,7 +72,7 @@ suNode* ParserThread::binop_parse(suNode* node, suNode* ret, Type next_stage, T.
         curt++;
         //make binary op expression
         Expression* op = arena.make_expression(curt->raw);
-        op->expr_type = binop_token_to_expression(curt->type);
+        op->type = binop_token_to_expression(curt->type);
         op->token_start = curt-1;
 
         //readjust parents to make the binary op the new child of the parent node
@@ -136,7 +136,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
             expect(Token_LiteralString){
                 Expression* e = arena.make_expression(curt->raw);
-                e->expr_type = Expression_Literal;
+                e->type = Expression_Literal;
                 insert_last(node, &e->node);
                 curt++;
                 expect(Token_OpenBrace){
@@ -144,19 +144,19 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     while(!curr_match(Token_CloseBrace)){
                         expect(Token_Identifier){
                             Expression* id = arena.make_expression(curt->raw);
-                            id->expr_type = Expression_IdentifierLHS;
+                            id->type = Expression_IdentifierLHS;
                             id->token_start = curt;
                             id->token_end = curt;
                             curt++;
                             expect(Token_As){
                                 Expression* op = arena.make_expression(curt->raw);
-                                op->expr_type = Expression_BinaryOpAs;
+                                op->type = Expression_BinaryOpAs;
                                 op->token_start = id->token_start;
                                 curt++;
                                 expect(Token_Identifier){
                                     op->token_end = curt;
                                     Expression* idrhs = arena.make_expression(curt->raw);
-                                    idrhs->expr_type = Expression_IdentifierLHS;
+                                    idrhs->type = Expression_IdentifierLHS;
                                     idrhs->token_start = curt;
                                     idrhs->token_end = curt;
                                     insert_last(&op->node, &id->node);
@@ -422,7 +422,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     curt++;
                     expect(Token_Identifier){
                         Expression* e = arena.make_expression(curt->raw);
-                        e->expr_type = Expression_IdentifierRHS;
+                        e->type = Expression_IdentifierRHS;
                         e->token_start = curt;
                         e->token_end = curt;
                         insert_last(&s->node, &e->node);
@@ -611,7 +611,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
             while(next_match(Token_Dot)){
                 curt++;
                 Expression* op = arena.make_expression(curt->raw);
-                op->expr_type = Expression_BinaryOpMemberAccess;
+                op->type = Expression_BinaryOpMemberAccess;
                 op->token_start = curt-1;
 
                 change_parent(node, &op->node);
@@ -622,7 +622,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Expression* rhs = arena.make_expression(curt->raw);
                     rhs->token_start = curt;
                     rhs->token_end = curt;
-                    rhs->expr_type = Expression_IdentifierRHS;
+                    rhs->type = Expression_IdentifierRHS;
                     insert_last(&op->node, &rhs->node);
                     e = op;
                 }else perror_ret(curt, "expected an identifier for member access.");
@@ -634,7 +634,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
             switch(curt->type){
                 case Token_LiteralFloat:{
                     Expression* e = arena.make_expression(curt->raw);
-                    e->expr_type = Expression_Literal;
+                    e->type = Expression_Literal;
                     e->data.type = Token_Float64;
                     e->data.float64 = curt->f64_val;
                     insert_last(node, &e->node);
@@ -643,7 +643,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
                 case Token_LiteralInteger:{
                     Expression* e = arena.make_expression(curt->raw);
-                    e->expr_type = Expression_Literal;
+                    e->type = Expression_Literal;
                     e->data.type = Token_Signed64;
                     e->data.int64 = curt->s64_val;
                     insert_last(node, &e->node);
@@ -664,17 +664,17 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Expression* e = arena.make_expression(curt->raw);
                     expect_next(Token_OpenParen){
                         //this must be a function call
-                        e->expr_type = Expression_FunctionCall;
+                        e->type = Expression_FunctionCall;
                         curt+=2;
                         NotImplemented;
                     }else{
                         //this is just some identifier
-                        e->expr_type = Expression_IdentifierRHS;
+                        e->type = Expression_IdentifierRHS;
                         insert_last(node, &e->node);
                         expect_next(Token_Increment, Token_Decrement){
                             curt++;
                             Expression* incdec = arena.make_expression((curt->type == Token_Increment ? STR8("++") : STR8("--")));
-                            incdec->expr_type = (curt->type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix);
+                            incdec->type = (curt->type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix);
                             insert_last(node, &incdec->node);
                             change_parent(&incdec->node, &e->node);
                             return &incdec->node;
