@@ -1,7 +1,4 @@
-#import "tests/_/mylib.su" {
-    a as b,
-    b as a,
-}
+#import {"tests/_/mylib.su", "tests/_/mylib2.su"}
 
 vec2 : struct {
     x:f32 = 0;
@@ -19,10 +16,10 @@ vec4 : struct {
 }
 
 main() : s32 {
-   a:vec4;
-   a.xyz.xy.x;
-   b:vec4;
-   b.xyz.z;
-   b.z;
+    a:vec4;
+    a.xyz.xy.x;
+    b:vec4;
+    b.xyz.z;
+    b.z;
 }
 

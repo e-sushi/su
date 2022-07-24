@@ -165,7 +165,7 @@ void Lexer::lex(){DPZoneScoped;
 	suLogger& logger = sufile->logger; 
 	logger.log(Verbosity_Stages, "Lexing...");
 
-	//ThreadSetName(suStr8("lexing ", sufile->file->name));
+	SetThreadName("lexing ", sufile->file->name);
 
 	Stopwatch lex_time = start_stopwatch();
 	

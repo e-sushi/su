@@ -35,7 +35,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
     suLogger& logger = sufile->logger; 
     logger.log(Verbosity_Stages, "Preprocessing...");
 
-    ThreadSetName(suStr8("preprocessing ", sufile->file->name));
+    SetThreadName("Preprocessing ", sufile->file->name);
 
     Stopwatch time = start_stopwatch();
    
@@ -51,6 +51,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
         if(curt->type == Token_OpenBrace){
             //multiline directive 
             while(curt->type != Token_CloseBrace){
+                curt++;
                 if(curt->type == Token_LiteralString){
                     Token* mod = curt;
                     
@@ -75,15 +76,20 @@ void Preprocessor::preprocess(){DPZoneScoped;
                         } 
                     }else{
                         //TODO(sushi) look for imports on PATH
-                        logger.warn(curt, "Finding files through PATH is not currently supported.");
+                        logger.error(curt, "unable to find path '", curt->raw, "'.");
+                        logger.note(curt, "Finding files through PATH or relative to the importing file is not currently supported.");
                     }
                     //NOTE(sushi) we do not handle selective imports here, that is handled in parsing
                     curt++;
                     if(curt->type == Token_OpenBrace){
                         while(curt->type != Token_CloseBrace){curt++;}
+                    }else if(curt->type == Token_Comma){}
+                    else if(curt->type == Token_CloseBrace){
+                        break;
+                    }else{
+                        logger.error(curt, "expected a comma, open brace, or close brace after import string.");
                     }
                 }
-                curt++;
             }
         }else{
             if(curt->type == Token_LiteralString){
@@ -111,8 +117,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
         }
     }
     if(cr.filepaths.count){
-        //only compile up to preprocessor
-        cr.stage = FileStage_Preprocessor;
+        cr.stage = FileStage_Parser;
         compiler.compile(&cr);
     }
     

@@ -26,8 +26,6 @@
 #include "kigu/unicode.h"
 #include "kigu/hash.h"
 
-//so we can easily disable in release
-#define ThreadSetName(name) DeshThreadManager->set_thread_name(name)
 
 #include "types.h"
 
@@ -106,6 +104,7 @@ int main(){DPZoneScoped;
 	compiler.mutexes.preprocessor.init();
 	compiler.mutexes.parser.init();
 	compiler.mutexes.lexer.init();
+	compiler.mutexes.compile_request.init();
 
 	arena.init();
 
@@ -123,7 +122,7 @@ int main(){DPZoneScoped;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
-	print_tree(&compiler.files.atIdx(0)->parser.base);
+	print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
 	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;

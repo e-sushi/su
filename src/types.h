@@ -8,6 +8,8 @@
 #include "core/threading.h"
 #include "ctype.h"
 
+#define SetThreadName(...) DeshThreadManager->set_thread_name(suStr8(__VA_ARGS__))
+
 //attempt at making str8 building thread safe
 #define suStr8(...) to_str8_su(__VA_ARGS__)
 template<class...T>
@@ -95,7 +97,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Always;
+	u32 verbosity = Verbosity_Detailed;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -549,6 +551,8 @@ enum NodeType : u32 {
 //thread safe version of TNode (probably)
 //this only accounts for modifying a node, not reading it
 //but I believe that modification and reading shouldnt happen at the same time, so its probably fine
+//TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is parser adding stuff to its base node
+//            but that can be deferred.
 struct suNode{
 	Type  type;
 	Flags flags;
@@ -568,36 +572,46 @@ struct suNode{
 global inline void insert_after(suNode* target, suNode* node) { DPZoneScoped;
 	target->lock.lock();
 	node->lock.lock();
+	defer{
+		node->lock.unlock();
+		target->lock.unlock();
+	};
 	if (target->next) target->next->prev = node;
 	node->next = target->next;
 	node->prev = target;
 	target->next = node;
-	node->lock.unlock();
-	target->lock.unlock();
+	
 }
 
 global inline void insert_before(suNode* target, suNode* node) { DPZoneScoped;
 	target->lock.lock();
 	node->lock.lock();
+	defer{
+		target->lock.unlock();
+		node->lock.unlock();
+	};
 	if (target->prev) target->prev->next = node;
 	node->prev = target->prev;
 	node->next = target;
 	target->prev = node;
-	node->lock.unlock();
-	target->lock.unlock();
 }
 
 global inline void remove_horizontally(suNode* node) { DPZoneScoped;
 	node->lock.lock();
+	defer {node->lock.unlock();};
 	if (node->next) node->next->prev = node->prev;
 	if (node->prev) node->prev->next = node->next;
 	node->next = node->prev = 0;
-	node->lock.unlock();
 }
 
 global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
 	parent->lock.lock();
 	child->lock.lock();
+	defer {
+		parent->lock.unlock();
+		child->lock.unlock();
+	};
+
 	if (parent == 0) { child->parent = 0; return; }
 	if(parent==child){DebugBreakpoint;}
 	
@@ -611,13 +625,15 @@ global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
 		parent->last_child = child;
 	}
 	parent->child_count++;
-	parent->lock.unlock();
-	child->lock.unlock();
 }
 
 global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
 	parent->lock.lock();
 	child->lock.lock();
+	defer{
+		parent->lock.unlock();
+		child->lock.unlock();
+	};
 	if (parent == 0) { child->parent = 0; return; }
 	
 	child->parent = parent;
@@ -630,13 +646,16 @@ global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
 		parent->last_child = child;
 	}
 	parent->child_count++;
-	parent->lock.unlock();
-	child->lock.unlock();
+	
 }
 
 global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
 	new_parent->lock.lock();
 	node->lock.lock();
+	defer {
+		new_parent->lock.unlock();
+		node->lock.unlock();
+	};
 	//if old parent, remove self from it 
 	if (node->parent) {
 		if (node->parent->child_count > 1) {
@@ -656,13 +675,11 @@ global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
 	
 	//add self to new parent
 	insert_last(new_parent, node);
-	node->lock.unlock();
-	new_parent->lock.lock();
-	node->lock.lock();
 }
 
 global void move_to_parent_first(suNode* node){ DPZoneScoped;
 	node->lock.lock();
+	defer { node->lock.lock(); };
 	if(!node->parent) return;
 	
 	suNode* parent = node->parent;
@@ -673,11 +690,11 @@ global void move_to_parent_first(suNode* node){ DPZoneScoped;
 	node->next = parent->first_child;
 	parent->first_child->prev = node;
 	parent->first_child = node;
-	node->lock.unlock();
 }
 
 global void move_to_parent_last(suNode* node){ DPZoneScoped;
 	node->lock.lock();
+	defer{node->lock.unlock();};
 	if(!node->parent) return;
 	
 	suNode* parent = node->parent;
@@ -688,11 +705,11 @@ global void move_to_parent_last(suNode* node){ DPZoneScoped;
 	node->prev = parent->last_child;
 	parent->last_child->next = node;
 	parent->last_child = node;
-	node->lock.unlock();
 }
 
 global void remove(suNode* node) { DPZoneScoped;
 	node->lock.lock();
+	defer{node->lock.unlock();};
 	//add children to parent (and remove self from children)
 	for(suNode* it = node->first_child; it != 0; ) {
 		suNode* next = it->next;
@@ -1349,7 +1366,6 @@ enum {
 	psFile,
 	psDirective,
 	psImport,
-	psSubimport,
 	psRun,
 	psScope,
 	psDeclaration,
@@ -1599,6 +1615,9 @@ struct suFile{
 	File* file;
 	str8 file_buffer;
 	Type stage;
+	//set true if a compiler thread is started for this file
+	//to prevent multiple compiler threads from starting on the same file
+	b32 being_processed = 0;
 
 	suLogger logger;
 
@@ -1622,27 +1641,11 @@ struct suFile{
 		//node that all top-level declarations attach to 
 		suNode base;
 
-		//toplevel declarations known to the parser, these can be maps (i think :) because 
-		//we should never allow a global variable to shadow another global variable
-		declmap exported_decl;
-		declmap imported_decl;
-		declmap internal_decl;
-
-		Declaration*
-		find_identifier(str8 id){DPZoneScoped;
-			if(Declaration* d = exported_decl.at(id)) return d;
-			if(Declaration* d = imported_decl.at(id)) return d;
-			if(Declaration* d = internal_decl.at(id)) return d;
-			return 0;
-		}
-
-		//used by a parser parsing a different file
-		Declaration*
-		find_identifier_externally(str8 id){DPZoneScoped;
-			if(Declaration* d = exported_decl.at(id)) return d;
-			if(Declaration* d = imported_decl.at(id)) return d;
-			return 0;
-		}
+		//arrays organizing toplevel declarations and import directives
+		suArena<Statement*> import_directives;
+		suArena<Declaration*> exported_decl;
+		suArena<Declaration*> imported_decl;
+		suArena<Declaration*> internal_decl;
 	}parser;
 
 	void init(){
@@ -1655,6 +1658,7 @@ struct suFile{
 		preprocessor.exported_decl.init();
 		preprocessor.internal_decl.init();
 		preprocessor.runs.init();
+		parser.import_directives.init();
 		parser.exported_decl.init();
 		parser.imported_decl.init();
 		parser.internal_decl.init();
@@ -1744,6 +1748,7 @@ struct Parser {
 };
 
 void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
+	SetThreadName("parser thread started.");
 	ParserThread* pt = (ParserThread*)pthreadinfo;
 	pt->sufile = pt->parser->sufile;
 	pt->define(pt->node, pt->stage);
@@ -1813,7 +1818,9 @@ struct Compiler{
 
 	suLogger logger;
 
-	map<str8, suFile> files;
+
+	//TODO(sushi) we probably want to just chunk arenas for suFiles instead of randomly allocating them.
+	map<str8, suFile*> files;
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
@@ -1822,6 +1829,7 @@ struct Compiler{
 		mutex preprocessor;
 		mutex parser;
 		mutex log; //lock when using logger
+		mutex compile_request;
 	}mutexes;
 
 	void compile(CompilerRequest* request);

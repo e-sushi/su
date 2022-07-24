@@ -173,6 +173,35 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             Statement* s = StatementFromNode(node);
             push_statement(s);
 
+            switch(s->type){
+                case Statement_Import:{
+                    for_node(s->node.first_child){
+                        Expression* e = ExpressionFromNode(it);
+                        //TODO(sushi) we already do this in Compiler::compile, so find a nice way to cache this if possible
+                        str8 filepath = e->token_start->raw;
+                        //TODO(sushi) it may be better to just interate the string backwards and look for / or \ instead
+                        u32 last_slash = str8_find_last(filepath, '/');
+                        if(last_slash == npos) last_slash = str8_find_last(filepath, '\\');
+                        if(last_slash == npos) last_slash = 0;
+                        str8 filename = str8{filepath.str+last_slash+1, filepath.count-(last_slash+1)};
+
+                        suFile* sufileex = compiler.files.atPtrVal(filename);
+
+                        if(!sufileex) logger.error("INTERNAL: an imported file was not processed in the compiler before reaching validator");
+
+                        if(e->node.child_count){
+
+                        }else{
+                            //we are just importing everything
+                            forI(sufileex->parser.exported_decl.count){
+                                
+                            }
+                        }
+
+                    }
+                }break;
+            }
+
             pop_statement();
         }break;
 
@@ -186,7 +215,13 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
     return 0;
 }
 
+// suNode* Validator::gather_imports(suNode* node){
+
+// }
+
 void Validator::start(){DPZoneScoped;
+    SetThreadName("Validating ", sufile->file->name);
+
     stacks.known_declarations_scope_begin_offsets.add(0);
     //gather global declarations into our known array
     //TODO(sushi) this could possibly be a separate map from our known decls array

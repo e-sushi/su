@@ -1,2 +1,5 @@
-a:u32;
-b:u32;
+#import "tests/_/mylib3.su"
+
+AudioDevice : struct {
+    handle:void;
+}

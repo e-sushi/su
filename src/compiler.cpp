@@ -29,7 +29,8 @@
 
 void compile_threaded_func(void* in){DPZoneScoped;
     CompilerThread* ct = (CompilerThread*)in;
-    
+    SetThreadName("Compiler thread started");
+
     //TODO(sushi) support for passing each stages file and starting compilation from stages passed lexing if 
     //            necessary
     if(ct->stage > FileStage_Null){
@@ -46,13 +47,17 @@ void compile_threaded_func(void* in){DPZoneScoped;
     }
 
     ct->finished = 1;
-    DPTracyMessageL("compiler: notifying condvar");
     ct->wait.notify_all();
 }
 
 void Compiler::compile(CompilerRequest* request){DPZoneScoped;
-    DPTracyMessageL("compiler: compile requested");
     logger.log(Verbosity_StageParts, "Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
+
+    //we must lock this function because it is possible it is called from 2 different threads at the same time requesting
+    //the same file.
+    mutexes.compile_request.lock();
+
+    SetThreadName("Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
     if(globals.verbosity > 3){
         for(str8 s : request->filepaths){
@@ -60,10 +65,8 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
         }
     }
 
-    DPTracyMessageL("compiler: creating CompilerThreads");
     CompilerThread* ct = (CompilerThread*)memalloc(sizeof(CompilerThread) * request->filepaths.count);
 
-    DPTracyMessageL("compiler: filling out CompilerThreads");
     forI(request->filepaths.count){
         str8 filepath = request->filepaths[i];
         //TODO(sushi) it may be better to just interate the string backwards and look for / or \ instead
@@ -72,7 +75,7 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
         if(last_slash == npos) last_slash = 0;
         str8 filename = str8{filepath.str+last_slash+1, filepath.count-(last_slash+1)};
 
-        suFile* sufile = files.at(filename);
+        suFile* sufile = files.atPtrVal(filename);
 
         //make a new suFile if it doesnt exist already
         if(!sufile){
@@ -80,17 +83,30 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
             File* file = file_init(filepath, FileAccess_Read);
             if(!file){
                 logger.error("Unable to open file at path ", filepath);
+                mutexes.compile_request.unlock();
                 return;
             } 
 
-            suFile nufile;
-            nufile.file = file;
-            nufile.stage = FileStage_Null;
-
-            sufile = files.atIdx(files.add(filename, nufile));
+            //we must allocate these somewhere because just storing them in map will move them if we have too many
+            //invalidating all of the pointers to them
+            sufile = (suFile*)memalloc(sizeof(suFile));
+            sufile->file = file;
+            sufile->stage = FileStage_Null;
             sufile->init();
             sufile->logger.sufile = sufile;
-        } 
+
+            files.add(filename, sufile);
+        }else{
+            //its possible that a file is actually already being processed by another thread, such as when multiple files
+            //import the same file, so we just skip it if it is
+            //TODO(sushi) this may not be as simple as this. we may also have to check if the requested stage here
+            //            is higher than the one originally requested and change it somehow.
+            if(sufile->being_processed) 
+                continue;
+            sufile->being_processed = 1;
+        }
+
+        
 
         ct[i].wait.init();
         ct[i].filepath = request->filepaths[i];
@@ -99,21 +115,28 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
         DeshThreadManager->add_job({&compile_threaded_func, &ct[i]});
     }
 
+    mutexes.compile_request.unlock();
+
     DPTracyMessageL("compiler: waking threads");
     DeshThreadManager->wake_threads(request->filepaths.count);
 
+    SetThreadName("Waiting on compiler threads to finish");
     forI(request->filepaths.count){
+        if(!ct[i].sufile) continue; //this happens when the file was already being processed and we skipped that slot
         while(!ct[i].finished){
-            DPTracyMessageL("compiler: waiting on compiler thread");
             ct[i].wait.wait();
         }
         ct[i].wait.deinit();
+        ct[i].sufile->being_processed = 0;
     }
+
+    memzfree(ct);
 }
 
 suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_lexer was passed a null suFile*");
-    
+    SetThreadName("Starting a lexer");
+
     logger.log(Verbosity_StageParts, "Starting a lexer");
     logger.log(Verbosity_StageParts, "Checking if file has already been lexed");
 	if(sufile->stage >= FileStage_Lexer){
@@ -140,6 +163,8 @@ suFile* Compiler::start_preprocessor(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
     Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_preprocessor was given a sufile that has not completed previous stages.");
 
+    SetThreadName("Starting a preprocessor");
+
     logger.log(Verbosity_StageParts, "Starting a preprocessor.");
     logger.log(Verbosity_StageParts, "Checking if file has already been preprocessed.");
     if(sufile->stage >= FileStage_Preprocessor){
@@ -163,6 +188,8 @@ suFile* Compiler::start_preprocessor(suFile* sufile){DPZoneScoped;
 suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_preprocessor was passed a null suFile*");
     Assert(sufile->stage >= FileStage_Lexer, "Compiler::start_parser was given a sufile that has not completed previous stages.");
+
+    SetThreadName("Starting a parser");
 
     logger.log(Verbosity_StageParts, "Starting a parser.");
     logger.log(Verbosity_StageParts, "Checking if file has already been parsed");
@@ -188,6 +215,8 @@ suFile* Compiler::start_validator(suFile* sufile){
     Assert(sufile, "Compiler::start_validator was passed a null suFile*.");
     Assert(sufile->stage >= FileStage_Parser, "Compiler::start_validator was given a sufile that has not completed previous stages.");
 
+    SetThreadName("Starting a validator");
+
     logger.log(Verbosity_StageParts, "Starting a validator.");
     logger.log(Verbosity_StageParts, "Checking if file has already been validated.");
     if(sufile->stage >= FileStage_Validator){
@@ -210,8 +239,8 @@ suFile* Compiler::start_validator(suFile* sufile){
 }
 
 void Compiler::reset(){
-    for(suFile& f : files){
-        file_deinit(f.file);
+    for(suFile* f : files){
+        file_deinit(f->file);
     }
     files.clear();
 
