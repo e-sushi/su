@@ -59,9 +59,20 @@ void Preprocessor::preprocess(){DPZoneScoped;
                     //attempt to find the module in PATH and current working directory
                     //first check cwd
                     if(file_exists(curt->raw)){
-                        logger.log(Verbosity_StageParts, "Adding import path ", curt->raw);
-                        cr.filepaths.add(curt->raw);
-                        
+                        //we have to make sure that a filepath doesnt get added twice
+                        //this can happen in a case where someone uses import on the same path
+                        //but imports in different scopes or specifies different subimports
+                        //TODO(sushi) maybe theres a better way to handle this?
+                        b32 found = 0;
+                        forI(cr.filepaths.count){
+                            if(str8_equal_lazy(curt->raw, cr.filepaths[i])){
+                                found = 1;
+                            }
+                        }
+                        if(!found){
+                            logger.log(Verbosity_StageParts, "Adding import path ", curt->raw);
+                            cr.filepaths.add(curt->raw);
+                        } 
                     }else{
                         //TODO(sushi) look for imports on PATH
                         logger.warn(curt, "Finding files through PATH is not currently supported.");
@@ -78,8 +89,20 @@ void Preprocessor::preprocess(){DPZoneScoped;
             if(curt->type == Token_LiteralString){
                 Token* mod = curt;
                 if(file_exists(curt->raw)){
-                    logger.log(Verbosity_StageParts, "Adding import path ", curt->raw);
-                    cr.filepaths.add(curt->raw);
+                    //we have to make sure that a filepath doesnt get added twice
+                    //this can happen in a case where someone uses import on the same path
+                    //but imports in different scopes or specifies different subimports
+                    //TODO(sushi) maybe theres a better way to handle this?
+                    b32 found = 0;
+                    forI(cr.filepaths.count){
+                        if(str8_equal_lazy(curt->raw, cr.filepaths[i])){
+                            found = 1;
+                        }
+                    }
+                    if(!found){
+                        logger.log(Verbosity_StageParts, "Adding import path ", curt->raw);
+                        cr.filepaths.add(curt->raw);
+                    } 
                 }else{
                     //TODO(sushi) look for imports on PATH
                     logger.warn(curt, "Finding files through PATH is not currently supported.");
