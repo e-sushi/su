@@ -97,7 +97,7 @@ b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     return 1;
 }
 
-TNode* Validator::validate(TNode* node){DPZoneScoped;
+suNode* Validator::validate(suNode* node){DPZoneScoped;
     suLogger& logger = sufile->logger;
     switch(node->type){
         case NodeType_Variable:{

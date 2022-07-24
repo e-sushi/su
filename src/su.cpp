@@ -77,7 +77,7 @@ void speed_test(const u64 samples, str8 filepath){
 	compiler.logger.log(0, "speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
 }
 
-void print_tree(TNode* node, u32 indent = 0){
+void print_tree(suNode* node, u32 indent = 0){
 	logger_pop_indent(-1);
 	logger_push_indent(indent);
 	Log("", node->debug);

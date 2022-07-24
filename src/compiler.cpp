@@ -71,7 +71,7 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
         if(last_slash == npos) last_slash = str8_find_last(filepath, '\\');
         if(last_slash == npos) last_slash = 0;
         str8 filename = str8{filepath.str+last_slash+1, filepath.count-(last_slash+1)};
-        
+
         suFile* sufile = files.at(filename);
 
         //make a new suFile if it doesnt exist already
@@ -90,7 +90,6 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
             sufile = files.atIdx(files.add(filename, nufile));
             sufile->init();
             sufile->logger.sufile = sufile;
-
         } 
 
         ct[i].wait.init();

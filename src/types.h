@@ -546,6 +546,180 @@ enum NodeType : u32 {
 	NodeType_Expression,
 };
 
+//thread safe version of TNode (probably)
+//this only accounts for modifying a node, not reading it
+//but I believe that modification and reading shouldnt happen at the same time, so its probably fine
+struct suNode{
+	Type  type;
+	Flags flags;
+	
+	suNode* next = 0;
+	suNode* prev = 0;
+	suNode* parent = 0;
+	suNode* first_child = 0;
+	suNode* last_child = 0;
+	u32     child_count = 0;
+	
+	mutex lock;
+
+	str8 debug;
+};
+
+global inline void insert_after(suNode* target, suNode* node) { DPZoneScoped;
+	target->lock.lock();
+	node->lock.lock();
+	if (target->next) target->next->prev = node;
+	node->next = target->next;
+	node->prev = target;
+	target->next = node;
+	node->lock.unlock();
+	target->lock.unlock();
+}
+
+global inline void insert_before(suNode* target, suNode* node) { DPZoneScoped;
+	target->lock.lock();
+	node->lock.lock();
+	if (target->prev) target->prev->next = node;
+	node->prev = target->prev;
+	node->next = target;
+	target->prev = node;
+	node->lock.unlock();
+	target->lock.unlock();
+}
+
+global inline void remove_horizontally(suNode* node) { DPZoneScoped;
+	node->lock.lock();
+	if (node->next) node->next->prev = node->prev;
+	if (node->prev) node->prev->next = node->next;
+	node->next = node->prev = 0;
+	node->lock.unlock();
+}
+
+global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
+	parent->lock.lock();
+	child->lock.lock();
+	if (parent == 0) { child->parent = 0; return; }
+	if(parent==child){DebugBreakpoint;}
+	
+	child->parent = parent;
+	if (parent->first_child) {
+		insert_after(parent->last_child, child);
+		parent->last_child = child;
+	}
+	else {
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+	parent->lock.unlock();
+	child->lock.unlock();
+}
+
+global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
+	parent->lock.lock();
+	child->lock.lock();
+	if (parent == 0) { child->parent = 0; return; }
+	
+	child->parent = parent;
+	if (parent->first_child) {
+		insert_before(parent->first_child, child);
+		parent->first_child = child;
+	}
+	else {
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+	parent->lock.unlock();
+	child->lock.unlock();
+}
+
+global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
+	new_parent->lock.lock();
+	node->lock.lock();
+	//if old parent, remove self from it 
+	if (node->parent) {
+		if (node->parent->child_count > 1) {
+			if (node == node->parent->first_child) node->parent->first_child = node->next;
+			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
+		}
+		else {
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+	
+	//remove self horizontally
+	remove_horizontally(node);
+	
+	//add self to new parent
+	insert_last(new_parent, node);
+	node->lock.unlock();
+	new_parent->lock.lock();
+	node->lock.lock();
+}
+
+global void move_to_parent_first(suNode* node){ DPZoneScoped;
+	node->lock.lock();
+	if(!node->parent) return;
+	
+	suNode* parent = node->parent;
+	if(parent->first_child == node) return;
+	if(parent->last_child == node) parent->last_child = node->prev;
+
+	remove_horizontally(node);
+	node->next = parent->first_child;
+	parent->first_child->prev = node;
+	parent->first_child = node;
+	node->lock.unlock();
+}
+
+global void move_to_parent_last(suNode* node){ DPZoneScoped;
+	node->lock.lock();
+	if(!node->parent) return;
+	
+	suNode* parent = node->parent;
+	if(parent->last_child == node) return;
+	if(parent->first_child == node) parent->first_child = node->next;
+
+	remove_horizontally(node);
+	node->prev = parent->last_child;
+	parent->last_child->next = node;
+	parent->last_child = node;
+	node->lock.unlock();
+}
+
+global void remove(suNode* node) { DPZoneScoped;
+	node->lock.lock();
+	//add children to parent (and remove self from children)
+	for(suNode* it = node->first_child; it != 0; ) {
+		suNode* next = it->next;
+		change_parent(node->parent, it);
+		it = next;
+	}
+	
+	//remove self from parent
+	if (node->parent) {
+		if (node->parent->child_count > 1) {
+			if (node == node->parent->first_child) node->parent->first_child = node->next;
+			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
+		}
+		else {
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+	node->parent = 0;
+	
+	//remove self horizontally
+	remove_horizontally(node);
+	node->lock.unlock();
+}
+
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Registers
 enum Registers{
@@ -949,6 +1123,7 @@ enum {
 	Expression_BinaryOpBitShiftRight,
 	Expression_BinaryOpAssignment,
 	Expression_BinaryOpMemberAccess,
+	Expression_BinaryOpAs,
 };
 
 static const char* ExTypeStrings[] = {
@@ -1043,7 +1218,7 @@ struct TypedValue{
 };
 
 struct Expression {
-	TNode node;
+	suNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1071,7 +1246,7 @@ enum {
 };
 
 struct Statement {
-	TNode node;
+	suNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1080,7 +1255,7 @@ struct Statement {
 #define StatementFromNode(x) CastFromMember(Statement, node, x)
 
 struct Scope {
-	TNode node;
+	suNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1096,7 +1271,7 @@ struct Variable;
 struct Function;
 struct ParserThread;
 struct Declaration{
-	TNode node;
+	suNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1165,8 +1340,6 @@ enum{
 	Declaration_Structure,
 };
 
-
-
 struct Program {
 	Node node;
 	str8 filename;
@@ -1177,6 +1350,7 @@ enum {
 	psFile,
 	psDirective,
 	psImport,
+	psSubimport,
 	psRun,
 	psScope,
 	psDeclaration,
@@ -1447,7 +1621,7 @@ struct suFile{
 
 	struct{ // parser
 		//node that all top-level declarations attach to 
-		TNode base;
+		suNode base;
 
 		//toplevel declarations known to the parser, these can be maps (i think :) because 
 		//we should never allow a global variable to shadow another global variable
@@ -1486,6 +1660,7 @@ struct suFile{
 		parser.imported_decl.init();
 		parser.internal_decl.init();
 		parser.base.debug = STR8("base");
+		parser.base.lock.init();
 	}
 };
 
@@ -1516,7 +1691,7 @@ struct ParserThread{
 	Parser* parser;
 	Type stage; //entry stage
 
-	TNode* node;
+	suNode* node;
 	Token* curt;
 
 	b32 is_internal;
@@ -1525,8 +1700,8 @@ struct ParserThread{
 	condvar cv;
 	
 	Declaration* declare();
-	TNode* define(TNode* node, Type stage);
-	TNode* parse_import(Token* start);
+	suNode* define(suNode* node, Type stage);
+	suNode* parse_import(Token* start);
 
 	template<typename ...args> FORCE_INLINE b32
 	curr_match(args... in){DPZoneScoped;
@@ -1549,7 +1724,7 @@ struct ParserThread{
 	}
 
 	template<typename... T>
-	TNode* binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks);
+	suNode* binop_parse(suNode* node, suNode* ret, Type next_stage, T... tokchecks);
 };
 
 struct Parser {
@@ -1558,6 +1733,7 @@ struct Parser {
 	//map of identifiers to global declarations
 	declmap pending_globals;
 
+	
 	//file the parser is working in
 	suFile* sufile;
 
@@ -1620,7 +1796,7 @@ struct Validator{
 	}
 
 	void   start();
-	TNode* validate(TNode* node);
+	suNode* validate(suNode* node);
 	b32    check_shadowing(Declaration* d);
 };
 
@@ -1639,8 +1815,6 @@ struct Compiler{
 	suLogger logger;
 
 	map<str8, suFile> files;
-
-	TNode* finished;
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
@@ -1690,6 +1864,7 @@ struct{
 	FORCE_INLINE
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
+		function->decl.node.lock.init();
 		function->decl.node.type = NodeType_Function;
 		function->decl.node.debug = debugmsg;
 		return function;
@@ -1698,6 +1873,7 @@ struct{
 	FORCE_INLINE
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
+		variable->decl.node.lock.init();
 		variable->decl.node.type = NodeType_Variable;
 		variable->decl.node.debug = debugmsg;
 		return variable;
@@ -1706,6 +1882,7 @@ struct{
 	FORCE_INLINE
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
+		structure->decl.node.lock.init();
 		structure->decl.node.type = NodeType_Structure;
 		structure->decl.node.debug = debugmsg;
 		return structure;
@@ -1714,6 +1891,7 @@ struct{
 	FORCE_INLINE
 	Scope* make_scope(str8 debugmsg = STR8("")){DPZoneScoped;
 		Scope* scope = scopes.add(Scope());
+		scope->node.lock.init();
 		scope->node.type = NodeType_Scope;
 		scope->node.debug = debugmsg;
 		return scope;
@@ -1722,6 +1900,7 @@ struct{
 	FORCE_INLINE
 	Expression* make_expression(str8 debugmsg = STR8("")){DPZoneScoped;
 		Expression* expression = expressions.add(Expression());
+		expression->node.lock.init();
 		expression->node.type = NodeType_Expression;
 		expression->node.debug = debugmsg;
 		return expression;
@@ -1730,6 +1909,7 @@ struct{
 	FORCE_INLINE
 	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
 		Statement* statement = statements.add(Statement());
+		statement->node.lock.init();
 		statement->node.type = NodeType_Statement;
 		statement->node.debug = debugmsg;
 		return statement;
