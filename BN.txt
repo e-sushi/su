@@ -1,6 +1,7 @@
 <file>        = { <decl> | <directive> }
-<directive>   = "#" ( "import" <import> | "run" <run> | "internal" [ <scope> ] )
-<import>      = { ( <decl-id> | <string> ) [ "{" <import> "}" ] [ "as" <id> ] { "," <import> } }  
+<directive>   = "#" ( "import" ( <import> | "{" <import> { "," <import> } "}" ) | "run" <run> | "internal" [ <scope> ] )
+<import>      = <string> [ "{" <subimport> { "," <subimport> } "}" ] [ "as" <id> ]
+<subimport>   = <decl-id>  [ "as" <id> ]
 <run>         = <statement>
 <scope>       = "{" { ( <statement> | <decl> ) } "}"
 <decl>        = <func-decl>

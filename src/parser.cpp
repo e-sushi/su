@@ -64,10 +64,10 @@ str8 type_token_to_str(Type type){
 }
 
 template<typename... T>
-TNode* ParserThread::binop_parse(TNode* node, TNode* ret, Type next_stage, T... tokchecks){
+suNode* ParserThread::binop_parse(suNode* node, suNode* ret, Type next_stage, T... tokchecks){
     //TODO(sushi) need to detect floats being used in bitwise operations (or just allow it :) 
-    TNode* out = ret;
-    TNode* lhs_node = ret;
+    suNode* out = ret;
+    suNode* lhs_node = ret;
     while(next_match(tokchecks...)){
         curt++;
         //make binary op expression
@@ -91,7 +91,7 @@ TNode* ParserThread::binop_parse(TNode* node, TNode* ret, Type next_stage, T... 
 
 
 
-TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
+suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
     //ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
@@ -102,10 +102,30 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
             // there is no reason to check for invalid directives here because that is handled by lexer
             expect(Token_Directive_Import){
                 Statement* s = arena.make_statement(curt->raw);
+                insert_last(node, &s->node);
                 curt++;
-                TNode* n = define(&s->node, psImport);
-                if(!n) return
+                expect(Token_OpenBrace){
+                    curt++;
+                    while(!curr_match(Token_CloseBrace)){
+                        suNode* n = define(&s->node, psImport);
+                        if(!n) return 0;
+                        expect(Token_Comma) {
+                            curt++;
+                            expect(Token_CloseBrace){curt++;break;}
+                        }else expect(Token_CloseBrace) {curt++;break;}
+                        else perror_ret(curt, "expected a , or a } after import block.");
+
+                    }     
+                }else{
+                    suNode* n = define(&s->node, psImport);
+                    if(!n) return 0;
+                }
+                
             }
+
+        }break;
+
+        case psSubimport:{
 
         }break;
 
@@ -114,218 +134,55 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
             //TODO(sushi) cleanup the massive code duplication here and consider moving import evaluation (not parsing) to the next stage
             array<Declaration*> imported_decls;
 
-    
-
-            curt++;
-
-            expect(Token_OpenBrace){ //#import {
-                curt++; 
-                while(1){
-                    TNode* n = define(node, psImport);
-
-                    expect(Token_LiteralString){ //#import { "..." 
-                        Expression* e = arena.make_expression(curt->raw);
-                        e->expr_type = Expression_Literal;
-                        insert_last(&s->node, &e->node);
-                        curt++;
-                        expect(Token_OpenBrace){ //#import { "..." { 
-                            //we are including specific defintions from the import
-                            while(1){
-                                curt++;
-                                expect(Token_Identifier){ //#import { "..." { <id> 
-                                    //now we must make sure it exists
-                                    Type type = 0;
-                                    Declaration* decl = 0;
-                                    sufileex->parser.find_identifier_externally(curt->raw);
-                                    if(!decl) perror(curt, "Attempted to include declaration '", curt->raw, "' from module '", sufileex->file->front, "' but it is either internal or doesn't exist.");
-                                    else expect(Token_As){ //#import { "..." { <id> as
-                                        //in this case we must duplicate the declaration and give it a new identifier
-                                        //TODO(sushi) duplication may not be necessary, instead we can store a local name
-                                        //            and just use the same declaration node.
-                                        //TODO(sushi) dont duplicate the declaration
-                                        curt++;
-                                        expect(Token_Identifier) {//#import { "..." { <id> as <id>
-                                            switch(decl->type){
-                                                case Declaration_Structure:{
-                                                    Struct* s = arena.make_struct();
-                                                    memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
-                                                    s->decl.identifier = curt->raw;
-                                                    decl = &s->decl;
-                                                }break;
-                                                case Declaration_Function:{
-                                                    Function* s = arena.make_function();
-                                                    memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
-                                                    s->decl.identifier = curt->raw;
-                                                    decl = &s->decl;
-                                                }break;
-                                                case Declaration_Variable:{
-                                                    Variable* s = arena.make_variable();
-                                                    memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
-                                                    s->decl.identifier = curt->raw;
-                                                    decl = &s->decl;
-                                                }break;
-                                            }
-                                        }else perror(curt, "Expected an identifier after 'as'");
-                                    }else{
-                                        
-                                    }
-                                    expect(Token_Comma){} //#import { "..." ... ,
-                                    else expect(Token_CloseBrace) { //#import { "..." ... } 
-                                        break;
-                                    }else perror(curt, "Unknown token.");
-
-            
-                                    imported_decls.add(decl);
-                                }else perror(curt, "Expected an identifier for including specific definitions from a module.");
-                            }
-                        }else{
-                            //in this case the user isnt specifying anything specific so we import all public declarations from the module
-                            imported_decls.reserve(sufileex->parser.exported_decl.data.count);
-                            forI(sufileex->parser.exported_decl.data.count){
-                                imported_decls.add(sufileex->parser.exported_decl.data[i].second);
-                            }
-                        }
-                        expect(Token_As){
-                            curt++;
-                            //in this case the user must be using 'as' to give the module a namespace
-                            //so we make a new struct and add the declarations to it
-                            expect(Token_Identifier){
-                                Struct* s = arena.make_struct(curt->raw);
-                                s->members.init(); 
-                                s->decl.identifier = curt->raw;
-                                s->decl.declared_identifier = curt->raw;
-                                s->decl.token_start = curt;
-                                s->decl.token_end = curt;
-                                s->decl.type = Declaration_Structure;
-                                forI(imported_decls.count){
-                                    s->members.add(imported_decls[i]->identifier, imported_decls[i]);
-                                }
-                                sufile->parser.imported_decl.add(s->decl.identifier, &s->decl);
-                            }else perror(curt, "Expected an identifier after 'as'");
-                        }else{
-                            //we are just importing all decls into the global space
-                            forI(imported_decls.count){
-                                sufile->parser.imported_decl.add(imported_decls[i]->identifier, imported_decls[i]);
-                            }
-                        }
-                    }else expect(Token_CloseBrace){
-                        //handle empty import directives and warn about it
-                        pwarn(curt, "empty import directive.");
-                        return 0;
-                    }else perror(curt, "Import specifier is not a string or identifier.");
+            expect(Token_LiteralString){
+                Expression* e = arena.make_expression(curt->raw);
+                e->expr_type = Expression_Literal;
+                insert_last(node, &e->node);
+                curt++;
+                expect(Token_OpenBrace){
                     curt++;
-                    expect(Token_Comma){
-                        curt++;
-                        //support having a comma after the last entry, because it slighty eases adding new entries to the list
-                        expect(Token_CloseBrace) break;
-                    } 
-                    else expect(Token_CloseBrace) break;
-                    else perror_ret(curt, "unexpected token '", curt->raw, "' in import directive.");
-                }
-            }else expect(Token_LiteralString){
-                str8 filename = curt->raw;
-                u32 path_loc;
-                path_loc = str8_find_last(filename, '/');
-                if(path_loc == npos)
-                    path_loc = str8_find_last(filename, '\\');
-                if(path_loc != npos){
-                    filename.str += path_loc+1;
-                    filename.count -= path_loc+1;
-                }
-
-                suFile* sufileex = compiler.files.at(filename);
-                
-                if(!sufileex || sufileex->stage < FileStage_Parser){
-                    //this warning indicates that something isnt behaving right in the compiler
-                    //if its long after 2022/07/05 then this warning can probably be removed
-                    if(!sufileex) compiler.logger.warn("INTERNAL: A file path was found in parsing that does not exist yet. All files that are dependencies of other files should be lexed and preprocessed before files that depend on them are parsed.");
-                    CompilerRequest cr;
-                    cr.filepaths.add(curt->raw);
-                    cr.stage = FileStage_Parser;
-                    compiler.compile(&cr);
-                    sufileex = compiler.files.at(filename);
-                }
-                expect(Token_OpenBrace){ //#import { "..." { 
-                    //we are including specific defintions from the import
-                    while(1){
-                        curt++;
-                        expect(Token_Identifier){ //#import { "..." { <id> 
-                            //now we must make sure it exists
-                            Type type = 0;
-                            Declaration* decl = 0;
-                            sufileex->parser.find_identifier_externally(curt->raw);
-                            if(!decl) perror(curt, "Attempted to include declaration '", curt->raw, "' from module '", sufileex->file->front, "' but it is either internal or doesn't exist.");
-                            else expect(Token_As){ //#import { "..." { <id> as
-                                //in this case we must duplicate the declaration and give it a new identifier
-                                //TODO(sushi) duplication may not be necessary, instead we can store a local name
-                                //            and just use the same declaration node.
-                                //TODO(sushi) dont duplicate the declaration
+                    while(!curr_match(Token_CloseBrace)){
+                        expect(Token_Identifier){
+                            Expression* id = arena.make_expression(curt->raw);
+                            id->expr_type = Expression_IdentifierLHS;
+                            id->token_start = curt;
+                            id->token_end = curt;
+                            curt++;
+                            expect(Token_As){
+                                Expression* op = arena.make_expression(curt->raw);
+                                op->expr_type = Expression_BinaryOpAs;
+                                op->token_start = id->token_start;
                                 curt++;
-                                expect(Token_Identifier) {//#import { "..." { <id> as <id>
-                                    switch(decl->type){
-                                        case Declaration_Structure:{
-                                            Struct* s = arena.make_struct();
-                                            memcpy(s, StructFromDeclaration(decl), sizeof(Struct));
-                                            s->decl.identifier = curt->raw;
-                                            decl = &s->decl;
-                                        }break;
-                                        case Declaration_Function:{
-                                            Function* s = arena.make_function();
-                                            memcpy(s, FunctionFromDeclaration(decl), sizeof(Function));
-                                            s->decl.identifier = curt->raw;
-                                            decl = &s->decl;
-                                        }break;
-                                        case Declaration_Variable:{
-                                            Variable* s = arena.make_variable();
-                                            memcpy(s, VariableFromDeclaration(decl), sizeof(Variable));
-                                            s->decl.identifier = curt->raw;
-                                            decl = &s->decl;
-                                        }break;
-                                    }
-                                }else perror(curt, "Expected an identifier after 'as'");
+                                expect(Token_Identifier){
+                                    op->token_end = curt;
+                                    Expression* idrhs = arena.make_expression(curt->raw);
+                                    idrhs->expr_type = Expression_IdentifierLHS;
+                                    idrhs->token_start = curt;
+                                    idrhs->token_end = curt;
+                                    insert_last(&op->node, &id->node);
+                                    insert_last(&op->node, &idrhs->node);
+                                    insert_last(&e->node, &op->node);
+                                    curt++;
+                                }else perror_ret(curt, "expected an identifier for subimport alias.");
                             }else{
-                                
+                                insert_last(&e->node, &id->node);
                             }
-                            expect(Token_Comma){} //#import { "..." ... ,
-                            else expect(Token_CloseBrace) { //#import { "..." ... } 
-                                break;
-                            }else perror(curt, "Unknown token.");
+                            //this seems redundant
+                            //i dont think we need to even check for commas in this situation
+                            //but i prefer to enforce them for multiple items for consistency
+                            expect(Token_Comma){
+                                curt++;
+                                expect(Token_CloseBrace){curt++;break;}
+                            }else expect(Token_CloseBrace) {curt++;break;}
+                            else perror_ret(curt, "expected a , after subimport.");
+                        }else perror_ret(curt, "expected an identifier for subimport.");
+                    }
 
-    
-                            imported_decls.add(decl);
-                        }else perror(curt, "Expected an identifier for including specific definitions from a module.");
-                    }
-                }else{
-                    //in this case the user isnt specifying anything specific so we import all public declarations from the module
-                    imported_decls.reserve(sufileex->parser.exported_decl.data.count);
-                    forI(sufileex->parser.exported_decl.data.count){
-                        imported_decls.add(sufileex->parser.exported_decl.data[i].second);
-                    }
                 }
-                expect(Token_As){
-                     curt++;
-                    //in this case the user must be using 'as' to give the module a namespace
-                    //so we make a new struct and add the declarations to it
-                    expect(Token_Identifier){
-                        Struct* s = arena.make_struct(curt->raw);
-                        s->members.init(); 
-                        s->decl.identifier = curt->raw;
-                        s->decl.declared_identifier = curt->raw;
-                        s->decl.token_start = curt;
-                        s->decl.token_end = curt;
-                        s->decl.type = Declaration_Structure;
-                        forI(imported_decls.count){
-                            s->members.add(imported_decls[i]->identifier, imported_decls[i]);
-                        }
-                        sufile->parser.imported_decl.add(s->decl.identifier, &s->decl);
-                    }else perror(curt, "Expected an identifier after 'as'");
-                }else{
-                    forI(imported_decls.count){
-                        sufile->parser.imported_decl.add(imported_decls[i]->identifier, imported_decls[i]);
-                    }
-                }
-            }else perror(curt, "Import specifier is not a string or identifier.");
-            curt++;
+                return &e->node;
+            }
+
+           
         }break;
 
         case psRun:{ //---------------------------------------------------------------------------------------------------Run
@@ -334,13 +191,13 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
         case psScope:{ //-----------------------------------------------------------------------------------------------Scope
             Scope* s = arena.make_scope(curt->raw);
-            TNode* me = &s->node;
+            suNode* me = &s->node;
             insert_last(node, me);
             while(!next_match(Token_CloseBrace)){
                 curt++;
                 expect(Token_Identifier){
                     if(curt->is_declaration){
-                        TNode* ret = define(me, psDeclaration);
+                        suNode* ret = define(me, psDeclaration);
                         if(!ret) return 0;
                         Declaration* d = DeclarationFromNode(ret);
                         if(d->type == Declaration_Variable){
@@ -410,8 +267,8 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     s->decl.declared_identifier = curt->raw;
 
                     if(curt->is_global){
-                        if(is_internal) sufile->parser.internal_decl.add(&s->decl);
-                        else            sufile->parser.exported_decl.add(&s->decl);
+                        if(is_internal) sufile->parser.internal_decl.add(s->decl.identifier, &s->decl);
+                        else            sufile->parser.exported_decl.add(s->decl.identifier, &s->decl);
                     }
 
                     curt++;
@@ -427,7 +284,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                                             perror(curt, "only declarations are allowed inside struct definitions. NOTE(sushi) if this is a declaration, then this error indicates something wrong internally, please let me know.");
                                             return 0;
                                         }
-                                        TNode* fin = define(&s->decl.node, psDeclaration);
+                                        suNode* fin = define(&s->decl.node, psDeclaration);
                                         if(!fin){
                                             return 0;
                                         } 
@@ -584,7 +441,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     expect(Token_Semicolon){
                         curt++;
                     }else{
-                        TNode* n = define(&s->node, psExpression);
+                        suNode* n = define(&s->node, psExpression);
                         if(!n) return 0;
                         change_parent(&s->node, n);
                     }
@@ -600,7 +457,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     expect(Token_OpenParen){
                         curt++;
                         expect(Token_CloseParen) perror_ret(curt, "expected an expression for if statement.");
-                        TNode* n = define(&s->node, psExpression);
+                        suNode* n = define(&s->node, psExpression);
                         if(!n) return 0;
                         curt++;
                         expect(Token_CloseParen){
@@ -633,14 +490,14 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     insert_last(node, &s->node);
                     curt++;
                     expect(Token_OpenBrace){
-                        TNode* n = define(&s->node, psScope);
+                        suNode* n = define(&s->node, psScope);
                         if(!n) return 0;
                         s->token_end = curt;
                     }else{
                         //check that the user isnt trying to declare anything in an unscoped else statement
                         expect(Token_Identifier)
                             if(curt->is_declaration) perror_ret(curt, "can't declare something in an unscoped else statement.");
-                        TNode* n = define(&s->node, psStatement);
+                        suNode* n = define(&s->node, psStatement);
                         if(!n) return 0;
                         curt++;
                         expect(Token_Semicolon){}
@@ -655,7 +512,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     Statement* s = arena.make_statement();
                     s->token_start = curt;
                     insert_last(node, &s->node);
-                    TNode* ret = define(node, psExpression);
+                    suNode* ret = define(node, psExpression);
                     if(!ret) return 0;
                     curt++;
                     expect(Token_Semicolon){}
@@ -669,7 +526,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         case psExpression:{ //-------------------------------------------------------------------------------------Expression
             expect(Token_Identifier){
                 //go down expression chain first
-                TNode* n = define(node, psConditional);
+                suNode* n = define(node, psConditional);
                 if(!n) return 0;
                 Expression* e = ExpressionFromNode(n);
 
@@ -677,7 +534,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     Expression* op = arena.make_expression(curt->raw);
                     change_parent(&op->node, &e->node);
                     curt++;
-                    TNode* ret = define(&op->node, psExpression);
+                    suNode* ret = define(&op->node, psExpression);
                     insert_last(node, &op->node);
                     return &op->node;                                                
                 }
@@ -796,7 +653,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 case Token_OpenParen:{
                     curt++;
                     Token* start = curt;
-                    TNode* ret = define(node, psExpression);
+                    suNode* ret = define(node, psExpression);
                     curt++;
                     expect(Token_CloseParen){
                         return ret;
@@ -855,7 +712,7 @@ void Parser::parse(){DPZoneScoped;
                 pt.curt = itok;
                 pt.sufile = sufile;
                 pt.parser = this;
-                pt.define(&sufile->parser.base, psImport);
+                pt.define(&sufile->parser.base, psDirective);
             }
         }
         
