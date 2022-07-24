@@ -1023,8 +1023,10 @@ struct Struct;
 struct TypedValue{
 	Type type;
 	u32 pointer_depth;
+	b32 implicit = 0; //special indicator for variables that were declared with no type and depend on the expression they are assigned
 	b32 modifiable = 0;
 	Struct* struct_type;
+	str8 type_name;
 	union {
 		f32  float32;
 		f64  float64;
@@ -1065,6 +1067,7 @@ enum {
 	Statement_Continue,
 	Statement_Struct,
 	Statement_Using,
+	Statement_Import,
 };
 
 struct Statement {
@@ -1097,8 +1100,9 @@ struct Declaration{
 	Token* token_start;
 	Token* token_end;
 	
-	//name of declaration as it was first found 
+	//name of declaration  
 	str8 identifier;
+	//name of declaration as it was when it was first declared
 	str8 declared_identifier;
 	Type type;
 
@@ -1277,7 +1281,7 @@ struct suLogger{
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0),  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, t->file,  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1299,7 +1303,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error"), ": ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1342,7 +1346,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("warning"), ": ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1382,7 +1386,7 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, "(",token->l0,",",token->c0,"): ", MagentaFormat("note"), ": ", args...);
+			str8 out = to_str8_su(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", MagentaFormat("note"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
@@ -1615,8 +1619,9 @@ struct Validator{
 		stacks.known_declarations_scope_begin_offsets.init();
 	}
 
-	void start();
+	void   start();
 	TNode* validate(TNode* node);
+	b32    check_shadowing(Declaration* d);
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////

@@ -100,6 +100,12 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
 
         case psDirective:{ //---------------------------------------------------------------------------------------Directive
             // there is no reason to check for invalid directives here because that is handled by lexer
+            expect(Token_Directive_Import){
+                Statement* s = arena.make_statement(curt->raw);
+                curt++;
+                TNode* n = define(&s->node, psImport);
+                if(!n) return
+            }
 
         }break;
 
@@ -107,34 +113,20 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
             //#import 
             //TODO(sushi) cleanup the massive code duplication here and consider moving import evaluation (not parsing) to the next stage
             array<Declaration*> imported_decls;
+
+    
+
             curt++;
+
             expect(Token_OpenBrace){ //#import {
                 curt++; 
                 while(1){
+                    TNode* n = define(node, psImport);
+
                     expect(Token_LiteralString){ //#import { "..." 
-                        str8 filename = curt->raw;
-                        u32 path_loc;
-                        path_loc = str8_find_last(filename, '/');
-                        if(path_loc == npos)
-                            path_loc = str8_find_last(filename, '\\');
-                        if(path_loc != npos){
-                            filename.str += path_loc+1;
-                            filename.count -= path_loc+1;
-                        }
-
-                        suFile* sufileex = compiler.files.at(filename);
-                        
-                        if(!sufileex || sufileex->stage < FileStage_Parser){
-                            //this warning indicates that something isnt behaving right in the compiler
-                            //if its long after 2022/07/05 then this warning can probably be removed
-                            if(!sufileex) compiler.logger.warn("INTERNAL: A file path was found in parsing that does not exist yet. All files that are dependencies of other files should be lexed and preprocessed before files that depend on them are parsed.");
-                            CompilerRequest cr;
-                            cr.filepaths.add(curt->raw);
-                            cr.stage = FileStage_Parser;
-                            compiler.compile(&cr);
-                            sufileex = compiler.files.at(filename);
-                        }
-
+                        Expression* e = arena.make_expression(curt->raw);
+                        e->expr_type = Expression_Literal;
+                        insert_last(&s->node, &e->node);
                         curt++;
                         expect(Token_OpenBrace){ //#import { "..." { 
                             //we are including specific defintions from the import
@@ -341,7 +333,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
         }break;
 
         case psScope:{ //-----------------------------------------------------------------------------------------------Scope
-            Scope* s = arena.make_scope();
+            Scope* s = arena.make_scope(curt->raw);
             TNode* me = &s->node;
             insert_last(node, me);
             while(!next_match(Token_CloseBrace)){
@@ -375,40 +367,41 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     Declaration* decl = 0;
 
                     //first make sure that the user isnt trying to redefine a structure that was already made in an imported file
-                    if(Declaration* d = sufile->parser.imported_decl.at(curt->raw)){
-                        if(d->type == Declaration_Structure){
-                            perror(curt, "attempt to define structure '", curt->raw, "' but it already exists as an import from ", d->token_start->file);
-                            sufile->logger.log(d->token_start, 0, "original definition of '", curt->raw, "' is here.");
-                            return 0;
-                        }
-                    } 
+                    // if(Declaration* d = sufile->parser.imported_decl.at(curt->raw)){
+                    //     if(d->type == Declaration_Structure){
+                    //         perror(curt, "attempt to define structure '", curt->raw, "' but it already exists as an import from ", d->token_start->file);
+                    //         sufile->logger.log(d->token_start, 0, "original definition of '", curt->raw, "' is here.");
+                    //         return 0;
+                    //     }
+                    // } 
 
-                    if(curt->is_global){
-                        //if the token is global then it will have been added to pending_globals 
-                        if(Declaration* d = parser->pending_globals.at(curt->raw)){
-                            if(d->complete || d->in_progress){
-                                perror(curt, "attempt to define structure '", curt->raw, "' but it already has a definition.");
-                                sufile->logger.log(curt, 0, "original definition of '", curt->raw, "' is here.");
-                                return 0;
-                            }
-                            decl = d;
-                        }
-                    }else{
-                        //otherwise just make a new one
-                        //TODO(sushi) we should probably check for already existant struct defs here too, since someone could try and redefine a 
-                        //            struct in a local scope
-                        Struct* s = arena.make_struct(curt->raw);
-                        decl = &s->decl;
-                        if(is_internal){
-                            sufile->parser.internal_decl.add(curt->raw, decl);
-                        }else{
-                            sufile->parser.exported_decl.add(curt->raw, decl);                            
-                        }
-                    }
+                    // if(curt->is_global){
+                    //     //if the token is global then it will have been added to pending_globals 
+                    //     if(Declaration* d = parser->pending_globals.at(curt->raw)){
+                    //         if(d->complete || d->in_progress){
+                    //             //perror(curt, "attempt to define structure '", curt->raw, "' but it already has a definition.");
+                    //             //sufile->logger.log(curt, 0, "original definition of '", curt->raw, "' is here.");
+                    //             //return 0;
+                    //         }
+                    //         decl = d;
+                    //     }
+                    // }else{
+                    //     //otherwise just make a new one
+                    //     //TODO(sushi) we should probably check for already existant struct defs here too, since someone could try and redefine a 
+                    //     //            struct in a local scope
+                    //     Struct* s = arena.make_struct(curt->raw);
+                    //     decl = &s->decl;
+                    //     if(is_internal){
+                    //         sufile->parser.internal_decl.add(curt->raw, decl);
+                    //     }else{
+                    //         sufile->parser.exported_decl.add(curt->raw, decl);                            
+                    //     }
+                    // }
 
-                    Struct* s = StructFromDeclaration(decl);
+                    Struct* s = arena.make_struct(curt->raw);//StructFromDeclaration(decl);
+                    decl = &s->decl;
+
                     s->members.init();
-
                     s->decl.in_progress = 1;
                     s->decl.working_thread = this;
                     s->decl.token_start = curt;
@@ -417,8 +410,8 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     s->decl.declared_identifier = curt->raw;
 
                     if(curt->is_global){
-                        if(is_internal) sufile->parser.internal_decl.add(curt->raw, &s->decl);
-                        else            sufile->parser.exported_decl.add(curt->raw, &s->decl);
+                        if(is_internal) sufile->parser.internal_decl.add(&s->decl);
+                        else            sufile->parser.exported_decl.add(&s->decl);
                     }
 
                     curt++;
@@ -451,20 +444,22 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Function:{
-                    str8 fname = suStr8(curt->raw, curt->l0, curt->c0);
-                    Declaration* decl = parser->pending_globals.at(fname);
+                    //str8 fname = suStr8(curt->raw, curt->l0, curt->c0);
+                    //Declaration* decl = parser->pending_globals.at(fname);
 
-                    if(curt->is_global && !decl){
-                        perror(curt, "INTERNAL: a global declaration token does not have a corresponding pending_globals entry.");
-                        return 0;
-                    }else if(!decl){
-                        Function* f = arena.make_function(curt->raw);
-                        decl = &f->decl;
-                    }
+                    //if(curt->is_global && !decl){
+                    //    perror(curt, "INTERNAL: a global declaration token does not have a corresponding pending_globals entry.");
+                    //    return 0;
+                    //}else if(!decl){
+                    //    Function* f = arena.make_function(curt->raw);
+                    //    decl = &f->decl;
+                    //}
 
-                    Function* f = FunctionFromDeclaration(decl);
+                    Function* f = arena.make_function(curt->raw);//FunctionFromDeclaration(decl);
                     f->decl.token_start = curt;
                     f->decl.type = Declaration_Function;
+                    f->decl.identifier = curt->raw;
+                    f->decl.declared_identifier = curt->raw;
                     b32 is_global = curt->is_global;
                     str8 id = curt->raw;
                     f->internal_label = id;
@@ -526,23 +521,21 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                     curt++;
                     expect(Token_Colon){ // name :
                         curt++;
-                        b32 implicit_type = 0;
                         expect_group(TokenGroup_Type){ // name : <type>
                             v->data.type = curt->type;
+                            v->data.type_name = curt->raw;
                         }else expect(Token_Identifier){ // name : <type>
                             //in this case we expect this identifier to actually be a struct so we must look for it
                             //first check known declarations 
                             v->data.type = Token_Struct;
-                        }else implicit_type = 1;
+                            v->data.type_name = curt->raw;
+                        }else v->data.implicit = 1;
                         curt++;
                         expect(Token_Assignment){ // name : <type> = || name := 
                             Token* before = curt;
                             curt++;
                             Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
-                            if(implicit_type){
-                                v->data.type = e->data.type;
-                            }
-                        } else if(implicit_type) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+                        } else if(v->data.implicit) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
                         insert_last(node, &v->decl.node);
                         return &v->decl.node;
                     } else perror(curt, "Expected a ':' after identifier for variable decalration.");
@@ -679,7 +672,7 @@ TNode* ParserThread::define(TNode* node, Type stage){DPZoneScoped;
                 TNode* n = define(node, psConditional);
                 if(!n) return 0;
                 Expression* e = ExpressionFromNode(n);
-                
+
                 expect(Token_Assignment){
                     Expression* op = arena.make_expression(curt->raw);
                     change_parent(&op->node, &e->node);
@@ -884,24 +877,24 @@ void Parser::parse(){DPZoneScoped;
         pt->node = &sufile->parser.base;
         pt->stage = psDeclaration;
         pt->is_internal = 1;
-        switch(sufile->lexer.tokens[idx].decl_type){
-            case Declaration_Function:{
-                Function* f = arena.make_function(pt->curt->raw);
-                f->decl.working_thread = pt;
-                str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
-                pending_globals.add(fname, &f->decl);
-            }break;
-            case Declaration_Variable:{
-                Variable* v = arena.make_variable(pt->curt->raw);
-                v->decl.working_thread = pt;
-                sufile->parser.internal_decl.add(sufile->lexer.tokens[idx].raw, &v->decl);
-            }break;
-            case Declaration_Structure:{
-                Struct* s = arena.make_struct(pt->curt->raw);
-                s->decl.working_thread = pt;
-                sufile->parser.internal_decl.add(sufile->lexer.tokens[idx].raw, &s->decl);
-            }break;
-        }
+        // switch(sufile->lexer.tokens[idx].decl_type){
+        //     case Declaration_Function:{
+        //         Function* f = arena.make_function(pt->curt->raw);
+        //         f->decl.working_thread = pt;
+        //         str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
+        //         pending_globals.add(fname, &f->decl);
+        //     }break;
+        //     case Declaration_Variable:{
+        //         Variable* v = arena.make_variable(pt->curt->raw);
+        //         v->decl.working_thread = pt;
+        //         sufile->parser.internal_decl.add(sufile->lexer.tokens[idx].raw, &v->decl);
+        //     }break;
+        //     case Declaration_Structure:{
+        //         Struct* s = arena.make_struct(pt->curt->raw);
+        //         s->decl.working_thread = pt;
+        //         sufile->parser.internal_decl.add(sufile->lexer.tokens[idx].raw, &s->decl);
+        //     }break;
+        // }
         DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
 
@@ -916,31 +909,31 @@ void Parser::parse(){DPZoneScoped;
         pt->is_internal = 0;
         //TODO(sushi) this is probably where we want to look out for variable/struct name conflicts 
         //            functions dont matter because of overloading
-        switch(sufile->lexer.tokens[idx].decl_type){
-            case Declaration_Function:{
-                Function* f = arena.make_function(pt->curt->raw);
-                f->decl.working_thread = pt;
-                f->decl.type = Declaration_Function;
-                //because we support overloaded functions we cant just store a function in this 
-                //map by name. we also dont want to parse the function for its signature here either
-                //so we store its name followed by its line and column number
-                //like so:  main10
-                str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
-                pending_globals.add(fname, &f->decl);
-            }break;
-            case Declaration_Variable:{
-                Variable* v = arena.make_variable(pt->curt->raw);
-                v->decl.working_thread = pt;
-                v->decl.type = Declaration_Variable;
-                pending_globals.add(sufile->lexer.tokens[idx].raw, &v->decl);
-            }break;
-            case Declaration_Structure:{
-                Struct* s = arena.make_struct(pt->curt->raw);
-                s->decl.working_thread = pt;
-                s->decl.type = Declaration_Structure;
-                pending_globals.add(sufile->lexer.tokens[idx].raw, &s->decl);
-            }break;
-        }
+        // switch(sufile->lexer.tokens[idx].decl_type){
+        //     case Declaration_Function:{
+        //         Function* f = arena.make_function(pt->curt->raw);
+        //         f->decl.working_thread = pt;
+        //         f->decl.type = Declaration_Function;
+        //         //because we support overloaded functions we cant just store a function in this 
+        //         //map by name. we also dont want to parse the function for its signature here either
+        //         //so we store its name followed by its line and column number
+        //         //like so:  main10
+        //         str8 fname = suStr8(sufile->lexer.tokens[idx].raw, sufile->lexer.tokens[idx].l0, sufile->lexer.tokens[idx].c0);
+        //         pending_globals.add(fname, &f->decl);
+        //     }break;
+        //     case Declaration_Variable:{
+        //         Variable* v = arena.make_variable(pt->curt->raw);
+        //         v->decl.working_thread = pt;
+        //         v->decl.type = Declaration_Variable;
+        //         pending_globals.add(sufile->lexer.tokens[idx].raw, &v->decl);
+        //     }break;
+        //     case Declaration_Structure:{
+        //         Struct* s = arena.make_struct(pt->curt->raw);
+        //         s->decl.working_thread = pt;
+        //         s->decl.type = Declaration_Structure;
+        //         pending_globals.add(sufile->lexer.tokens[idx].raw, &s->decl);
+        //     }break;
+        // }
         DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
 
@@ -952,12 +945,21 @@ void Parser::parse(){DPZoneScoped;
         }
     }
 
-    forI(sufile->parser.exported_decl.data.count)
+    forI(sufile->parser.exported_decl.data.count){
         change_parent(&sufile->parser.base, &sufile->parser.exported_decl.atIdx(i)->node);
-    forI(sufile->parser.imported_decl.data.count)
+        move_to_parent_first(&sufile->parser.exported_decl.atIdx(i)->node);
+
+    }
+    forI(sufile->parser.imported_decl.data.count){
         change_parent(&sufile->parser.base, &sufile->parser.imported_decl.atIdx(i)->node);
-    forI(sufile->parser.internal_decl.data.count)
+        move_to_parent_first(&sufile->parser.imported_decl.atIdx(i)->node);
+    }
+
+    forI(sufile->parser.internal_decl.data.count){
         change_parent(&sufile->parser.base, &sufile->parser.internal_decl.atIdx(i)->node);
+        move_to_parent_first(&sufile->parser.internal_decl.atIdx(i)->node);
+    }
+
         
     sufile->logger.log(Verbosity_Stages, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
 }

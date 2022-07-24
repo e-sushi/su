@@ -73,39 +73,109 @@ b32 type_conversion(Type to, Type from){
     return false;
 }
 
+//checks the known stack to see if there are any variable name conflicts in the same scope
+b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
+    suLogger& logger = sufile->logger;
+    forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
+        Declaration* dk = stacks.known_declarations[stacks.known_declarations.count - 1 - i];
+        if(d->type == Declaration_Function && dk->type == Declaration_Function){
+            //ignore, because function overloading
+            continue;
+        }
+        if(str8_equal_lazy(d->identifier, dk->identifier)){
+
+            logger.error(d->token_start, 
+            "declaration of ", 
+            (d->type == Declaration_Variable ? "variable" : (d->type == Declaration_Function ? "function" : "structure")),
+            " '", d->identifier, "' overrides declaration of ",
+            (dk->type == Declaration_Variable ? "variable" : (dk->type == Declaration_Function ? "function" : "structure")),
+            " '", d->identifier, "'");
+            logger.note(dk->token_start, "see declaration of '", dk->identifier, "'");
+            return 0;
+        }
+    }
+    return 1;
+}
+
 TNode* Validator::validate(TNode* node){DPZoneScoped;
+    suLogger& logger = sufile->logger;
     switch(node->type){
         case NodeType_Variable:{
             Variable* v = VariableFromNode(node);
             push_variable(v);
+            if(!check_shadowing(&v->decl)) return 0;
+            stacks.known_declarations.add(&v->decl);
+
+            if(v->data.implicit){
+                //if this variable's type is implicit, then there will be an expression after it
+                //that we use to determine its type
+                //there should only be one child node and it should resolve to an expression
+                Expression* ret = ExpressionFromNode(validate(v->decl.node.first_child));
+                v->data = ret->data;
+            }else if(v->data.type == Token_Struct){
+                //we must determine what struct this varaible
+            }
 
             pop_variable();
         }break;
+
         case NodeType_Function:{
             Function* f = FunctionFromNode(node);
             push_function(f);
+            if(!check_shadowing(&f->decl)) return 0;
+            stacks.known_declarations.add(&f->decl);
+
+            stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
+
+            for_node(f->decl.node.first_child){
+                validate(it);
+            }
+
+            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
 
             pop_function();
         }break;
+
         case NodeType_Structure:{
             Struct* s = StructFromNode(node);
             push_struct(s);
+            if(!check_shadowing(&s->decl)) return 0;
+            stacks.known_declarations.add(&s->decl);
+
+            stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
+
+            for_node(s->decl.node.first_child){
+                validate(it);
+            }
+
+            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
 
             pop_struct();
         }break;
+
         case NodeType_Scope:{
             Scope* s = ScopeFromNode(node);
             push_scope(s);
 
+            stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
+
+            for_node(s->node.first_child){
+                validate(it);
+            }
+
+            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
+
             pop_scope();
 
         }break;
+
         case NodeType_Statement:{
             Statement* s = StatementFromNode(node);
             push_statement(s);
 
             pop_statement();
         }break;
+
         case NodeType_Expression:{
             Expression* e = ExpressionFromNode(node);
             push_expression(e);
@@ -117,12 +187,13 @@ TNode* Validator::validate(TNode* node){DPZoneScoped;
 }
 
 void Validator::start(){DPZoneScoped;
+    stacks.known_declarations_scope_begin_offsets.add(0);
     //gather global declarations into our known array
     //TODO(sushi) this could possibly be a separate map from our known decls array
     //            because globals dont allow shadowing
-    for_node(sufile->parser.base.first_child){
-        stacks.known_declarations.add(DeclarationFromNode(it));
-    }
+    // for_node(sufile->parser.base.first_child){
+    //     stacks.known_declarations.add(DeclarationFromNode(it));
+    // }
 
     for_node(sufile->parser.base.first_child){
         validate(it);

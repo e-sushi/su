@@ -88,6 +88,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
         }
     }
     if(cr.filepaths.count){
+        //only compile up to preprocessor
         cr.stage = FileStage_Preprocessor;
         compiler.compile(&cr);
     }
