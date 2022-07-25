@@ -1,7 +1,5 @@
-#import {
-    "tests/_/mylib3.su",
-    "tests/_/mylib4.su"
-}
+#import "tests/_/mylib3.su"
+#import "tests/_/mylib4.su"
 
 a:u32;
 b:u32;

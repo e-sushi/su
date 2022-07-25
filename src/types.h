@@ -97,7 +97,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Detailed;
+	u32 verbosity = Verbosity_Debug;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -1621,6 +1621,15 @@ struct suFile{
 
 	suLogger logger;
 
+	//for files to wait on other files to finish certain stages
+	//NOTE(sushi) this may only be necessary for validator
+	struct{
+		condvar lex;
+		condvar preprocess;
+		condvar parse;
+		condvar validate;
+	}cv;
+
 	struct{ // lexer
 		suArena<Token> tokens;
 		suArena<u32> declarations; // list of : tokens
@@ -1643,6 +1652,7 @@ struct suFile{
 
 		//arrays organizing toplevel declarations and import directives
 		suArena<Statement*> import_directives;
+		//TODO(sushi) it may not be necessary to have exported and imported in separate arrays anymore
 		suArena<Declaration*> exported_decl;
 		suArena<Declaration*> imported_decl;
 		suArena<Declaration*> internal_decl;
@@ -1664,6 +1674,10 @@ struct suFile{
 		parser.internal_decl.init();
 		parser.base.debug = STR8("base");
 		parser.base.lock.init();
+		cv.lex.init();
+		cv.preprocess.init();
+		cv.parse.init();
+		cv.validate.init();
 	}
 };
 
@@ -1801,7 +1815,7 @@ struct Validator{
 
 	void   start();
 	suNode* validate(suNode* node);
-	b32    check_shadowing(Declaration* d);
+	b32     check_shadowing(Declaration* d);
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1832,13 +1846,17 @@ struct Compiler{
 		mutex compile_request;
 	}mutexes;
 
-	void compile(CompilerRequest* request);
+	struct{
+		
+	}cv;
+
+	//returns a carray of the suFiles created by the request
+	suArena<suFile*> compile(CompilerRequest* request, b32 wait = 1);
 
 	suFile* start_lexer       (suFile* sufile);
 	suFile* start_preprocessor(suFile* sufile);
 	suFile* start_parser      (suFile* sufile);
 	suFile* start_validator   (suFile* sufile);
-	void    start_request(CompilerRequest* request);
 
 	//used to completely reset all compiled information
 	//this is mainly for performance testing, like running a compile on the same file
@@ -1871,6 +1889,7 @@ struct{
 	FORCE_INLINE
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
+		compiler.logger.log(Verbosity_Debug, "Making a function with debug message ", debugmsg);
 		function->decl.node.lock.init();
 		function->decl.node.type = NodeType_Function;
 		function->decl.node.debug = debugmsg;
@@ -1880,6 +1899,7 @@ struct{
 	FORCE_INLINE
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
+		compiler.logger.log(Verbosity_Debug, "Making a variable with debug message ", debugmsg);
 		variable->decl.node.lock.init();
 		variable->decl.node.type = NodeType_Variable;
 		variable->decl.node.debug = debugmsg;
@@ -1889,6 +1909,7 @@ struct{
 	FORCE_INLINE
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
+		compiler.logger.log(Verbosity_Debug, "Making a structure with debug message ", debugmsg);
 		structure->decl.node.lock.init();
 		structure->decl.node.type = NodeType_Structure;
 		structure->decl.node.debug = debugmsg;
@@ -1898,6 +1919,7 @@ struct{
 	FORCE_INLINE
 	Scope* make_scope(str8 debugmsg = STR8("")){DPZoneScoped;
 		Scope* scope = scopes.add(Scope());
+		compiler.logger.log(Verbosity_Debug, "Making a scope with debug message ", debugmsg);
 		scope->node.lock.init();
 		scope->node.type = NodeType_Scope;
 		scope->node.debug = debugmsg;
@@ -1907,6 +1929,7 @@ struct{
 	FORCE_INLINE
 	Expression* make_expression(str8 debugmsg = STR8("")){DPZoneScoped;
 		Expression* expression = expressions.add(Expression());
+		compiler.logger.log(Verbosity_Debug, "Making an expression with debug message ", debugmsg);
 		expression->node.lock.init();
 		expression->node.type = NodeType_Expression;
 		expression->node.debug = debugmsg;
@@ -1916,6 +1939,7 @@ struct{
 	FORCE_INLINE
 	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
 		Statement* statement = statements.add(Statement());
+		compiler.logger.log(Verbosity_Debug, "Making a statement with debug message ", debugmsg);
 		statement->node.lock.init();
 		statement->node.type = NodeType_Statement;
 		statement->node.debug = debugmsg;

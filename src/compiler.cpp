@@ -31,6 +31,8 @@ void compile_threaded_func(void* in){DPZoneScoped;
     CompilerThread* ct = (CompilerThread*)in;
     SetThreadName("Compiler thread started");
 
+    compiler.logger.log(Verbosity_StageParts, "Starting compiler chain for ", CyanFormatComma(ct->sufile->file->name));
+
     //TODO(sushi) support for passing each stages file and starting compilation from stages passed lexing if 
     //            necessary
     if(ct->stage > FileStage_Null){
@@ -48,9 +50,10 @@ void compile_threaded_func(void* in){DPZoneScoped;
 
     ct->finished = 1;
     ct->wait.notify_all();
+    //memzfree(ct);
 }
 
-void Compiler::compile(CompilerRequest* request){DPZoneScoped;
+suArena<suFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneScoped;
     logger.log(Verbosity_StageParts, "Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
     //we must lock this function because it is possible it is called from 2 different threads at the same time requesting
@@ -59,13 +62,16 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
 
     SetThreadName("Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
-    if(globals.verbosity > 3){
+    if(globals.verbosity > Verbosity_Debug){
         for(str8 s : request->filepaths){
             logger.log(Verbosity_Debug, "Request to compile path ", s);
         }
     }
 
-    CompilerThread* ct = (CompilerThread*)memalloc(sizeof(CompilerThread) * request->filepaths.count);
+    CompilerThread* ct = (CompilerThread*)memtalloc(sizeof(CompilerThread) * request->filepaths.count);
+
+    suArena<suFile*> out;
+    out.init();
 
     forI(request->filepaths.count){
         str8 filepath = request->filepaths[i];
@@ -79,12 +85,12 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
 
         //make a new suFile if it doesnt exist already
         if(!sufile){
-            logger.log(Verbosity_StageParts, "File has not been loaded yet, making a new suFile.");
+            logger.log(Verbosity_StageParts, CyanFormatComma(filename), " has not been loaded yet, making a new suFile.");
             File* file = file_init(filepath, FileAccess_Read);
             if(!file){
                 logger.error("Unable to open file at path ", filepath);
                 mutexes.compile_request.unlock();
-                return;
+                return out;
             } 
 
             //we must allocate these somewhere because just storing them in map will move them if we have too many
@@ -96,18 +102,18 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
             sufile->logger.sufile = sufile;
 
             files.add(filename, sufile);
+            out.add(sufile);
         }else{
+            out.add(sufile);
             //its possible that a file is actually already being processed by another thread, such as when multiple files
             //import the same file, so we just skip it if it is
             //TODO(sushi) this may not be as simple as this. we may also have to check if the requested stage here
             //            is higher than the one originally requested and change it somehow.
             if(sufile->being_processed) 
                 continue;
-            sufile->being_processed = 1;
         }
 
-        
-
+        sufile->being_processed = 1;
         ct[i].wait.init();
         ct[i].filepath = request->filepaths[i];
         ct[i].stage = request->stage;
@@ -120,27 +126,28 @@ void Compiler::compile(CompilerRequest* request){DPZoneScoped;
     DPTracyMessageL("compiler: waking threads");
     DeshThreadManager->wake_threads(request->filepaths.count);
 
-    SetThreadName("Waiting on compiler threads to finish");
-    forI(request->filepaths.count){
-        if(!ct[i].sufile) continue; //this happens when the file was already being processed and we skipped that slot
-        while(!ct[i].finished){
-            ct[i].wait.wait();
+    if(wait){
+        SetThreadName("Waiting on compiler threads to finish");
+        forI(request->filepaths.count){
+            if(!ct[i].sufile) continue; //this happens when the file was already being processed and we skipped that slot
+            while(!ct[i].finished){
+                ct[i].wait.wait();
+            }
+            ct[i].wait.deinit();
+            ct[i].sufile->being_processed = 0;
         }
-        ct[i].wait.deinit();
-        ct[i].sufile->being_processed = 0;
     }
-
-    memzfree(ct);
+    return out;
 }
 
 suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
     Assert(sufile, "Compiler::start_lexer was passed a null suFile*");
     SetThreadName("Starting a lexer");
 
-    logger.log(Verbosity_StageParts, "Starting a lexer");
-    logger.log(Verbosity_StageParts, "Checking if file has already been lexed");
+    logger.log(Verbosity_StageParts, "Starting a lexer for ", CyanFormatComma(sufile->file->name));
+    logger.log(Verbosity_StageParts, "Checking if ", CyanFormatComma(sufile->file->name), " has already been lexed");
 	if(sufile->stage >= FileStage_Lexer){
-		logger.log(Verbosity_StageParts, SuccessFormat("File has already been lexed."));
+		logger.log(Verbosity_StageParts, SuccessFormatComma(CyanFormatComma(sufile->file->name), " has already been lexed."));
 		return sufile;
 	}
 
@@ -148,7 +155,7 @@ suFile* Compiler::start_lexer(suFile* sufile){DPZoneScoped;
     Lexer* lexer = (Lexer*)memalloc(sizeof(Lexer));
     global_mem_lock.unlock();
 	
-    logger.log(Verbosity_StageParts, "Reading file contents into a buffer");
+    logger.log(Verbosity_StageParts, "Reading file contents of ", CyanFormatComma(sufile->file->name), " into a buffer");
     sufile->file_buffer = file_read_alloc(sufile->file, sufile->file->bytes, deshi_temp_allocator); 
     lexer->sufile = sufile;
     lexer->lex();
@@ -165,10 +172,10 @@ suFile* Compiler::start_preprocessor(suFile* sufile){DPZoneScoped;
 
     SetThreadName("Starting a preprocessor");
 
-    logger.log(Verbosity_StageParts, "Starting a preprocessor.");
-    logger.log(Verbosity_StageParts, "Checking if file has already been preprocessed.");
+    logger.log(Verbosity_StageParts, "Starting a preprocessor for ", CyanFormatComma(sufile->file->name));
+    logger.log(Verbosity_StageParts, "Checking if ", CyanFormatComma(sufile->file->name), " has already been preprocessed.");
     if(sufile->stage >= FileStage_Preprocessor){
-        logger.log(Verbosity_StageParts, SuccessFormat("File has already been preprocessed."));
+        logger.log(Verbosity_StageParts, SuccessFormatComma(CyanFormatComma(sufile->file->name), " has already been preprocessed."));
         return sufile;
     } 
 
@@ -191,10 +198,10 @@ suFile* Compiler::start_parser(suFile* sufile){DPZoneScoped;
 
     SetThreadName("Starting a parser");
 
-    logger.log(Verbosity_StageParts, "Starting a parser.");
-    logger.log(Verbosity_StageParts, "Checking if file has already been parsed");
+    logger.log(Verbosity_StageParts, "Starting a parser for ", CyanFormatComma(sufile->file->name));
+    logger.log(Verbosity_StageParts, "Checking if ", CyanFormatComma(sufile->file->name), " has already been parsed");
     if(sufile->stage >= FileStage_Parser){
-        logger.log(Verbosity_StageParts, SuccessFormat("File has already been parsed."));
+        logger.log(Verbosity_StageParts, SuccessFormatComma(CyanFormatComma(sufile->file->name), " has already been parsed."));
         return sufile;
     }
     
@@ -217,10 +224,10 @@ suFile* Compiler::start_validator(suFile* sufile){
 
     SetThreadName("Starting a validator");
 
-    logger.log(Verbosity_StageParts, "Starting a validator.");
-    logger.log(Verbosity_StageParts, "Checking if file has already been validated.");
+    logger.log(Verbosity_StageParts, "Starting a validator for ", CyanFormatComma(sufile->file->name));
+    logger.log(Verbosity_StageParts, "Checking if ", CyanFormatComma(sufile->file->name), " has already been validated.");
     if(sufile->stage >= FileStage_Validator){
-        logger.log(Verbosity_StageParts, SuccessFormat("File has already been validated."));
+        logger.log(Verbosity_StageParts, SuccessFormatComma(CyanFormatComma(sufile->file->name), " has already been validated."));
         return sufile;
     }
 
@@ -231,8 +238,6 @@ suFile* Compiler::start_validator(suFile* sufile){
     validator->sufile = sufile;
     validator->init();
     validator->start();
-
-    sufile->stage = FileStage_Validator;
 
     memzfree(validator);
     return sufile;

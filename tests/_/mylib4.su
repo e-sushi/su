@@ -1,2 +1,4 @@
+#import "tests/_/mylib3.su"
+
 c:u32;
 d:u32;

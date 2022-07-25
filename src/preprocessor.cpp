@@ -117,8 +117,8 @@ void Preprocessor::preprocess(){DPZoneScoped;
         }
     }
     if(cr.filepaths.count){
-        cr.stage = FileStage_Parser;
-        compiler.compile(&cr);
+        cr.stage = FileStage_Validator;
+        sufile->preprocessor.imported_files = compiler.compile(&cr, 0);
     }
     
     logger.log(Verbosity_StageParts, "Resolving colon tokens as possible valid declarations.");

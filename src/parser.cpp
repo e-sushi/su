@@ -120,11 +120,13 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     suNode* n = define(&s->node, psImport);
                     if(!n) return 0;
                 }
-                if(is_global){
+                //NOTE(sushi) still not sure if we want to allow scoped importing
+                //            this also doesnt work so im just commenting it out for now
+                //if(is_global){
                     sufile->parser.import_directives.add(s);
-                }else{
-                    insert_last(node, &s->node);
-                }
+                //}else{
+                //    insert_last(node, &s->node);
+                //}
             }
 
         }break;
@@ -137,6 +139,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
             expect(Token_LiteralString){
                 Expression* e = arena.make_expression(curt->raw);
                 e->type = Expression_Literal;
+                e->token_start = curt;
+                e->token_end = curt;
                 insert_last(node, &e->node);
                 curt++;
                 expect(Token_OpenBrace){
@@ -667,29 +671,24 @@ void Parser::parse(){DPZoneScoped;
    
     sufile->logger.log(Verbosity_StageParts, "Checking that imported files are parsed");
 
-    {// make sure that all imported modules have been parsed before parsing this one
-     // then gather the defintions from them that this file wants to use
-        forI(sufile->lexer.imports.count){
-            Token* itok = sufile->lexer.tokens.readptr(sufile->lexer.imports[i]);
-            if(!itok->scope_depth){
-                //dummy thread, this shouldnt actually be concurrent
-                ParserThread pt;
-                pt.curt = itok;
-                pt.sufile = sufile;
-                pt.parser = this;
-                pt.define(&sufile->parser.base, psDirective);
-            }
-        }
-        
-        forI(sufile->preprocessor.imported_files.count){
-            if(sufile->preprocessor.imported_files[i]->stage < FileStage_Parser){
-                compiler.logger.warn("INTERNAL: somehow a file wasnt parsed after the initial check above ", __FILENAME__, ", line ", __LINE__);
-            }
-        }
+    threads.reserve(
+        sufile->preprocessor.internal_decl.count+
+        sufile->preprocessor.exported_decl.count+
+        sufile->lexer.imports.count
+    );
+    
+    
+    for(u32 idx : sufile->lexer.imports){
+        threads.add(ParserThread());
+        ParserThread* pt = threads.last;
+        pt->cv.init();
+        pt->curt = sufile->lexer.tokens.readptr(idx);
+        pt->parser = this;
+        pt->node = &sufile->parser.base;
+        pt->stage = psDirective;
+        DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
-
-    threads.reserve(sufile->preprocessor.internal_decl.count+sufile->preprocessor.exported_decl.count);
-
+        
     for(u32 idx : sufile->preprocessor.internal_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
@@ -713,6 +712,8 @@ void Parser::parse(){DPZoneScoped;
         pt->is_internal = 0;
         DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
+
+    sufile->logger.log(Verbosity_StageParts, "Waking threads");
 
     DeshThreadManager->wake_threads();
 
