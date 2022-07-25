@@ -26,7 +26,6 @@
 #include "kigu/unicode.h"
 #include "kigu/hash.h"
 
-
 #include "types.h"
 
 #include "lexer.cpp"
@@ -35,6 +34,144 @@
 #include "validator.cpp"
 #include "compiler.cpp"
 #include "astgraph.cpp"
+
+/*	TODOs
+
+	Lexer
+	-----
+	  determine if there are other things lexer can do during its stage
+	    since lexer will always parse an entire file there are probably other things we can get it to look for
+		to ease work in later stages, ideally without putting too much work on the lexer.
+		any work added to lexer should not be too demanding and ideally shouldnt have to look ahead or look backwards
+		by moving the stream or some other cursor.
+
+	Preprocessor
+	------------
+	  implement #include
+	    works the same as C's include, just pastes whatever file into the buffer
+		as an alternative to using import or even for directly pasting data into code
+	  implement #external
+	    just does the opposite of #internal, used to undo it
+	  import/include searching
+	  	search relative to importing/including file
+		search PATH
+	  implement #message
+	    used for outputting simple messages at compile time
+
+	Parser
+	------
+      for statements
+	  while statements
+	  switch statements
+	  variations of using
+	  	aliasing a function's name
+		aliasing a function's name and signature
+		using using for inheriting inside of a struct
+	  initializer lists
+	  function calls
+	  inc/dec
+
+	Validator
+	---------
+	  type checking
+	  identifier validation
+
+	Assembler
+	---------
+	  to C 
+		assemble su to C code. 
+		not a high priority
+	  to x86_64
+        assemble su to x86_64 assembly. 
+	  to LLVM
+		assemble su to LLVM bytecode
+		this is a nice option because it can kickstart su's compatibility on many targets and can 
+		handle optimization for us until we get to seriously working on that
+		a concern is that relying on llvm can make the compiling process slow
+	  to nasau
+	    assemble su to nasau's instruction set
+		allows su to be used in the game idea
+
+	  make a general interface for all of these?
+
+
+	Compiler
+	--------
+
+
+
+
+*/
+
+/* NOTES
+
+	amu is split into various stages. This is a list of them and their tasks
+
+	Lexer
+	-----
+	Turn an input file into a series of tokens
+	Mark places of interest
+	  Mark where possible declarations are (colons)
+	  Mark where directives are (pounds)
+	Mark tokens with their scope depth
+	Mark tokens with their line and column numbers, both start and end
+	Set the raw string that the token represets
+	Set the file string that the token resides in
+
+	Preprocesser
+	-------------
+    Iterate where lexer marked import directives and run lexer and preprocessor on files that are imported
+      Error on invalid filenames and syntax. Note that this does not parse specific imports, as in it 
+      does not care about importing only 'sin' from "math.su", all it does is start compiling files.
+    Resolve ':' tokens as possible declarations
+      This simply checks that the colons marked by lexer are actually declarations. Following su's rule of
+      <identifier> [<funcargs>] ":" <typeid> we parse around the colon to see if it is a valid declaration
+      and if it is mark the <identifier> token as a declaration. This is useful so that in parsing we dont 
+      have to look for a : when we come across every identifier.
+    Parse marked internal directives and organize tokens
+      Before this is started, preprocessor's exported decls array takes in all global decls. Then we parse
+      internal directives and as needed pull indexes from the exported decls array into the internal
+      decls array.
+    Parse run directives
+      This is possibly going to be removed from this stage as I'm not sure if #run will be allowed to be
+      used in a global space to indicate some code to run immediately, so if not this part would be 
+      irrelevant.
+
+	Parser
+	------
+	Converts tokens into an Abstract Syntax Tree
+	The parser only checks syntax and builds the AST from it. It doesn't do anything like type checking
+	or if identifiers exist.
+	Mark token start and token end ranges for each node
+
+	Validator
+	---------
+	Join every files AST together
+	Identifier validating
+	Type checking
+
+	All files are independent of each other up until validator. Meaning we can have a thread per file
+	running freely through the stages until it reaches validator, since validator is the stage in which 
+	we join all the files information together. 
+
+	amu organizes information by file using suFile. When a file is loaded a suFile is made for it
+	and represents any instance of it. suFile stores information for all stages and is how stages
+	communicate information between each other. 
+	
+	Something I would like to try and follow is that all data from previous stages is static. 
+	This rule is nice for multithreading since it guarantees atomic access to stages that a 
+	file has completed. This rule stops being followed once we reach validation because it needs 
+	to take nodes from each parser and join them together, as well as modify the AST where it needs to.
+	This will probably also apply to optimization stage, if its done using the AST.
+
+	Some notes on syntax
+	  Declarations always follow the pattern <identifier> ":" <type-specifier> with the small exception
+	  of functions that have parameter declarations after its identifier. There should be nothing in between
+	  the colon and the type-specifier. This makes the colon act as an anchor to allow easy access to the type
+	  specifier.
+
+
+*/
 
 //this is temp allocated, so just clear temp mem or free the str yourself
 str8 format_time(f64 ms){
@@ -118,7 +255,9 @@ int main(){DPZoneScoped;
 
 	cr.stage = FileStage_Validator;
 
+	DPFrameMark;
 	compiler.compile(&cr);
+	DPFrameMark;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
