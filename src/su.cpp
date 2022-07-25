@@ -37,9 +37,21 @@
 
 /*	TODOs
 
+	syntax
+		[priority (!), difficulty (*), date made, tags (optional)] (TODO)
+		priority is relative to other todos, if its really not important you can use 0 instead
+		difficulty can be seens as 
+		*    : easy
+		**   : medium
+		***  : hard
+		***+ : even harder/tedious
+		its really meant to be taken as an abstract idea of how hard a task will be at first glance
+		extra information about a TODO can be placed underneath the todo, tabbed 
+
+
 	Lexer
 	-----
-	  determine if there are other things lexer can do during its stage
+	[!, ***, 2022/07/05] determine if there are other things lexer can do during its stage
 	    since lexer will always parse an entire file there are probably other things we can get it to look for
 		to ease work in later stages, ideally without putting too much work on the lexer.
 		any work added to lexer should not be too demanding and ideally shouldnt have to look ahead or look backwards
@@ -47,29 +59,32 @@
 
 	Preprocessor
 	------------
-	  implement #include
+	[!, **, 2022/07/05] implement #include
 	    works the same as C's include, just pastes whatever file into the buffer
 		as an alternative to using import or even for directly pasting data into code
-	  implement #external
+	[!, **, 2022/07/05] implement #external
 	    just does the opposite of #internal, used to undo it
-	  import/include searching
+	[!!!, **, 2022/07/25]  import/include searching
 	  	search relative to importing/including file
 		search PATH
-	  implement #message
+	[!, **, 2022/07/05] implement #message
 	    used for outputting simple messages at compile time
 
 	Parser
 	------
-      for statements
-	  while statements
-	  switch statements
-	  variations of using
+	[!!!, **, 2022/07/25] statements
+      	for 
+	  	while 
+	  	switch 
+	[!!!, **, 2022/07/25] function calls
+	[!!,  **, 2022/07/25] using
+	  	variations of using such as 
 	  	aliasing a function's name
 		aliasing a function's name and signature
 		using using for inheriting inside of a struct
-	  initializer lists
-	  function calls
-	  inc/dec
+	[!,   **, 2022/07/25] misc
+		initializer lists
+	  	inc/dec
 
 	Validator
 	---------
@@ -78,27 +93,22 @@
 
 	Assembler
 	---------
-	  to C 
-		assemble su to C code. 
-		not a high priority
-	  to x86_64
-        assemble su to x86_64 assembly. 
-	  to LLVM
-		assemble su to LLVM bytecode
-		this is a nice option because it can kickstart su's compatibility on many targets and can 
-		handle optimization for us until we get to seriously working on that
-		a concern is that relying on llvm can make the compiling process slow
-	  to nasau
-	    assemble su to nasau's instruction set
-		allows su to be used in the game idea
-
-	  make a general interface for all of these?
+	[0,   **, 2022/07/25] assemble su to C code. 
+	[!!, ***, 2022/07/25] assemble su to x86_64 assembly. 
+	[!,  ***, 2022/07/25] assemble su to LLVM bytecode
+	[!!, ***, 2022/07/25] assemble su to nasau's instruction set
+	[!, ****, 2022/07/25] make a general interface for all of these?
 
 
 	Compiler
 	--------
 
-
+	Bugs
+	----
+	[!!, ***, 2022/07/25, threading, memory] 
+		there are many random instances where memory asserts, most likely because we still arent handling
+		thread safety completely. 
+	
 
 
 */
@@ -227,7 +237,6 @@ void print_tree(suNode* node, u32 indent = 0){
 }
 
 int main(){DPZoneScoped;
-
 
    	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
