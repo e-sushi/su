@@ -5,18 +5,19 @@
 <run>         = <statement>
 <scope>       = "{" { ( <statement> | <decl> ) } "}"
 <decl>        = <func-decl>
+              | <imp-decl>
               | <var-decl>
               | <struct-decl>
               | <op-decl>
 <var-decl>    = <var-id> ":" <type> { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ] ";"
               | <var-id> ":" "=" ( <scalar-type> | <string> | <struct-type> <initializer> )
 <func-decl>   = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
+<imp-decl>    = "implicit" "(" <id> ":" <type> ")" ":" <type> <statement>
 <struct-decl> = <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
-<op-decl>     = "operator" [ <int> ] "(" { [ <string> ] <decl> [ <string> ] [ <decl> ] [ <string> ] [ <decl> ] [ <string> ] } ")" <scope> // int after "operator" indicates precedence
+<op-decl>     = "operator" [ <int> ] //TODO
 <statement>   = <scope>  
               | <directive>
               | <exp> ";" 
-              | "using" <var-id> [ "{" { <statement>} "}" ] ";"  //var-id must be a var whose type is not scalar
               | "using" <var-id> as <id> ";" //alias variable
               | "using" <func-id> "(" <decl> { "," <decl> } ")" as <call> //alias function signature
               | "using" <func-id> "as" <id> //alias function name
@@ -49,10 +50,14 @@
               | <incdec> <var-id> | <var-id> <incdec> 
               | <struct-type> <initializer>
               | <var-id> 
+              | <cast>
+              | <reinterpret>
 <call>        = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
               | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
-<initializer> = "{" <assignment> { "," <assignment> } "}"
 <arg>         = <exp> | <id> "=" <expr>
+<initializer> = "{" <assignment> { "," <assignment> } "}"
+<cast>        = "<" <type> ">" <exp>
+<reinterpret> = "<" "!" <type> ">" <exp>
 <type>        = <scalar-type> | <struct-type>
 <scalar-type> = ("void"|"u8"|"u16"|"u32"|"u64"|"s8"|"s16"|"s32"|"s64"|"f32"|"f64")
 <struct-type> = ("str"|"any"|<struct-id>)

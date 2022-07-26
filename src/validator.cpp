@@ -78,7 +78,7 @@ b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     suLogger& logger = sufile->logger;
     forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
         Declaration* dk = stacks.known_declarations[stacks.known_declarations.count - 1 - i];
-        //if(dk==d)continue;
+        if(dk==d) continue;
         if(d->type == Declaration_Function && dk->type == Declaration_Function){
             //ignore, because function overloading
             continue;
@@ -97,6 +97,16 @@ b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     return 1;
 }
 
+Declaration* Validator::find_decl(str8 id){
+    forI(stacks.known_declarations.count){
+        Declaration* d = stacks.known_declarations[stacks.known_declarations.count-1-i];
+        if(str8_equal_lazy(d->identifier, id)){
+            return d;
+        }
+    }
+    return 0;
+}
+
 suNode* Validator::validate(suNode* node){DPZoneScoped;
     suLogger& logger = sufile->logger;
     switch(node->type){
@@ -106,15 +116,36 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             if(!check_shadowing(&v->decl)) return 0;
             stacks.known_declarations.add(&v->decl);
 
-            if(v->data.implicit){
-                //if this variable's type is implicit, then there will be an expression after it
-                //that we use to determine its type
-                //there should only be one child node and it should resolve to an expression
-                Expression* ret = ExpressionFromNode(validate(v->decl.node.first_child));
-                v->data = ret->data;
-            }else if(v->data.type == Token_Struct){
-                //we must determine what struct this varaible
+            if(v->data.type == Token_Struct){
+                //we must determine if the struct this variable wants to use is valid
+                Token* typespec = v->decl.token_start + 2;
+                Declaration* d = find_decl(typespec->raw);
+                if(!d){
+                    logger.error(typespec, "unknown identifier '", typespec->raw, "'");
+                    logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
+                    return 0;
+                }
+                if(d->type != Declaration_Structure){
+                    logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct");
+                    logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
+                    return 0;
+                }
+                v->data.struct_type = StructFromDeclaration(d);
             }
+
+            if(v->data.implicit){
+                Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
+                if(!e) return 0;
+                v->data = e->data;
+            }else if(v->decl.node.child_count){
+                Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
+                if(!e) return 0;
+                if(v->data.type != e->data.type){
+                    //we must see if these types are compatible
+
+                }
+            }
+            
 
             pop_variable();
         }break;
@@ -174,9 +205,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             push_statement(s);
 
             switch(s->type){
-                case Statement_Import:{
-                    
-                }break;
+
             }
 
             pop_statement();
@@ -186,6 +215,39 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             Expression* e = ExpressionFromNode(node);
             push_expression(e);
             
+            switch(e->type){
+                case Expression_Cast:{
+
+                }break;
+                case Expression_Reinterpret:{
+                    //will have one node that is the typename we want to reinterpret to
+                    // Expression* type_name = ExpressionFromNode(e->node.first_child);
+                    
+                    // Declaration* d = find_decl(type_name->token_start->raw);
+                    // if(!d){
+                    //     logger.error(type_name->token_start, "unknown identifier '", type_name->token_start->raw, "'");
+                    //     return 0;
+                    // }
+                    // if(d->type != Declaration_Structure){
+                    //     logger.error(type_name->token_start, "identifier '", type_name->token_start->raw, "' is not a typename");
+                    //     return 0;
+                    // }
+
+
+                }break;
+
+                case Expression_Typename:{
+                    if(e->token_start->group == TokenGroup_Type){
+                        //we immediately know this expression is valid
+                        return &e->node;
+                    }
+                    Declaration* d = find_decl(e->token_start->raw);
+                    
+                    return &e->node;
+
+                }break;
+            }
+
             pop_expression();
         }break;
     }
@@ -205,6 +267,7 @@ void Validator::start(){DPZoneScoped;
         while(sf->stage < FileStage_Validator){
             sf->cv.validate.wait();
         }
+
     }
 
     for(Statement* s : sufile->parser.import_directives){
@@ -227,11 +290,13 @@ void Validator::start(){DPZoneScoped;
             }else{
                 //we are just importing everything
                 for(Declaration* d : sufileex->parser.imported_decl){
-                    insert_first(&sufile->parser.base, &d->node);
+                    change_parent(&sufile->parser.base, &d->node);
+                    move_to_parent_first(&d->node);
                     sufile->parser.imported_decl.add(d);
                 }
                 for(Declaration* d : sufileex->parser.exported_decl){
-                    insert_first(&sufile->parser.base, &d->node);
+                    change_parent(&sufile->parser.base, &d->node);
+                    move_to_parent_first(&d->node);
                     sufile->parser.imported_decl.add(d);
                 }
             }
