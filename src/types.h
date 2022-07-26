@@ -97,7 +97,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Debug;
+	u32 verbosity = Verbosity_Always;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -272,6 +272,7 @@ struct suArena{
 
 	void add(const T& in){DPZoneScoped;
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		if(count == space){
 			global_mem_lock.lock();
 			space += 16;
@@ -280,35 +281,33 @@ struct suArena{
 		}
 		memcpy(data+count, &in, sizeof(T));
 		count++;
-		write_lock.unlock();
 	}
 
 	//TODO(sushi) need to implement a system for allowing an arbitrary amount of threads to read while blocking writing
 	T read(upt idx) {DPZoneScoped;
 		write_lock.lock();
+		defer{write_lock.unlock();};
 
 		Assert(idx < count);
 
 		T ret = *(data + idx);
-
-		write_lock.unlock();
 
 		return ret; 
 	}
 
 	void modify(upt idx, const T& val){DPZoneScoped;
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		Assert(idx < count)
 		memcpy(data+idx, &val, sizeof(T));
-		write_lock.unlock();
 	}
 
 	void insert(upt idx, const T& val){DPZoneScoped;
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		Assert(idx <= count);
 		if(idx == count){
 			add(val);
-			write_lock.unlock();
 		} else if(count == space){
 			global_mem_lock.lock();
 			space += 16;
@@ -317,12 +316,10 @@ struct suArena{
 			memmove(data+idx+1, data+idx, (count-idx)*sizeof(T));
 			memcpy(data+idx, &val, sizeof(T));
 			count++;
-			write_lock.unlock();
 		}else{
 			memmove(data+idx+1, data+idx, (count-idx)*sizeof(T));
 			memcpy(data+idx, &val, sizeof(T));
 			count++;
-			write_lock.unlock();
 		}
 	}
 
@@ -332,6 +329,7 @@ struct suArena{
 
 	T* readptr(u64 idx){
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		//NOTE(sushi) its probably possible that once the thread gets into here 
 		//            that another thread has removed enough elements to make this idx invalid
 		//            the solution is to just avoid situations where this would happen
@@ -339,39 +337,37 @@ struct suArena{
 
 		T* ret = data + idx;
 
-		write_lock.unlock();
-
 		return ret;
 	}
 
 	void remove(upt idx){DPZoneScoped;
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		Assert(idx < count);
 		count--;
 		memmove(data + idx, data + idx + 1, count - idx);
-		write_lock.unlock();
 	}
 
 	void remove_unordered(upt idx){
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		Assert(idx < count);
 		T endval = data[count-1];
 		count--;
 		if(count){
 			data[idx] = endval;
 		}
-		write_lock.unlock();
 	}
 
 	T pop(u64 _count = 1){ 
 		write_lock.lock();
+		defer{write_lock.unlock();};
 		Assert(_count <= count);
 		T ret;
 		forI(_count){
 			if(i==_count-1) memcpy(&ret, data+count-1, sizeof(T));
 			count--;
 		}
-		write_lock.unlock();
 		return ret;
 	}
 
@@ -679,7 +675,7 @@ global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
 
 global void move_to_parent_first(suNode* node){ DPZoneScoped;
 	node->lock.lock();
-	defer { node->lock.lock(); };
+	defer { node->lock.unlock(); };
 	if(!node->parent) return;
 	
 	suNode* parent = node->parent;
@@ -939,8 +935,7 @@ enum{
 	//// types  ////
 	TokenGroup_Type,
 	Token_Void = TokenGroup_Type, // void
-	//NOTE(sushi) the order of these entries matter, they determine in what order types are coerced in binary operations
-	//            see binary_parse for more info
+	//NOTE(sushi) the order of these entries matter, primarily for type conversion reasons. see Validator::init
 	Token_Unsigned8,              // u8
 	Token_Unsigned16,             // u16
 	Token_Unsigned32,             // u32 
@@ -1101,6 +1096,7 @@ enum {
 
 	Expression_IdentifierLHS,
 	Expression_IdentifierRHS,
+	Expression_Typename,
 	
 	Expression_FunctionCall,
 	
@@ -1118,6 +1114,9 @@ enum {
 	Expression_IncrementPostfix,
 	Expression_DecrementPrefix,
 	Expression_DecrementPostfix,
+	Expression_Cast,
+	Expression_Reinterpret,
+
 	
 	//Binary Operators
 	Expression_BinaryOpPlus,
@@ -1212,11 +1211,14 @@ Type binop_token_to_expression(Type in){
 //held by anything that can represent a value at compile time, currently variables and expressions
 //this helps with doing compile time evaluations between variables and expressions
 struct Struct;
+struct Declaration;
 struct TypedValue{
 	Type type;
 	u32 pointer_depth;
 	b32 implicit = 0; //special indicator for variables that were declared with no type and depend on the expression they are assigned
 	b32 modifiable = 0;
+	//set to a declaration that defines a conversion between this type and another
+	Declaration* convertion = 0; 
 	Struct* struct_type;
 	str8 type_name;
 	union {
@@ -1344,6 +1346,9 @@ struct Struct {
 	Type type;
 	
 	declmap members;
+
+	//map of conversions defined for this structure
+	declmap conversions;
 };
 #define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
 #define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
@@ -1658,6 +1663,10 @@ struct suFile{
 		suArena<Declaration*> internal_decl;
 	}parser;
 
+	struct{
+		
+	}validator;
+
 	void init(){
 		lexer.tokens.init();
 		lexer.declarations.init();
@@ -1776,6 +1785,14 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 struct Validator{
 	suFile* sufile;
 
+	//a map of type pairs and a node pointing to a method of conversion between them
+	//the method can be either a function (user defined conversion using implicit)
+	//or an expression performing an implicit cast
+	map<pair<Type,Type>,TNode*> conversions;
+
+	suArena<Declaration*> validated;
+	suArena<Declaration*> unvalidated;
+
 	//keeps track of what element we are currently
 	struct{
 		Variable*   variable = 0;
@@ -1811,11 +1828,21 @@ struct Validator{
 		stacks.nested.statements.init();
 		stacks.known_declarations.init();
 		stacks.known_declarations_scope_begin_offsets.init();
+
 	}
 
-	void   start();
-	suNode* validate(suNode* node);
-	b32     check_shadowing(Declaration* d);
+	//starts the validation stage
+	void         start();
+	//recursive validator function
+	suNode*      validate(suNode* node);
+	//checks if a variable is going to conflict with another variable in its scope
+	//return false if the variable conflicts with another
+	b32          check_shadowing(Declaration* d);
+	//finds a declaration by iterating the known declarations array backwards
+	Declaration* find_decl(str8 id);
+	Declaration* find_typename(str8 id);
+	//checks if a conversion between 2 types is possible
+	b32 can_type_convert(TypedValue* tv0, TypedValue* tv1);
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1832,9 +1859,13 @@ struct Compiler{
 
 	suLogger logger;
 
-
 	//TODO(sushi) we probably want to just chunk arenas for suFiles instead of randomly allocating them.
 	map<str8, suFile*> files;
+	
+	//a map of a pair of types and the process used to convert them
+	//the conversion is from the first item of pair to the second
+	//
+
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
@@ -1845,10 +1876,6 @@ struct Compiler{
 		mutex log; //lock when using logger
 		mutex compile_request;
 	}mutexes;
-
-	struct{
-		
-	}cv;
 
 	//returns a carray of the suFiles created by the request
 	suArena<suFile*> compile(CompilerRequest* request, b32 wait = 1);
