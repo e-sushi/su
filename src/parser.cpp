@@ -205,6 +205,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         if(!ret) return 0;
                         Declaration* d = DeclarationFromNode(ret);
                         if(d->type == Declaration_Variable){
+                            curt++;
                             expect(Token_Semicolon){}
                             else perror_ret(curt, "expected ; after variable declaration.");
                         }
@@ -225,7 +226,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
             DPTracyDynMessage(toStr("declaring identifier ", curt->raw));
             switch(curt->decl_type){
                 case Declaration_Structure:{
-                    Struct* s = arena.make_struct(curt->raw);//StructFromDeclaration(decl);
+                    Struct* s = arena.make_struct(curt->raw);
                     Declaration* decl = &s->decl;
 
                     s->members.init();
@@ -358,6 +359,17 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             v->data.type_name = curt->raw;
                         }else v->data.implicit = 1;
                         curt++;
+                        //parse pointer and array stuff 
+                        while(1){
+                            expect(Token_Multiplication){
+                                v->data.pointer_depth++;
+                                curt++;
+                            }else expect(Token_OpenSquare){
+                                NotImplemented;
+                            }else{
+                                break;
+                            }
+                        }
                         expect(Token_Assignment){ // name : <type> = || name := 
                             Token* before = curt;
                             curt++;
@@ -626,6 +638,39 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     expect(Token_CloseParen){
                         return ret;
                     }else perror(curt, "expected a ) to close ( in line ", start->l0, " on column ", start->c0);
+                }break;
+
+                case Token_LessThan:{
+                    Expression* e = arena.make_expression(curt->raw);
+                    e->token_start = curt;
+                    insert_last(node, &e->node);
+                    curt++;
+                    expect(Token_Identifier){
+                        e->type = Expression_Cast;
+                    }else expect_group(TokenGroup_Type){
+                        e->type = Expression_Cast;
+                    }else expect(Token_LogicalNOT){
+                        e->type = Expression_Reinterpret;
+                        curt++;
+                        expect(Token_Identifier){}
+                        else expect_group(TokenGroup_Type){}
+                        else perror_ret(curt, "expected a typename for reinterpret cast");
+                    }else perror_ret(curt, "expected a typename or ! for cast");
+                    
+                    Expression* id = arena.make_expression(curt->raw);
+                    id->type = Expression_Typename;
+                    id->token_start = curt;
+                    id->token_end = curt;
+                    insert_last(&e->node, &id->node);
+                    curt++;
+                    expect(Token_GreaterThan){}
+                    else perror_ret(curt, "expected a > to close cast");
+
+                    curt++;
+
+                    suNode* n = define(&id->node, psExpression);
+                    if(!n) return 0;
+                    return &e->node;
                 }break;
 
                 case Token_Identifier:{
