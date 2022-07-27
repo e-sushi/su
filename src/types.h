@@ -8,6 +8,8 @@
 #include "core/threading.h"
 #include "ctype.h"
 
+#define AMU_BUILTIN_SUFILE STR8("__amu__buildin_")
+
 #define SetThreadName(...) DeshThreadManager->set_thread_name(suStr8(__VA_ARGS__))
 
 //attempt at making str8 building thread safe
@@ -1115,6 +1117,13 @@ enum {
 	Expression_DecrementPrefix,
 	Expression_DecrementPostfix,
 	Expression_Cast,
+	//this is a special expression type that is only made by the validator since the validator has no token to attach typename 
+	//information with we must use the TypedValue information on Expression instead in this case, the type set on TypedValue 
+	//is the type that is being casted to. the reason we dont just also do this on explicit casts in parsing is because 
+	//its possible that the user wants to cast to a struct type that has not been parsed yet and therefore doesnt exist for us 
+	//to point to yet. this is also probably beneficial for language servers who read from the validation stage and not the 
+	//parser stage, in the case of semantic highlighting, this node would just be ignored
+	Expression_CastImplicit, 
 	Expression_Reinterpret,
 
 	
@@ -1299,14 +1308,8 @@ struct Declaration{
 	str8 declared_identifier;
 	Type type;
 
-	//set true when the declaration has been fully parsed
-	b32 complete = 0;
-	//set true when a thread starts working on this struct. this is necessary to block other threads from 
-	//thinking a declaration is not complete and therefore doesnt exist
-	b32 in_progress = 0;
-	//used to identify which thread is working on this
-	//and so a thread does not wait on itself to finish a declaration (ex. member functions using the type that is being worked on)
-	ParserThread* working_thread = 0;
+	//set true when validator has validated this declaration and all of its child nodes 
+	b32 validated = 0;
 };
 
 #define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
@@ -1342,6 +1345,7 @@ struct Variable{
 
 struct Struct {
 	Declaration decl;
+	u64 size; //size of struct in bytes
 
 	Type type;
 	
@@ -1785,14 +1789,6 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 struct Validator{
 	suFile* sufile;
 
-	//a map of type pairs and a node pointing to a method of conversion between them
-	//the method can be either a function (user defined conversion using implicit)
-	//or an expression performing an implicit cast
-	map<pair<Type,Type>,TNode*> conversions;
-
-	suArena<Declaration*> validated;
-	suArena<Declaration*> unvalidated;
-
 	//keeps track of what element we are currently
 	struct{
 		Variable*   variable = 0;
@@ -1900,6 +1896,80 @@ struct CompilerThread{
 	b32 finished;
 	suFile* sufile;
 };
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Helpers
+
+str8 type_token_to_str(Type type){
+    switch(type){
+        case Token_Void:       return STR8("void");
+        case Token_Signed8:    return STR8("s8");
+        case Token_Signed16:   return STR8("s16");
+        case Token_Signed32:   return STR8("s32");
+        case Token_Signed64:   return STR8("s64");
+        case Token_Unsigned8:  return STR8("u8");
+        case Token_Unsigned16: return STR8("u16");
+        case Token_Unsigned32: return STR8("u32");
+        case Token_Unsigned64: return STR8("u64");
+        case Token_Float32:    return STR8("f32");
+        case Token_Float64:    return STR8("f64");
+        case Token_String:     return STR8("str");
+        case Token_Any:        return STR8("any");
+        case Token_Struct:     return STR8("struct-type");
+    }
+    return STR8("UNKNOWN DATA TYPE");
+}
+
+str8 get_typename(Variable* v){
+	if(v->data.type == Token_Struct){
+		return v->data.struct_type->decl.identifier;
+	}else{
+		return type_token_to_str(v->data.type);
+	}
+}
+
+str8 get_typename(Expression* e){
+	if(e->data.type == Token_Struct){
+		return e->data.struct_type->decl.identifier;
+	}else{
+		return type_token_to_str(e->data.type);
+	}
+}
+
+str8 get_typename(Struct* s){
+	return s->decl.identifier;
+}
+
+//this overload may be unecessary
+str8 get_typename(TNode* n){
+	switch(n->type){
+		case NodeType_Variable:   return get_typename(VariableFromNode(n));
+		case NodeType_Expression: return get_typename(ExpressionFromNode(n));
+		case NodeType_Structure:  return get_typename(StructFromNode(n));
+		default: Assert(false,"Invalid node type given to get_typename()"); return {0};
+	}
+	return {0};
+}
+
+
+
+u64 builtin_sizes(Type type){
+	switch(type){
+		case Token_Unsigned8:  return sizeof(u8);
+		case Token_Unsigned16: return sizeof(u16);
+		case Token_Unsigned32: return sizeof(u32);
+		case Token_Unsigned64: return sizeof(u64);
+		case Token_Signed8:    return sizeof(s8);
+		case Token_Signed16:   return sizeof(s16);
+		case Token_Signed32:   return sizeof(s32);
+		case Token_Signed64:   return sizeof(s64);
+		case Token_Float32:    return sizeof(f32);
+		case Token_Float64:    return sizeof(f64);
+		case Token_String:     return sizeof(void*) + sizeof(u64);
+		case Token_Any:        return sizeof(void*);
+	}
+	return -1;
+}
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Memory
