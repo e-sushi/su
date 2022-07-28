@@ -43,25 +43,7 @@ sufile->logger.warn(token, __VA_ARGS__);
 #define expect_next(...) if(next_match(__VA_ARGS__))
 #define expect_group(...) if(curr_match_group(__VA_ARGS__))
 
-str8 type_token_to_str(Type type){
-    switch(type){
-        case Token_Void:       return STR8("void");
-        case Token_Signed8:    return STR8("s8");
-        case Token_Signed16:   return STR8("s16");
-        case Token_Signed32:   return STR8("s32");
-        case Token_Signed64:   return STR8("s64");
-        case Token_Unsigned8:  return STR8("u8");
-        case Token_Unsigned16: return STR8("u16");
-        case Token_Unsigned32: return STR8("u32");
-        case Token_Unsigned64: return STR8("u64");
-        case Token_Float32:    return STR8("f32");
-        case Token_Float64:    return STR8("f64");
-        case Token_String:     return STR8("str");
-        case Token_Any:        return STR8("any");
-        case Token_Struct:     return STR8("struct-type");
-    }
-    return STR8("UNKNOWN DATA TYPE");
-}
+
 
 template<typename... T>
 suNode* ParserThread::binop_parse(suNode* node, suNode* ret, Type next_stage, T... tokchecks){
@@ -230,8 +212,6 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Declaration* decl = &s->decl;
 
                     s->members.init();
-                    s->decl.in_progress = 1;
-                    s->decl.working_thread = this;
                     s->decl.token_start = curt;
                     s->decl.type = Declaration_Structure;
                     s->decl.identifier = curt->raw;
@@ -267,7 +247,6 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         } else perror(curt, "INTERNAL: expected 'struct' after ':' for struct definition. NOTE(sushi) tell me if this happens");
                     } else perror(curt, "INTERNAL: expected ':' for struct declaration. NOTE(sushi) tell me if this happens");
 
-                    s->decl.complete = 1;
                     this->cv.notify_all();
                 }break;
 

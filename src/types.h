@@ -8,8 +8,6 @@
 #include "core/threading.h"
 #include "ctype.h"
 
-#define AMU_BUILTIN_SUFILE STR8("__amu__buildin_")
-
 #define SetThreadName(...) DeshThreadManager->set_thread_name(suStr8(__VA_ARGS__))
 
 //attempt at making str8 building thread safe
@@ -99,7 +97,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Always;
+	u32 verbosity = Verbosity_Debug;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
