@@ -1,13 +1,16 @@
 //#import {"tests/_/mylib.su", "tests/_/mylib2.su"}
 
-#import "tests/_/mylib.su"
+//#import "tests/_/mylib.su"
 
-vec2:struct{
-    x:f32;
-    y:f32;
+A:struct{
+    a:A;
+}
+
+B:struct{
+    a:A;
 }
 
 main() : s32 {
-    a:u32 = <!u32>1.2;
+    
 }
 

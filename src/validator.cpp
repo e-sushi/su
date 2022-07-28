@@ -40,7 +40,8 @@
 #define push_statement(in)  {stacks.nested.statements.add(current.statement); current.statement = in;}
 #define pop_statement()     {current.statement = stacks.nested.statements.pop();}
 
-#define ConvertGroup(a,b)                      \
+//we know that we can convert any scalar type to another scalar type, so just return true for all of them
+#define ConvertGroupFromBuiltin(a,b)           \
 switch(to){                                    \
     case Token_Signed8:    {  return true; }   \
     case Token_Signed16:   {  return true; }   \
@@ -52,28 +53,44 @@ switch(to){                                    \
     case Token_Unsigned64: {  return true; }   \
     case Token_Float32:    {  return true; }   \
     case Token_Float64:    {  return true; }   \
-    case Token_Struct:     { NotImplemented; } \
+    case Token_Struct:     {  return false; } \
+}
+
+//we need to check if we can convert from a user defined type to any other type
+#define ConvertGroupFromUser                   \
+switch(to){                                    \
+    case Token_Signed8:    {  return false; }   \
+    case Token_Signed16:   {  return false; }   \
+    case Token_Signed32:   {  return false; }   \
+    case Token_Signed64:   {  return false; }   \
+    case Token_Unsigned8:  {  return false; }   \
+    case Token_Unsigned16: {  return false; }   \
+    case Token_Unsigned32: {  return false; }   \
+    case Token_Unsigned64: {  return false; }   \
+    case Token_Float32:    {  return false; }   \
+    case Token_Float64:    {  return false; }   \
+    case Token_Struct:     {  return false; } \
 }
 
 //checks if a conversion from one type to another is valid
 b32 type_conversion(Type to, Type from){
     switch(from){
-        case Token_Signed8:    ConvertGroup( s8,    int8); break;
-		case Token_Signed16:   ConvertGroup(s16,   int16); break;
-		case Token_Signed32:   ConvertGroup(s32,   int32); break;
-		case Token_Signed64:   ConvertGroup(s64,   int64); break;
-		case Token_Unsigned8:  ConvertGroup( u8,   uint8); break;
-		case Token_Unsigned16: ConvertGroup(u16,  uint16); break;
-		case Token_Unsigned32: ConvertGroup(u32,  uint32); break;
-		case Token_Unsigned64: ConvertGroup(u64,  uint64); break;
-		case Token_Float32:    ConvertGroup(f32, float32); break;
-		case Token_Float64:    ConvertGroup(f64, float64); break;
-		case Token_Struct:     NotImplemented; break;
+        case Token_Signed8:    ConvertGroupFromBuiltin( s8,    int8); break;
+		case Token_Signed16:   ConvertGroupFromBuiltin(s16,   int16); break;
+		case Token_Signed32:   ConvertGroupFromBuiltin(s32,   int32); break;
+		case Token_Signed64:   ConvertGroupFromBuiltin(s64,   int64); break;
+		case Token_Unsigned8:  ConvertGroupFromBuiltin( u8,   uint8); break;
+		case Token_Unsigned16: ConvertGroupFromBuiltin(u16,  uint16); break;
+		case Token_Unsigned32: ConvertGroupFromBuiltin(u32,  uint32); break;
+		case Token_Unsigned64: ConvertGroupFromBuiltin(u64,  uint64); break;
+		case Token_Float32:    ConvertGroupFromBuiltin(f32, float32); break;
+		case Token_Float64:    ConvertGroupFromBuiltin(f64, float64); break;
+		case Token_Struct:     ConvertGroupFromUser; break;
     }
     return false;
 }
 
-//checks the known stack to see if there are any variable name conflicts in the same scope
+//checks the known stack ConvertGroupFromUserto see if there are any variable name conflicts in the same scope
 b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     suLogger& logger = sufile->logger;
     forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
@@ -109,10 +126,19 @@ Declaration* Validator::find_decl(str8 id){
 
 suNode* Validator::validate(suNode* node){DPZoneScoped;
     suLogger& logger = sufile->logger;
+    //TODO(sushi) we could possibly just store a validated flag on suNode 
+    if(match_any(node->type, NodeType_Variable, NodeType_Structure, NodeType_Function) &&
+       DeclarationFromNode(node)->validated){
+        //early out if this declaration has already been validated
+        return node;
+    }
     switch(node->type){
         case NodeType_Variable:{
             Variable* v = VariableFromNode(node);
+
             push_variable(v);
+            defer{pop_variable();};
+
             if(!check_shadowing(&v->decl)) return 0;
             stacks.known_declarations.add(&v->decl);
 
@@ -132,7 +158,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 }
                 v->data.struct_type = StructFromDeclaration(d);
             }
-
+            
             if(v->data.implicit){
                 Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
                 if(!e) return 0;
@@ -142,78 +168,139 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 if(!e) return 0;
                 if(v->data.type != e->data.type){
                     //we must see if these types are compatible
+                    if(!type_conversion(v->data.type, e->data.type)){
+                        logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
+                        return 0;
+                    }
+                    //if they are we inject a conversion node above the expression
+                    Expression* cast = arena.make_expression(STR8("cast"));
+                    cast->type = Expression_CastImplicit;
+                    //NOTE(sushi) its possible that this could lead to misleading information if for some reason
+                    //            something errors on these nodes that we make here. this should not happen because 
+                    //            these nodes should always be correct, but something to keep in mind
+                    cast->token_start = v->decl.token_start;
+                    cast->token_end = v->decl.token_end;
+                    cast->data = v->data;
+                    insert_last(e->node.parent, &cast->node);
+                    change_parent(&cast->node, &e->node);
+                }
+            }
 
+            if(current.structure){
+                
+                
+                //if we are currently validating a struct, we need to check a few things
+                if(v->data.type==Token_Struct){
+                    //check for self referencial defintion
+                    if(v->data.struct_type == current.structure){
+                        logger.error(v->decl.token_start, "a structure cannot contain a variable's whose type is that structure.");
+                        logger.note(v->decl.token_start, "use a pointer instead.");
+                        return 0;
+                    }
+                    //check for circular defintions
+                    forI(stacks.nested.structs.count){
+                        if(stacks.nested.structs[i]==v->data.struct_type){
+                            logger.error(v->decl.token_start, "circular definition.");
+                            str8b b;
+                            global_mem_lock.lock();
+                            str8_builder_init(&b, current.structure->decl.identifier, deshi_temp_allocator);
+                            str8_builder_append(&b, STR8("->"));
+                            forX(j, stacks.nested.structs.count - i){
+                                str8_builder_append(&b, stacks.nested.structs[j+i]->decl.identifier);
+                                str8_builder_append(&b, STR8("->"));
+                            }
+                            str8_builder_append(&b, current.structure->decl.identifier);
+                            global_mem_lock.unlock();
+                            logger.note(v->decl.token_start, b.fin);
+                            //NOTE(sushi) we do not free the builder here because of post-logging
+                            return 0;
+                        }
+                    }
+                    //pass the struct to validate to make sure it has been validated and has a size
+                    if(!validate(&v->data.struct_type->decl.node)) return 0;
+                    current.structure->size += v->data.struct_type->size;
+
+                }else{
+                    current.structure->size += builtin_sizes(v->data.type);
                 }
             }
             
-
-            pop_variable();
+            v->decl.validated = 1;
+            return &v->decl.node;
         }break;
 
         case NodeType_Function:{
             Function* f = FunctionFromNode(node);
             push_function(f);
+            defer{pop_function();};
+
             if(!check_shadowing(&f->decl)) return 0;
             stacks.known_declarations.add(&f->decl);
 
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
             for_node(f->decl.node.first_child){
-                validate(it);
+                if(!validate(it)) return 0;
             }
 
             stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
 
-            pop_function();
+            f->decl.validated = 1;
+            return &f->decl.node;
         }break;
 
         case NodeType_Structure:{
             Struct* s = StructFromNode(node);
             push_struct(s);
+            defer{pop_struct();};
             if(!check_shadowing(&s->decl)) return 0;
             stacks.known_declarations.add(&s->decl);
 
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
             for_node(s->decl.node.first_child){
-                validate(it);
+                if(!validate(it)) return 0;
             }
 
             stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
 
-            pop_struct();
+            s->decl.validated = 1;
+            logger.log(Verbosity_Debug, "struct '", s->decl.identifier, "' validated with ", s->members.data.count, " members and has size ", s->size); 
+            return &s->decl.node;
         }break;
 
         case NodeType_Scope:{
             Scope* s = ScopeFromNode(node);
             push_scope(s);
+            defer{pop_scope();};
 
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
             for_node(s->node.first_child){
-                validate(it);
+                if(!validate(it)) return 0;
             }
 
             stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
-
-            pop_scope();
-
+                
+            return &s->node;
         }break;
 
         case NodeType_Statement:{
             Statement* s = StatementFromNode(node);
             push_statement(s);
+            defer{pop_statement();};
 
             switch(s->type){
-
+                
             }
 
-            pop_statement();
+            return &s->node;
         }break;
 
         case NodeType_Expression:{
             Expression* e = ExpressionFromNode(node);
             push_expression(e);
+            defer{pop_expression();};
             
             switch(e->type){
                 case Expression_Cast:{
@@ -221,34 +308,21 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 }break;
                 case Expression_Reinterpret:{
                     //will have one node that is the typename we want to reinterpret to
-                    // Expression* type_name = ExpressionFromNode(e->node.first_child);
+                    Expression* type_name = ExpressionFromNode(e->node.first_child);
                     
-                    // Declaration* d = find_decl(type_name->token_start->raw);
-                    // if(!d){
-                    //     logger.error(type_name->token_start, "unknown identifier '", type_name->token_start->raw, "'");
-                    //     return 0;
-                    // }
-                    // if(d->type != Declaration_Structure){
-                    //     logger.error(type_name->token_start, "identifier '", type_name->token_start->raw, "' is not a typename");
-                    //     return 0;
-                    // }
-
-
-                }break;
-
-                case Expression_Typename:{
-                    if(e->token_start->group == TokenGroup_Type){
-                        //we immediately know this expression is valid
-                        return &e->node;
+                    Declaration* d = find_decl(type_name->token_start->raw);
+                    if(!d){
+                        logger.error(type_name->token_start, "unknown identifier '", type_name->token_start->raw, "'");
+                        return 0;
                     }
-                    Declaration* d = find_decl(e->token_start->raw);
-                    
-                    return &e->node;
-
+                    if(d->type != Declaration_Structure){
+                        logger.error(type_name->token_start, "identifier '", type_name->token_start->raw, "' is not a typename");
+                        return 0;
+                    }
                 }break;
             }
 
-            pop_expression();
+            return &e->node;
         }break;
     }
     return 0;
@@ -303,10 +377,19 @@ void Validator::start(){DPZoneScoped;
         }
     }
 
+    for_node(sufile->parser.base.first_child){
+        //add global declarations to known declarations
+        if(match_any(it->type, NodeType_Function, NodeType_Variable, NodeType_Structure)){
+            stacks.known_declarations.add(DeclarationFromNode(it));
+        }
+    }
+    stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
     for_node(sufile->parser.base.first_child){
         validate(it);
     }
+
+    
     
     sufile->stage = FileStage_Validator;
     sufile->cv.validate.notify_all();
