@@ -130,7 +130,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     while(!curr_match(Token_CloseBrace)){
                         expect(Token_Identifier){
                             Expression* id = arena.make_expression(curt->raw);
-                            id->type = Expression_IdentifierLHS;
+                            id->type = Expression_Identifier;
                             id->token_start = curt;
                             id->token_end = curt;
                             curt++;
@@ -142,7 +142,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                                 expect(Token_Identifier){
                                     op->token_end = curt;
                                     Expression* idrhs = arena.make_expression(curt->raw);
-                                    idrhs->type = Expression_IdentifierLHS;
+                                    idrhs->type = Expression_Identifier;
                                     idrhs->token_start = curt;
                                     idrhs->token_end = curt;
                                     insert_last(&op->node, &id->node);
@@ -186,11 +186,6 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         suNode* ret = define(me, psDeclaration);
                         if(!ret) return 0;
                         Declaration* d = DeclarationFromNode(ret);
-                        if(d->type == Declaration_Variable){
-                            curt++;
-                            expect(Token_Semicolon){}
-                            else perror_ret(curt, "expected ; after variable declaration.");
-                        }
                     }else{
                         define(me, psStatement);
                     }
@@ -221,7 +216,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         if(is_internal) sufile->parser.internal_decl.add(&s->decl);
                         else            sufile->parser.exported_decl.add(&s->decl);
                     }
-
+                    //TODO(sushi) since these expects arent linked to any alternatives they can just eearly out to reduce nesting
                     curt++;
                     expect(Token_Colon){
                         curt++;
@@ -251,18 +246,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Function:{
-                    //str8 fname = suStr8(curt->raw, curt->l0, curt->c0);
-                    //Declaration* decl = parser->pending_globals.at(fname);
-
-                    //if(curt->is_global && !decl){
-                    //    perror(curt, "INTERNAL: a global declaration token does not have a corresponding pending_globals entry.");
-                    //    return 0;
-                    //}else if(!decl){
-                    //    Function* f = arena.make_function(curt->raw);
-                    //    decl = &f->decl;
-                    //}
-
-                    Function* f = arena.make_function(curt->raw);//FunctionFromDeclaration(decl);
+                    Function* f = arena.make_function(curt->raw);
                     f->decl.token_start = curt;
                     f->decl.type = Declaration_Function;
                     f->decl.identifier = curt->raw;
@@ -352,8 +336,11 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         expect(Token_Assignment){ // name : <type> = || name := 
                             Token* before = curt;
                             curt++;
+
                             Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
                         } else if(v->data.implicit) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+                        expect(Token_Semicolon){}
+                        else perror_ret(curt, "expected ; after variable declaration.");
                         insert_last(node, &v->decl.node);
                         return &v->decl.node;
                     } else perror(curt, "Expected a ':' after identifier for variable decalration.");
@@ -374,7 +361,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     curt++;
                     expect(Token_Identifier){
                         Expression* e = arena.make_expression(curt->raw);
-                        e->type = Expression_IdentifierRHS;
+                        e->type = Expression_Identifier;
                         e->token_start = curt;
                         e->token_end = curt;
                         insert_last(&s->node, &e->node);
@@ -473,10 +460,10 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     insert_last(node, &s->node);
                     suNode* ret = define(node, psExpression);
                     if(!ret) return 0;
-                    curt++;
-                    expect(Token_Semicolon){}
-                    else perror_ret(curt, "expected a ; after statement.");
                     s->token_end = curt;
+                    expect(Token_Semicolon){}
+                    else perror_ret(curt, "expected ; after statement.");
+
                 }break;
 
             }
@@ -489,6 +476,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 if(!n) return 0;
                 Expression* e = ExpressionFromNode(n);
 
+                curt++;
                 expect(Token_Assignment){
                     Expression* op = arena.make_expression(curt->raw);
                     change_parent(&op->node, &e->node);
@@ -581,7 +569,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Expression* rhs = arena.make_expression(curt->raw);
                     rhs->token_start = curt;
                     rhs->token_end = curt;
-                    rhs->type = Expression_IdentifierRHS;
+                    rhs->type = Expression_Identifier;
                     insert_last(&op->node, &rhs->node);
                     e = op;
                 }else perror_ret(curt, "expected an identifier for member access.");
@@ -637,7 +625,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     }else perror_ret(curt, "expected a typename or ! for cast");
                     
                     Expression* id = arena.make_expression(curt->raw);
-                    id->type = Expression_Typename;
+                    id->type = Expression_Identifier;
                     id->token_start = curt;
                     id->token_end = curt;
                     insert_last(&e->node, &id->node);
@@ -654,6 +642,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
                 case Token_Identifier:{
                     Expression* e = arena.make_expression(curt->raw);
+                    e->token_start = curt;
                     expect_next(Token_OpenParen){
                         //this must be a function call
                         e->type = Expression_FunctionCall;
@@ -661,7 +650,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         NotImplemented;
                     }else{
                         //this is just some identifier
-                        e->type = Expression_IdentifierRHS;
+                        e->type = Expression_Identifier;
                         insert_last(node, &e->node);
                         expect_next(Token_Increment, Token_Decrement){
                             curt++;

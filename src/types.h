@@ -456,7 +456,7 @@ struct declmap{
 	}
 
 	b32 has(str8 key){DPZoneScoped;
-
+		return (find_key(key) == -1 ? 0 : 1);
 	}
 
 	b32 has_collided(u64 key){DPZoneScoped;
@@ -529,7 +529,6 @@ struct declmap{
 		return data[idx].second;
 	}
 };
-
 
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1094,9 +1093,7 @@ struct Token {
 enum {
 	Expression_NULL,
 
-	Expression_IdentifierLHS,
-	Expression_IdentifierRHS,
-	Expression_Typename,
+	Expression_Identifier,
 	
 	Expression_FunctionCall,
 	
@@ -1350,6 +1347,7 @@ struct Struct {
 	declmap members;
 
 	//map of conversions defined for this structure
+	//the key is the name of the declaration it is a conversion to
 	declmap conversions;
 };
 #define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
