@@ -103,6 +103,10 @@
 	Compiler
 	--------
 
+	Other
+	-----
+	[!!!, *, 2022/07/27, tests] tests need rewritten to be in su's new syntax
+
 	Bugs
 	----
 	[!!, ***, 2022/07/25, threading, memory] 

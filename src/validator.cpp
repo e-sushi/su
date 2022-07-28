@@ -166,8 +166,18 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             }else if(v->decl.node.child_count){
                 Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
                 if(!e) return 0;
-                if(v->data.type != e->data.type){
+                if(v->data.type != e->data.type || v->data.type == Token_Struct && e->data.type == Token_Struct){
                     //we must see if these types are compatible
+                    if(e->data.type == Token_Struct){
+                        //if the expression represents a structure, we must check if there is any conversion from 
+                        //it to the variable
+                        if(!e->data.struct_type->conversions.has(v->data.struct_type->decl.identifier)){
+                            logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
+                            logger.note(v->decl.token_start, "you must define implicit(name:", get_typename(v), ") : ", get_typename(e));
+                            return 0;
+                        }
+                        //TODO(sushi) inject conversion function
+                    }
                     if(!type_conversion(v->data.type, e->data.type)){
                         logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
                         return 0;
@@ -187,13 +197,11 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             }
 
             if(current.structure){
-                
-                
                 //if we are currently validating a struct, we need to check a few things
                 if(v->data.type==Token_Struct){
                     //check for self referencial defintion
                     if(v->data.struct_type == current.structure){
-                        logger.error(v->decl.token_start, "a structure cannot contain a variable's whose type is that structure.");
+                        logger.error(v->decl.token_start, "a structure cannot contain a variable whose type is that structure.");
                         logger.note(v->decl.token_start, "use a pointer instead.");
                         return 0;
                     }
@@ -204,10 +212,10 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                             str8b b;
                             global_mem_lock.lock();
                             str8_builder_init(&b, current.structure->decl.identifier, deshi_temp_allocator);
-                            str8_builder_append(&b, STR8("->"));
+                            str8_builder_append(&b, STR8(" -> "));
                             forX(j, stacks.nested.structs.count - i){
                                 str8_builder_append(&b, stacks.nested.structs[j+i]->decl.identifier);
-                                str8_builder_append(&b, STR8("->"));
+                                str8_builder_append(&b, STR8(" -> "));
                             }
                             str8_builder_append(&b, current.structure->decl.identifier);
                             global_mem_lock.unlock();
@@ -219,12 +227,10 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     //pass the struct to validate to make sure it has been validated and has a size
                     if(!validate(&v->data.struct_type->decl.node)) return 0;
                     current.structure->size += v->data.struct_type->size;
-
                 }else{
                     current.structure->size += builtin_sizes(v->data.type);
                 }
             }
-            
             v->decl.validated = 1;
             return &v->decl.node;
         }break;
@@ -319,6 +325,25 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         logger.error(type_name->token_start, "identifier '", type_name->token_start->raw, "' is not a typename");
                         return 0;
                     }
+                }break;
+                case Expression_Identifier:{
+                    Declaration* d = find_decl(e->token_start->raw);
+                    if(!d){
+                        logger.error(e->token_start, "unknown identifier '", e->token_start->raw, "'");
+                        return 0;
+                    }
+                    //make sure this declaration is validated so we can get type information from it
+                    if(!validate(&d->node)) return 0;
+                    switch(d->type){
+                        case Declaration_Variable:{
+                            Variable* v = VariableFromDeclaration(d);
+                            e->data = v->data;
+                        }break;
+                    }
+                    
+                }break;
+                case Expression_BinaryOpAssignment:{
+
                 }break;
             }
 
