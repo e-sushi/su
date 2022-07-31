@@ -62,7 +62,7 @@ suArena<suFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneSco
 
     SetThreadName("Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
-    if(globals.verbosity > Verbosity_Debug){
+    if(globals.verbosity == Verbosity_Debug){
         for(str8 s : request->filepaths){
             logger.log(Verbosity_Debug, "Request to compile path ", s);
         }
