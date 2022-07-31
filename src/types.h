@@ -97,14 +97,14 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Debug;
+	u32 verbosity = Verbosity_Always;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
 	b32 warnings_as_errors = false;
 	b32 show_code = true;
 	b32 log_immediatly           = true;
-	b32 assert_compiler_on_error = true;
+	b32 assert_compiler_on_error = false;
 	OSOut osout = OSOut_Windows;
 } globals;
 
@@ -930,6 +930,7 @@ enum{
 	Token_This,                        // this
 	Token_Using,                       // using
 	Token_As,                          // as
+	Token_Operator,                    // operator
 	
 	//// types  ////
 	TokenGroup_Type,
@@ -1146,44 +1147,54 @@ enum {
 	Expression_BinaryOpAs,
 };
 
-static const char* ExTypeStrings[] = {
-	"idLHS: ",
-	"idRHS: ",
+static str8 ExTypeStrings[] = {
+	STR8("null"),//Expression_NULL,
+
+	STR8("id"),//Expression_Identifier,
 	
-	"fcall: ",
+	STR8("call"),//Expression_FunctionCall,
 	
-	"tern: ",
+	//Special ternary conditional expression type
+	STR8("tern"),//Expression_TernaryConditional,
 	
-	"literal: ",
+	//Types
+	STR8("literal"),//Expression_Literal,
 	
-	"~",
-	"!",
-	"-",
-	"++ pre",
-	"++ post",
-	"-- pre",
-	"-- post",
+	//Unary Operators
+	STR8("~"),//Expression_UnaryOpBitComp,
+	STR8("!"),//Expression_UnaryOpLogiNOT,
+	STR8("-"),//Expression_UnaryOpNegate,
+	STR8("++"),//Expression_IncrementPrefix,
+	STR8("++"),//Expression_IncrementPostfix,
+	STR8("--"),//Expression_DecrementPrefix,
+	STR8("--"),//Expression_DecrementPostfix,
+	STR8("<>"),//Expression_Cast,
+	STR8("<>i"),//Expression_CastImplicit, 
+	STR8("<!>"),//Expression_Reinterpret,
+
 	
-	"+",
-	"-",
-	"*",
-	"/",
-	"&&",
-	"&",
-	"||",
-	"|",
-	"<",
-	">",
-	"<=",
-	">=",
-	"==",
-	"!=",
-	"%",
-	"^",
-	"<<",
-	">>",
-	"=",
-	"accessor",
+	//Binary Operators
+	STR8("+"),//Expression_BinaryOpPlus,
+	STR8("-"),//Expression_BinaryOpMinus,
+	STR8("*"),//Expression_BinaryOpMultiply,
+	STR8("/"),//Expression_BinaryOpDivision,
+	STR8("&&"),//Expression_BinaryOpAND,
+	STR8("&"),//Expression_BinaryOpBitAND,
+	STR8("||"),//Expression_BinaryOpOR,
+	STR8("|"),//Expression_BinaryOpBitOR,
+	STR8("<"),//Expression_BinaryOpLessThan,
+	STR8(">"),//Expression_BinaryOpGreaterThan,
+	STR8("<="),//Expression_BinaryOpLessThanOrEqual,
+	STR8(">="),//Expression_BinaryOpGreaterThanOrEqual,
+	STR8("=="),//Expression_BinaryOpEqual,
+	STR8("!="),//Expression_BinaryOpNotEqual,
+	STR8("%"),//Expression_BinaryOpModulo,
+	STR8("^"),//Expression_BinaryOpBitXOR,
+	STR8("<<"),//Expression_BinaryOpBitShiftLeft,
+	STR8(">>"),//Expression_BinaryOpBitShiftRight,
+	STR8("="),//Expression_BinaryOpAssignment,
+	STR8("."),//Expression_BinaryOpMemberAccess,
+	STR8("as"),//Expression_BinaryOpAs,
 };
 
 Type binop_token_to_expression(Type in){
@@ -1349,6 +1360,10 @@ struct Struct {
 	//map of conversions defined for this structure
 	//the key is the name of the declaration it is a conversion to
 	declmap conversions;
+
+	//map of operators defined for this structure
+	//
+	declmap operators;
 };
 #define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
 #define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
@@ -1721,6 +1736,7 @@ struct ParserThread{
 	Token* curt;
 
 	b32 is_internal;
+	b32 check_var_decl_semicolon = 1;
 
 	b32 finished=0;
 	condvar cv;
@@ -1773,6 +1789,7 @@ struct Parser {
 void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 	SetThreadName("parser thread started.");
 	ParserThread* pt = (ParserThread*)pthreadinfo;
+	pt->check_var_decl_semicolon = 1;
 	pt->sufile = pt->parser->sufile;
 	pt->define(pt->node, pt->stage);
 	pt->finished = 1;
@@ -1947,8 +1964,6 @@ str8 get_typename(TNode* n){
 	return {0};
 }
 
-
-
 u64 builtin_sizes(Type type){
 	switch(type){
 		case Token_Unsigned8:  return sizeof(u8);
@@ -1965,6 +1980,12 @@ u64 builtin_sizes(Type type){
 		case Token_Any:        return sizeof(void*);
 	}
 	return -1;
+}
+
+//returns the type that the result of an operation between t0 and t1 would result in when they are both scalars
+//this function is simple, but im leaving it in case we ever need to do more complex things with this
+Type coerce_scalar(Type t0, Type t1){
+	return Max(t0,t1);
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
