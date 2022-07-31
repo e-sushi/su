@@ -166,19 +166,21 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             }else if(v->decl.node.child_count){
                 Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
                 if(!e) return 0;
-                if(v->data.type != e->data.type || v->data.type == Token_Struct && e->data.type == Token_Struct){
+                if(v->data.type != e->data.type || 
+                   v->data.type == Token_Struct && e->data.type == Token_Struct &&
+                   v->data.struct_type != e->data.struct_type){
                     //we must see if these types are compatible
                     if(e->data.type == Token_Struct){
                         //if the expression represents a structure, we must check if there is any conversion from 
                         //it to the variable
                         if(!e->data.struct_type->conversions.has(v->data.struct_type->decl.identifier)){
                             logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
-                            logger.note(v->decl.token_start, "you must define implicit(name:", get_typename(v), ") : ", get_typename(e));
+                            logger.note(v->decl.token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(e), ") : ", get_typename(v));
                             return 0;
                         }
                         //TODO(sushi) inject conversion function
-                    }
-                    if(!type_conversion(v->data.type, e->data.type)){
+                    }else if(!type_conversion(v->data.type, e->data.type)){
+                        //this check is probably not necessary 
                         logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
                         return 0;
                     }
@@ -297,7 +299,16 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             defer{pop_statement();};
 
             switch(s->type){
-                
+                case Statement_Expression:{
+                    for_node(s->node.first_child){
+                        if(!validate(it)) return 0;
+                    }
+                }break;
+                case Statement_Return:{
+                    if(!current.function){
+                        logger.error(s->token_start, "cannot use a return statement outside of a function.");
+                    }
+                }break;
             }
 
             return &s->node;
@@ -342,11 +353,108 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     }
                     
                 }break;
-                case Expression_BinaryOpAssignment:{
 
-                }break;
+              
+
+                //initial binary op cases that lead into another set of cases for doing specific work with them
+                //this kind of sucks, but I don't want to duplicate validating lhs and rhs throughout every single case
+                case Expression_BinaryOpBitOR:
+                case Expression_BinaryOpBitXOR:
+                case Expression_BinaryOpBitShiftLeft:
+                case Expression_BinaryOpBitShiftRight:
+                case Expression_BinaryOpBitAND:
+                case Expression_BinaryOpPlus:
+                case Expression_BinaryOpMinus:
+                case Expression_BinaryOpMultiply:
+                case Expression_BinaryOpDivision:
+                case Expression_BinaryOpAND:
+                case Expression_BinaryOpOR:
+                case Expression_BinaryOpModulo:
+                case Expression_BinaryOpLessThan:
+                case Expression_BinaryOpGreaterThan:
+                case Expression_BinaryOpLessThanOrEqual:
+                case Expression_BinaryOpGreaterThanOrEqual:
+                case Expression_BinaryOpEqual:
+                case Expression_BinaryOpNotEqual:
+                case Expression_BinaryOpAs:
+                case Expression_BinaryOpMemberAccess:
+                case Expression_BinaryOpAssignment:
+                Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
+                if(!lhs) return 0;
+                Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
+                if(!rhs) return 0;
+                //temporary erroring until we implement operator overloading for structs
+                if(e->type != Expression_BinaryOpAssignment && (lhs->data.type == Token_Struct || rhs->data.type == Token_Struct)){
+                    logger.error(lhs->token_start, "operator overloading for user-defined structures is not supported yet.");
+                    logger.note(lhs->token_start, "when trying to use operator ", ExTypeStrings[e->type], " between ", get_typename(lhs), " and ", get_typename(rhs));
+                    return 0;
+                }
+                b32 both_struct = (lhs->data.type == Token_Struct) && (rhs->data.type == Token_Struct);
+                b32 struct_diff = both_struct && (lhs->data.struct_type != rhs->data.struct_type); 
+                switch(e->type){    
+                    //NOTE(sushi) performing bitwise operations on floats without reinterpretting is allowed, but they are always coerced to int
+                    //bit binary ops are special because they will always return an integer
+                    case Expression_BinaryOpBitOR:
+                    case Expression_BinaryOpBitXOR:
+                    case Expression_BinaryOpBitShiftLeft:
+                    case Expression_BinaryOpBitShiftRight:
+                    case Expression_BinaryOpBitAND:{
+                        Type out = coerce_scalar(lhs->data.type, rhs->data.type);
+                        //floats are forced to coerce to integer here
+                        if(out == Token_Float32){
+                            e->type = Token_Signed32;
+                        }else if(out == Token_Float64){
+                            e->type = Token_Signed64;
+                        }else{
+                            e->type = out;
+                        }
+                    }break;
+                    
+                    case Expression_BinaryOpPlus:
+                    case Expression_BinaryOpMinus:
+                    case Expression_BinaryOpMultiply:
+                    case Expression_BinaryOpDivision:
+                    case Expression_BinaryOpAND:
+                    case Expression_BinaryOpOR:
+                    case Expression_BinaryOpModulo:{
+                        e->type = coerce_scalar(lhs->data.type, rhs->data.type);
+                    }break;
+
+                    case Expression_BinaryOpLessThan:
+                    case Expression_BinaryOpGreaterThan:
+                    case Expression_BinaryOpLessThanOrEqual:
+                    case Expression_BinaryOpGreaterThanOrEqual:
+                    case Expression_BinaryOpEqual:
+                    case Expression_BinaryOpNotEqual:{
+
+                    }break;
+
+                    case Expression_BinaryOpAs:
+                    case Expression_BinaryOpMemberAccess:{
+
+                    }break;
+
+                    case Expression_BinaryOpAssignment:{
+                        Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
+                        if(!lhs) return 0;
+                        //TODO(sushi) check that lhs is an lvalue
+                        Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
+                        if(!rhs) return 0;
+
+                        if(lhs->data.type != rhs->data.type || 
+                        lhs->data.type == Token_Struct && rhs->data.type == Token_Struct &&
+                        lhs->data.struct_type != rhs->data.struct_type){
+                            if(!rhs->data.struct_type->conversions.has(get_typename(lhs))){
+                                logger.error(lhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
+                                logger.note(lhs->token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(rhs), ") : ", get_typename(lhs));
+                                return 0;
+                            }
+                        }
+
+
+                    }break;
+                }
             }
-
             return &e->node;
         }break;
     }
