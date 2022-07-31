@@ -195,6 +195,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 }
             }
             curt++;
+            return &s->node;
         }break;
 
         case psDeclaration:{ //-----------------------------------------------------------------------------------Declaration
@@ -246,10 +247,12 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
                 case Declaration_Function:{
                     Function* f = arena.make_function(curt->raw);
+                    f->args.init();
                     f->decl.token_start = curt;
                     f->decl.type = Declaration_Function;
                     f->decl.identifier = curt->raw;
                     f->decl.declared_identifier = curt->raw;
+                    if(node) insert_last(node, &f->decl.node);
                     b32 is_global = curt->is_global;
                     str8 id = curt->raw;
                     f->internal_label = id;
@@ -264,6 +267,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             expect(Token_CloseParen) { break; }
                             else expect(Token_Identifier){
                                 Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
+                                if(!v) return 0;
+                                f->args.add(v->decl.identifier, &v->decl);
                                 f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
                                     f->internal_label = suStr8(f->internal_label, STR8("*"));
@@ -298,10 +303,11 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             } else perror(curt, "expected a type specifier after ':' in function declaration.");
                             curt++;
                             expect(Token_OpenBrace) {
-                                define(&f->decl.node, psScope);
+                                return define(&f->decl.node, psScope);
                             } else perror(curt, "expected '{' after function declaration.");
                         } else perror(curt, "expected : after function definition.");
                     } else perror(curt, "expected ( after identifier in function declaration.");
+
                 }break;
 
                 case Declaration_Variable:{ //name
@@ -652,10 +658,11 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Token_Identifier:{
-                    Expression* e = arena.make_expression(curt->raw);
+                    Expression* e = arena.make_expression();
                     e->token_start = curt;
                     expect_next(Token_OpenParen){
                         //this must be a function call
+                        e->node.debug = suStr8("call ", curt->raw);
                         curt++;
                         e->type = Expression_FunctionCall;
                         while(1){
@@ -671,6 +678,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         insert_last(node, &e->node);
                     }else{
                         //this is just some identifier
+                        e->node.debug = curt->raw;
                         e->type = Expression_Identifier;
                         insert_last(node, &e->node);
                         expect_next(Token_Increment, Token_Decrement){
