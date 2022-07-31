@@ -106,6 +106,7 @@ token_is_keyword_or_identifier(str8 raw){DPZoneScoped;
 		case str8case("any"):      return Token_Any;
 		case str8case("as"):       return Token_As;
 		case str8case("using"):    return Token_Using;
+		case str8case("operator"): return Token_Operator;
 	}
     return Token_Identifier;
 }
