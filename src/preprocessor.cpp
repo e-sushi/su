@@ -39,10 +39,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
 
     Stopwatch time = start_stopwatch();
    
-    //first we look for imports, if they are found we lex the file being imported from recursively
     //TODO(sushi) this can probably be multithreaded
-    //we gather import paths so we can setup a job for each one 
-    // and lex then preprocess each one at the same time.
     logger.log(Verbosity_StageParts, "Processing imports");
     CompilerRequest cr;
     for(u32 importidx : sufile->lexer.imports){

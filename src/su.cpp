@@ -106,12 +106,28 @@
 	Other
 	-----
 	[!!!, *, 2022/07/27, tests] tests need rewritten to be in su's new syntax
+	[0,  **, 2022/07/31, vis] fix implementation of graphviz visualization of the AST tree
+		for whatever reason I get linker errors on Agdirected when trying to compile with graphviz
+		not sure why, because I have it setup just like I did back when we worked on su in January
+	
 
 	Bugs
 	----
 	[!!, ***, 2022/07/25, threading, memory] 
 		there are many random instances where memory asserts, most likely because we still arent handling
 		thread safety completely. 
+	[!!!, **, 2022/07/31] error on code in global space that is not a directive or declaration
+		currently we don't check if code in global space is meant to be there or not because we 
+		skip over anything that is not a decl or directive. preprocessor will need to do some kind of pass
+		that errors in cases like these.
+		example:
+			#import "math.su"
+
+			return; //this is not caught by anything
+
+			main():s32{
+
+			}
 	
 
 

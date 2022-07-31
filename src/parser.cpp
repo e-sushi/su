@@ -47,7 +47,6 @@ sufile->logger.warn(token, __VA_ARGS__);
 
 template<typename... T>
 suNode* ParserThread::binop_parse(suNode* node, suNode* ret, Type next_stage, T... tokchecks){
-    //TODO(sushi) need to detect floats being used in bitwise operations (or just allow it :) 
     suNode* out = ret;
     suNode* lhs_node = ret;
     while(next_match(tokchecks...)){
@@ -216,7 +215,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         if(is_internal) sufile->parser.internal_decl.add(&s->decl);
                         else            sufile->parser.exported_decl.add(&s->decl);
                     }
-                    //TODO(sushi) since these expects arent linked to any alternatives they can just eearly out to reduce nesting
+                    //TODO(sushi) since these expects arent linked to any alternatives they can just early out to reduce nesting
                     curt++;
                     expect(Token_Colon){
                         curt++;
@@ -257,19 +256,26 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     f->internal_label = suStr8(f->internal_label, "@");
                     curt++;
                     expect(Token_OpenParen){ // name(
+                        //disable checking for semicolon after variable declaration
+                        check_var_decl_semicolon = 0;
+                        //TODO(sushi) god please clean this up
                         while(1){
                             curt++;
                             expect(Token_CloseParen) { break; }
-                            else expect(Token_Comma){}
                             else expect(Token_Identifier){
                                 Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
                                 f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
                                     f->internal_label = suStr8(f->internal_label, STR8("*"));
                                 }
-
+                                expect(Token_Comma){
+                                    expect_next(Token_CloseParen) perror_ret(curt,"trailing comma in function declaration.");
+                                }else expect(Token_CloseParen){break;}
+                                else perror_ret(curt, "expected a , or ) after function variable declaration.");
                             } else perror_ret(curt, "expected an identifier for function variable declaration.");
                         }
+                        //reenable
+                        check_var_decl_semicolon = 1;
                         curt++;
                         expect(Token_Colon){ // name(...) :
                             curt++;
@@ -334,13 +340,16 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             }
                         }
                         expect(Token_Assignment){ // name : <type> = || name := 
-                            Token* before = curt;
-                            curt++;
-
+                            Token* before = curt++;
                             Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
+                            if(!e) return 0;
+                            curt++;
                         } else if(v->data.implicit) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
-                        expect(Token_Semicolon){}
-                        else perror_ret(curt, "expected ; after variable declaration.");
+                        //NOTE(sushi) we do not do this check when we are parsing a function declarations arguments
+                        if(check_var_decl_semicolon){
+                            expect(Token_Semicolon){}
+                            else perror_ret(curt, "expected ; after variable declaration.");
+                        }
                         insert_last(node, &v->decl.node);
                         return &v->decl.node;
                     } else perror(curt, "Expected a ':' after identifier for variable decalration.");
@@ -457,8 +466,9 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     //this is probably just some expression
                     Statement* s = arena.make_statement();
                     s->token_start = curt;
+                    s->type = Statement_Expression;
                     insert_last(node, &s->node);
-                    suNode* ret = define(node, psExpression);
+                    suNode* ret = define(&s->node, psExpression);
                     if(!ret) return 0;
                     s->token_end = curt;
                     expect(Token_Semicolon){}
@@ -479,6 +489,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 curt++;
                 expect(Token_Assignment){
                     Expression* op = arena.make_expression(curt->raw);
+                    op->type = Expression_BinaryOpAssignment;
                     change_parent(&op->node, &e->node);
                     curt++;
                     suNode* ret = define(&op->node, psExpression);
@@ -645,9 +656,19 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     e->token_start = curt;
                     expect_next(Token_OpenParen){
                         //this must be a function call
+                        curt++;
                         e->type = Expression_FunctionCall;
-                        curt+=2;
-                        NotImplemented;
+                        while(1){
+                            curt++;
+                            expect(Token_CloseParen) {break;}
+                            Expression* arg = ExpressionFromNode(define(&e->node, psExpression));
+                            if(!arg) return 0;
+                            curt++;
+                            expect(Token_Comma){}
+                            else expect(Token_CloseParen) {break;}
+                            else perror_ret(curt, "expected a , or ) after function argument.");
+                        }
+                        insert_last(node, &e->node);
                     }else{
                         //this is just some identifier
                         e->type = Expression_Identifier;
