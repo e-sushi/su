@@ -1,20 +1,32 @@
 //#import {"tests/_/mylib.su", "tests/_/mylib2.su"}
 
-//#import "tests/_/mylib.su"
+#import "tests/_/mylib.su"
 
-vec2:struct{
+
+d:u32;
+
+func(a:u32, b:u32, c:u32 = 1, d:u32 = 2) : s32 {
 
 }
 
-vec3:struct{
+func(a:u32) : s32{
 
 }
 
-func(a:u32 = 2, b:u32 = 1) : u32 {
+func(a:u32, b:f32) : s32{
+
+}
+
+func(a:u32,b:f32,c:u32) : s32{
+
+}
+
+func(a:vec2,b:vec3,c:u32) : s32{
 
 }
 
 main() : s32 {
+    func();
     func(1,2);
     func(b=2, 1);
     func(b=2, a=1);

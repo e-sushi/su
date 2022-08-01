@@ -90,7 +90,7 @@ b32 type_conversion(Type to, Type from){
     return false;
 }
 
-//checks the known stack ConvertGroupFromUserto see if there are any variable name conflicts in the same scope
+//checks the known stack to see if there are any variable name conflicts in the same scope
 b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     suLogger& logger = sufile->logger;
     forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
@@ -122,6 +122,19 @@ Declaration* Validator::find_decl(str8 id){
         }
     }
     return 0;
+}
+
+//NOTE(sushi) this is special because locally defined functions that overload something in a lesser scope
+//            need to remove themselves from the overload tree that connects them
+void Validator::pop_known_decls(){
+    u32 n = stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1];
+    forI(n){
+        Declaration* d = stacks.known_declarations.pop();
+        if(d->type == Declaration_Function){
+            Function* f = FunctionFromDeclaration(d);
+            remove(&f->overload_node);
+        }
+    }
 }
 
 suNode* Validator::validate(suNode* node){DPZoneScoped;
@@ -243,15 +256,56 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             defer{pop_function();};
 
             if(!check_shadowing(&f->decl)) return 0;
+
             stacks.known_declarations.add(&f->decl);
 
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
+            Declaration* d = sufile->validator.functions.at(f->decl.identifier);
+            if(!d){
+                //this is the first occurance of this function that we know of so we add it to the function map
+                d = sufile->validator.functions.atIdx(sufile->validator.functions.add(f->decl.identifier, &arena.make_function(suStr8("funcgroup of ", f->decl.identifier))->decl));
+                d->identifier = f->decl.identifier;
+            }        
+
+
+            //validate the function's arguments first
+            suNode* def = 0;
+            suNode* otreecur = &d->node;
             for_node(f->decl.node.first_child){
+                if(it->type == NodeType_Scope) { def = it; continue; }
                 if(!validate(it)) return 0;
+                //search overload node children for variables that are the same type as this one
+                //and just walk down it if it exists, otherwise make a new node representing this type
+                Variable* arg = VariableFromNode(it);
+                b32 found = 0;
+                for_nodeX(it2, otreecur->first_child){
+                    Arg* a = ArgFromNode(it2);
+                    if(a->val.type == arg->data.type && a->val.struct_type == arg->data.struct_type){
+                        otreecur = it2;
+                        found = 1;
+                        break;
+                    }
+                }
+                if(!found){
+                    Arg* nua = arena.make_arg();
+                    nua->val = arg->data;
+                    insert_last(otreecur, &nua->node);
+                    otreecur = &nua->node;
+                }
+                //we've reached the end of arguments and must check that this func does not conflict with any others
+                if(it->next->type == NodeType_Scope){
+                    if(ArgFromNode(otreecur)->f){
+                        logger.error(f->decl.token_start, "function overloads must differ by type.");
+                        logger.note(ArgFromNode(otreecur)->f->decl.token_start, "see conflicting function.");
+                        return 0;
+                    }else ArgFromNode(otreecur)->f = f;
+                }
             }
 
-            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
+
+
+            pop_known_decls();
 
             f->decl.validated = 1;
             return &f->decl.node;
@@ -270,7 +324,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 if(!validate(it)) return 0;
             }
 
-            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
+            pop_known_decls();
 
             s->decl.validated = 1;
             logger.log(Verbosity_Debug, "struct '", s->decl.identifier, "' validated with ", s->members.data.count, " members and has size ", s->size); 
@@ -288,7 +342,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 if(!validate(it)) return 0;
             }
 
-            stacks.known_declarations.pop(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop());
+            pop_known_decls();
                 
             return &s->node;
         }break;
@@ -301,7 +355,9 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             switch(s->type){
                 case Statement_Expression:{
                     for_node(s->node.first_child){
-                        if(!validate(it)) return 0;
+                        //NOTE(sushi) we do not early out on 0 here so we dont just quit on the first error
+                        //            statements should have enough separation to not mess up probably
+                        validate(it);
                     }
                 }break;
                 case Statement_Return:{
@@ -354,7 +410,34 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     
                 }break;
 
-              
+                case Expression_FunctionCall:{
+                    //validate call id
+                    Declaration* d = find_decl(e->token_start->raw);
+                    if(!d){
+                        logger.error(e->token_start, "attempt to call unknown identifier '", e->token_start->raw, "'");
+                        return 0;
+                    }
+                    if(d->type != Declaration_Function){
+                        logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
+                        logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
+                        return 0;
+                    }
+                    Function* f = FunctionFromDeclaration(d);
+
+                    
+                    //validate arguments
+                    u64 argpos = 0; //keeps track of where in positional arguments we are 
+                    for_node(e->node.first_child){
+                        Expression* arg = ExpressionFromNode(it);
+                        if(arg->type == Expression_BinaryOpAssignment){
+                            Expression* lhs = ExpressionFromNode(arg->node.first_child);
+
+                        }else if(arg->type == Expression_Literal){
+
+
+                        }
+                    }
+                }break;
 
                 //initial binary op cases that lead into another set of cases for doing specific work with them
                 //this kind of sucks, but I don't want to duplicate validating lhs and rhs throughout every single case
@@ -467,15 +550,16 @@ void Validator::start(){DPZoneScoped;
     logger.log(Verbosity_Stages, "Validating...");
     SetThreadName("Validating ", sufile->file->name);
 
-    stacks.known_declarations_scope_begin_offsets.add(0);
 
     //wait for imported files to finish validation
+    logger.log(Verbosity_StageParts, "Waiting for imported files to finish validation.");
     for(suFile* sf : sufile->preprocessor.imported_files){
         while(sf->stage < FileStage_Validator){
             sf->cv.validate.wait();
         }
-
     }
+    
+    stacks.known_declarations_scope_begin_offsets.add(0);
 
     for(Statement* s : sufile->parser.import_directives){
         for_node(s->node.first_child){
@@ -506,6 +590,11 @@ void Validator::start(){DPZoneScoped;
                     move_to_parent_first(&d->node);
                     sufile->parser.imported_decl.add(d);
                 }
+                //copy function map as well
+                //this kind of sucks and i want to make it better eventually
+                forI(sufileex->validator.functions.data.count){
+                    sufile->validator.functions.add(sufileex->validator.functions.atIdx(i)->identifier, sufileex->validator.functions.atIdx(i));
+                }
             }
         }
     }
@@ -521,8 +610,6 @@ void Validator::start(){DPZoneScoped;
     for_node(sufile->parser.base.first_child){
         validate(it);
     }
-
-    
     
     sufile->stage = FileStage_Validator;
     sufile->cv.validate.notify_all();
