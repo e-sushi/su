@@ -143,26 +143,22 @@ void Preprocessor::preprocess(){DPZoneScoped;
                 else               decls_loc.add((tok-1)->idx);
             }
         }else if((tok-1)->type == Token_CloseParen){
-            // this must be a function declaration, so we check that the next token is either in a token group type
-            // or is another identifier
-            if((tok+1)->group == TokenGroup_Type || (tok+1)->type == Token_Identifier){
-                // now we look back for the function's identifier
-                Token* cur = tok;
-                while(cur->type != Token_OpenParen){
-                    if(!cur->idx){
-                        //TODO(sushi) this error probably isnt valid after custom operators are implemented
-                        logger.error(tok, "Malformed syntax at start of file. ')' followed by ':' followed by a type or identifier implies a function declaration (for now). TODO(sushi) need better detection of what is happening here.");
-                        break;
-                    }
-                    cur--;
+            //this must be a function decl. we do not check the right side of the colon here, instead we just error in parsing
+            Token* cur = tok;
+            while(cur->type != Token_OpenParen){
+                if(!cur->idx){
+                    //TODO(sushi) this error probably isnt valid after custom operators are implemented
+                    logger.error(tok, "Malformed syntax at start of file. ')' followed by ':' followed by a type or identifier implies a function declaration (for now). TODO(sushi) need better detection of what is happening here.");
+                    break;
                 }
                 cur--;
-                if(cur->type == Token_Identifier){
-                    cur->is_declaration = 1;
-                    cur->decl_type = Declaration_Function;
-                    if(tok->is_global) decls_glob.add(cur->idx);
-                    else               decls_loc.add(cur->idx);
-                }
+            }
+            cur--;
+            if(cur->type == Token_Identifier){
+                cur->is_declaration = 1;
+                cur->decl_type = Declaration_Function;
+                if(tok->is_global) decls_glob.add(cur->idx);
+                else               decls_loc.add(cur->idx);
             }
         }
     }
