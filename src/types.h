@@ -104,7 +104,7 @@ struct {
 	b32 warnings_as_errors = false;
 	b32 show_code = true;
 	b32 log_immediatly           = true;
-	b32 assert_compiler_on_error = false;
+	b32 assert_compiler_on_error = true;
 	OSOut osout = OSOut_Windows;
 } globals;
 
@@ -1320,8 +1320,19 @@ struct Declaration{
 
 #define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
 
+//represents a function argument in the overload tree
+//this is used to match a function call to an overloaded function
+struct Arg{
+	suNode node;
+	TypedValue val;
+	Function* f = 0;
+};
+#define ArgFromNode(x) CastFromMember(Arg, node, x)
+ 
 struct Function {
 	Declaration decl;
+	//connects this function to other functions that are overloads of it
+	suNode overload_node;
 
 	Type data_type;
 	Struct* struct_data;
@@ -1331,7 +1342,7 @@ struct Function {
 	//    func_name@argtype1,argtype2,...@rettype1,rettype2,...
 	str8 internal_label;
 	u32 positional_args = 0;
-	map<str8, Declaration*> args;
+	declmap args;
 	//TODO do this with a binary tree sort of thing instead later
 	array<Function*> overloads;
 };
@@ -1679,7 +1690,11 @@ struct suFile{
 	}parser;
 
 	struct{
-		
+		//known functions stored in a map 
+		//this is to support overloading, as every function identifier is stored in this once
+		//with each overload accessible through nodes
+
+		declmap functions;
 	}validator;
 
 	void init(){
@@ -1698,6 +1713,7 @@ struct suFile{
 		parser.internal_decl.init();
 		parser.base.debug = STR8("base");
 		parser.base.lock.init();
+		validator.functions.init();
 		cv.lex.init();
 		cv.preprocess.init();
 		cv.parse.init();
@@ -1802,6 +1818,7 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 struct Validator{
 	suFile* sufile;
 
+
 	//keeps track of what element we are currently
 	struct{
 		Variable*   variable = 0;
@@ -1852,6 +1869,7 @@ struct Validator{
 	Declaration* find_typename(str8 id);
 	//checks if a conversion between 2 types is possible
 	b32 can_type_convert(TypedValue* tv0, TypedValue* tv1);
+	void pop_known_decls();
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1998,12 +2016,13 @@ struct{
 	suChunkedArena<Scope>      scopes;
 	suChunkedArena<Expression> expressions;
 	suChunkedArena<Statement>  statements;
+	suChunkedArena<Arg>        args;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
-		compiler.logger.log(Verbosity_Debug, "Making a function with debug message ", debugmsg);
+		//compiler.logger.log(Verbosity_Debug, "Making a function with debug message ", debugmsg);
 		function->decl.node.lock.init();
 		function->decl.node.type = NodeType_Function;
 		function->decl.node.debug = debugmsg;
@@ -2013,7 +2032,7 @@ struct{
 	FORCE_INLINE
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
-		compiler.logger.log(Verbosity_Debug, "Making a variable with debug message ", debugmsg);
+		//compiler.logger.log(Verbosity_Debug, "Making a variable with debug message ", debugmsg);
 		variable->decl.node.lock.init();
 		variable->decl.node.type = NodeType_Variable;
 		variable->decl.node.debug = debugmsg;
@@ -2023,7 +2042,7 @@ struct{
 	FORCE_INLINE
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
-		compiler.logger.log(Verbosity_Debug, "Making a structure with debug message ", debugmsg);
+		//compiler.logger.log(Verbosity_Debug, "Making a structure with debug message ", debugmsg);
 		structure->decl.node.lock.init();
 		structure->decl.node.type = NodeType_Structure;
 		structure->decl.node.debug = debugmsg;
@@ -2033,7 +2052,7 @@ struct{
 	FORCE_INLINE
 	Scope* make_scope(str8 debugmsg = STR8("")){DPZoneScoped;
 		Scope* scope = scopes.add(Scope());
-		compiler.logger.log(Verbosity_Debug, "Making a scope with debug message ", debugmsg);
+		//compiler.logger.log(Verbosity_Debug, "Making a scope with debug message ", debugmsg);
 		scope->node.lock.init();
 		scope->node.type = NodeType_Scope;
 		scope->node.debug = debugmsg;
@@ -2043,7 +2062,7 @@ struct{
 	FORCE_INLINE
 	Expression* make_expression(str8 debugmsg = STR8("")){DPZoneScoped;
 		Expression* expression = expressions.add(Expression());
-		compiler.logger.log(Verbosity_Debug, "Making an expression with debug message ", debugmsg);
+		//compiler.logger.log(Verbosity_Debug, "Making an expression with debug message ", debugmsg);
 		expression->node.lock.init();
 		expression->node.type = NodeType_Expression;
 		expression->node.debug = debugmsg;
@@ -2053,12 +2072,24 @@ struct{
 	FORCE_INLINE
 	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
 		Statement* statement = statements.add(Statement());
-		compiler.logger.log(Verbosity_Debug, "Making a statement with debug message ", debugmsg);
+		//compiler.logger.log(Verbosity_Debug, "Making a statement with debug message ", debugmsg);
 		statement->node.lock.init();
 		statement->node.type = NodeType_Statement;
 		statement->node.debug = debugmsg;
 		return statement;
 	}
+
+	FORCE_INLINE
+	Arg* make_arg(str8 debugmsg = STR8("")){DPZoneScoped;
+		Arg* arg = args.add(Arg());
+		//compiler.logger.log(Verbosity_Debug, "Making an arg with debug message ", debugmsg);
+		arg->node.lock.init();
+		arg->node.type = 0; //this is not used in any general location, so we will always know the type of the node where its expected
+		arg->node.debug = debugmsg;
+		return arg;
+	}
+
+
 
 	FORCE_INLINE
 	void init(){DPZoneScoped;
@@ -2068,6 +2099,7 @@ struct{
 		scopes.init(256);      
 		expressions.init(256); 
 		statements.init(256);
+		args.init(256);
 	}
 
 }arena;
