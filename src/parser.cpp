@@ -476,6 +476,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     insert_last(node, &s->node);
                     suNode* ret = define(&s->node, psExpression);
                     if(!ret) return 0;
+                    curt++;
                     s->token_end = curt;
                     expect(Token_Semicolon){}
                     else perror_ret(curt, "expected ; after statement.");
@@ -492,8 +493,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 if(!n) return 0;
                 Expression* e = ExpressionFromNode(n);
 
-                curt++;
-                expect(Token_Assignment){
+                expect_next(Token_Assignment){
+                    curt++;
                     Expression* op = arena.make_expression(curt->raw);
                     op->type = Expression_BinaryOpAssignment;
                     change_parent(&op->node, &e->node);
@@ -596,8 +597,12 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
         case psFactor:{ //---------------------------------------------------------------------------------------------Factor
             switch(curt->type){
+                default:{
+                    perror_ret(curt, "unexpected token '", curt->raw, "' found in expression.");
+                }break;
                 case Token_LiteralFloat:{
                     Expression* e = arena.make_expression(curt->raw);
+                    e->token_start = curt;
                     e->type = Expression_Literal;
                     e->data.type = Token_Float64;
                     e->data.float64 = curt->f64_val;
@@ -607,6 +612,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
                 case Token_LiteralInteger:{
                     Expression* e = arena.make_expression(curt->raw);
+                    e->token_start = curt;
                     e->type = Expression_Literal;
                     e->data.type = Token_Signed64;
                     e->data.int64 = curt->s64_val;
