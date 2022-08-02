@@ -53,6 +53,95 @@ void compile_threaded_func(void* in){DPZoneScoped;
     //memzfree(ct);
 }
 
+void Compiler::init(){DPZoneScoped;
+    compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
+    compiler.mutexes.log.init();
+    compiler.mutexes.preprocessor.init();
+    compiler.mutexes.parser.init();
+    compiler.mutexes.lexer.init();
+    compiler.mutexes.compile_request.init();
+    
+    Expression* caste; //casting expression
+    Function*   castf; //casting function
+    
+    forI(ArrayCount(builtin.types.arr)){
+        builtin.types.arr[i] = arena.make_struct();
+        builtin.types.arr[i]->conversions.init();
+        builtin.types.arr[i]->members.init();
+    } 
+
+    builtin.types.unsigned8 ->decl.identifier = STR8("u8");
+    builtin.types.unsigned16->decl.identifier = STR8("u16");
+    builtin.types.unsigned32->decl.identifier = STR8("u32");
+    builtin.types.unsigned64->decl.identifier = STR8("u64");
+    builtin.types.signed8   ->decl.identifier = STR8("s8");
+    builtin.types.signed16  ->decl.identifier = STR8("s16");
+    builtin.types.signed32  ->decl.identifier = STR8("s32");
+    builtin.types.signed64  ->decl.identifier = STR8("s64");
+    builtin.types.float32   ->decl.identifier = STR8("f32");
+    builtin.types.float64   ->decl.identifier = STR8("f64");
+    builtin.types.ptr       ->decl.identifier = STR8("ptr");
+    builtin.types.any       ->decl.identifier = STR8("any");
+    builtin.types.str       ->decl.identifier = STR8("str");
+
+    builtin.types.unsigned8 ->type = DataType_Unsigned8;
+    builtin.types.unsigned16->type = DataType_Unsigned16;
+    builtin.types.unsigned32->type = DataType_Unsigned32;
+    builtin.types.unsigned64->type = DataType_Unsigned64;
+    builtin.types.signed8   ->type = DataType_Signed8;
+    builtin.types.signed16  ->type = DataType_Signed16;
+    builtin.types.signed32  ->type = DataType_Signed32;
+    builtin.types.signed64  ->type = DataType_Signed64;
+    builtin.types.float32   ->type = DataType_Float32;
+    builtin.types.float64   ->type = DataType_Float64;
+    builtin.types.ptr       ->type = DataType_Ptr;
+    builtin.types.any       ->type = DataType_Any;
+    builtin.types.str       ->type = DataType_String;
+
+    builtin.types.unsigned8 ->size = sizeof(u8);
+    builtin.types.unsigned16->size = sizeof(u16);
+    builtin.types.unsigned32->size = sizeof(u32);
+    builtin.types.unsigned64->size = sizeof(u64);
+    builtin.types.signed8   ->size = sizeof(s8);
+    builtin.types.signed16  ->size = sizeof(s16);
+    builtin.types.signed32  ->size = sizeof(s32);
+    builtin.types.signed64  ->size = sizeof(s64);
+    builtin.types.float32   ->size = sizeof(f32);
+    builtin.types.float64   ->size = sizeof(f64);
+    builtin.types.ptr       ->size = sizeof(void*);
+    builtin.types.any       ->size = sizeof(void*); //pointer to type information, probably?
+    builtin.types.str       ->size = sizeof(u8*) + sizeof(u64); //pointer to string and a byte count
+
+    //generate conversions between built in scalar types
+    for(Struct* i = builtin.types.unsigned8; i != builtin.types.any; i++){
+        for(Struct* j = builtin.types.unsigned8; j != builtin.types.any; j++){
+            if(i==j)continue;
+            Expression* e = arena.make_expression(STR8("cast"));
+            e->type = Expression_CastImplicit;
+            e->data.structure = j;
+            i->conversions.add(j->decl.identifier, &e->node);
+        }
+    }
+
+    //make any's member
+    //TODO(sushi) make any's members when we figure out how that will work 
+
+    //make str's members
+    {
+        Variable* ptr = arena.make_variable(STR8("ptr"));
+        ptr->decl.identifier = STR8("ptr");
+        ptr->decl.declared_identifier = ptr->decl.identifier;
+        ptr->data.structure = builtin.types.ptr;
+        Variable* count = arena.make_variable(STR8("count"));
+        count->decl.identifier = STR8("count");
+        count->decl.declared_identifier = count->decl.identifier;
+        count->data.structure = builtin.types.unsigned64;
+
+        builtin.types.str->members.add(ptr->decl.identifier, &ptr->decl.node);
+        builtin.types.str->members.add(count->decl.identifier, &count->decl.node);
+    }
+}
+
 suArena<suFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneScoped;
     logger.log(Verbosity_StageParts, "Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
