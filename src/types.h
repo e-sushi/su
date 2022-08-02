@@ -105,6 +105,7 @@ struct {
 	b32 show_code = true;
 	b32 log_immediatly           = true;
 	b32 assert_compiler_on_error = true;
+	b32 log_error_out            = true;
 	OSOut osout = OSOut_Windows;
 } globals;
 
@@ -114,6 +115,212 @@ enum{
 	Message_Warn,
 	Message_Note
 };
+
+
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Nodes
+enum NodeType : u32 {
+	NodeType_Program,
+	NodeType_Structure,
+	NodeType_Function,
+	NodeType_Variable,
+	NodeType_Scope,
+	NodeType_Statement,
+	NodeType_Expression,
+};
+
+//thread safe version of TNode (probably)
+//this only accounts for modifying a node, not reading it
+//but I believe that modification and reading shouldnt happen at the same time, so its probably fine
+//TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is parser adding stuff to its base node
+//            but that can be deferred.
+struct suNode{
+	Type  type;
+	Flags flags;
+	
+	suNode* next = 0;
+	suNode* prev = 0;
+	suNode* parent = 0;
+	suNode* first_child = 0;
+	suNode* last_child = 0;
+	u32     child_count = 0;
+	
+	mutex lock;
+
+	str8 debug;
+};
+
+global inline void insert_after(suNode* target, suNode* node) { DPZoneScoped;
+	target->lock.lock();
+	node->lock.lock();
+	defer{
+		node->lock.unlock();
+		target->lock.unlock();
+	};
+	if (target->next) target->next->prev = node;
+	node->next = target->next;
+	node->prev = target;
+	target->next = node;
+	
+}
+
+global inline void insert_before(suNode* target, suNode* node) { DPZoneScoped;
+	target->lock.lock();
+	node->lock.lock();
+	defer{
+		target->lock.unlock();
+		node->lock.unlock();
+	};
+	if (target->prev) target->prev->next = node;
+	node->prev = target->prev;
+	node->next = target;
+	target->prev = node;
+}
+
+global inline void remove_horizontally(suNode* node) { DPZoneScoped;
+	node->lock.lock();
+	defer {node->lock.unlock();};
+	if (node->next) node->next->prev = node->prev;
+	if (node->prev) node->prev->next = node->next;
+	node->next = node->prev = 0;
+}
+
+global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
+	parent->lock.lock();
+	child->lock.lock();
+	defer {
+		parent->lock.unlock();
+		child->lock.unlock();
+	};
+
+	if (parent == 0) { child->parent = 0; return; }
+	if(parent==child){DebugBreakpoint;}
+	
+	child->parent = parent;
+	if (parent->first_child) {
+		insert_after(parent->last_child, child);
+		parent->last_child = child;
+	}
+	else {
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+}
+
+global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
+	parent->lock.lock();
+	child->lock.lock();
+	defer{
+		parent->lock.unlock();
+		child->lock.unlock();
+	};
+	if (parent == 0) { child->parent = 0; return; }
+	
+	child->parent = parent;
+	if (parent->first_child) {
+		insert_before(parent->first_child, child);
+		parent->first_child = child;
+	}
+	else {
+		parent->first_child = child;
+		parent->last_child = child;
+	}
+	parent->child_count++;
+	
+}
+
+global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
+	new_parent->lock.lock();
+	node->lock.lock();
+	defer {
+		new_parent->lock.unlock();
+		node->lock.unlock();
+	};
+	//if old parent, remove self from it 
+	if (node->parent) {
+		if (node->parent->child_count > 1) {
+			if (node == node->parent->first_child) node->parent->first_child = node->next;
+			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
+		}
+		else {
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+	
+	//remove self horizontally
+	remove_horizontally(node);
+	
+	//add self to new parent
+	insert_last(new_parent, node);
+}
+
+global void move_to_parent_first(suNode* node){ DPZoneScoped;
+	node->lock.lock();
+	defer { node->lock.unlock(); };
+	if(!node->parent) return;
+	
+	suNode* parent = node->parent;
+	if(parent->first_child == node) return;
+	if(parent->last_child == node) parent->last_child = node->prev;
+
+	remove_horizontally(node);
+	node->next = parent->first_child;
+	parent->first_child->prev = node;
+	parent->first_child = node;
+}
+
+global void move_to_parent_last(suNode* node){ DPZoneScoped;
+	node->lock.lock();
+	defer{node->lock.unlock();};
+	if(!node->parent) return;
+	
+	suNode* parent = node->parent;
+	if(parent->last_child == node) return;
+	if(parent->first_child == node) parent->first_child = node->next;
+
+	remove_horizontally(node);
+	node->prev = parent->last_child;
+	parent->last_child->next = node;
+	parent->last_child = node;
+}
+
+global void remove(suNode* node) { DPZoneScoped;
+	node->lock.lock();
+	defer{node->lock.unlock();};
+	//add children to parent (and remove self from children)
+	for(suNode* it = node->first_child; it != 0; ) {
+		suNode* next = it->next;
+		change_parent(node->parent, it);
+		it = next;
+	}
+	
+	//remove self from parent
+	if (node->parent) {
+		if (node->parent->child_count > 1) {
+			if (node == node->parent->first_child) node->parent->first_child = node->next;
+			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
+		}
+		else {
+			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
+			node->parent->first_child = 0;
+			node->parent->last_child = 0;
+		}
+		node->parent->child_count--;
+	}
+	node->parent = 0;
+	
+	//remove self horizontally
+	remove_horizontally(node);
+	node->lock.unlock();
+}
+
+//~////////////////////////////////////////////////////////////////////////////////////////////////
+//// Memory
 
 mutex global_mem_lock = init_mutex();
 
@@ -132,7 +339,6 @@ void su_memzfree(void* ptr){
 
 //attempt at implementing a thread safe memory region 
 //this is chunked, so memory never moves unless you use something like remove
-//TODO(sushi) non-chunked variant
 template<typename T>
 struct suChunkedArena{
 	Arena** arenas;
@@ -384,10 +590,11 @@ struct suArena{
 //this was delle's idea
 //TODO(sushi) decide if we should store pair<str8,Decl*> in data or just use the str8 `identifier`
 //            that is on Declaration already, this way we just pass a Declaration* and no str8
+//TODO(sushi) make a generic sorted binary searched map for amu
 struct Declaration;
-struct declmap{
+struct nodemap{
 	suArena<u64> hashes; 
-	suArena<pair<str8, Declaration*>> data;
+	suArena<pair<str8, suNode*>> data;
 
 	void init(){DPZoneScoped;
 		hashes.init(256);
@@ -423,7 +630,7 @@ struct declmap{
 
 	//note there is no overload for giving the key as a u64 because this struct requires
 	//storing the original key value in the data.
-	u32 add(str8 key, Declaration* val){DPZoneScoped;
+	u32 add(str8 key, suNode* val){DPZoneScoped;
 		u64 key_hash = str8_hash64(key);
 		spt index = -1;
 		spt middle = 0;
@@ -482,7 +689,7 @@ struct declmap{
 		return has_collided(str8_hash64(key));
 	}
 
-	Declaration* at(str8 key){DPZoneScoped;
+	suNode* at(str8 key){DPZoneScoped;
 		u32 index = find_key(key);
 		if(index != -1){
 			if(hashes.count == 1){
@@ -494,7 +701,7 @@ struct declmap{
 			}else if(index == hashes.count-1 && hashes[index-1] != hashes[index]){
 				return data[index].second;
 			}else{
-				Log("declmap", "A collision happened in a declmap, which is NOT tested, so you should test this if it appears");
+				Log("nodemap", "A collision happened in a nodemap, which is NOT tested, so you should test this if it appears");
 				TestMe;
 				//a collision happened so we must find the right neighbor
 				u32 idx = index;
@@ -524,213 +731,14 @@ struct declmap{
 		return 0;
 	}
 
-	Declaration* atIdx(u64 idx){
+	suNode* atIdx(u64 idx){
 		Assert(idx < data.count);
 		return data[idx].second;
 	}
 };
 
 
-//~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Nodes
-enum NodeType : u32 {
-	NodeType_Program,
-	NodeType_Structure,
-	NodeType_Function,
-	NodeType_Variable,
-	NodeType_Scope,
-	NodeType_Statement,
-	NodeType_Expression,
-};
 
-//thread safe version of TNode (probably)
-//this only accounts for modifying a node, not reading it
-//but I believe that modification and reading shouldnt happen at the same time, so its probably fine
-//TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is parser adding stuff to its base node
-//            but that can be deferred.
-struct suNode{
-	Type  type;
-	Flags flags;
-	
-	suNode* next = 0;
-	suNode* prev = 0;
-	suNode* parent = 0;
-	suNode* first_child = 0;
-	suNode* last_child = 0;
-	u32     child_count = 0;
-	
-	mutex lock;
-
-	str8 debug;
-};
-
-global inline void insert_after(suNode* target, suNode* node) { DPZoneScoped;
-	target->lock.lock();
-	node->lock.lock();
-	defer{
-		node->lock.unlock();
-		target->lock.unlock();
-	};
-	if (target->next) target->next->prev = node;
-	node->next = target->next;
-	node->prev = target;
-	target->next = node;
-	
-}
-
-global inline void insert_before(suNode* target, suNode* node) { DPZoneScoped;
-	target->lock.lock();
-	node->lock.lock();
-	defer{
-		target->lock.unlock();
-		node->lock.unlock();
-	};
-	if (target->prev) target->prev->next = node;
-	node->prev = target->prev;
-	node->next = target;
-	target->prev = node;
-}
-
-global inline void remove_horizontally(suNode* node) { DPZoneScoped;
-	node->lock.lock();
-	defer {node->lock.unlock();};
-	if (node->next) node->next->prev = node->prev;
-	if (node->prev) node->prev->next = node->next;
-	node->next = node->prev = 0;
-}
-
-global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
-	parent->lock.lock();
-	child->lock.lock();
-	defer {
-		parent->lock.unlock();
-		child->lock.unlock();
-	};
-
-	if (parent == 0) { child->parent = 0; return; }
-	if(parent==child){DebugBreakpoint;}
-	
-	child->parent = parent;
-	if (parent->first_child) {
-		insert_after(parent->last_child, child);
-		parent->last_child = child;
-	}
-	else {
-		parent->first_child = child;
-		parent->last_child = child;
-	}
-	parent->child_count++;
-}
-
-global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
-	parent->lock.lock();
-	child->lock.lock();
-	defer{
-		parent->lock.unlock();
-		child->lock.unlock();
-	};
-	if (parent == 0) { child->parent = 0; return; }
-	
-	child->parent = parent;
-	if (parent->first_child) {
-		insert_before(parent->first_child, child);
-		parent->first_child = child;
-	}
-	else {
-		parent->first_child = child;
-		parent->last_child = child;
-	}
-	parent->child_count++;
-	
-}
-
-global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
-	new_parent->lock.lock();
-	node->lock.lock();
-	defer {
-		new_parent->lock.unlock();
-		node->lock.unlock();
-	};
-	//if old parent, remove self from it 
-	if (node->parent) {
-		if (node->parent->child_count > 1) {
-			if (node == node->parent->first_child) node->parent->first_child = node->next;
-			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
-		}
-		else {
-			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
-			node->parent->first_child = 0;
-			node->parent->last_child = 0;
-		}
-		node->parent->child_count--;
-	}
-	
-	//remove self horizontally
-	remove_horizontally(node);
-	
-	//add self to new parent
-	insert_last(new_parent, node);
-}
-
-global void move_to_parent_first(suNode* node){ DPZoneScoped;
-	node->lock.lock();
-	defer { node->lock.unlock(); };
-	if(!node->parent) return;
-	
-	suNode* parent = node->parent;
-	if(parent->first_child == node) return;
-	if(parent->last_child == node) parent->last_child = node->prev;
-
-	remove_horizontally(node);
-	node->next = parent->first_child;
-	parent->first_child->prev = node;
-	parent->first_child = node;
-}
-
-global void move_to_parent_last(suNode* node){ DPZoneScoped;
-	node->lock.lock();
-	defer{node->lock.unlock();};
-	if(!node->parent) return;
-	
-	suNode* parent = node->parent;
-	if(parent->last_child == node) return;
-	if(parent->first_child == node) parent->first_child = node->next;
-
-	remove_horizontally(node);
-	node->prev = parent->last_child;
-	parent->last_child->next = node;
-	parent->last_child = node;
-}
-
-global void remove(suNode* node) { DPZoneScoped;
-	node->lock.lock();
-	defer{node->lock.unlock();};
-	//add children to parent (and remove self from children)
-	for(suNode* it = node->first_child; it != 0; ) {
-		suNode* next = it->next;
-		change_parent(node->parent, it);
-		it = next;
-	}
-	
-	//remove self from parent
-	if (node->parent) {
-		if (node->parent->child_count > 1) {
-			if (node == node->parent->first_child) node->parent->first_child = node->next;
-			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
-		}
-		else {
-			Assert(node == node->parent->first_child && node == node->parent->last_child, "if node is the only child node, it should be both the first and last child nodes");
-			node->parent->first_child = 0;
-			node->parent->last_child = 0;
-		}
-		node->parent->child_count--;
-	}
-	node->parent = 0;
-	
-	//remove self horizontally
-	remove_horizontally(node);
-	node->lock.unlock();
-}
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Registers
@@ -784,66 +792,25 @@ enum Registers{
 	Register_FunctionParameter5 = Register_R9,
 };
 
-global const char* registers_x64[] = {
-	"%null",
-	"%rax", "%eax",  "%ax",   "%al",
-	"%rdx", "%edx",  "%dx",   "%dl",
-	"%rcx", "%ecx",  "%cx",   "%cl",
-	"%rbx", "%ebx",  "%bx",   "%bl",
-	"%rsi", "%esi",  "%si",   "%sil",
-	"%rdi", "%edi",  "%di",   "%dil",
-	"%rsp", "%esp",  "%sp",   "%spl",
-	"%rbp", "%ebp",  "%bp",   "%bpl",
-	"%r8",  "%r8d",  "%r8w",  "%r8b",
-	"%r9",  "%r9d",  "%r9w",  "%r9b",
-	"%r10", "%r10d", "%r10w", "%r10b",
-	"%r11", "%r11d", "%r11w", "%r11b",
-	"%r12", "%r12d", "%r12w", "%r12b",
-	"%r13", "%r13d", "%r13w", "%r13b",
-	"%r14", "%r14d", "%r14w", "%r14b",
-	"%r15", "%r15d", "%r15w", "%r15b",
+global str8 registers_x64[] = {
+	STR8("%null"),
+	STR8("%rax"), STR8("%eax"),  STR8("%ax"),   STR8("%al"),
+	STR8("%rdx"), STR8("%edx"),  STR8("%dx"),   STR8("%dl"),
+	STR8("%rcx"), STR8("%ecx"),  STR8("%cx"),   STR8("%cl"),
+	STR8("%rbx"), STR8("%ebx"),  STR8("%bx"),   STR8("%bl"),
+	STR8("%rsi"), STR8("%esi"),  STR8("%si"),   STR8("%sil"),
+	STR8("%rdi"), STR8("%edi"),  STR8("%di"),   STR8("%dil"),
+	STR8("%rsp"), STR8("%esp"),  STR8("%sp"),   STR8("%spl"),
+	STR8("%rbp"), STR8("%ebp"),  STR8("%bp"),   STR8("%bpl"),
+	STR8("%r8"),  STR8("%r8d"),  STR8("%r8w"),  STR8("%r8b"),
+	STR8("%r9"),  STR8("%r9d"),  STR8("%r9w"),  STR8("%r9b"),
+	STR8("%r10"), STR8("%r10d"), STR8("%r10w"), STR8("%r10b"),
+	STR8("%r11"), STR8("%r11d"), STR8("%r11w"), STR8("%r11b"),
+	STR8("%r12"), STR8("%r12d"), STR8("%r12w"), STR8("%r12b"),
+	STR8("%r13"), STR8("%r13d"), STR8("%r13w"), STR8("%r13b"),
+	STR8("%r14"), STR8("%r14d"), STR8("%r14w"), STR8("%r14b"),
+	STR8("%r15"), STR8("%r15d"), STR8("%r15w"), STR8("%r15b"),
 };
-
-
-//~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Builtin Types
-typedef u32 DataType; enum { 
-	DataType_NotTyped,
-	DataType_Void,       // void
-	DataType_Implicit,   // implicitly typed
-	DataType_Signed8,    // s8
-	DataType_Signed16,   // s16
-	DataType_Signed32,   // s32 
-	DataType_Signed64,   // s64
-	DataType_Unsigned8,  // u8
-	DataType_Unsigned16, // u16
-	DataType_Unsigned32, // u32 
-	DataType_Unsigned64, // u64 
-	DataType_Float32,    // f32 
-	DataType_Float64,    // f64 
-	DataType_String,     // str
-	DataType_Any,
-	DataType_Structure,  // data type of types and functions
-}; 
-
-const char* dataTypeStrs[] = {
-	"notype",
-	"void",
-	"impl",  
-	"s8",  
-	"s16",
-	"s32",  
-	"s64",  
-	"u8", 
-	"u16",
-	"u32",
-	"u64",
-	"f32",   
-	"f64",   
-	"str",    
-	"ptr",   
-	"any",
-}; 
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Lexer
@@ -949,6 +916,23 @@ enum{
 	Token_String,                 // str
 	Token_Any,                    // any
 	Token_Struct,                 // user defined type
+
+	//aliases, plus one extra for indicating pointers
+	DataType_Void       = Token_Void,
+	DataType_Unsigned8  = Token_Unsigned8,
+	DataType_Unsigned16 = Token_Unsigned16,
+	DataType_Unsigned32 = Token_Unsigned32,
+	DataType_Unsigned64 = Token_Unsigned64,
+	DataType_Signed8    = Token_Signed8,
+	DataType_Signed16   = Token_Signed16,
+	DataType_Signed32   = Token_Signed32,
+	DataType_Signed64   = Token_Signed64,
+	DataType_Float32    = Token_Float32,
+	DataType_Float64    = Token_Float64,
+	DataType_String     = Token_String,
+	DataType_Any        = Token_Any,
+	DataType_Struct     = Token_Struct,
+	DataType_Ptr,
 
 	//// directives ////
 	TokenGroup_Directive,
@@ -1113,12 +1097,11 @@ enum {
 	Expression_DecrementPrefix,
 	Expression_DecrementPostfix,
 	Expression_Cast,
-	//this is a special expression type that is only made by the validator since the validator has no token to attach typename 
-	//information with we must use the TypedValue information on Expression instead in this case, the type set on TypedValue 
-	//is the type that is being casted to. the reason we dont just also do this on explicit casts in parsing is because 
-	//its possible that the user wants to cast to a struct type that has not been parsed yet and therefore doesnt exist for us 
-	//to point to yet. this is also probably beneficial for language servers who read from the validation stage and not the 
-	//parser stage, in the case of semantic highlighting, this node would just be ignored
+	//this is a special expression type that is only made when we are sure that we have the correct type information.
+	//in Expression_Cast we must attach another expression to tell it what identifier to cast to, but in this case
+	//we can just use the TypedValue information on Expression to figure out what type we are casting to.
+	//there is a separation between these because in parsing it is possible that we come across a cast to a struct that has not
+	//been parsed yet and so doesnt have a Struct associated with it, so we must indiciate what we are casting to through the id.
 	Expression_CastImplicit, 
 	Expression_Reinterpret,
 
@@ -1228,13 +1211,9 @@ Type binop_token_to_expression(Type in){
 struct Struct;
 struct Declaration;
 struct TypedValue{
-	Type type;
+	Struct* structure;
 	u32 pointer_depth;
 	b32 implicit = 0; //special indicator for variables that were declared with no type and depend on the expression they are assigned
-	b32 modifiable = 0;
-	//set to a declaration that defines a conversion between this type and another
-	Declaration* convertion = 0; 
-	Struct* struct_type;
 	str8 type_name;
 	union {
 		f32  float32;
@@ -1247,7 +1226,7 @@ struct TypedValue{
 		u16  uint16;
 		u32  uint32;
 		u64  uint64;
-		str8 str;
+		str8 string;
 	};
 };
 
@@ -1324,6 +1303,10 @@ struct Declaration{
 //this is used to match a function call to an overloaded function
 struct Arg{
 	suNode node;
+	suNode build_node; //node used to build a testing tree
+	b32 defaulted;
+	suArena<Variable*> vars; //list of variables that are associated with this argument's position and type
+	str8 raw;
 	TypedValue val;
 	Function* f = 0;
 };
@@ -1331,8 +1314,12 @@ struct Arg{
  
 struct Function {
 	Declaration decl;
-	//connects this function to other functions that are overloads of it
-	suNode overload_node;
+	//counts how many overloads a function group has  
+	//this is only set on the base node of an overload tree
+	u32 overloads;
+
+	//used for telling the user the names of arguments in certain errors
+	nodemap args; 
 
 	Type data_type;
 	Struct* struct_data;
@@ -1341,10 +1328,10 @@ struct Function {
 	//format:
 	//    func_name@argtype1,argtype2,...@rettype1,rettype2,...
 	str8 internal_label;
-	u32 positional_args = 0;
-	declmap args;
-	//TODO do this with a binary tree sort of thing instead later
-	array<Function*> overloads;
+
+	//set when the function is to be inlined 
+	b32 inlined;
+	
 };
 #define FunctionFromDeclaration(x) CastFromMember(Function, decl, x)
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
@@ -1364,21 +1351,21 @@ struct Struct {
 	Declaration decl;
 	u64 size; //size of struct in bytes
 
+	//set to 0 if this is a user defined struct
+	//otherwise this struct is something that is built in
+	//and is indiciated by the DataType_* types
 	Type type;
 	
-	declmap members;
+	nodemap members;
 
 	//map of conversions defined for this structure
 	//the key is the name of the declaration it is a conversion to
-	declmap conversions;
+	nodemap conversions;
 
-	//map of operators defined for this structure
-	//
-	declmap operators;
+	nodemap operators;
 };
 #define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
 #define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
-
 
 enum{
 	Declaration_Unknown,
@@ -1694,7 +1681,7 @@ struct suFile{
 		//this is to support overloading, as every function identifier is stored in this once
 		//with each overload accessible through nodes
 
-		declmap functions;
+		nodemap functions;
 	}validator;
 
 	void init(){
@@ -1789,7 +1776,7 @@ struct Parser {
 	array<ParserThread> threads;
 
 	//map of identifiers to global declarations
-	declmap pending_globals;
+	nodemap pending_globals;
 
 	
 	//file the parser is working in
@@ -1818,8 +1805,7 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 struct Validator{
 	suFile* sufile;
 
-
-	//keeps track of what element we are currently
+	//keeps track of what element we are currently working in
 	struct{
 		Variable*   variable = 0;
 		Expression* expression = 0;
@@ -1844,6 +1830,8 @@ struct Validator{
 			suArena<Statement*>  statements;
 		}nested;
 	}stacks;
+
+	
 
 	void init(){DPZoneScoped;
 		stacks.nested.scopes.init();
@@ -1889,10 +1877,28 @@ struct Compiler{
 	//TODO(sushi) we probably want to just chunk arenas for suFiles instead of randomly allocating them.
 	map<str8, suFile*> files;
 	
-	//a map of a pair of types and the process used to convert them
-	//the conversion is from the first item of pair to the second
-	//
-
+	struct{
+		//we represent builtin scalars as structs internally because it is possible for the user
+		//to define conversions between them and other structs and it makes some things easier to implement
+		union{
+			Struct* arr[13];
+			struct{
+				Struct* unsigned8;
+				Struct* unsigned16;
+				Struct* unsigned32;
+				Struct* unsigned64;
+				Struct* signed8;
+				Struct* signed16;
+				Struct* signed32;
+				Struct* signed64;
+				Struct* float32;
+				Struct* float64;
+				Struct* ptr;
+				Struct* any;
+				Struct* str;
+			};
+		}types;
+	}builtin;
 
 	//locked when doing non-thread safe stuff 
 	//such as loading a File, and probably when we use memory functions as well
@@ -1912,11 +1918,15 @@ struct Compiler{
 	suFile* start_parser      (suFile* sufile);
 	suFile* start_validator   (suFile* sufile);
 
+	void init();
+
 	//used to completely reset all compiled information
 	//this is mainly for performance testing, like running a compile on the same file
 	//repeatedly to get an average time
 	//or to test for memory leaks
 	void reset(); 
+
+	Compiler(){}
 
 }compiler;
 
@@ -1952,19 +1962,11 @@ str8 type_token_to_str(Type type){
 }
 
 str8 get_typename(Variable* v){
-	if(v->data.type == Token_Struct){
-		return v->data.struct_type->decl.identifier;
-	}else{
-		return type_token_to_str(v->data.type);
-	}
+	return v->data.structure->decl.identifier;
 }
 
 str8 get_typename(Expression* e){
-	if(e->data.type == Token_Struct){
-		return e->data.struct_type->decl.identifier;
-	}else{
-		return type_token_to_str(e->data.type);
-	}
+	return e->data.structure->decl.identifier;
 }
 
 str8 get_typename(Struct* s){
@@ -1998,6 +2000,26 @@ u64 builtin_sizes(Type type){
 		case Token_Any:        return sizeof(void*);
 	}
 	return -1;
+}
+
+Struct* builtin_from_type(Type type){
+	switch(type){
+		case DataType_Unsigned8:  return compiler.builtin.types.unsigned8;
+		case DataType_Unsigned16: return compiler.builtin.types.unsigned16;
+		case DataType_Unsigned32: return compiler.builtin.types.unsigned32;
+		case DataType_Unsigned64: return compiler.builtin.types.unsigned64;
+		case DataType_Signed8:    return compiler.builtin.types.signed8;
+		case DataType_Signed16:   return compiler.builtin.types.signed16;
+		case DataType_Signed32:   return compiler.builtin.types.signed32;
+		case DataType_Signed64:   return compiler.builtin.types.signed64;
+		case DataType_Float32:    return compiler.builtin.types.float32;
+		case DataType_Float64:    return compiler.builtin.types.float64;
+		case DataType_Ptr:        return compiler.builtin.types.ptr;
+		case DataType_Any:        return compiler.builtin.types.any;
+		case DataType_String:     return compiler.builtin.types.str;
+	}
+	Assert(false);
+	return 0;
 }
 
 //returns the type that the result of an operation between t0 and t1 would result in when they are both scalars
@@ -2086,6 +2108,7 @@ struct{
 		arg->node.lock.init();
 		arg->node.type = 0; //this is not used in any general location, so we will always know the type of the node where its expected
 		arg->node.debug = debugmsg;
+		arg->vars.init();
 		return arg;
 	}
 
