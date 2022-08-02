@@ -96,10 +96,6 @@ b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
         Declaration* dk = stacks.known_declarations[stacks.known_declarations.count - 1 - i];
         if(dk==d) continue;
-        if(d->type == Declaration_Function && dk->type == Declaration_Function){
-            //ignore, because function overloading
-            continue;
-        }
         if(str8_equal_lazy(d->identifier, dk->identifier)){
             logger.error(d->token_start, 
             "declaration of ", 
@@ -124,6 +120,10 @@ Declaration* Validator::find_decl(str8 id){
     return 0;
 }
 
+b32 Validator::can_type_convert(TypedValue* from, TypedValue* to){
+    return 0;
+}
+
 //NOTE(sushi) this is special because locally defined functions that overload something in a lesser scope
 //            need to remove themselves from the overload tree that connects them
 void Validator::pop_known_decls(){
@@ -132,7 +132,6 @@ void Validator::pop_known_decls(){
         Declaration* d = stacks.known_declarations.pop();
         if(d->type == Declaration_Function){
             Function* f = FunctionFromDeclaration(d);
-            remove(&f->overload_node);
         }
     }
 }
@@ -154,9 +153,8 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
 
             if(!check_shadowing(&v->decl)) return 0;
             stacks.known_declarations.add(&v->decl);
-
-            if(v->data.type == Token_Struct){
-                //we must determine if the struct this variable wants to use is valid
+            //if this variable's structure is null, then it is a user defined struct that we must look for
+            if(!v->data.structure){
                 Token* typespec = v->decl.token_start + 2;
                 Declaration* d = find_decl(typespec->raw);
                 if(!d){
@@ -169,7 +167,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
                     return 0;
                 }
-                v->data.struct_type = StructFromDeclaration(d);
+                v->data.structure = StructFromDeclaration(d);
             }
             
             if(v->data.implicit){
@@ -179,50 +177,39 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             }else if(v->decl.node.child_count){
                 Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
                 if(!e) return 0;
-                if(v->data.type != e->data.type || 
-                   v->data.type == Token_Struct && e->data.type == Token_Struct &&
-                   v->data.struct_type != e->data.struct_type){
-                    //we must see if these types are compatible
-                    if(e->data.type == Token_Struct){
-                        //if the expression represents a structure, we must check if there is any conversion from 
-                        //it to the variable
-                        if(!e->data.struct_type->conversions.has(v->data.struct_type->decl.identifier)){
-                            logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
-                            logger.note(v->decl.token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(e), ") : ", get_typename(v));
-                            return 0;
-                        }
-                        //TODO(sushi) inject conversion function
-                    }else if(!type_conversion(v->data.type, e->data.type)){
-                        //this check is probably not necessary 
+                if(v->data.structure != e->data.structure){
+                    if(!e->data.structure->conversions.at(v->data.structure->decl.identifier)){
                         logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
+                        logger.note(v->decl.token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(e), ") : ", get_typename(v));
                         return 0;
                     }
-                    //if they are we inject a conversion node above the expression
-                    Expression* cast = arena.make_expression(STR8("cast"));
-                    cast->type = Expression_CastImplicit;
-                    //NOTE(sushi) its possible that this could lead to misleading information if for some reason
-                    //            something errors on these nodes that we make here. this should not happen because 
-                    //            these nodes should always be correct, but something to keep in mind
-                    cast->token_start = v->decl.token_start;
-                    cast->token_end = v->decl.token_end;
-                    cast->data = v->data;
-                    insert_last(e->node.parent, &cast->node);
-                    change_parent(&cast->node, &e->node);
                 }
+
+                //if types are compatible just inject a conversion node 
+                //we dont inject the actual conversion process because that would require us to copy nodes
+                //instead we just put a cast node here indicating which type to convert to and its handled later
+                Expression* cast = arena.make_expression(STR8("cast"));
+                cast->type = Expression_CastImplicit;
+                cast->token_start = v->decl.token_start;
+                cast->token_end = v->decl.token_end;
+                cast->data = v->data;
+                insert_last(e->node.parent, &cast->node);
+                change_parent(&cast->node, &e->node);
             }
 
             if(current.structure){
                 //if we are currently validating a struct, we need to check a few things
-                if(v->data.type==Token_Struct){
-                    //check for self referencial defintion
-                    if(v->data.struct_type == current.structure){
+                //check for self referencial definition
+                //these checks are only necessary if the type is not built in
+                if(!v->data.structure->type){
+                    if(v->data.structure == current.structure){
                         logger.error(v->decl.token_start, "a structure cannot contain a variable whose type is that structure.");
                         logger.note(v->decl.token_start, "use a pointer instead.");
                         return 0;
                     }
-                    //check for circular defintions
+
                     forI(stacks.nested.structs.count){
-                        if(stacks.nested.structs[i]==v->data.struct_type){
+                        if(stacks.nested.structs[i]==v->data.structure){
                             logger.error(v->decl.token_start, "circular definition.");
                             str8b b;
                             global_mem_lock.lock();
@@ -239,12 +226,11 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                             return 0;
                         }
                     }
+
                     //pass the struct to validate to make sure it has been validated and has a size
-                    if(!validate(&v->data.struct_type->decl.node)) return 0;
-                    current.structure->size += v->data.struct_type->size;
-                }else{
-                    current.structure->size += builtin_sizes(v->data.type);
+                    if(!validate(&v->data.structure->decl.node)) return 0;
                 }
+                current.structure->size += v->data.structure->size;
             }
             v->decl.validated = 1;
             return &v->decl.node;
@@ -255,41 +241,53 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             push_function(f);
             defer{pop_function();};
 
-            if(!check_shadowing(&f->decl)) return 0;
-
             stacks.known_declarations.add(&f->decl);
 
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
-            Declaration* d = sufile->validator.functions.at(f->decl.identifier);
+            Declaration* d = DeclarationFromNode(sufile->validator.functions.at(f->decl.identifier));
             if(!d){
                 //this is the first occurance of this function that we know of so we add it to the function map
-                d = sufile->validator.functions.atIdx(sufile->validator.functions.add(f->decl.identifier, &arena.make_function(suStr8("funcgroup of ", f->decl.identifier))->decl));
+                d = DeclarationFromNode(sufile->validator.functions.atIdx(sufile->validator.functions.add(f->decl.identifier, &arena.make_function(suStr8("funcgroup of ", f->decl.identifier))->decl.node)));
                 d->identifier = f->decl.identifier;
             }        
+            
+            Function* fg = FunctionFromDeclaration(d);
+            fg->overloads++;
 
-
-            //validate the function's arguments first
             suNode* def = 0;
             suNode* otreecur = &d->node;
+            b32 found_nonpos = 0; //set when we find an argument that has a default value
             for_node(f->decl.node.first_child){
                 if(it->type == NodeType_Scope) { def = it; continue; }
                 if(!validate(it)) return 0;
                 //search overload node children for variables that are the same type as this one
                 //and just walk down it if it exists, otherwise make a new node representing this type
                 Variable* arg = VariableFromNode(it);
+                if(it->child_count){
+                    //this is an arg with a default value 
+                    found_nonpos = 1;
+                }else if(found_nonpos){
+                    logger.error(arg->decl.token_start, "positional arguments cannot follow defaulted arguments.");
+                    return 0;
+                }
+
                 b32 found = 0;
                 for_nodeX(it2, otreecur->first_child){
                     Arg* a = ArgFromNode(it2);
-                    if(a->val.type == arg->data.type && a->val.struct_type == arg->data.struct_type){
+                    if(a->val.structure == arg->data.structure){
                         otreecur = it2;
+                        a->vars.add(arg);
                         found = 1;
                         break;
                     }
                 }
                 if(!found){
                     Arg* nua = arena.make_arg();
+                    nua->node.debug = get_typename(arg);
+                    if(found_nonpos) nua->defaulted = 1;
                     nua->val = arg->data;
+                    nua->vars.add(arg);
                     insert_last(otreecur, &nua->node);
                     otreecur = &nua->node;
                 }
@@ -303,7 +301,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 }
             }
 
-
+            if(!validate(def)) return 0;
 
             pop_known_decls();
 
@@ -412,29 +410,83 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
 
                 case Expression_FunctionCall:{
                     //validate call id
-                    Declaration* d = find_decl(e->token_start->raw);
+                    Declaration* d = DeclarationFromNode(sufile->validator.functions.at(e->token_start->raw));
                     if(!d){
+                        //do some extra work to see if this declaration exists, but isnt a function
+                        d = find_decl(e->token_start->raw);
+                        if(d){
+                            logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
+                            logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
+                            return 0;
+                        }
                         logger.error(e->token_start, "attempt to call unknown identifier '", e->token_start->raw, "'");
                         return 0;
                     }
-                    if(d->type != Declaration_Function){
-                        logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
-                        logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
-                        return 0;
-                    }
-                    Function* f = FunctionFromDeclaration(d);
-
-                    
-                    //validate arguments
+                    //this flag is toggled everytime we call this function and indicates which of the following 2 flags
+                    //we read to know if we have already come across a node or not
+                    //when this flag is true, we mark a passed node as 0b10
+                    //when this flag is false, we mark a passed node as 0b01
+                    //this allows us to mark nodes as processed without having to reset their state 
+                    //after we are done
+                    //this would probably break if we ever allow multithreading within files in validator
+                    d->node.flags = !d->node.flags;
+                    Function* fg = FunctionFromDeclaration(d);
+                    //validate arguments and match them to overloads
+                    suNode* otreecur = &d->node;
                     u64 argpos = 0; //keeps track of where in positional arguments we are 
-                    for_node(e->node.first_child){
-                        Expression* arg = ExpressionFromNode(it);
-                        if(arg->type == Expression_BinaryOpAssignment){
-                            Expression* lhs = ExpressionFromNode(arg->node.first_child);
+                    b32 named = 0; //set true when we come across a named argument
+                    //the possible functions are built off of this node
+                    suNode base;
+                    b32 default_found = 0;
+                    u32 args_consumed = 0;
+                    //walk the overload tree and match func arguments to call arguments as we go
+                    b32 matching = 0;
+                    while(matching){
+                        if(!otreecur->first_child){
 
-                        }else if(arg->type == Expression_Literal){
+                        }
+                        for_nodeX(fn, otreecur->first_child){
+                            Arg* a = ArgFromNode(fn);
+                            //search for a call arg that matches this argument
+                            b32 match = 0;
+                            for_node(e->node.first_child){
+                                //check if we have already checked this node, skip if so
+                                if(it->flags == (d->node.flags ? 0b10 : 0b01)) continue;
+                                Expression* arg = ExpressionFromNode(it);
+                                if(arg->type == Expression_BinaryOpAssignment){
+                                    named = 1;
+                                    Expression* lhs = ExpressionFromNode(arg->node.first_child);
+                                    if(lhs->type != Expression_Identifier){
+                                        logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
+                                        return 0;
+                                    }
+                                    Expression* rhs = ExpressionFromNode(validate(arg->node.last_child));
+                                    //match names
+                                    b32 name_match = 0;
+                                    forI(a->vars.count){
+                                        Variable* v = a->vars[i];
+
+                                        
+                                        
+                                        
+
+                                        
+                                    }
+
+                                }else{
+                                    //NOTE(sushi) we dont do this initially since its possible this was a named argument
+                                    if(named){
+                                        logger.error(arg->token_start, "positional arguments cannot follow named arguments.");
+                                        return 0;
+                                    }
 
 
+                                }
+
+                            }
+                            if(match){
+                                fn->flags = (d->node.flags ? 2 : 1);
+                            }
                         }
                     }
                 }break;
@@ -467,13 +519,11 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
                 if(!rhs) return 0;
                 //temporary erroring until we implement operator overloading for structs
-                if(e->type != Expression_BinaryOpAssignment && (lhs->data.type == Token_Struct || rhs->data.type == Token_Struct)){
+                if(e->type != Expression_BinaryOpAssignment && (!(lhs->data.structure->type || rhs->data.structure->type))){
                     logger.error(lhs->token_start, "operator overloading for user-defined structures is not supported yet.");
                     logger.note(lhs->token_start, "when trying to use operator ", ExTypeStrings[e->type], " between ", get_typename(lhs), " and ", get_typename(rhs));
                     return 0;
                 }
-                b32 both_struct = (lhs->data.type == Token_Struct) && (rhs->data.type == Token_Struct);
-                b32 struct_diff = both_struct && (lhs->data.struct_type != rhs->data.struct_type); 
                 switch(e->type){    
                     //NOTE(sushi) performing bitwise operations on floats without reinterpretting is allowed, but they are always coerced to int
                     //bit binary ops are special because they will always return an integer
@@ -482,15 +532,6 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     case Expression_BinaryOpBitShiftLeft:
                     case Expression_BinaryOpBitShiftRight:
                     case Expression_BinaryOpBitAND:{
-                        Type out = coerce_scalar(lhs->data.type, rhs->data.type);
-                        //floats are forced to coerce to integer here
-                        if(out == Token_Float32){
-                            e->type = Token_Signed32;
-                        }else if(out == Token_Float64){
-                            e->type = Token_Signed64;
-                        }else{
-                            e->type = out;
-                        }
                     }break;
                     
                     case Expression_BinaryOpPlus:
@@ -500,7 +541,6 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     case Expression_BinaryOpAND:
                     case Expression_BinaryOpOR:
                     case Expression_BinaryOpModulo:{
-                        e->type = coerce_scalar(lhs->data.type, rhs->data.type);
                     }break;
 
                     case Expression_BinaryOpLessThan:
@@ -518,21 +558,16 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     }break;
 
                     case Expression_BinaryOpAssignment:{
-                        Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
-                        if(!lhs) return 0;
-                        //TODO(sushi) check that lhs is an lvalue
-                        Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
-                        if(!rhs) return 0;
 
-                        if(lhs->data.type != rhs->data.type || 
-                        lhs->data.type == Token_Struct && rhs->data.type == Token_Struct &&
-                        lhs->data.struct_type != rhs->data.struct_type){
-                            if(!rhs->data.struct_type->conversions.has(get_typename(lhs))){
-                                logger.error(lhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
-                                logger.note(lhs->token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(rhs), ") : ", get_typename(lhs));
-                                return 0;
-                            }
-                        }
+                        // if(lhs->data.type != rhs->data.type || 
+                        // lhs->data.type == Token_Struct && rhs->data.type == Token_Struct &&
+                        // lhs->data.struct_type != rhs->data.struct_type){
+                        //     if(!rhs->data.struct_type->conversions.has(get_typename(lhs))){
+                        //         logger.error(lhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
+                        //         logger.note(lhs->token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(rhs), ") : ", get_typename(lhs));
+                        //         return 0;
+                        //     }
+                        // }
 
 
                     }break;
@@ -549,7 +584,6 @@ void Validator::start(){DPZoneScoped;
     Stopwatch validate_time = start_stopwatch();
     logger.log(Verbosity_Stages, "Validating...");
     SetThreadName("Validating ", sufile->file->name);
-
 
     //wait for imported files to finish validation
     logger.log(Verbosity_StageParts, "Waiting for imported files to finish validation.");
@@ -593,7 +627,7 @@ void Validator::start(){DPZoneScoped;
                 //copy function map as well
                 //this kind of sucks and i want to make it better eventually
                 forI(sufileex->validator.functions.data.count){
-                    sufile->validator.functions.add(sufileex->validator.functions.atIdx(i)->identifier, sufileex->validator.functions.atIdx(i));
+                    sufile->validator.functions.add(DeclarationFromNode(sufileex->validator.functions.atIdx(i))->identifier, sufileex->validator.functions.atIdx(i));
                 }
             }
         }

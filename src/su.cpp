@@ -261,7 +261,9 @@ void print_overload_tree(suNode* node, u32 indent = 0){
 	logger_push_indent(indent);
 	if(!node->type){
 		Arg* a = ArgFromNode(node);
-		Log("", a->val.type_name, " ", (a->f ? "X" : "O"));
+		str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
+		forI(a->vars.count) str8_builder_append(&b, a->vars[i]->decl.identifier), str8_builder_append(&b, STR8(" "));
+		Log("", a->val.structure->decl.identifier, (a->defaulted ? " D" : " "), (a->f ? "! " : " "), b.fin);
 	}else{
 		Log("", node->debug);
 	}
@@ -283,18 +285,11 @@ int main(){DPZoneScoped;
 
 	DeshThreadManager->init(255);
 	DeshThreadManager->spawn_thread(10);
-	compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
-
-	compiler.mutexes.log.init();
-	compiler.mutexes.preprocessor.init();
-	compiler.mutexes.parser.init();
-	compiler.mutexes.lexer.init();
-	compiler.mutexes.compile_request.init();
-
+	
 	arena.init();
 
 	//speed_test(50, STR8("tests/imports/valid/imports.su"));
-
+	compiler.init();
 	compiler.ctime = start_stopwatch();
 
 	CompilerRequest cr; 
@@ -311,7 +306,7 @@ int main(){DPZoneScoped;
 
 	print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
 	forI(compiler.files.atIdxPtrVal(0)->validator.functions.data.count){
-		print_overload_tree(&compiler.files.atIdxPtrVal(0)->validator.functions.atIdx(i)->node);
+		print_overload_tree(compiler.files.atIdxPtrVal(0)->validator.functions.atIdx(i));
 	}
 	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   

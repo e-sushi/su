@@ -235,7 +235,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                                             return 0;
                                         } 
                                         Declaration* d = DeclarationFromNode(fin);
-                                        s->members.add(d->identifier, d);
+                                        s->members.add(d->identifier, &d->node);
                                     }
                                 }
                             } else perror(curt, "expected a '{' after 'struct' in definition of struct '", s->decl.identifier, "'.");
@@ -268,7 +268,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             else expect(Token_Identifier){
                                 Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
                                 if(!v) return 0;
-                                f->args.add(v->decl.identifier, &v->decl);
+                                f->args.add(v->decl.identifier, &v->decl.node);
                                 f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
                                     f->internal_label = suStr8(f->internal_label, STR8("*"));
@@ -325,18 +325,15 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     expect(Token_Colon){ // name :
                         curt++;
                         expect_group(TokenGroup_Type){ // name : <type>
-                            v->data.type = curt->type;
-                            v->data.type_name = curt->raw;
+                            v->data.structure = builtin_from_type(curt->type);
                         }else expect(Token_Identifier){ // name : <type>
-                            //in this case we expect this identifier to actually be a struct so we must look for it
-                            //first check known declarations 
-                            v->data.type = Token_Struct;
-                            v->data.type_name = curt->raw;
+                            //do nothing, because the variable's structure will be filled out later
                         }else v->data.implicit = 1;
                         curt++;
                         //parse pointer and array stuff 
                         while(1){
                             expect(Token_Multiplication){
+                                v->data.structure = builtin_from_type(DataType_Ptr);
                                 v->data.pointer_depth++;
                                 curt++;
                             }else expect(Token_OpenSquare){
@@ -604,7 +601,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Expression* e = arena.make_expression(curt->raw);
                     e->token_start = curt;
                     e->type = Expression_Literal;
-                    e->data.type = Token_Float64;
+                    e->data.structure = builtin_from_type(DataType_Float64);
                     e->data.float64 = curt->f64_val;
                     insert_last(node, &e->node);
                     return &e->node;
@@ -614,7 +611,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Expression* e = arena.make_expression(curt->raw);
                     e->token_start = curt;
                     e->type = Expression_Literal;
-                    e->data.type = Token_Signed64;
+                    e->data.structure = builtin_from_type(DataType_Signed64);
                     e->data.int64 = curt->s64_val;
                     insert_last(node, &e->node);
                     return &e->node;
@@ -631,7 +628,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Token_LessThan:{
-                    Expression* e = arena.make_expression(curt->raw);
+                    Expression* e = arena.make_expression(STR8("cast"));
                     e->token_start = curt;
                     insert_last(node, &e->node);
                     curt++;
@@ -641,6 +638,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         e->type = Expression_Cast;
                     }else expect(Token_LogicalNOT){
                         e->type = Expression_Reinterpret;
+                        e->node.debug = STR8("reinterpret");
                         curt++;
                         expect(Token_Identifier){}
                         else expect_group(TokenGroup_Type){}
@@ -669,8 +667,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     expect_next(Token_OpenParen){
                         //this must be a function call
                         e->node.debug = suStr8("call ", curt->raw);
-                        curt++;
                         e->type = Expression_FunctionCall;
+                        curt++;
                         while(1){
                             curt++;
                             expect(Token_CloseParen) {break;}
