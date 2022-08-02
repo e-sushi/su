@@ -121,7 +121,7 @@ Declaration* Validator::find_decl(str8 id){
 }
 
 b32 Validator::can_type_convert(TypedValue* from, TypedValue* to){
-    return 0;
+    return from->structure->conversions.has(to->structure->decl.identifier);
 }
 
 //NOTE(sushi) this is special because locally defined functions that overload something in a lesser scope
@@ -300,6 +300,21 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 }
             }
 
+            //now we must check that the addition of this overload does not make any other function calls ambiguous
+            //this is only possible if the overload we just added involves defaults
+            if(ArgFromNode(otreecur)->defaulted){
+                suNode* save = otreecur;
+                while(otreecur->parent != &sufile->parser.base){
+                    otreecur = otreecur->parent;
+                    Arg* a = ArgFromNode(otreecur);
+                    if(a->f){
+                        logger.error(a->f->decl.token_start, "calls to this overload will be ambiguous.");
+                        logger.note(ArgFromNode(save)->f->decl.token_start, "see overload that makes it ambiguous.");
+                        return 0;
+                    }
+                }
+            }
+
             if(!validate(def)) return 0;
 
             pop_known_decls();
@@ -318,7 +333,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
             for_node(s->decl.node.first_child){
-                if(!validate(it)) return 0;
+                validate(it);
             }
 
             pop_known_decls();
@@ -448,10 +463,10 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                             Arg* a = ArgFromNode(fn);
                             //search for a call arg that matches this argument
                             b32 match = 0;
-                            for_node(e->node.first_child){
-                                //check if we have already checked this node, skip if so
-                                if(it->flags == (d->node.flags ? 0b10 : 0b01)) continue;
-                                Expression* arg = ExpressionFromNode(it);
+                            for_nodeX(cn, e->node.first_child){
+                                //see if we have already checked this node, skip if so
+                                if(cn->flags == (d->node.flags ? 0b10 : 0b01)) continue;
+                                Expression* arg = ExpressionFromNode(cn);
                                 if(arg->type == Expression_BinaryOpAssignment){
                                     named = 1;
                                     Expression* lhs = ExpressionFromNode(arg->node.first_child);
@@ -464,12 +479,27 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                                     b32 name_match = 0;
                                     forI(a->vars.count){
                                         Variable* v = a->vars[i];
-
-                                        
-                                        
-                                        
-
-                                        
+                                        if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
+                                            name_match = 1;
+                                            if(!types_match(lhs,v)){
+                                                if(!can_type_convert(&lhs->data, &v->data)){
+                                                    logger.error(lhs->token_start, "no known conversion from ", get_typename(v), " to ", get_typename(lhs));
+                                                    return 0;
+                                                }
+                                                Expression* cast = arena.make_expression(STR8("cast"));
+                                                cast->type = Expression_CastImplicit;
+                                                cast->token_start = v->decl.token_start;
+                                                cast->token_end = v->decl.token_end;
+                                                cast->data = v->data;
+                                                insert_last(rhs->node.parent, &cast->node);
+                                                change_parent(&cast->node, &e->node);
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    if(!name_match){
+                                        logger.error(lhs->token_start, "identifier '", lhs->token_start->raw, "' is not a parameter of any overload of the function '", fg->decl.identifier, "'.");
+                                        return 0;
                                     }
 
                                 }else{
@@ -485,6 +515,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                             }
                             if(match){
                                 fn->flags = (d->node.flags ? 2 : 1);
+                                args_consumed++;
                             }
                         }
                     }
@@ -643,6 +674,7 @@ void Validator::start(){DPZoneScoped;
     //stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
     for_node(sufile->parser.base.first_child){
+        //NOTE(sushi) we dont return on 0 here so we can gather as many errors as we can 
         validate(it);
     }
     

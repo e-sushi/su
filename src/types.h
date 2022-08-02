@@ -1336,6 +1336,15 @@ struct Function {
 #define FunctionFromDeclaration(x) CastFromMember(Function, decl, x)
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
 
+// str8 gen_func_sig(Function* f){
+// 	if(f->overloads){
+// 		Assert(false, "gen_sig_func was passed an overload base");
+// 	}
+
+// 	str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
+
+// }
+
 struct Variable{
 	Declaration decl;
 
@@ -2033,6 +2042,19 @@ b32 is_builtin_type(Variable* v){
 b32 is_builtin_type(Struct* s){
 	return s->type;
 }
+
+//laziness
+FORCE_INLINE b32 types_match(Variable* v0, Variable* v1)    { return v0->data.structure == v1->data.structure; }
+FORCE_INLINE b32 types_match(Variable* v,  Expression* e)   { return v->data.structure == e->data.structure; }
+FORCE_INLINE b32 types_match(Variable* v,  Struct* s)       { return v->data.structure == s; }
+FORCE_INLINE b32 types_match(Expression* e0, Expression* e1){ return e0->data.structure == e1->data.structure; }
+FORCE_INLINE b32 types_match(Expression* e,  Variable* v)   { return e->data.structure == v->data.structure; }
+FORCE_INLINE b32 types_match(Expression* e,  Struct* s)     { return e->data.structure == s; }
+FORCE_INLINE b32 types_match(Struct* s0, Struct* s1)        { return s0 == s1; }
+FORCE_INLINE b32 types_match(Struct* s,  Variable* v)       { return v->data.structure == s; }
+FORCE_INLINE b32 types_match(Struct* s,  Expression* e)     { return e->data.structure == s; }
+
+
 
 //returns the type that the result of an operation between t0 and t1 would result in when they are both scalars
 //this function is simple, but im leaving it in case we ever need to do more complex things with this
