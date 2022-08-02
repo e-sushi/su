@@ -127,7 +127,7 @@ b32 Validator::can_type_convert(TypedValue* from, TypedValue* to){
 //NOTE(sushi) this is special because locally defined functions that overload something in a lesser scope
 //            need to remove themselves from the overload tree that connects them
 void Validator::pop_known_decls(){
-    u32 n = stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1];
+    u32 n = stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop();
     forI(n){
         Declaration* d = stacks.known_declarations.pop();
         if(d->type == Declaration_Function){
@@ -183,25 +183,24 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         logger.note(v->decl.token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(e), ") : ", get_typename(v));
                         return 0;
                     }
+                    //if types are compatible just inject a conversion node 
+                    //we dont inject the actual conversion process because that would require us to copy nodes
+                    //instead we just put a cast node here indicating which type to convert to and its handled later
+                    Expression* cast = arena.make_expression(STR8("cast"));
+                    cast->type = Expression_CastImplicit;
+                    cast->token_start = v->decl.token_start;
+                    cast->token_end = v->decl.token_end;
+                    cast->data = v->data;
+                    insert_last(e->node.parent, &cast->node);
+                    change_parent(&cast->node, &e->node);
                 }
-
-                //if types are compatible just inject a conversion node 
-                //we dont inject the actual conversion process because that would require us to copy nodes
-                //instead we just put a cast node here indicating which type to convert to and its handled later
-                Expression* cast = arena.make_expression(STR8("cast"));
-                cast->type = Expression_CastImplicit;
-                cast->token_start = v->decl.token_start;
-                cast->token_end = v->decl.token_end;
-                cast->data = v->data;
-                insert_last(e->node.parent, &cast->node);
-                change_parent(&cast->node, &e->node);
             }
 
             if(current.structure){
                 //if we are currently validating a struct, we need to check a few things
-                //check for self referencial definition
                 //these checks are only necessary if the type is not built in
-                if(!v->data.structure->type){
+                if(!is_builtin_type(v)){
+                    //check for self referencial definition
                     if(v->data.structure == current.structure){
                         logger.error(v->decl.token_start, "a structure cannot contain a variable whose type is that structure.");
                         logger.note(v->decl.token_start, "use a pointer instead.");
@@ -636,10 +635,12 @@ void Validator::start(){DPZoneScoped;
     for_node(sufile->parser.base.first_child){
         //add global declarations to known declarations
         if(match_any(it->type, NodeType_Function, NodeType_Variable, NodeType_Structure)){
+            //NOTE(sushi) we dont return on fail here because we still want to validate other things 
+            //check_shadowing(DeclarationFromNode(it));
             stacks.known_declarations.add(DeclarationFromNode(it));
         }
     }
-    stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
+    //stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
     for_node(sufile->parser.base.first_child){
         validate(it);

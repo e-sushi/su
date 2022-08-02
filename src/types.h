@@ -2022,6 +2022,18 @@ Struct* builtin_from_type(Type type){
 	return 0;
 }
 
+b32 is_builtin_type(Expression* e){
+	return e->data.structure->type;
+}
+
+b32 is_builtin_type(Variable* v){
+	return v->data.structure->type;
+}
+
+b32 is_builtin_type(Struct* s){
+	return s->type;
+}
+
 //returns the type that the result of an operation between t0 and t1 would result in when they are both scalars
 //this function is simple, but im leaving it in case we ever need to do more complex things with this
 Type coerce_scalar(Type t0, Type t1){
