@@ -207,6 +207,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     Declaration* decl = &s->decl;
 
                     s->members.init();
+                    s->operators.init();
+                    s->conversions.init();
                     s->decl.token_start = curt;
                     s->decl.type = Declaration_Structure;
                     s->decl.identifier = curt->raw;
@@ -266,6 +268,9 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             curt++;
                             expect(Token_CloseParen) { break; }
                             else expect(Token_Identifier){
+                                //its possible the user made an error that caused this token to not be marked as a declaration, but since 
+                                //we know it should be here we manually mark it 
+                                curt->decl_type = Declaration_Variable;
                                 Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
                                 if(!v) return 0;
                                 f->args.add(v->decl.identifier, &v->decl.node);
@@ -328,7 +333,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             v->data.structure = builtin_from_type(curt->type);
                         }else expect(Token_Identifier){ // name : <type>
                             //do nothing, because the variable's structure will be filled out later
-                        }else v->data.implicit = 1;
+                        }else expect(Token_Assignment) v->data.implicit = 1;
+                        else perror(curt, "expected a typename or assignment for variable declaration, found ", token_type_str(curt->type), " instead.");
                         curt++;
                         //parse pointer and array stuff 
                         while(1){
