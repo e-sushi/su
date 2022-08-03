@@ -48,6 +48,9 @@
 		its really meant to be taken as an abstract idea of how hard a task will be at first glance
 		extra information about a TODO can be placed underneath the todo, tabbed 
 
+	try and keep it so that bugs come below features in each section, so that there is a clear separation
+	if this doesnt look good or work well, we can just have a features and bugs section in each section 
+
 
 	Lexer
 	----- TODOs that should mainly involve working in the lexer
@@ -104,6 +107,8 @@
 
 	Other
 	----- other TODOs that may involve working on several parts of the project
+	[!!!!, *, 2022/08/02] rename occurances of su throughout the project to amu
+		this includes file names, names of structs (suNode), etc.
 	[!!!, *, 2022/07/27, tests] tests need rewritten to be in amu's new syntax
 	[0,  **, 2022/07/31, vis, bug] fix implementation of graphviz visualization of the AST tree
 		for whatever reason I get linker errors on Agdirected when trying to compile with graphviz
