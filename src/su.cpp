@@ -147,6 +147,7 @@
 	Mark tokens with their line and column numbers, both start and end
 	Set the raw string that the token represets
 	Set the file string that the token resides in
+	-----
 
 	Preprocesser
 	-------------
@@ -166,6 +167,7 @@
       This is possibly going to be removed from this stage as I'm not sure if #run will be allowed to be
       used in a global space to indicate some code to run immediately, so if not this part would be 
       irrelevant.
+	-------------
 
 	Parser
 	------
@@ -173,6 +175,7 @@
 	The parser only checks syntax and builds the AST from it. It doesn't do anything like type checking
 	or if identifiers exist.
 	Mark token start and token end ranges for each node
+	------
 
 	Validator
 	---------
@@ -187,7 +190,8 @@
 	amu organizes information by file using suFile. When a file is loaded a suFile is made for it
 	and represents any instance of it. suFile stores information for all stages and is how stages
 	communicate information between each other. 
-	
+	---------
+
 	Something I would like to try and follow is that all data from previous stages is static. 
 	This rule is nice for multithreading since it guarantees atomic access to stages that a 
 	file has completed. This rule stops being followed once we reach validation because it needs 
@@ -277,16 +281,19 @@ void print_overload_tree(suNode* node, u32 indent = 0){
 	logger_pop_indent(-1);
 }
 
+
 int main(){DPZoneScoped;
 
    	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
 
+
 	DeshThreadManager->init(255);
 	DeshThreadManager->spawn_thread(10);
 	
 	arena.init();
+
 
 	//speed_test(50, STR8("tests/imports/valid/imports.su"));
 	compiler.init();

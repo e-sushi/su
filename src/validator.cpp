@@ -142,7 +142,19 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
     if(match_any(node->type, NodeType_Variable, NodeType_Structure, NodeType_Function) &&
        DeclarationFromNode(node)->validated){
         //early out if this declaration has already been validated
+        
         return node;
+    }
+    if(globals.verbosity == Verbosity_Debug){
+        switch(node->type){
+            case NodeType_Expression: logger.log(Verbosity_Debug, "validating expression '", ExpressionFromNode(node)->token_start->raw, "' of type ", ExTypeStrings[ExpressionFromNode(node)->type]); break;
+            case NodeType_Function:   logger.log(Verbosity_Debug, "validating function ", FunctionFromNode(node)->decl.identifier); break;
+            case NodeType_Scope:      logger.log(Verbosity_Debug, "validating scope"); break;
+            case NodeType_Statement:  logger.log(Verbosity_Debug, "validating statement '", StatementFromNode(node)->token_start->raw, "'"); break;
+            case NodeType_Structure:  logger.log(Verbosity_Debug, "validating struct '", StructFromNode(node)->decl.identifier, "'"); break;
+            case NodeType_Variable:   logger.log(Verbosity_Debug, "validating variable '", VariableFromNode(node)->decl.identifier, "'"); break;
+
+        }
     }
     switch(node->type){
         case NodeType_Variable:{
@@ -241,15 +253,15 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             defer{pop_function();};
 
             stacks.known_declarations.add(&f->decl);
-
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
-
+            
             Declaration* d = DeclarationFromNode(sufile->validator.functions.at(f->decl.identifier));
             if(!d){
                 //this is the first occurance of this function that we know of so we add it to the function map
                 d = DeclarationFromNode(sufile->validator.functions.atIdx(sufile->validator.functions.add(f->decl.identifier, &arena.make_function(suStr8("funcgroup of ", f->decl.identifier))->decl.node)));
                 d->identifier = f->decl.identifier;
             }        
+            
             
             Function* fg = FunctionFromDeclaration(d);
             fg->overloads++;
@@ -290,36 +302,40 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     insert_last(otreecur, &nua->node);
                     otreecur = &nua->node;
                 }
-                //we've reached the end of arguments and must check that this func does not conflict with any others
                 if(it->next->type == NodeType_Scope){
+                    //we've reached the end of arguments and must check that this func does not conflict with any others
                     if(ArgFromNode(otreecur)->f){
                         logger.error(f->decl.token_start, "function overloads must differ by type.");
                         logger.note(ArgFromNode(otreecur)->f->decl.token_start, "see conflicting function.");
+                        f->decl.validated = 1; //if we dont set this here its possible to infinitely loop back to this point and repeatedly print this error message
                         return 0;
                     }else ArgFromNode(otreecur)->f = f;
                 }
             }
 
-            //now we must check that the addition of this overload does not make any other function calls ambiguous
-            //this is only possible if the overload we just added involves defaults
-            if(ArgFromNode(otreecur)->defaulted){
-                suNode* save = otreecur;
-                while(otreecur->parent != &sufile->parser.base){
-                    otreecur = otreecur->parent;
-                    Arg* a = ArgFromNode(otreecur);
-                    if(a->f){
-                        logger.error(a->f->decl.token_start, "calls to this overload will be ambiguous.");
-                        logger.note(ArgFromNode(save)->f->decl.token_start, "see overload that makes it ambiguous.");
-                        return 0;
-                    }
+            //TODO(sushi) setup a system for testing if this overload makes calls to any other overload ambiguous
+            //            or if any other function makes calls to this one ambiguous
+            //            currently ambiguity is found when an ambiguous call is made, like with msvc's cl
+            //            but this isnt ideal since it only errors when a call to an ambiguous func is made
+
+            f->decl.validated = 1;
+
+            //this is very silly
+            //in order to ensure that all of a function's overloads are validated before they can ever be used
+            //we iterate the entire stacks array looking for functions of the same name to validate
+            //before we validate this function's scope 
+            //this probably wastes a lot of time and a better solution should be looked into
+            forI(stacks.known_declarations.count){
+                Declaration* de = stacks.known_declarations[i];
+                if(str8_equal_lazy(de->identifier, d->identifier)){
+                    validate(&de->node);
                 }
             }
 
             if(!validate(def)) return 0;
-
+            
             pop_known_decls();
 
-            f->decl.validated = 1;
             return &f->decl.node;
         }break;
 
@@ -425,25 +441,26 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 case Expression_FunctionCall:{
                     //validate call id
                     Declaration* d = DeclarationFromNode(sufile->validator.functions.at(e->token_start->raw));
+                    //this is kind of ugly                    
                     if(!d){
-                        //do some extra work to see if this declaration exists, but isnt a function
+                        //its possible this function has not been validated yet so we look for it again in our known decls list
+                        //and if its a function run validate on it 
                         d = find_decl(e->token_start->raw);
                         if(d){
-                            logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
-                            logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
+                            if(d->type == Declaration_Function){
+                                if(!validate(&d->node)) return 0;
+                                d = DeclarationFromNode(sufile->validator.functions.at(e->token_start->raw));
+
+                            }else{
+                                logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
+                                logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
+                                return 0;    
+                            }
+                        }else{
+                            logger.error(e->token_start, "attempt to call unknown identifier '", e->token_start->raw, "'");
                             return 0;
                         }
-                        logger.error(e->token_start, "attempt to call unknown identifier '", e->token_start->raw, "'");
-                        return 0;
                     }
-                    //this flag is toggled everytime we call this function and indicates which of the following 2 flags
-                    //we read to know if we have already come across a node or not
-                    //when this flag is true, we mark a passed node as 0b10
-                    //when this flag is false, we mark a passed node as 0b01
-                    //this allows us to mark nodes as processed without having to reset their state 
-                    //after we are done
-                    //this would probably break if we ever allow multithreading within files in validator
-                    d->node.flags = !d->node.flags;
                     Function* fg = FunctionFromDeclaration(d);
                     //validate arguments and match them to overloads
                     suNode* otreecur = &d->node;
@@ -454,71 +471,154 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     b32 default_found = 0;
                     u32 args_consumed = 0;
                     //walk the overload tree and match func arguments to call arguments as we go
-                    b32 matching = 0;
-                    while(matching){
-                        if(!otreecur->first_child){
+                    //NOTE(sushi) this is easily the most complex thing in amu atm (2022/08/02) and it could use some clean up
+                    b32 walking = 1;
+                    enum{
+                        Matched = 1 << 0,
+                        DidntMatchTypeButCanConvert = 1 << 1,
+                    };
+                    b32 validating_positional_args = 1;
+                    suNode* candidate_for_conversion;
+                    // candidates_for_conversion.init();
+                    // while(walking){
+                    //     if(validating_positional_args){
+                    //         for_nodeX(cn, e->node.first_child){
+                    //             if(HasFlag(cn->flags, Matched)) continue;
+                    //             if(ExpressionFromNode(cn)->type == Expression_BinaryOpAssignment){
+                    //                 validating_positional_args = 0;
+                    //                 break;
+                    //             }
+                    //             Expression* arg = ExpressionFromNode(validate(cn));
+                    //             b32 match = 0;
+                    //             for_nodeX(fn, otreecur->first_child){
+                    //                 Arg* a = ArgFromNode(fn);
+                    //                 if(a->defaulted) continue;
+                    //                 if(arg->data.structure != a->val.structure){
+                    //                     if(can_type_convert(&arg->data, &a->val)){
+                    //                         candidate_for_conversion = a;
+                    //                     }
+                    //                 }
 
-                        }
-                        for_nodeX(fn, otreecur->first_child){
-                            Arg* a = ArgFromNode(fn);
-                            //search for a call arg that matches this argument
-                            b32 match = 0;
-                            for_nodeX(cn, e->node.first_child){
-                                //see if we have already checked this node, skip if so
-                                if(cn->flags == (d->node.flags ? 0b10 : 0b01)) continue;
-                                Expression* arg = ExpressionFromNode(cn);
-                                if(arg->type == Expression_BinaryOpAssignment){
-                                    named = 1;
-                                    Expression* lhs = ExpressionFromNode(arg->node.first_child);
-                                    if(lhs->type != Expression_Identifier){
-                                        logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
-                                        return 0;
-                                    }
-                                    Expression* rhs = ExpressionFromNode(validate(arg->node.last_child));
-                                    //match names
-                                    b32 name_match = 0;
-                                    forI(a->vars.count){
-                                        Variable* v = a->vars[i];
-                                        if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
-                                            name_match = 1;
-                                            if(!types_match(lhs,v)){
-                                                if(!can_type_convert(&lhs->data, &v->data)){
-                                                    logger.error(lhs->token_start, "no known conversion from ", get_typename(v), " to ", get_typename(lhs));
-                                                    return 0;
-                                                }
-                                                Expression* cast = arena.make_expression(STR8("cast"));
-                                                cast->type = Expression_CastImplicit;
-                                                cast->token_start = v->decl.token_start;
-                                                cast->token_end = v->decl.token_end;
-                                                cast->data = v->data;
-                                                insert_last(rhs->node.parent, &cast->node);
-                                                change_parent(&cast->node, &e->node);
-                                            }
-                                            break;
-                                        }
-                                    }
-                                    if(!name_match){
-                                        logger.error(lhs->token_start, "identifier '", lhs->token_start->raw, "' is not a parameter of any overload of the function '", fg->decl.identifier, "'.");
-                                        return 0;
-                                    }
+                    //             }
 
-                                }else{
-                                    //NOTE(sushi) we dont do this initially since its possible this was a named argument
-                                    if(named){
-                                        logger.error(arg->token_start, "positional arguments cannot follow named arguments.");
-                                        return 0;
-                                    }
+                    //         }
+                    //     }else{
 
+                    //     }
+                        
+                    // }
 
-                                }
+                    // b32 do_conversion = 0;
+                    // while(walking){
+                    //     for_nodeX(fn, otreecur->first_child){
+                    //         Arg* a = ArgFromNode(fn);
+                    //         b32 match = 0;
+                    //         for_nodeX(cn, e->node.first_child){
+                    //             //if we have already matched this node, skip it
+                    //             if(HasFlag(cn->flags, Matched)) continue;
+                    //             Expression* arg = ExpressionFromNode(cn);
+                    //             if(arg->type == Expression_BinaryOpAssignment){
+                    //                 named = 1;
+                    //                 Expression* lhs = ExpressionFromNode(arg->node.first_child);
+                    //                 if(lhs->type != Expression_Identifier){
+                    //                     logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
+                    //                     return 0;
+                    //                 }
+                    //                 Expression* rhs = ExpressionFromNode(validate(arg->node.last_child));
+                    //                 //match names
+                    //                 forI(a->vars.count){
+                    //                     Variable* v = a->vars[i];
+                    //                     if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
+                    //                         match = 1;
+                    //                         if(!types_match(rhs,v)){
+                    //                             if(!can_type_convert(&rhs->data, &v->data)){
+                    //                                 logger.error(lhs->token_start, "no known conversion from ", get_typename(v), " to ", get_typename(lhs));
+                    //                                 return 0;
+                    //                             }
+                    //                             Expression* cast = arena.make_expression(STR8("cast"));
+                    //                             cast->type = Expression_CastImplicit;
+                    //                             cast->token_start = v->decl.token_start;
+                    //                             cast->token_end = v->decl.token_end;
+                    //                             cast->data = v->data;
+                    //                             insert_last(rhs->node.parent, &cast->node);
+                    //                             change_parent(&cast->node, &e->node);
+                    //                         }
+                    //                         break;
+                    //                     }
+                    //                 }
+                    //             }else{
+                    //                 //NOTE(sushi) we dont do this initially since its possible this was a named argument
+                    //                 arg = ExpressionFromNode(validate(cn));
+                    //                 if(!arg) return 0;
+                    //                 if(named){
+                    //                     logger.error(arg->token_start, "positional arguments cannot follow named arguments.");
+                    //                     return 0;
+                    //                 }
 
-                            }
-                            if(match){
-                                fn->flags = (d->node.flags ? 2 : 1);
-                                args_consumed++;
-                            }
-                        }
-                    }
+                    //                 if(a->val.structure != arg->data.structure){
+                    //                     if(do_conversion && can_type_convert(&a->val, &arg->data)){
+                    //                         Expression* cast = arena.make_expression(STR8("cast"));
+                    //                         cast->type = Expression_CastImplicit;
+                    //                         cast->token_start = arg->token_start;
+                    //                         cast->token_end = arg->token_end;
+                    //                         cast->data = v->data;
+                    //                         insert_last(rhs->node.parent, &cast->node);
+                    //                         change_parent(&cast->node, &e->node);
+                    //                     }
+                    //                 }
+
+                    //             }
+                    //         }
+
+                    //         if(!match){
+                    //             if(a->defaulted){
+                    //                 //if there was no match, we must check a few things
+                    //                 //first we must check if there are several possible paths to take from this point 
+                    //                 //if so, then we know the call is ambiguous
+                    //                 if(fn->child_count > 1){
+                    //                     //if there is more than one child and we are dealing with a named argument
+                    //                     //then we must check if this named argument exists anywhere in the tree
+
+                    //                     logger.error(e->token_start, "call to ", e->token_start->raw, " is ambiguous.");
+                    //                     return 0;
+                    //                 }
+                    //             }else{
+                    //                 //otherwise the user missed a positional argument
+                    //                 if(!do_conversion){
+                    //                     //if we didnt match any positional arguments on the first pass
+                    //                     //we go over the possible arguments again, but this time allowing conversions
+                    //                     do_conversion = true;
+                    //                     continue;
+                    //                 } 
+                    //                 logger.error(e->token_start, "missing positional argument in call to ", e->token_start->raw);
+                    //                 return 0;
+                    //             }
+                    //         }else{
+                    //             otreecur = fn;
+                    //             break;
+                    //         }
+                    //     }
+                    //     if(!otreecur->first_child) break;
+                    // }
+                    // //after all of this, reset the function call's expressions flags to 0
+                    // for_node(e->node.first_child){
+                    //     it->flags = 0;
+                    // }
+
+                    // for_nodeX(cn, e->node.first_child){
+                    //     Expression* callarg = ExpressionFromNode(cn);
+                    //     if(callarg->type == Expression_BinaryOpAssignment){
+                    //         named = 1;
+                    //         //NOTE(sushi) we do not call validate on this node because it will be an identifier unknown to find_decl
+                    //         Expression* lhs = ExpressionFromNode(callarg->node.first_child);
+                    //         if(lhs->type != Expression_Identifier){
+                    //             logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
+                    //             return 0;
+                    //         }
+                    //         Expression* rhs = ExpressionFromNode(validate(callarg->node.last_child));
+
+                    //     }
+                    // }
                 }break;
 
                 //initial binary op cases that lead into another set of cases for doing specific work with them
@@ -663,6 +763,8 @@ void Validator::start(){DPZoneScoped;
         }
     }
 
+
+
     for_node(sufile->parser.base.first_child){
         //add global declarations to known declarations
         if(match_any(it->type, NodeType_Function, NodeType_Variable, NodeType_Structure)){
@@ -671,6 +773,8 @@ void Validator::start(){DPZoneScoped;
             stacks.known_declarations.add(DeclarationFromNode(it));
         }
     }
+
+
     //stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
     for_node(sufile->parser.base.first_child){
