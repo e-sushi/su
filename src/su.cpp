@@ -182,6 +182,7 @@
 	Join every files AST together
 	Identifier validating
 	Type checking
+	---------
 
 	All files are independent of each other up until validator. Meaning we can have a thread per file
 	running freely through the stages until it reaches validator, since validator is the stage in which 
@@ -190,7 +191,6 @@
 	amu organizes information by file using suFile. When a file is loaded a suFile is made for it
 	and represents any instance of it. suFile stores information for all stages and is how stages
 	communicate information between each other. 
-	---------
 
 	Something I would like to try and follow is that all data from previous stages is static. 
 	This rule is nice for multithreading since it guarantees atomic access to stages that a 
