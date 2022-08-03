@@ -40,7 +40,7 @@
 	syntax
 		[priority (!), difficulty (*), date made, tags (optional)] (TODO)
 		priority is relative to other todos, if its really not important you can use 0 instead
-		difficulty can be seens as 
+		difficulty can be seen as 
 		*    : easy
 		**   : medium
 		***  : hard
@@ -50,7 +50,7 @@
 
 
 	Lexer
-	-----
+	----- TODOs that should mainly involve working in the lexer
 	[!, ***, 2022/07/05] determine if there are other things lexer can do during its stage
 	    since lexer will always parse an entire file there are probably other things we can get it to look for
 		to ease work in later stages, ideally without putting too much work on the lexer.
@@ -58,65 +58,63 @@
 		by moving the stream or some other cursor.
 
 	Preprocessor
-	------------
-	[!, **, 2022/07/05] implement #include
+	------------ TODOs that should mainly involve working in the preprocessor
+	[!, **, 2022/07/05, feature] implement #include
 	    works the same as C's include, just pastes whatever file into the buffer
 		as an alternative to using import or even for directly pasting data into code
 	[!, **, 2022/07/05] implement #external
 	    just does the opposite of #internal, used to undo it
-	[!!!, **, 2022/07/25]  import/include searching
+	[!!!, **, 2022/07/25, feature]  import/include searching
 	  	search relative to importing/including file
 		search PATH
-	[!, **, 2022/07/05] implement #message
+	[!, **, 2022/07/05, feature] implement #message
 	    used for outputting simple messages at compile time
 
 	Parser
-	------
-	[!!!, **, 2022/07/25] statements
+	------ TODOs that should mainly involve working in the parser
+	[!!!, **, 2022/07/25, feature] statements
       	for 
 	  	while 
 	  	switch 
-	[!!!, **, 2022/07/25] function calls
-	[!!,  **, 2022/07/25] using
+	[!!,  **, 2022/07/25, feature] using
 	  	variations of using such as 
 	  	aliasing a function's name
 		aliasing a function's name and signature
 		using using for inheriting inside of a struct
-	[!,   **, 2022/07/25] misc
+	[!,   **, 2022/07/25, feature] misc
 		initializer lists
 	  	inc/dec
 
 	Validator
-	---------
+	--------- TODOs that should mainly involve working in the validator
 	  type checking
 	  identifier validation
 
 	Assembler
-	---------
-	[0,   **, 2022/07/25] assemble su to C code. 
-	[!!, ***, 2022/07/25] assemble su to x86_64 assembly. 
-	[!,  ***, 2022/07/25] assemble su to LLVM bytecode
-	[!!, ***, 2022/07/25] assemble su to nasau's instruction set
-	[!, ****, 2022/07/25] make a general interface for all of these?
+	--------- TODOs that should mainly involve working in the assembler
+	[0,   **, 2022/07/25, feature] assemble su to C code. 
+	[!!, ***, 2022/07/25, feature] assemble su to x86_64 assembly. 
+	[!,  ***, 2022/07/25, feature] assemble su to LLVM bytecode
+	[!!, ***, 2022/07/25, feature] assemble su to nasau's instruction set
+	[0, ****, 2022/07/25, feature] make a general interface for all of these?
 
 
 	Compiler
-	--------
+	-------- TODOs that deal with working on the compiler singleton struct
 
 	Other
-	-----
-	[!!!, *, 2022/07/27, tests] tests need rewritten to be in su's new syntax
-	[0,  **, 2022/07/31, vis] fix implementation of graphviz visualization of the AST tree
+	----- other TODOs that may involve working on several parts of the project
+	[!!!, *, 2022/07/27, tests] tests need rewritten to be in amu's new syntax
+	[0,  **, 2022/07/31, vis, bug] fix implementation of graphviz visualization of the AST tree
 		for whatever reason I get linker errors on Agdirected when trying to compile with graphviz
 		not sure why, because I have it setup just like I did back when we worked on su in January
-	
-
-	Bugs
-	----
-	[!!, ***, 2022/07/25, threading, memory] 
+	[!!, ***, 2022/07/25, threading, memory, bug] 
+		due to the randomness of these issues, i cannot provide examples.
+		but you can probably make them more likely to occur by using many large files that import each other
 		there are many random instances where memory asserts, most likely because we still arent handling
 		thread safety completely. 
-	[!!!, **, 2022/07/31] error on code in global space that is not a directive or declaration
+		there are still instances where deadlocks and missed wakeups occur
+	[!!!, **, 2022/07/31, bug] error on code in global space that is not a directive or declaration
 		currently we don't check if code in global space is meant to be there or not because we 
 		skip over anything that is not a decl or directive. preprocessor will need to do some kind of pass
 		that errors in cases like these.
@@ -128,9 +126,14 @@
 			main():s32{
 
 			}
+		a critical example where it's failing may be confusing is
+			f(){ //forgot the return type
+				//blah
+			}
+			main(){}
+		in this case the compiler will never error on f, unless the user tries to call it in which it will just tell them
+		it doesnt exist. this can be really confusing and so should be fixed.
 	
-
-
 */
 
 /* NOTES
@@ -155,7 +158,7 @@
       Error on invalid filenames and syntax. Note that this does not parse specific imports, as in it 
       does not care about importing only 'sin' from "math.su", all it does is start compiling files.
     Resolve ':' tokens as possible declarations
-      This simply checks that the colons marked by lexer are actually declarations. Following su's rule of
+      This checks that the colons marked by lexer are actually declarations. Following amu's rule of
       <identifier> [<funcargs>] ":" <typeid> we parse around the colon to see if it is a valid declaration
       and if it is mark the <identifier> token as a declaration. This is useful so that in parsing we dont 
       have to look for a : when we come across every identifier.
