@@ -97,7 +97,7 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Always;
+	u32 verbosity = Verbosity_Debug;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
@@ -1047,6 +1047,98 @@ const char* TokenTypes_Names[] = {
 	NAME(Token_Directive_Run),
 };
 #undef NAME
+
+FORCE_INLINE
+str8 token_type_str(Type type){
+	switch(type){
+		case Token_Null:                     return STR8("null, error, or end of file");
+		case Token_Identifier:               return STR8("identifier");
+		case Token_LiteralFloat:             return STR8("float literal");
+		case Token_LiteralInteger:           return STR8("int literal");
+		case Token_LiteralCharacter:         return STR8("char literal");
+		case Token_LiteralString:            return STR8("string literal");
+		case Token_Semicolon:                return STR8(";");
+		case Token_OpenBrace:                return STR8("{");
+		case Token_CloseBrace:               return STR8("}");
+		case Token_OpenParen:                return STR8("(");
+		case Token_CloseParen:               return STR8(")");
+		case Token_OpenSquare:               return STR8("[");
+		case Token_CloseSquare:              return STR8("]");
+		case Token_Comma:                    return STR8("");
+		case Token_QuestionMark:             return STR8("?");
+		case Token_Colon:                    return STR8(":");
+		case Token_Dot:                      return STR8(".");
+		case Token_At:                       return STR8("@");
+		case Token_Pound:                    return STR8("#");
+		case Token_Backtick:                 return STR8("`");
+		case Token_Plus:                     return STR8("+");
+		case Token_Increment:                return STR8("++");
+		case Token_PlusAssignment:           return STR8("+=");
+		case Token_Negation:                 return STR8("-");
+		case Token_Decrement:                return STR8("--");
+		case Token_NegationAssignment:       return STR8("-=");
+		case Token_Multiplication:           return STR8("*");
+		case Token_MultiplicationAssignment: return STR8("*=");
+		case Token_Division:                 return STR8("/");
+		case Token_DivisionAssignment:       return STR8("/=");
+		case Token_BitNOT:                   return STR8("~");
+		case Token_BitNOTAssignment:         return STR8("~=");
+		case Token_BitAND:                   return STR8("&");
+		case Token_BitANDAssignment:         return STR8("&=");
+		case Token_AND:                      return STR8("&&");
+		case Token_BitOR:                    return STR8("|");
+		case Token_BitORAssignment:          return STR8("|=");
+		case Token_OR:                       return STR8("||");
+		case Token_BitXOR:                   return STR8("^");
+		case Token_BitXORAssignment:         return STR8("^=");
+		case Token_BitShiftLeft:             return STR8("<<");
+		case Token_BitShiftLeftAssignment:   return STR8("<<=");
+		case Token_BitShiftRight:            return STR8(">>");
+		case Token_BitShiftRightAssignment:  return STR8(">>=");
+		case Token_Modulo:                   return STR8("%");
+		case Token_ModuloAssignment:         return STR8("%=");
+		case Token_Assignment:               return STR8("=");
+		case Token_Equal:                    return STR8("==");
+		case Token_LogicalNOT:               return STR8("!");
+		case Token_NotEqual:                 return STR8("!=");
+		case Token_LessThan:                 return STR8("<");
+		case Token_LessThanOrEqual:          return STR8("<=");
+		case Token_GreaterThan:              return STR8(">");
+		case Token_GreaterThanOrEqual:       return STR8(">=");
+		case Token_Return:                   return STR8("return");
+		case Token_If:                       return STR8("if");
+		case Token_Else:                     return STR8("else");
+		case Token_For:                      return STR8("for");
+		case Token_While:                    return STR8("while ");
+		case Token_Break:                    return STR8("break");
+		case Token_Continue:                 return STR8("continue");
+		case Token_Defer:                    return STR8("defer");
+		case Token_StructDecl:               return STR8("struct");
+		case Token_This:                     return STR8("this");
+		case Token_Using:                    return STR8("using");
+		case Token_As:                       return STR8("as");
+		case Token_Operator:                 return STR8("operator");
+		case Token_Void:                     return STR8("void");
+		case Token_Unsigned8:                return STR8("u8");
+		case Token_Unsigned16:               return STR8("u16");
+		case Token_Unsigned32:               return STR8("u32 ");
+		case Token_Unsigned64:               return STR8("u64 ");
+		case Token_Signed8:                  return STR8("s8");
+		case Token_Signed16:                 return STR8("s16 ");
+		case Token_Signed32:                 return STR8("s32 ");
+		case Token_Signed64:                 return STR8("s64");
+		case Token_Float32:                  return STR8("f32 ");
+		case Token_Float64:                  return STR8("f64 ");
+		case Token_String:                   return STR8("str");
+		case Token_Any:                      return STR8("any");
+		case Token_Struct:                   return STR8("struct");
+		case Token_Directive_Import:         return STR8("import");
+		case Token_Directive_Include:        return STR8("include");
+		case Token_Directive_Internal:       return STR8("internal");
+		case Token_Directive_Run:            return STR8("run");
+	}
+	return STR8("invalid token type");
+}
 
 struct Token {
 	Type type;
