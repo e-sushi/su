@@ -110,16 +110,25 @@
 	[!!!!, *, 2022/08/02] rename occurances of su throughout the project to amu
 		this includes file names, names of structs (suNode), etc.
 	[!!!, *, 2022/07/27, tests] tests need rewritten to be in amu's new syntax
+	[!!, ***, 2022/08/02] add a system for outputting each stage's data for external use
+		NOTE its probably best to put this off until the compiler is stable
+		this means setting up a way for the compiler to stop at any stage and output all of that stage's data.
+		some difficulties of this are
+			* only getting output of select files
+			* getting the data for multiple stages
+			* after validation we combine all data into one suFile, so per file information is only accessible through tokens
+			* how is the output formatted? can we use this output to continue compilation later?
+			* a file's data is not contiguous internally, it would need to be stitched together
 	[0,  **, 2022/07/31, vis, bug] fix implementation of graphviz visualization of the AST tree
 		for whatever reason I get linker errors on Agdirected when trying to compile with graphviz
 		not sure why, because I have it setup just like I did back when we worked on su in January
 	[!!, ***, 2022/07/25, threading, memory, bug] 
-		due to the randomness of these issues, i cannot provide examples.
+		due to the randomness of these issues, i cannot provide examples,
 		but you can probably make them more likely to occur by using many large files that import each other
 		there are many random instances where memory asserts, most likely because we still arent handling
 		thread safety completely. 
 		there are still instances where deadlocks and missed wakeups occur
-	[!!!, **, 2022/07/31, bug] error on code in global space that is not a directive or declaration
+	[!!!!, **, 2022/07/31, bug] error on code in global space that is not a directive or declaration
 		currently we don't check if code in global space is meant to be there or not because we 
 		skip over anything that is not a decl or directive. preprocessor will need to do some kind of pass
 		that errors in cases like these.

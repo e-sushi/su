@@ -130,7 +130,7 @@ enum NodeType : u32 {
 	NodeType_Expression,
 };
 
-//thread safe version of TNode (probably)
+//thread safe version of TNode
 //this only accounts for modifying a node, not reading it
 //but I believe that modification and reading shouldnt happen at the same time, so its probably fine
 //TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is parser adding stuff to its base node
@@ -551,7 +551,7 @@ struct suArena{
 		defer{write_lock.unlock();};
 		Assert(idx < count);
 		count--;
-		memmove(data + idx, data + idx + 1, count - idx);
+		memmove(data + idx, data + idx + 1, (count - idx) * sizeof(T));
 	}
 
 	void remove_unordered(upt idx){
@@ -563,6 +563,12 @@ struct suArena{
 		if(count){
 			data[idx] = endval;
 		}
+	}
+
+	void clear(){
+		write_lock.lock();
+		defer{write_lock.unlock();};
+		count = 0;
 	}
 
 	T pop(u64 _count = 1){ 
@@ -1395,7 +1401,6 @@ struct Declaration{
 //this is used to match a function call to an overloaded function
 struct Arg{
 	suNode node;
-	suNode build_node; //node used to build a testing tree
 	b32 defaulted;
 	suArena<Variable*> vars; //list of variables that are associated with this argument's position and type
 	str8 raw;
@@ -1406,12 +1411,11 @@ struct Arg{
  
 struct Function {
 	Declaration decl;
-	//counts how many overloads a function group has  
-	//this is only set on the base node of an overload tree
-	u32 overloads;
+	//an array of overloads
+	//this is only used on the base Function that represents overloads
+	suArena<Function*> overloads;
 
-	//used for telling the user the names of arguments in certain errors
-	nodemap args; 
+	suArena<Variable*> args;
 
 	Type data_type;
 	Struct* struct_data;

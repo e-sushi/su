@@ -121,6 +121,7 @@ Declaration* Validator::find_decl(str8 id){
 }
 
 b32 Validator::can_type_convert(TypedValue* from, TypedValue* to){
+    if(from->structure==to->structure) return true;
     return from->structure->conversions.has(to->structure->decl.identifier);
 }
 
@@ -264,7 +265,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             
             
             Function* fg = FunctionFromDeclaration(d);
-            fg->overloads++;
+            fg->overloads.add(f);
 
             suNode* def = 0;
             suNode* otreecur = &d->node;
@@ -463,50 +464,254 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     }
                     Function* fg = FunctionFromDeclaration(d);
                     //validate arguments and match them to overloads
-                    suNode* otreecur = &d->node;
-                    u64 argpos = 0; //keeps track of where in positional arguments we are 
-                    b32 named = 0; //set true when we come across a named argument
-                    //the possible functions are built off of this node
-                    suNode base;
-                    b32 default_found = 0;
-                    u32 args_consumed = 0;
-                    //walk the overload tree and match func arguments to call arguments as we go
-                    //NOTE(sushi) this is easily the most complex thing in amu atm (2022/08/02) and it could use some clean up
-                    b32 walking = 1;
                     enum{
-                        Matched = 1 << 0,
-                        DidntMatchTypeButCanConvert = 1 << 1,
+                        Matched               = 1 << 0,
+                        MatchedNameButNotType = 1 << 1,
+                        CanConvert            = 1 << 2,
                     };
-                    b32 validating_positional_args = 1;
-                    suNode* candidate_for_conversion;
-                    // candidates_for_conversion.init();
-                    // while(walking){
-                    //     if(validating_positional_args){
-                    //         for_nodeX(cn, e->node.first_child){
-                    //             if(HasFlag(cn->flags, Matched)) continue;
-                    //             if(ExpressionFromNode(cn)->type == Expression_BinaryOpAssignment){
-                    //                 validating_positional_args = 0;
-                    //                 break;
-                    //             }
-                    //             Expression* arg = ExpressionFromNode(validate(cn));
-                    //             b32 match = 0;
-                    //             for_nodeX(fn, otreecur->first_child){
-                    //                 Arg* a = ArgFromNode(fn);
-                    //                 if(a->defaulted) continue;
-                    //                 if(arg->data.structure != a->val.structure){
-                    //                     if(can_type_convert(&arg->data, &a->val)){
-                    //                         candidate_for_conversion = a;
-                    //                     }
-                    //                 }
+                    suNode* otreecur = &d->node;
+                    u32 remaining_args = e->node.child_count;
+                    b32 named = 0; //set when a named call arg is found
+                    b32 second_pass = 0; //set when we are performing a second pass on a function arg to check for conversions
+                    u32 second_pass_matches = 0; //incremented for each match we find on a second pass
+                    //function arguments that candidates for being chosen as our next branch
+                    suArena<suNode*> farg_candidates; farg_candidates.init();
+                    //call arguments that are candidates for being matched against function arguments
+                    suArena<suNode*> carg_candidates; carg_candidates.init();
+                    //nodes that matched the name, but not type of an argument and are able to convert to its type
+                    suArena<suNode*> mncc_candidates; mncc_candidates.init();
+                    //positional nodes that can convert to the current positional argument 
+                    suArena<suNode*> cc_candidates;   cc_candidates.init();   
+                    
+                    
+                    for_node(otreecur->first_child){
+                        farg_candidates.add(it);
+                    }
+                    b32 found_named = 0;
+                    u32 n_pos_args = 0;
+                    for_node(e->node.first_child){
+                        if(ExpressionFromNode(it)->type == Expression_BinaryOpAssignment){
+                            found_named = 1;
+                        }else if(found_named){
+                            logger.error(ExpressionFromNode(it)->token_start, "positional arguments cannot come after named arguments.");
+                            return 0;
+                        }else{
+                            n_pos_args++;
+                        }
+                        carg_candidates.add(it);
+                    }
 
-                    //             }
 
-                    //         }
-                    //     }else{
 
-                    //     }
-                        
-                    // }
+                    //initially get positional args out of the way since they are simpler to handle
+                    //NOTE(sushi) this does not choose a branch to go down, it only removes branches we cant go down
+                    b32 matching_positional_args = 1;
+                    while(matching_positional_args){
+                        forX(ci, carg_candidates.count){
+                            suNode* cn = carg_candidates[ci];
+                            if(ExpressionFromNode(cn)->type == Expression_BinaryOpAssignment){
+                                matching_positional_args = 0;
+                                break;
+                            }
+                            Expression* carg = ExpressionFromNode(validate(cn));
+                            b32 matched = 0;
+                            forX_reverse(fi, farg_candidates.count){
+                                suNode* fn = farg_candidates[fi];
+                                Arg*  farg = ArgFromNode(fn);
+                                u32 counter = ci;
+                                if(!can_type_convert(&carg->data, &farg->vars[0]->data)){
+                                    //if we cant convert to this type, then just remove it 
+                                    farg_candidates.remove(fi);
+                                }
+                            }
+                            if(matched){
+                                //if we matched just remove this argument and continue
+                                carg_candidates.remove(ci);
+                                ci--;
+                            }else if(!farg_candidates.count){
+                                //it is possible we didnt match anything any we didnt find any branch we could convert to either
+                                logger.error(carg->token_start, "unable to match argument ")
+                            }
+                        }
+                    }
+                    
+
+                    b32 walking = 1;  
+                    b32 matched = 0;
+                    u32 matched_index = 0;
+                    while(walking){
+                        forX_reverse(fi, farg_candidates.count){
+                            //iterate backwards so we dont mess up indexing when removing an element
+                            suNode* fn = farg_candidates[fi];
+                            Arg* farg = ArgFromNode(fn);
+                            forX_reverse(ci, carg_candidates.count){
+                                suNode* cn = carg_candidates[ci];
+                                Expression* carg = ExpressionFromNode(cn);
+                                if(carg->type == Expression_BinaryOpAssignment){
+                                    named = 1;
+                                    if(second_pass && HasAllFlags(cn->flags, MatchedNameButNotType | CanConvert)){
+                                        second_pass_matches++;
+                                        break;
+                                    }
+                                    Expression* lhs = ExpressionFromNode(carg->node.first_child);
+                                    if(lhs->type != Expression_Identifier){
+                                        logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
+                                        return 0;
+                                    }
+                                    Expression* rhs = ExpressionFromNode(validate(carg->node.last_child));
+                                    if(!rhs) return 0;
+                                    //find the name. if we dont find it, just move on and try again later
+                                    forI(farg->vars.count){
+                                        Variable* v = farg->vars[i];
+                                        if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
+                                            if(types_match(v,rhs)){
+                                                matched = 1;
+                                                matched_index = fi;
+                                                carg_candidates.remove(ci);
+                                                AddFlag(cn->flags, Matched);
+                                            }else{
+                                                AddFlag(cn->flags, MatchedNameButNotType);
+                                                if(can_type_convert(&rhs->data, &v->data)){
+                                                    AddFlag(cn->flags, CanConvert);
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }else{
+                                    if(named){
+                                        logger.error(carg->token_start, "positional arguments cannot follow named arguments.");
+                                        return 0;
+                                    }
+                                    carg = ExpressionFromNode(validate(cn));
+                                    if(!carg) return 0;
+                                    if(second_pass){
+                                        if(HasFlag(cn->flags, CanConvert)){
+                                            second_pass_matches++;
+                                        }else{
+                                            farg_candidates.remove(fi);
+                                        }
+                                        break;
+                                    }
+                                    if(types_match(carg, farg->vars[0])){
+                                        matched = 1;
+                                        matched_index = fi;
+                                        carg_candidates.remove(ci);
+                                        AddFlag(cn->flags, Matched);
+                                    }else if(can_type_convert(&carg->data, &farg->vars[0]->data)){
+                                        AddFlag(cn->flags, CanConvert);
+                                    }else{
+                                        //its not possible for it to be this branch because a positional argument does not match, so remove it from the list
+                                        farg_candidates.remove(fi);
+                                    }
+                                    //since this is a positional arg we must skip the rest
+                                    break;
+                                }
+                            }
+                            if(matched) break;
+                        }
+
+                        if(matched){
+                            otreecur = farg_candidates[matched_index];
+                            farg_candidates.clear();
+                            for_node(otreecur->first_child){
+                                farg_candidates.add(it);
+                            }
+                            matched = 0;
+                        }else if(second_pass){
+                            if(second_pass_matches == 1){
+
+                            }else if(named && second_pass_matches != 1){
+                                //we are checking named arguments in a second pass that had no matches
+                                //so we must trim the branches by checking each one for each name
+                                Expression* invalidating_exp = 0; 
+                                forX(ci, carg_candidates.count){
+                                    suNode* cn = carg_candidates[ci];
+                                    Expression* carg = ExpressionFromNode(cn);
+                                    Expression* lhs = ExpressionFromNode(carg->node.first_child);
+                                    Expression* rhs = ExpressionFromNode(carg->node.last_child);
+                                    
+                                    auto check_branch = [&](suNode* node, auto&& check_branch) -> b32 {
+                                        Arg* farg = ArgFromNode(node);
+                                        forI(farg->vars.count){
+                                            Variable* v = farg->vars[i];
+                                            if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
+                                                //return true here even if types dont match up
+                                                return true;
+                                            }
+                                        }
+                                        for_node(node->first_child){
+                                            if(check_branch(it, check_branch)) return true;
+                                        }
+                                        return false;
+                                    };
+
+                                    forX_reverse(fi, farg_candidates.count){
+                                        suNode* fn = farg_candidates[fi];
+                                        if(!check_branch(fn, check_branch)) farg_candidates.remove(fi);
+                                        if(!farg_candidates.count) invalidating_exp = lhs;
+                                    }
+                                }
+
+                                if(!farg_candidates.count){
+                                    //if we have no more candidates then the call is invalid
+                                    //TODO(sushi) better erroring here
+                                    logger.error(invalidating_exp->token_start, "no overload of function '", fg->decl.identifier, "' matches given named arg '", invalidating_exp->token_start->raw, "'. TODO(sushi) better erroring");
+                                    return 0;
+                                }
+                                //if we still have more than one argument we need to check if exactly one of them is a defaulted arg
+                                //if so we can just go down that branch, otherwise the call is ambiguous
+                                if(farg_candidates.count > 1){
+                                    Arg* defaulted = 0;
+                                    forI(farg_candidates.count){
+                                        Arg* a = ArgFromNode(farg_candidates[i]);
+                                        if(a->defaulted){
+                                            if(defaulted){
+                                                //if we find more than one default then the call is ambiguous
+                                                logger.error(e->token_start, "call to '", e->token_start->raw, "' is ambiguous. TODO(sushi) better erroring here");
+                                                return 0;
+                                            }else{
+                                                defaulted = a;
+                                            }
+                                        }
+                                    }
+                                    if(!defaulted){
+                                        //in this case the user must be missing a positional argument
+                                        logger.error(e->token_start, "missing positional argument in function call.");
+                                        return 0;
+                                    }else{
+                                        //we can safely choose to go down this branch
+                                        farg_candidates.clear();
+                                        for_node(defaulted->node.first_child){
+                                            farg_candidates.add(it);
+                                        }                                        
+                                        second_pass = 0;
+                                    }
+                                }
+                            }else{
+                                logger.error(e->token_start, "invalid function call.");
+                                return 0;
+                            }
+                        }else{
+                            second_pass = 1;
+                        }
+                    }
+
+                    // u64 argpos = 0; //keeps track of where in positional arguments we are 
+                    // b32 named = 0; //set true when we come across a named argument
+                    // //the possible functions are built off of this node
+                    // suNode base;
+                    // b32 default_found = 0;
+                    // u32 args_consumed = 0;
+                    // //walk the overload tree and match func arguments to call arguments as we go
+                    // //NOTE(sushi) this is easily the most complex thing in amu atm (2022/08/02) and it could use some clean up
+                    // b32 walking = 1;
+                    // enum{
+                    //     Matched = 1 << 0,
+                    //     DidntMatchTypeButCanConvert = 1 << 1,
+                    // };
+                    // b32 validating_positional_args = 1;
+                    // suNode* candidate_for_conversion;
 
                     // b32 do_conversion = 0;
                     // while(walking){
@@ -569,7 +774,6 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
 
                     //             }
                     //         }
-
                     //         if(!match){
                     //             if(a->defaulted){
                     //                 //if there was no match, we must check a few things
