@@ -277,34 +277,11 @@ void print_tree(suNode* node, u32 indent = 0){
 	logger_pop_indent(-1);
 }
 
-void print_overload_tree(suNode* node, u32 indent = 0){
-	logger_pop_indent(-1);
-	logger_push_indent(indent);
-	if(!node->type){
-		Arg* a = ArgFromNode(node);
-		str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
-		forI(a->vars.count) str8_builder_append(&b, a->vars[i]->decl.identifier), str8_builder_append(&b, STR8(" "));
-		Log("", a->val.structure->decl.identifier, (a->defaulted ? " D" : " "), (a->f ? "! " : " "), b.fin);
-	}else{
-		Log("", node->debug);
-	}
-	for_node(node->first_child){
-		print_overload_tree(it, indent + 1);
-	}
-	if(str8_equal_lazy(node->debug, STR8("{"))){
-		logger_push_indent(indent);
-		Log("", "}");
-	}
-	logger_pop_indent(-1);
-}
-
-
 int main(){DPZoneScoped;
 
    	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
-
 
 	DeshThreadManager->init(255);
 	DeshThreadManager->spawn_thread(10);
@@ -329,9 +306,6 @@ int main(){DPZoneScoped;
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
 	print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
-	forI(compiler.files.atIdxPtrVal(0)->validator.functions.data.count){
-		print_overload_tree(compiler.files.atIdxPtrVal(0)->validator.functions.atIdx(i));
-	}
 	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;

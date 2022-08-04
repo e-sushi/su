@@ -97,14 +97,14 @@ enum{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Debug;
+	u32 verbosity = Verbosity_Always;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
 	b32 warnings_as_errors = false;
 	b32 show_code = true;
 	b32 log_immediatly           = true;
-	b32 assert_compiler_on_error = true;
+	b32 assert_compiler_on_error = false;
 	b32 log_error_out            = true;
 	OSOut osout = OSOut_Windows;
 } globals;
@@ -1384,6 +1384,8 @@ struct Declaration{
 	suNode node;
 	Token* token_start;
 	Token* token_end;
+
+	Token* colon_anchor;
 	
 	//name of declaration  
 	str8 identifier;
@@ -1397,27 +1399,16 @@ struct Declaration{
 
 #define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
 
-//represents a function argument in the overload tree
-//this is used to match a function call to an overloaded function
-struct Arg{
-	suNode node;
-	b32 defaulted;
-	suArena<Variable*> vars; //list of variables that are associated with this argument's position and type
-	str8 raw;
-	TypedValue val;
-	Function* f = 0;
-};
-#define ArgFromNode(x) CastFromMember(Arg, node, x)
- 
 struct Function {
 	Declaration decl;
 	//an array of overloads
 	//this is only used on the base Function that represents overloads
+	//NOTE(sushi) this can probably just be replaced by using nodes 
 	suArena<Function*> overloads;
 
 	suArena<Variable*> args;
 
-	Type data_type;
+	TypedValue data;
 	Struct* struct_data;
 	//this label is how a function is internally referred to in the case of overloading
 	//it is where name mangling happens
@@ -1432,14 +1423,7 @@ struct Function {
 #define FunctionFromDeclaration(x) CastFromMember(Function, decl, x)
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
 
-// str8 gen_func_sig(Function* f){
-// 	if(f->overloads){
-// 		Assert(false, "gen_sig_func was passed an overload base");
-// 	}
 
-// 	str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
-
-// }
 
 struct Variable{
 	Declaration decl;
@@ -2078,6 +2062,10 @@ str8 get_typename(Struct* s){
 	return s->decl.identifier;
 }
 
+str8 get_typename(Function* f){
+	return f->data.structure->decl.identifier;
+}
+
 //this overload may be unecessary
 str8 get_typename(TNode* n){
 	switch(n->type){
@@ -2150,12 +2138,35 @@ FORCE_INLINE b32 types_match(Struct* s0, Struct* s1)        { return s0 == s1; }
 FORCE_INLINE b32 types_match(Struct* s,  Variable* v)       { return v->data.structure == s; }
 FORCE_INLINE b32 types_match(Struct* s,  Expression* e)     { return e->data.structure == s; }
 
+//allocates a string into temp memory
+str8 gen_func_sig(Function* f, b32 display_var_names = 1){
+	Assert(!f->overloads.count, "gen_sig_func was passed an overload base");
 
+	str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
+	str8_builder_append(&b, f->decl.identifier);
+	str8_builder_append(&b, STR8("("));
+	forI(f->args.count){
+		Variable* arg = f->args[i];
+		if(display_var_names){
+			str8_builder_append(&b, arg->decl.identifier);
+			str8_builder_append(&b, STR8(":"));
+		}
+		str8_builder_append(&b, get_typename(arg));
+		if(i != f->args.count-1){
+			str8_builder_append(&b, STR8(","));
+		}
+	}
 
-//returns the type that the result of an operation between t0 and t1 would result in when they are both scalars
-//this function is simple, but im leaving it in case we ever need to do more complex things with this
-Type coerce_scalar(Type t0, Type t1){
-	return Max(t0,t1);
+	str8_builder_append(&b, STR8("):"));
+	str8_builder_append(&b, get_typename(f));
+
+	return b.fin;
+}
+
+str8 show(Expression* e){
+	str8 out = e->token_start->raw;
+	out.count = (e->token_end->raw.str - e->token_start->raw.str) + 1;
+	return out;
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2168,7 +2179,6 @@ struct{
 	suChunkedArena<Scope>      scopes;
 	suChunkedArena<Expression> expressions;
 	suChunkedArena<Statement>  statements;
-	suChunkedArena<Arg>        args;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
@@ -2232,19 +2242,6 @@ struct{
 	}
 
 	FORCE_INLINE
-	Arg* make_arg(str8 debugmsg = STR8("")){DPZoneScoped;
-		Arg* arg = args.add(Arg());
-		//compiler.logger.log(Verbosity_Debug, "Making an arg with debug message ", debugmsg);
-		arg->node.lock.init();
-		arg->node.type = 0; //this is not used in any general location, so we will always know the type of the node where its expected
-		arg->node.debug = debugmsg;
-		arg->vars.init();
-		return arg;
-	}
-
-
-
-	FORCE_INLINE
 	void init(){DPZoneScoped;
 		functions.init(256);   
 		variables.init(256);   
@@ -2252,7 +2249,6 @@ struct{
 		scopes.init(256);      
 		expressions.init(256); 
 		statements.init(256);
-		args.init(256);
 	}
 
 }arena;

@@ -261,56 +261,44 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 //this is the first occurance of this function that we know of so we add it to the function map
                 d = DeclarationFromNode(sufile->validator.functions.atIdx(sufile->validator.functions.add(f->decl.identifier, &arena.make_function(suStr8("funcgroup of ", f->decl.identifier))->decl.node)));
                 d->identifier = f->decl.identifier;
+                FunctionFromDeclaration(d)->overloads.init();
             }        
-            
             
             Function* fg = FunctionFromDeclaration(d);
             fg->overloads.add(f);
 
-            suNode* def = 0;
-            suNode* otreecur = &d->node;
+            if(!f->data.structure){
+                Token* typespec = f->decl.token_start + 2;
+                Declaration* d = find_decl(typespec->raw);
+                if(!d){
+                    logger.error(typespec, "unknown identifier '", typespec->raw, "'");
+                    logger.note(typespec, "used as type specifier for '", f->decl.identifier, "'");
+                    return 0;
+                }
+                if(d->type != Declaration_Structure){
+                    logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct");
+                    logger.note(typespec, "used as type specifier for '", f->decl.identifier, "'");
+                    return 0;
+                }
+                f->data.structure = StructFromDeclaration(d);
+            }
+
             b32 found_nonpos = 0; //set when we find an argument that has a default value
+            suNode* def = 0;
             for_node(f->decl.node.first_child){
-                if(it->type == NodeType_Scope) { def = it; continue; }
+                //we must save the defintion and validate it later for reasons explained below
+                if(it->type == NodeType_Scope) {def = it; continue;}
                 if(!validate(it)) return 0;
-                //search overload node children for variables that are the same type as this one
-                //and just walk down it if it exists, otherwise make a new node representing this type
+
                 Variable* arg = VariableFromNode(it);
+                f->args.add(arg);
+                
                 if(it->child_count){
                     //this is an arg with a default value 
                     found_nonpos = 1;
                 }else if(found_nonpos){
                     logger.error(arg->decl.token_start, "positional arguments cannot follow defaulted arguments.");
                     return 0;
-                }
-
-                b32 found = 0;
-                for_nodeX(it2, otreecur->first_child){
-                    Arg* a = ArgFromNode(it2);
-                    if(a->val.structure == arg->data.structure){
-                        otreecur = it2;
-                        a->vars.add(arg);
-                        found = 1;
-                        break;
-                    }
-                }
-                if(!found){
-                    Arg* nua = arena.make_arg();
-                    nua->node.debug = get_typename(arg);
-                    if(found_nonpos) nua->defaulted = 1;
-                    nua->val = arg->data;
-                    nua->vars.add(arg);
-                    insert_last(otreecur, &nua->node);
-                    otreecur = &nua->node;
-                }
-                if(it->next->type == NodeType_Scope){
-                    //we've reached the end of arguments and must check that this func does not conflict with any others
-                    if(ArgFromNode(otreecur)->f){
-                        logger.error(f->decl.token_start, "function overloads must differ by type.");
-                        logger.note(ArgFromNode(otreecur)->f->decl.token_start, "see conflicting function.");
-                        f->decl.validated = 1; //if we dont set this here its possible to infinitely loop back to this point and repeatedly print this error message
-                        return 0;
-                    }else ArgFromNode(otreecur)->f = f;
                 }
             }
 
@@ -333,7 +321,10 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 }
             }
 
+            
+
             if(!validate(def)) return 0;
+
             
             pop_known_decls();
 
@@ -463,32 +454,13 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         }
                     }
                     Function* fg = FunctionFromDeclaration(d);
-                    //validate arguments and match them to overloads
-                    enum{
-                        Matched               = 1 << 0,
-                        MatchedNameButNotType = 1 << 1,
-                        CanConvert            = 1 << 2,
-                    };
-                    suNode* otreecur = &d->node;
-                    u32 remaining_args = e->node.child_count;
-                    b32 named = 0; //set when a named call arg is found
-                    b32 second_pass = 0; //set when we are performing a second pass on a function arg to check for conversions
-                    u32 second_pass_matches = 0; //incremented for each match we find on a second pass
-                    //function arguments that candidates for being chosen as our next branch
-                    suArena<suNode*> farg_candidates; farg_candidates.init();
-                    //call arguments that are candidates for being matched against function arguments
-                    suArena<suNode*> carg_candidates; carg_candidates.init();
-                    //nodes that matched the name, but not type of an argument and are able to convert to its type
-                    suArena<suNode*> mncc_candidates; mncc_candidates.init();
-                    //positional nodes that can convert to the current positional argument 
-                    suArena<suNode*> cc_candidates;   cc_candidates.init();   
                     
-                    
-                    for_node(otreecur->first_child){
-                        farg_candidates.add(it);
-                    }
-                    b32 found_named = 0;
+                    //we need to match this call to an overload
+                    //we start by gathering the arguments this call has as well as counting how many positional arguments there are
+                    //we also do our check for using a positional argument after a named arg here
+                    suArena<Expression*> arguments; arguments.init(); defer{arguments.deinit();};
                     u32 n_pos_args = 0;
+                    b32 found_named = 0;
                     for_node(e->node.first_child){
                         if(ExpressionFromNode(it)->type == Expression_BinaryOpAssignment){
                             found_named = 1;
@@ -498,331 +470,121 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         }else{
                             n_pos_args++;
                         }
-                        carg_candidates.add(it);
+                        arguments.add(ExpressionFromNode(it));
+                    }
+                    
+                    //next we store all the overloads in a separate array so we can trim it
+                    //we can filter out any functions whose argument count is less than whats in the call
+                    //TODO(sushi) it may be more efficient to use a view of the original array and moving its elements around rather than
+                    //            copying potentially the entire thing
+                    suArena<Function*> overloads; overloads.init(); defer{overloads.deinit();};
+                    forI(fg->overloads.count){
+                        Function* ol = fg->overloads[i];
+                        if(ol->args.count >= arguments.count){
+                            overloads.add(ol);
+                        }
                     }
 
+                    //early check that the user doesnt give too many arguments for all overloads
+                    if(!overloads.count){
+                        logger.error(e->token_start, "too many arguments given in call to '", e->token_start->raw, "'.");
+                        return 0;
+                    }
 
-
-                    //initially get positional args out of the way since they are simpler to handle
-                    //NOTE(sushi) this does not choose a branch to go down, it only removes branches we cant go down
-                    b32 matching_positional_args = 1;
-                    while(matching_positional_args){
-                        forX(ci, carg_candidates.count){
-                            suNode* cn = carg_candidates[ci];
-                            if(ExpressionFromNode(cn)->type == Expression_BinaryOpAssignment){
-                                matching_positional_args = 0;
-                                break;
-                            }
-                            Expression* carg = ExpressionFromNode(validate(cn));
-                            b32 matched = 0;
-                            forX_reverse(fi, farg_candidates.count){
-                                suNode* fn = farg_candidates[fi];
-                                Arg*  farg = ArgFromNode(fn);
-                                u32 counter = ci;
-                                if(!can_type_convert(&carg->data, &farg->vars[0]->data)){
-                                    //if we cant convert to this type, then just remove it 
-                                    farg_candidates.remove(fi);
+                    //now we trim the list using positional args
+                    //in order to remove a function, the type of the positional arg has to be different and not convertable
+                    //to the function's argument
+                    forX(ci, n_pos_args){
+                        Expression* carg = ExpressionFromNode(validate(&arguments[ci]->node));
+                        //NOTE(sushi) iterate in reverse so when we remove an element we dont have to adjust the index
+                        forX_reverse(fi, overloads.count){
+                            Variable* farg = overloads[fi]->args[ci];
+                            if(!can_type_convert(&farg->data, &carg->data)){
+                                overloads.remove(fi);
+                                if(!overloads.count){
+                                    logger.error(e->token_start, "unable to match positional arguments to any overload of '", e->token_start->raw, "'.");
+                                    //TODO(sushi) there is more information we can give here
+                                    return 0;
                                 }
-                            }
-                            if(matched){
-                                //if we matched just remove this argument and continue
-                                carg_candidates.remove(ci);
-                                ci--;
-                            }else if(!farg_candidates.count){
-                                //it is possible we didnt match anything any we didnt find any branch we could convert to either
-                                logger.error(carg->token_start, "unable to match argument ")
                             }
                         }
                     }
-                    
 
-                    b32 walking = 1;  
-                    b32 matched = 0;
-                    u32 matched_index = 0;
-                    while(walking){
-                        forX_reverse(fi, farg_candidates.count){
-                            //iterate backwards so we dont mess up indexing when removing an element
-                            suNode* fn = farg_candidates[fi];
-                            Arg* farg = ArgFromNode(fn);
-                            forX_reverse(ci, carg_candidates.count){
-                                suNode* cn = carg_candidates[ci];
-                                Expression* carg = ExpressionFromNode(cn);
-                                if(carg->type == Expression_BinaryOpAssignment){
-                                    named = 1;
-                                    if(second_pass && HasAllFlags(cn->flags, MatchedNameButNotType | CanConvert)){
-                                        second_pass_matches++;
-                                        break;
-                                    }
-                                    Expression* lhs = ExpressionFromNode(carg->node.first_child);
-                                    if(lhs->type != Expression_Identifier){
-                                        logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
-                                        return 0;
-                                    }
-                                    Expression* rhs = ExpressionFromNode(validate(carg->node.last_child));
-                                    if(!rhs) return 0;
-                                    //find the name. if we dont find it, just move on and try again later
-                                    forI(farg->vars.count){
-                                        Variable* v = farg->vars[i];
-                                        if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
-                                            if(types_match(v,rhs)){
-                                                matched = 1;
-                                                matched_index = fi;
-                                                carg_candidates.remove(ci);
-                                                AddFlag(cn->flags, Matched);
-                                            }else{
-                                                AddFlag(cn->flags, MatchedNameButNotType);
-                                                if(can_type_convert(&rhs->data, &v->data)){
-                                                    AddFlag(cn->flags, CanConvert);
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }else{
-                                    if(named){
-                                        logger.error(carg->token_start, "positional arguments cannot follow named arguments.");
-                                        return 0;
-                                    }
-                                    carg = ExpressionFromNode(validate(cn));
-                                    if(!carg) return 0;
-                                    if(second_pass){
-                                        if(HasFlag(cn->flags, CanConvert)){
-                                            second_pass_matches++;
-                                        }else{
-                                            farg_candidates.remove(fi);
-                                        }
-                                        break;
-                                    }
-                                    if(types_match(carg, farg->vars[0])){
-                                        matched = 1;
-                                        matched_index = fi;
-                                        carg_candidates.remove(ci);
-                                        AddFlag(cn->flags, Matched);
-                                    }else if(can_type_convert(&carg->data, &farg->vars[0]->data)){
-                                        AddFlag(cn->flags, CanConvert);
-                                    }else{
-                                        //its not possible for it to be this branch because a positional argument does not match, so remove it from the list
-                                        farg_candidates.remove(fi);
-                                    }
-                                    //since this is a positional arg we must skip the rest
+                    //now we trim the list using named arguments 
+                    //in order to remove a function, it has to not have any arguments that match the name
+                    //or the named argument's type doesnt match and isnt convertable
+                    forX(ci, arguments.count-n_pos_args){
+                        Expression* carg = arguments[ci+n_pos_args];
+                        Expression* lhs = ExpressionFromNode(carg->node.first_child);
+                        if(lhs->type != Expression_Identifier){
+                            logger.error(lhs->token_start, "expected an identifier for lhs of named argument.");
+                            return 0;
+                        }
+                        Expression* rhs = ExpressionFromNode(validate(carg->node.last_child));
+                        if(!rhs) return 0;
+                        forX_reverse(fi, overloads.count){
+                            Function* ol = overloads[fi];
+                            b32 found = 0;
+                            forI(ol->args.count - n_pos_args){
+                                Variable* farg = ol->args[i+n_pos_args];
+                                if(str8_equal_lazy(farg->decl.identifier, lhs->token_start->raw)){
+                                    if(!can_type_convert(&farg->data, &rhs->data)) break;
+                                    found = 1;
                                     break;
                                 }
                             }
-                            if(matched) break;
-                        }
-
-                        if(matched){
-                            otreecur = farg_candidates[matched_index];
-                            farg_candidates.clear();
-                            for_node(otreecur->first_child){
-                                farg_candidates.add(it);
+                            if(!found){
+                                overloads.remove(fi);
                             }
-                            matched = 0;
-                        }else if(second_pass){
-                            if(second_pass_matches == 1){
-
-                            }else if(named && second_pass_matches != 1){
-                                //we are checking named arguments in a second pass that had no matches
-                                //so we must trim the branches by checking each one for each name
-                                Expression* invalidating_exp = 0; 
-                                forX(ci, carg_candidates.count){
-                                    suNode* cn = carg_candidates[ci];
-                                    Expression* carg = ExpressionFromNode(cn);
-                                    Expression* lhs = ExpressionFromNode(carg->node.first_child);
-                                    Expression* rhs = ExpressionFromNode(carg->node.last_child);
-                                    
-                                    auto check_branch = [&](suNode* node, auto&& check_branch) -> b32 {
-                                        Arg* farg = ArgFromNode(node);
-                                        forI(farg->vars.count){
-                                            Variable* v = farg->vars[i];
-                                            if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
-                                                //return true here even if types dont match up
-                                                return true;
-                                            }
-                                        }
-                                        for_node(node->first_child){
-                                            if(check_branch(it, check_branch)) return true;
-                                        }
-                                        return false;
-                                    };
-
-                                    forX_reverse(fi, farg_candidates.count){
-                                        suNode* fn = farg_candidates[fi];
-                                        if(!check_branch(fn, check_branch)) farg_candidates.remove(fi);
-                                        if(!farg_candidates.count) invalidating_exp = lhs;
-                                    }
-                                }
-
-                                if(!farg_candidates.count){
-                                    //if we have no more candidates then the call is invalid
-                                    //TODO(sushi) better erroring here
-                                    logger.error(invalidating_exp->token_start, "no overload of function '", fg->decl.identifier, "' matches given named arg '", invalidating_exp->token_start->raw, "'. TODO(sushi) better erroring");
-                                    return 0;
-                                }
-                                //if we still have more than one argument we need to check if exactly one of them is a defaulted arg
-                                //if so we can just go down that branch, otherwise the call is ambiguous
-                                if(farg_candidates.count > 1){
-                                    Arg* defaulted = 0;
-                                    forI(farg_candidates.count){
-                                        Arg* a = ArgFromNode(farg_candidates[i]);
-                                        if(a->defaulted){
-                                            if(defaulted){
-                                                //if we find more than one default then the call is ambiguous
-                                                logger.error(e->token_start, "call to '", e->token_start->raw, "' is ambiguous. TODO(sushi) better erroring here");
-                                                return 0;
-                                            }else{
-                                                defaulted = a;
-                                            }
-                                        }
-                                    }
-                                    if(!defaulted){
-                                        //in this case the user must be missing a positional argument
-                                        logger.error(e->token_start, "missing positional argument in function call.");
-                                        return 0;
-                                    }else{
-                                        //we can safely choose to go down this branch
-                                        farg_candidates.clear();
-                                        for_node(defaulted->node.first_child){
-                                            farg_candidates.add(it);
-                                        }                                        
-                                        second_pass = 0;
-                                    }
-                                }
-                            }else{
-                                logger.error(e->token_start, "invalid function call.");
-                                return 0;
-                            }
-                        }else{
-                            second_pass = 1;
                         }
                     }
 
-                    // u64 argpos = 0; //keeps track of where in positional arguments we are 
-                    // b32 named = 0; //set true when we come across a named argument
-                    // //the possible functions are built off of this node
-                    // suNode base;
-                    // b32 default_found = 0;
-                    // u32 args_consumed = 0;
-                    // //walk the overload tree and match func arguments to call arguments as we go
-                    // //NOTE(sushi) this is easily the most complex thing in amu atm (2022/08/02) and it could use some clean up
-                    // b32 walking = 1;
-                    // enum{
-                    //     Matched = 1 << 0,
-                    //     DidntMatchTypeButCanConvert = 1 << 1,
-                    // };
-                    // b32 validating_positional_args = 1;
-                    // suNode* candidate_for_conversion;
+                    //if there is still more than 1 overload remaining at this point then we check if 
+                    //any overload's types exactly matches our arguments
+                    //otherwise there are too many similar conversions to be made and the call is ambiguous
+                    if(overloads.count > 1){
+                        Function* exmatch = 0;
+                        forX(fi, overloads.count){
+                            Function* ol = overloads[fi];
+                            b32 pos_fail = 0;
+                            forI(n_pos_args){
+                                Variable* farg = ol->args[i];
+                                Expression* carg = arguments[i];
+                                if(!types_match(farg, carg)){
+                                    pos_fail = 1; break;
+                                }
+                            }
+                            if(pos_fail) continue;
+                            b32 non_pos_fail = 0;
+                            forX(ci, arguments.count - n_pos_args){
+                                Expression* carg = arguments[ci+n_pos_args];
+                                Expression* lhs = ExpressionFromNode(carg->node.first_child);
+                                Expression* rhs = ExpressionFromNode(carg->node.last_child);
+                                b32 match = 0;
+                                forI(ol->args.count - n_pos_args){
+                                    Variable* farg = ol->args[i];
+                                    if(!str8_equal_lazy(lhs->token_start->raw, farg->decl.identifier)) continue;
+                                    if(!types_match(rhs, farg)) break;
+                                    match = 1; break;
+                                }
+                                if(!match){
+                                    non_pos_fail = 1;
+                                    break;
+                                }
+                            }
+                            if(!(non_pos_fail || pos_fail)) exmatch = ol;
+                        }
+                        if(!exmatch){
+                            logger.error(e->token_start, "call to '", fg->decl.identifier, "' has too many similar convertions.");
+                            logger.note(e->token_start, "call was ", show(e));
+                            forI(overloads.count){
+                                logger.note(overloads[i]->decl.token_start, "could be ", gen_func_sig(overloads[i], 0));
+                            }
+                        }
+                    }
 
-                    // b32 do_conversion = 0;
-                    // while(walking){
-                    //     for_nodeX(fn, otreecur->first_child){
-                    //         Arg* a = ArgFromNode(fn);
-                    //         b32 match = 0;
-                    //         for_nodeX(cn, e->node.first_child){
-                    //             //if we have already matched this node, skip it
-                    //             if(HasFlag(cn->flags, Matched)) continue;
-                    //             Expression* arg = ExpressionFromNode(cn);
-                    //             if(arg->type == Expression_BinaryOpAssignment){
-                    //                 named = 1;
-                    //                 Expression* lhs = ExpressionFromNode(arg->node.first_child);
-                    //                 if(lhs->type != Expression_Identifier){
-                    //                     logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
-                    //                     return 0;
-                    //                 }
-                    //                 Expression* rhs = ExpressionFromNode(validate(arg->node.last_child));
-                    //                 //match names
-                    //                 forI(a->vars.count){
-                    //                     Variable* v = a->vars[i];
-                    //                     if(str8_equal_lazy(v->decl.identifier, lhs->token_start->raw)){
-                    //                         match = 1;
-                    //                         if(!types_match(rhs,v)){
-                    //                             if(!can_type_convert(&rhs->data, &v->data)){
-                    //                                 logger.error(lhs->token_start, "no known conversion from ", get_typename(v), " to ", get_typename(lhs));
-                    //                                 return 0;
-                    //                             }
-                    //                             Expression* cast = arena.make_expression(STR8("cast"));
-                    //                             cast->type = Expression_CastImplicit;
-                    //                             cast->token_start = v->decl.token_start;
-                    //                             cast->token_end = v->decl.token_end;
-                    //                             cast->data = v->data;
-                    //                             insert_last(rhs->node.parent, &cast->node);
-                    //                             change_parent(&cast->node, &e->node);
-                    //                         }
-                    //                         break;
-                    //                     }
-                    //                 }
-                    //             }else{
-                    //                 //NOTE(sushi) we dont do this initially since its possible this was a named argument
-                    //                 arg = ExpressionFromNode(validate(cn));
-                    //                 if(!arg) return 0;
-                    //                 if(named){
-                    //                     logger.error(arg->token_start, "positional arguments cannot follow named arguments.");
-                    //                     return 0;
-                    //                 }
 
-                    //                 if(a->val.structure != arg->data.structure){
-                    //                     if(do_conversion && can_type_convert(&a->val, &arg->data)){
-                    //                         Expression* cast = arena.make_expression(STR8("cast"));
-                    //                         cast->type = Expression_CastImplicit;
-                    //                         cast->token_start = arg->token_start;
-                    //                         cast->token_end = arg->token_end;
-                    //                         cast->data = v->data;
-                    //                         insert_last(rhs->node.parent, &cast->node);
-                    //                         change_parent(&cast->node, &e->node);
-                    //                     }
-                    //                 }
 
-                    //             }
-                    //         }
-                    //         if(!match){
-                    //             if(a->defaulted){
-                    //                 //if there was no match, we must check a few things
-                    //                 //first we must check if there are several possible paths to take from this point 
-                    //                 //if so, then we know the call is ambiguous
-                    //                 if(fn->child_count > 1){
-                    //                     //if there is more than one child and we are dealing with a named argument
-                    //                     //then we must check if this named argument exists anywhere in the tree
-
-                    //                     logger.error(e->token_start, "call to ", e->token_start->raw, " is ambiguous.");
-                    //                     return 0;
-                    //                 }
-                    //             }else{
-                    //                 //otherwise the user missed a positional argument
-                    //                 if(!do_conversion){
-                    //                     //if we didnt match any positional arguments on the first pass
-                    //                     //we go over the possible arguments again, but this time allowing conversions
-                    //                     do_conversion = true;
-                    //                     continue;
-                    //                 } 
-                    //                 logger.error(e->token_start, "missing positional argument in call to ", e->token_start->raw);
-                    //                 return 0;
-                    //             }
-                    //         }else{
-                    //             otreecur = fn;
-                    //             break;
-                    //         }
-                    //     }
-                    //     if(!otreecur->first_child) break;
-                    // }
-                    // //after all of this, reset the function call's expressions flags to 0
-                    // for_node(e->node.first_child){
-                    //     it->flags = 0;
-                    // }
-
-                    // for_nodeX(cn, e->node.first_child){
-                    //     Expression* callarg = ExpressionFromNode(cn);
-                    //     if(callarg->type == Expression_BinaryOpAssignment){
-                    //         named = 1;
-                    //         //NOTE(sushi) we do not call validate on this node because it will be an identifier unknown to find_decl
-                    //         Expression* lhs = ExpressionFromNode(callarg->node.first_child);
-                    //         if(lhs->type != Expression_Identifier){
-                    //             logger.error(lhs->token_start, "expected an identifier as lhs of named argument.");
-                    //             return 0;
-                    //         }
-                    //         Expression* rhs = ExpressionFromNode(validate(callarg->node.last_child));
-
-                    //     }
-                    // }
                 }break;
 
                 //initial binary op cases that lead into another set of cases for doing specific work with them

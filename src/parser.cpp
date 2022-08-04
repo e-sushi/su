@@ -221,6 +221,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     //TODO(sushi) since these expects arent linked to any alternatives they can just early out to reduce nesting
                     curt++;
                     expect(Token_Colon){
+                        s->decl.colon_anchor = curt;
                         curt++;
                         expect(Token_StructDecl){
                             curt++;
@@ -273,7 +274,6 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                                 curt->decl_type = Declaration_Variable;
                                 Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
                                 if(!v) return 0;
-                                f->args.add(v->decl.identifier, &v->decl.node);
                                 f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
                                     f->internal_label = suStr8(f->internal_label, STR8("*"));
@@ -288,10 +288,11 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                         check_var_decl_semicolon = 1;
                         curt++;
                         expect(Token_Colon){ // name(...) :
+                            f->decl.colon_anchor = curt;
                             curt++;
                             //TODO(sushi) multiple return types
                             expect_group(TokenGroup_Type){ // name(...) : <type>
-                                f->data_type = curt->type;
+                                f->data.structure = builtin_from_type(curt->type);
                                 f->internal_label = suStr8(f->internal_label, "@", curt->raw);
                                 if(is_global){
                                     if(is_internal) sufile->parser.internal_decl.add(&f->decl);
@@ -299,7 +300,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                                 }
                             }else expect(Token_Identifier){ // name(...) : <type>
                                 //we are most likely referencing a struct type in this case
-                                f->data_type = Token_Struct;
+                                f->data.structure = 0;
                                 f->internal_label = suStr8(f->internal_label, "@", curt->raw);
                                 if(curt->is_global){
                                     if(is_internal) sufile->parser.internal_decl.add(&f->decl);
@@ -328,6 +329,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     str8 id = curt->raw;
                     curt++;
                     expect(Token_Colon){ // name :
+                        v->decl.colon_anchor = curt;
                         curt++;
                         expect_group(TokenGroup_Type){ // name : <type>
                             v->data.structure = builtin_from_type(curt->type);
@@ -686,6 +688,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             else perror_ret(curt, "expected a , or ) after function argument.");
                         }
                         insert_last(node, &e->node);
+                        e->token_end = curt;
                     }else{
                         //this is just some identifier
                         e->node.debug = curt->raw;
