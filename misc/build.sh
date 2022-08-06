@@ -201,7 +201,7 @@ fi
 
 #### Specify outputs ####
 build_folder="$root_folder/build"
-app_name="sandbox"
+app_name="amu"
 
 
 #### Specify sources ####
@@ -215,7 +215,7 @@ includes="
 "
 deshi_sources="deshi/src/deshi.cpp"
 dll_sources="src/ui2.cpp"
-app_sources="src/su.cpp"
+app_sources="src/amu.cpp"
 
 
 #### Specifiy libs ####

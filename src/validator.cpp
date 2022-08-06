@@ -564,23 +564,52 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         }
                     }
 
-                    //if there is still more than 1 overload remaining at this point then we check if 
-                    //any overload's types exactly matches our arguments
-                    //otherwise there are too many similar conversions to be made and the call is ambiguous
+                    //if there is still more than one overload in the list we need to be more strict about types, filtering out overloads
+                    //who dont have any types matching passed types. As long as one of an overload's argument's types matches a call argument
+                    //it can stay
                     if(overloads.count > 1){
                         Function* exmatch = 0;
-                        forX(fi, overloads.count){
+                        forX_reverse(fi, overloads.count){
                             Function* ol = overloads[fi];
-                            b32 pos_fail = 0;
+                            b32 pos_has_matching = 0;
                             forI(n_pos_args){
                                 Variable* farg = ol->args[i];
                                 Expression* carg = arguments[i];
-                                if(!types_match(farg, carg)){
-                                    pos_fail = 1; break;
+                                if(types_match(farg, carg)){
+                                    pos_has_matching = 1; break;
+                                }else{
+                                    //we have a special case here where we allow a function to pass based on scalar types ignoring size.
+                                    //so if an argument doesnt match because it's size is different, but it's underlying type (signed, unsigned, float) is the same,
+                                    //then we allow it
+                                    #define subcase(b0,b1,b2,b3,b4,b5,b6,b7,b8,b9)\
+                                    switch(carg->data.structure->type){\
+                                        case DataType_Signed8:    if(b0)pos_has_matching=1; break;\
+                                        case DataType_Signed16:   if(b1)pos_has_matching=1; break;\
+                                        case DataType_Signed32:   if(b2)pos_has_matching=1; break;\
+                                        case DataType_Signed64:   if(b3)pos_has_matching=1; break;\
+                                        case DataType_Unsigned8:  if(b4)pos_has_matching=1; break;\
+                                        case DataType_Unsigned16: if(b5)pos_has_matching=1; break;\
+                                        case DataType_Unsigned32: if(b6)pos_has_matching=1; break;\
+                                        case DataType_Unsigned64: if(b7)pos_has_matching=1; break;\
+                                        case DataType_Float32:    if(b8)pos_has_matching=1; break;\
+                                        case DataType_Float64:    if(b9)pos_has_matching=1; break;\
+                                    }
+                                    switch(farg->data.structure->type){
+                                        case DataType_Signed8:    subcase(1,1,1,1,0,0,0,0,0,0); break; 
+                                        case DataType_Signed16:   subcase(1,1,1,1,0,0,0,0,0,0); break;
+                                        case DataType_Signed32:   subcase(1,1,1,1,0,0,0,0,0,0); break;
+                                        case DataType_Signed64:   subcase(1,1,1,1,0,0,0,0,0,0); break;
+                                        case DataType_Unsigned8:  subcase(0,0,0,0,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned16: subcase(0,0,0,0,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned32: subcase(0,0,0,0,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned64: subcase(0,0,0,0,1,1,1,1,0,0); break;
+                                        case DataType_Float32:    subcase(0,0,0,0,0,0,0,0,1,1); break;
+                                        case DataType_Float64:    subcase(0,0,0,0,0,0,0,0,1,1); break;
+                                    }
+                                    #undef subcase
                                 }
                             }
-                            if(pos_fail) continue;
-                            b32 non_pos_fail = 0;
+                            b32 non_pos_has_matching = 0;
                             forX(ci, arguments.count - n_pos_args){
                                 Expression* carg = arguments[ci+n_pos_args];
                                 Expression* lhs = ExpressionFromNode(carg->node.first_child);
@@ -589,22 +618,13 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                                 forI(ol->args.count - n_pos_args){
                                     Variable* farg = ol->args[i];
                                     if(!str8_equal_lazy(lhs->token_start->raw, farg->decl.identifier)) continue;
-                                    if(!types_match(rhs, farg)) break;
-                                    match = 1; break;
-                                }
-                                if(!match){
-                                    non_pos_fail = 1;
-                                    break;
+                                    if(types_match(rhs, farg)) break;
+                                    non_pos_has_matching = 1; break;
                                 }
                             }
-                            if(!(non_pos_fail || pos_fail)) exmatch = ol;
-                        }
-                        if(!exmatch){
-                            logger.error(e->token_start, "call to '", fg->decl.identifier, "' is ambiguous.");
-                            logger.note(e->token_start, "call was ", show(e));
-                            forI(overloads.count){
-                                logger.note(overloads[i]->decl.token_start, "could be ", gen_func_sig(overloads[i], 0));
-                            }
+                            if(!(non_pos_has_matching || pos_has_matching)){
+                                overloads.remove(fi);
+                            } 
                         }
                     }
 
