@@ -95,6 +95,13 @@ enum{
 	Verbosity_Debug,
 };
 
+struct Format{
+	color fg;
+	color bg;
+	str8 prefix;
+	str8 suffix;
+};
+
 struct {
 	u32 warning_level = 1;
 	u32 verbosity = Verbosity_Always;
@@ -105,8 +112,18 @@ struct {
 	b32 show_code = true;
 	b32 log_immediatly           = true;
 	b32 assert_compiler_on_error = false;
-	b32 log_error_out            = true;
+	b32 disable_colors           = false;
 	OSOut osout = OSOut_Windows;
+
+	struct{
+		Format function = {
+			color{0x82aaff},
+			color{0xffffff},
+			str8{0},str8{0}
+		};
+		//TODO(sushi) expand on this idea
+
+	}formatting;
 } globals;
 
 enum{
@@ -1328,6 +1345,9 @@ struct TypedValue{
 	};
 };
 
+enum{
+	ExpressionFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
+};
 struct Expression {
 	suNode node;
 	Token* token_start;
@@ -1355,6 +1375,9 @@ enum {
 	Statement_Import,
 };
 
+enum{
+	StatementFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
+};
 struct Statement {
 	suNode node;
 	Token* token_start;
@@ -1364,6 +1387,9 @@ struct Statement {
 };
 #define StatementFromNode(x) CastFromMember(Statement, node, x)
 
+enum{
+	ScopeFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
+};
 struct Scope {
 	suNode node;
 	Token* token_start;
@@ -1376,6 +1402,7 @@ struct Scope {
 //represents information about an original declaration and is stored on 
 //Struct,Function,and Variable.
 //TODO(sushi) this setup is kind of scuffed, maybe just store the 3 structs on decl in a union so we can avoid having 2 layers of casting (eg. VariableFromDeclaration)
+
 struct Struct;
 struct Variable;
 struct Function;
@@ -1399,6 +1426,9 @@ struct Declaration{
 
 #define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
 
+enum{
+	FunctionFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
+};
 struct Function {
 	Declaration decl;
 	//an array of overloads
@@ -1424,7 +1454,9 @@ struct Function {
 #define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
 
 
-
+enum{
+	VariableFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
+};
 struct Variable{
 	Declaration decl;
 
@@ -1436,6 +1468,9 @@ struct Variable{
 #define VariableFromDeclaration(x) CastFromMember(Variable, decl, x)
 #define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
 
+enum{
+	StructFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
+};
 struct Struct {
 	Declaration decl;
 	u64 size; //size of struct in bytes

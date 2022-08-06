@@ -279,6 +279,7 @@ void print_tree(suNode* node, u32 indent = 0){
 
 int main(){DPZoneScoped;
 
+
    	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();
@@ -305,7 +306,7 @@ int main(){DPZoneScoped;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
-	print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
+	//print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
 	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;

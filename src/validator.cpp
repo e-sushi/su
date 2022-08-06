@@ -285,6 +285,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
 
             b32 found_nonpos = 0; //set when we find an argument that has a default value
             suNode* def = 0;
+
             for_node(f->decl.node.first_child){
                 //we must save the defintion and validate it later for reasons explained below
                 if(it->type == NodeType_Scope) {def = it; continue;}
@@ -301,11 +302,39 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     return 0;
                 }
             }
+            
+            if(fg->overloads.count > 1)
+            forI(fg->overloads.count){
+                Function* ol = fg->overloads[i];
+                if(f==ol) continue;
+                forX(j, f->args.count){
+                    Variable* myarg = f->args[j];
+                    Variable* olarg = ol->args[j];
+                    if (!types_match(myarg, olarg)) break;
 
-            //TODO(sushi) setup a system for testing if this overload makes calls to any other overload ambiguous
-            //            or if any other function makes calls to this one ambiguous
-            //            currently ambiguity is found when an ambiguous call is made, like with msvc's cl
-            //            but this isnt ideal since it only errors when a call to an ambiguous func is made
+                    if(j == f->args.count - 1){
+                        if(ol->args.count > f->args.count){
+                            if(ol->args[j+1]->decl.node.first_child){
+                                AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
+                                logger.error(f->decl.token_start, "calls to this function will be ambiguous.");
+                                logger.note(ol->decl.token_start, "see function that makes it ambiguous.");
+                            }
+                        }else{
+                            AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
+                            logger.error(f->decl.token_start, "overloads must differ by type.");
+                            logger.note(ol->decl.token_start, "see conflicting function.");
+                        }
+                    }else if(j == ol->args.count - 1){
+                        if(f->args[j+1]->decl.node.first_child){
+                            AddFlag(ol->decl.node.flags, FunctionFlag_ERRORED);
+                            logger.error(ol->decl.token_start, "calls to this function will be ambiguous.");
+                            logger.note(f->decl.token_start, "see function that makes it ambiguous.");
+                        }
+                        break;
+                    }
+
+                }
+            }
 
             f->decl.validated = 1;
 
@@ -321,10 +350,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                 }
             }
 
-            
-
             if(!validate(def)) return 0;
-
             
             pop_known_decls();
 
@@ -442,7 +468,6 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                             if(d->type == Declaration_Function){
                                 if(!validate(&d->node)) return 0;
                                 d = DeclarationFromNode(sufile->validator.functions.at(e->token_start->raw));
-
                             }else{
                                 logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
                                 logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
@@ -575,7 +600,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                             if(!(non_pos_fail || pos_fail)) exmatch = ol;
                         }
                         if(!exmatch){
-                            logger.error(e->token_start, "call to '", fg->decl.identifier, "' has too many similar convertions.");
+                            logger.error(e->token_start, "call to '", fg->decl.identifier, "' is ambiguous.");
                             logger.note(e->token_start, "call was ", show(e));
                             forI(overloads.count){
                                 logger.note(overloads[i]->decl.token_start, "could be ", gen_func_sig(overloads[i], 0));
