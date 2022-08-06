@@ -8,18 +8,18 @@
 
 	This is the compiler for the programming language amu. The name of the language is subject to change, but the compiler's name is also amu.
 	
-	あむ (kanji: 編む, romanji: amu) literally means "to compile," or "to edit." It also means to knit, to plait, or to braid. The name was chosen as an
+	あむ (kanji: 編む, romanji: amu) literally means "to compile," or "to edit." It also means to knit, to plait, and to braid. The name was chosen as an
 	alternative to our original name, su. su didn't work because it conflicted with the built in linux command su, and I personally didn't like it because 
 	it was originally chosen when I (sushi) first started working on su and couldnt think of anything else and it felt narcissitic to partially name it after myself. 
 	eventually. I like this name for the compiler because of its meaning, but would like to look into other names for the language itself.
 
 	amu is open to pull requests, issues, and new trusted contributors (as in people who can push whatever they want) if you work enough on it.
 
-	Currently the source code of the compiler, the various notes within, and messages in our discord server serve as the standard specification for su. 
-	A formal document standards document may never be typed up, but it certainly shouldnt be until the compiler and langauge have stabilized.
+	Currently the source code of the compiler, the various notes within, and messages in our discord server serve as the standard specification for amu. 
+	A formal standards document may never be typed up, but it certainly shouldnt be until the compiler and langauge have stabilized.
 
 	amu's syntax and features are rooted in C and C++ and the motivation for its creation is a dislike for the overly complex and strict features of C++
-	and a desire to have C with select features from C++, as well as some ideas of our own. A lot of the syntax mirrors C/C++, but there are some major differences.
+	and a desire to have C with select features from C++, as well as some extra ideas we have gathered. A lot of the syntax mirrors C/C++, but there are some major differences.
 	For instance, names in amu are always first in syntax. So things like struct, function, and variable declarations start with their name followed by a colon, then
 	its type specifier. The colon has pretty much become the standard syntax for a declaration in amu. This is the main syntax difference, most other things are more
 	or less the same.
