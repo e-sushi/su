@@ -628,8 +628,41 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         }
                     }
 
+                    if(!overloads.count){
+                        logger.error(e->token_start, "unable to match function call to any overload of ", e->token_start->raw);
+                        return 0;
+                    }else if(overloads.count > 1){
+                        logger.error(e->token_start, "call to ", e->token_start->raw, " is ambiguous.");
+                        //TODO(sushi) remove this following line or make it more useful by showing what types the arguments were
+                        logger.note(e->token_start, "call was ", show(e));
+                        forI(overloads.count){
+                            logger.note(overloads[i]->decl.token_start, "could be ", gen_func_sig(overloads[i]));
+                        }
+                        return 0;
+                    }
+                    
+                    //now we only have 1 overload chosen so we must change the call to directly represent it
+                    //we reorganize the named arguments to be in order and remove the assignment, so it appears 
+                    //as though this was a normal function call to later stages
+                    //TODO(sushi) finish final type checking here as well as rearraging arguments
+                    Function* pick = overloads[0];
+                    logger.log(Verbosity_Debug, "call to ", e->token_start->raw, " picked overload ", gen_func_sig(pick));
+                    forI(pick->args.count){
+                        Variable* farg = pick->args[i];
+                        if(i<n_pos_args){
+                            Expression* carg = arguments[i];
+                            if(farg->data.structure->size < carg->data.structure->size){
+                                logger.warn(carg->token_start, "argument passed to ");
+                            }                             
+                        }else{
+
+                        }
+
+                    }
 
 
+
+                    int i = 0;
                 }break;
 
                 //initial binary op cases that lead into another set of cases for doing specific work with them

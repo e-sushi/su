@@ -104,7 +104,7 @@ struct Format{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Always;
+	u32 verbosity = Verbosity_Debug;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;

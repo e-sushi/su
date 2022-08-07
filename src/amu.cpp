@@ -8,7 +8,7 @@
 
 	This is the compiler for the programming language amu. The name of the language is subject to change, but the compiler's name is also amu.
 	
-	あむ (kanji: 編む, romanji: amu) literally means "to compile," or "to edit." It also means to knit, to plait, and to braid. The name was chosen as an
+	あむ (kanji: 編む, romanji: amu) literally means "to compile," or "to edit." It also means to knit, to plait, and to braid (source is Jisho). The name was chosen as an
 	alternative to our original name, su. su didn't work because it conflicted with the built in linux command su, and I personally didn't like it because 
 	it was originally chosen when I (sushi) first started working on su and couldnt think of anything else and it felt narcissitic to partially name it after myself. 
 	eventually. I like this name for the compiler because of its meaning, but would like to look into other names for the language itself.
@@ -56,7 +56,7 @@
 	amu just expects the passed file to contain the options for compiling rather than on the command line.
 
 	To generate a basic build file template you can use 
-		amu init
+		amu -i
 	This will make a build file in the current directory, to place it somewhere else, or to give the file a custom name, just pass a path
 	after the init command. For example this will initialize a build file in the else folder with the name "build.amu":
 		amu init /path/to/somewhere/else/
@@ -65,7 +65,7 @@
 
 	The default build template only contains the most common options for compiling. If you would like a build file that contains all possible options 
 	for the compiler use
-		amu init-full
+		amu -init-full
 	This will create a build file that contains every single option you can change in the compiler, set to its default value.
 
 	This file is intended to be the only thing passed to amu from now on. Think of it like JUMBO or Unity builds from C/C++, all used files
@@ -76,7 +76,7 @@
 	(signed, unsigned, doesnt matter) or void. 
 
 	If you dont want amu to output anything to stdout, regardless of the build file's settings, start with the command 'quiet', for example
-		amu quiet build.amu
+		amu -q build.amu
 	will not output anything to the console.
 	
 	TODO(sushi) determine how arguments to this function should be handled especially in the case of cli args.
@@ -86,8 +86,6 @@
 	
 
 */
-
-
 
 /* NOTES
 
