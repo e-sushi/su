@@ -28,22 +28,20 @@
 #include "lexer.cpp"
 #endif
 
-
-
                    
 void Preprocessor::preprocess(){DPZoneScoped;
-    suLogger& logger = sufile->logger; 
+    amuLogger& logger = amufile->logger; 
     logger.log(Verbosity_Stages, "Preprocessing...");
 
-    SetThreadName("Preprocessing ", sufile->file->name);
+    SetThreadName("Preprocessing ", amufile->file->name);
 
     Stopwatch time = start_stopwatch();
    
     //TODO(sushi) this can probably be multithreaded
     logger.log(Verbosity_StageParts, "Processing imports");
     CompilerRequest cr;
-    for(u32 importidx : sufile->lexer.imports){
-        Token* curt = sufile->lexer.tokens.readptr(importidx);
+    for(u32 importidx : amufile->lexer.imports){
+        Token* curt = amufile->lexer.tokens.readptr(importidx);
         curt++;
         if(curt->type == Token_OpenBrace){
             //multiline directive 
@@ -115,16 +113,16 @@ void Preprocessor::preprocess(){DPZoneScoped;
     }
     if(cr.filepaths.count){
         cr.stage = FileStage_Validator;
-        sufile->preprocessor.imported_files = compiler.compile(&cr, 0);
+        amufile->preprocessor.imported_files = compiler.compile(&cr, 0);
     }
     
     logger.log(Verbosity_StageParts, "Resolving colon tokens as possible valid declarations.");
-    suArena<u32> decls_glob;
-    suArena<u32> decls_loc; //this is really only for debug info, not skipping local tokens because they still need to be marked as declarations
+    amuArena<u32> decls_glob;
+    amuArena<u32> decls_loc; //this is really only for debug info, not skipping local tokens because they still need to be marked as declarations
     decls_glob.init();
     decls_loc.init();
-    for(u32 idx : sufile->lexer.declarations){
-        Token* tok = sufile->lexer.tokens.readptr(idx);
+    for(u32 idx : amufile->lexer.declarations){
+        Token* tok = amufile->lexer.tokens.readptr(idx);
         if((tok-1)->type == Token_Identifier){
             // this must be a variable declaration, so we check that the next token is either in token group 
             // type or is just another identifier, we check both because it is possible a struct type is being used
@@ -164,9 +162,9 @@ void Preprocessor::preprocess(){DPZoneScoped;
     }
 
     logger.log(Verbosity_StageParts, "Finding internal declarations.");
-    sufile->preprocessor.exported_decl = decls_glob;
-    for(u32 idx : sufile->lexer.internals){
-        Token* curt = sufile->lexer.tokens.readptr(idx);
+    amufile->preprocessor.exported_decl = decls_glob;
+    for(u32 idx : amufile->lexer.internals){
+        Token* curt = amufile->lexer.tokens.readptr(idx);
         curt++;
         u32 start = idx, end;
         if(curt->type == Token_OpenBrace){
@@ -183,14 +181,14 @@ void Preprocessor::preprocess(){DPZoneScoped;
             end = idx;
         }else{
             //the rest of the file is considered internal
-            end = sufile->lexer.tokens.count;
+            end = amufile->lexer.tokens.count;
         }   
 
         //move exported identifiers into internal
         forI(decls_glob.count){
             if(decls_glob[i] > start && decls_glob[i] < end){
-                sufile->preprocessor.internal_decl.add(decls_glob[i]);
-                sufile->preprocessor.exported_decl.remove_unordered(i);
+                amufile->preprocessor.internal_decl.add(decls_glob[i]);
+                amufile->preprocessor.exported_decl.remove_unordered(i);
             }
         }
         //local identifiers do not need to be declared internal
@@ -198,8 +196,8 @@ void Preprocessor::preprocess(){DPZoneScoped;
 
 
     logger.log(Verbosity_StageParts, "Finding run directives ", ErrorFormat("(NotImplemented)"));
-    for(u32 idx : sufile->lexer.runs){
-        logger.error(&sufile->lexer.tokens[idx], "#run is not implemented yet.");
+    for(u32 idx : amufile->lexer.runs){
+        logger.error(&amufile->lexer.tokens[idx], "#run is not implemented yet.");
     }
 
     if(globals.verbosity >= Verbosity_Debug){
@@ -214,27 +212,24 @@ void Preprocessor::preprocess(){DPZoneScoped;
             return STR8(ErrorFormat("UNKNOWN"));
         };
 
-        if(sufile->preprocessor.exported_decl.count)
+        if(amufile->preprocessor.exported_decl.count)
             logger.log(Verbosity_Debug, "Exported declarations");
-        for(u32 idx : sufile->preprocessor.exported_decl){
-            logger.log(Verbosity_Debug, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
+        for(u32 idx : amufile->preprocessor.exported_decl){
+            logger.log(Verbosity_Debug, "  ", amufile->lexer.tokens[idx].raw, " : ", decltypestr(amufile->lexer.tokens[idx].decl_type));
         }
 
-        if(sufile->preprocessor.internal_decl.count)
+        if(amufile->preprocessor.internal_decl.count)
             logger.log(Verbosity_Debug, "Internal declarations");
-        for(u32 idx : sufile->preprocessor.internal_decl){
-            logger.log(Verbosity_Debug, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
+        for(u32 idx : amufile->preprocessor.internal_decl){
+            logger.log(Verbosity_Debug, "  ", amufile->lexer.tokens[idx].raw, " : ", decltypestr(amufile->lexer.tokens[idx].decl_type));
         }
 
         if(decls_loc.count)
             logger.log(Verbosity_Debug, "Local declarations");
         for(u32 idx : decls_loc){
-            logger.log(Verbosity_Debug, "  ", sufile->lexer.tokens[idx].raw, " : ", decltypestr(sufile->lexer.tokens[idx].decl_type));
+            logger.log(Verbosity_Debug, "  ", amufile->lexer.tokens[idx].raw, " : ", decltypestr(amufile->lexer.tokens[idx].decl_type));
         }
     }
-    
-
-
     
     logger.log(Verbosity_Stages, "Finished preprocessing in ", peek_stopwatch(time), " ms", VTS_Default);
 }

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SU_TYPES_H
-#define SU_TYPES_H
+#ifndef AMU_TYPES_H
+#define AMU_TYPES_H
 
 #include "kigu/array.h"
 #include "kigu/common.h"
@@ -8,12 +8,12 @@
 #include "core/threading.h"
 #include "ctype.h"
 
-#define SetThreadName(...) DeshThreadManager->set_thread_name(suStr8(__VA_ARGS__))
+#define SetThreadName(...) DeshThreadManager->set_thread_name(amuStr8(__VA_ARGS__))
 
 //attempt at making str8 building thread safe
-#define suStr8(...) to_str8_su(__VA_ARGS__)
+#define amuStr8(...) to_str8_amu(__VA_ARGS__)
 template<class...T>
-str8 to_str8_su(T... args){DPZoneScoped;
+str8 to_str8_amu(T... args){DPZoneScoped;
 	persist mutex tostr8_lock = init_mutex();
 	tostr8_lock.lock();
 	global_mem_lock.lock();
@@ -104,14 +104,14 @@ struct Format{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Debug;
+	u32 verbosity = Verbosity_Always;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
-	b32 warnings_as_errors = false;
+	b32 warnings_as_errors = true;
 	b32 show_code = true;
 	b32 log_immediatly           = true;
-	b32 assert_compiler_on_error = false;
+	b32 assert_compiler_on_error = true;
 	b32 disable_colors           = false;
 	OSOut osout = OSOut_Windows;
 
@@ -152,15 +152,15 @@ enum NodeType : u32 {
 //but I believe that modification and reading shouldnt happen at the same time, so its probably fine
 //TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is parser adding stuff to its base node
 //            but that can be deferred.
-struct suNode{
+struct amuNode{
 	Type  type;
 	Flags flags;
 	
-	suNode* next = 0;
-	suNode* prev = 0;
-	suNode* parent = 0;
-	suNode* first_child = 0;
-	suNode* last_child = 0;
+	amuNode* next = 0;
+	amuNode* prev = 0;
+	amuNode* parent = 0;
+	amuNode* first_child = 0;
+	amuNode* last_child = 0;
 	u32     child_count = 0;
 	
 	mutex lock;
@@ -168,7 +168,7 @@ struct suNode{
 	str8 debug;
 };
 
-global inline void insert_after(suNode* target, suNode* node) { DPZoneScoped;
+global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
 	target->lock.lock();
 	node->lock.lock();
 	defer{
@@ -182,7 +182,7 @@ global inline void insert_after(suNode* target, suNode* node) { DPZoneScoped;
 	
 }
 
-global inline void insert_before(suNode* target, suNode* node) { DPZoneScoped;
+global inline void insert_before(amuNode* target, amuNode* node) { DPZoneScoped;
 	target->lock.lock();
 	node->lock.lock();
 	defer{
@@ -195,7 +195,7 @@ global inline void insert_before(suNode* target, suNode* node) { DPZoneScoped;
 	target->prev = node;
 }
 
-global inline void remove_horizontally(suNode* node) { DPZoneScoped;
+global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
 	node->lock.lock();
 	defer {node->lock.unlock();};
 	if (node->next) node->next->prev = node->prev;
@@ -203,7 +203,7 @@ global inline void remove_horizontally(suNode* node) { DPZoneScoped;
 	node->next = node->prev = 0;
 }
 
-global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
+global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
 	parent->lock.lock();
 	child->lock.lock();
 	defer {
@@ -226,7 +226,7 @@ global void insert_last(suNode* parent, suNode* child) { DPZoneScoped;
 	parent->child_count++;
 }
 
-global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
+global void insert_first(amuNode* parent, amuNode* child) { DPZoneScoped;
 	parent->lock.lock();
 	child->lock.lock();
 	defer{
@@ -248,7 +248,7 @@ global void insert_first(suNode* parent, suNode* child) { DPZoneScoped;
 	
 }
 
-global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
+global void change_parent(amuNode* new_parent, amuNode* node) { DPZoneScoped;
 	new_parent->lock.lock();
 	node->lock.lock();
 	defer {
@@ -276,12 +276,12 @@ global void change_parent(suNode* new_parent, suNode* node) { DPZoneScoped;
 	insert_last(new_parent, node);
 }
 
-global void move_to_parent_first(suNode* node){ DPZoneScoped;
+global void move_to_parent_first(amuNode* node){ DPZoneScoped;
 	node->lock.lock();
 	defer { node->lock.unlock(); };
 	if(!node->parent) return;
 	
-	suNode* parent = node->parent;
+	amuNode* parent = node->parent;
 	if(parent->first_child == node) return;
 	if(parent->last_child == node) parent->last_child = node->prev;
 
@@ -291,12 +291,12 @@ global void move_to_parent_first(suNode* node){ DPZoneScoped;
 	parent->first_child = node;
 }
 
-global void move_to_parent_last(suNode* node){ DPZoneScoped;
+global void move_to_parent_last(amuNode* node){ DPZoneScoped;
 	node->lock.lock();
 	defer{node->lock.unlock();};
 	if(!node->parent) return;
 	
-	suNode* parent = node->parent;
+	amuNode* parent = node->parent;
 	if(parent->last_child == node) return;
 	if(parent->first_child == node) parent->first_child = node->next;
 
@@ -306,12 +306,12 @@ global void move_to_parent_last(suNode* node){ DPZoneScoped;
 	parent->last_child = node;
 }
 
-global void remove(suNode* node) { DPZoneScoped;
+global void remove(amuNode* node) { DPZoneScoped;
 	node->lock.lock();
 	defer{node->lock.unlock();};
 	//add children to parent (and remove self from children)
-	for(suNode* it = node->first_child; it != 0; ) {
-		suNode* next = it->next;
+	for(amuNode* it = node->first_child; it != 0; ) {
+		amuNode* next = it->next;
 		change_parent(node->parent, it);
 		it = next;
 	}
@@ -341,14 +341,14 @@ global void remove(suNode* node) { DPZoneScoped;
 
 mutex global_mem_lock = init_mutex();
 
-void* su_memalloc(upt size){
+void* amu_memalloc(upt size){
 	global_mem_lock.lock();
 	void* ret = memalloc(size);
 	global_mem_lock.unlock();
 	return ret;
 }
 
-void su_memzfree(void* ptr){
+void amu_memzfree(void* ptr){
 	global_mem_lock.lock();
 	memzfree(ptr);
 	global_mem_lock.unlock();
@@ -357,7 +357,7 @@ void su_memzfree(void* ptr){
 //attempt at implementing a thread safe memory region 
 //this is chunked, so memory never moves unless you use something like remove
 template<typename T>
-struct suChunkedArena{
+struct amuChunkedArena{
 	Arena** arenas;
 	u64 arena_count = 0;
 	u64 arena_space = 16;
@@ -369,7 +369,7 @@ struct suChunkedArena{
 		write_lock.init();
 		read_lock.init();
 		arena_count = 1;
-		arenas = (Arena**)su_memalloc(sizeof(Arena*)*arena_space);
+		arenas = (Arena**)amu_memalloc(sizeof(Arena*)*arena_space);
 		global_mem_lock.lock();
 		arenas[arena_count-1] = memory_create_arena(sizeof(T)*n_obj_per_chunk); 
 		global_mem_lock.unlock();
@@ -381,7 +381,7 @@ struct suChunkedArena{
 			memory_delete_arena(arenas[i]);
 		}
 		global_mem_lock.unlock();
-		su_memzfree(arenas);
+		amu_memzfree(arenas);
 	}
 
 	T* add(const T& in){
@@ -467,7 +467,7 @@ struct suChunkedArena{
 };
 
 template<typename T>
-struct suArena{
+struct amuArena{
 	T* data;
 	mutex write_lock;
 	mutex read_lock;
@@ -616,8 +616,8 @@ struct suArena{
 //TODO(sushi) make a generic sorted binary searched map for amu
 struct Declaration;
 struct nodemap{
-	suArena<u64> hashes; 
-	suArena<pair<str8, suNode*>> data;
+	amuArena<u64> hashes; 
+	amuArena<pair<str8, amuNode*>> data;
 
 	void init(){DPZoneScoped;
 		hashes.init(256);
@@ -653,7 +653,7 @@ struct nodemap{
 
 	//note there is no overload for giving the key as a u64 because this struct requires
 	//storing the original key value in the data.
-	u32 add(str8 key, suNode* val){DPZoneScoped;
+	u32 add(str8 key, amuNode* val){DPZoneScoped;
 		u64 key_hash = str8_hash64(key);
 		spt index = -1;
 		spt middle = 0;
@@ -712,7 +712,7 @@ struct nodemap{
 		return has_collided(str8_hash64(key));
 	}
 
-	suNode* at(str8 key){DPZoneScoped;
+	amuNode* at(str8 key){DPZoneScoped;
 		u32 index = find_key(key);
 		if(index != -1){
 			if(hashes.count == 1){
@@ -754,7 +754,7 @@ struct nodemap{
 		return 0;
 	}
 
-	suNode* atIdx(u64 idx){
+	amuNode* atIdx(u64 idx){
 		Assert(idx < data.count);
 		return data[idx].second;
 	}
@@ -1349,7 +1349,7 @@ enum{
 	ExpressionFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
 };
 struct Expression {
-	suNode node;
+	amuNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1379,7 +1379,7 @@ enum{
 	StatementFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
 };
 struct Statement {
-	suNode node;
+	amuNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1391,7 +1391,7 @@ enum{
 	ScopeFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
 };
 struct Scope {
-	suNode node;
+	amuNode node;
 	Token* token_start;
 	Token* token_end;
 	
@@ -1408,7 +1408,7 @@ struct Variable;
 struct Function;
 struct ParserThread;
 struct Declaration{
-	suNode node;
+	amuNode node;
 	Token* token_start;
 	Token* token_end;
 
@@ -1434,9 +1434,9 @@ struct Function {
 	//an array of overloads
 	//this is only used on the base Function that represents overloads
 	//NOTE(sushi) this can probably just be replaced by using nodes 
-	suArena<Function*> overloads;
+	amuArena<Function*> overloads;
 
-	suArena<Variable*> args;
+	amuArena<Variable*> args;
 
 	TypedValue data;
 	Struct* struct_data;
@@ -1561,27 +1561,27 @@ enum{
 };
 
 struct Token;
-struct suFile;
-struct suMessage{
+struct amuFile;
+struct amuMessage{
 	u32 verbosity;
 	Token* token;
 	Type type; //log, error, or warn	
 	u32 indent;
 	f64 time_made;
 	str8 prefix;
-	suFile* sufile;
+	amuFile* amufile;
 	array<str8> message_parts;
 };
 
-struct suLogger{
+struct amuLogger{
 	// instead of immediatly logging messages we collect them to format and display later
 	// we do this to prevent threads' messages from overlapping each other, to prevent
 	// actually printing anything during compiling, and so we can do much nicer formatting later on
 	// this behavoir is disabled by globals.log_immediatly
 	//TODO(sushi) implement an arena instead of array so that we know this will be thread safe
-	array<suMessage> messages;
+	array<amuMessage> messages;
 
-	suFile* sufile = 0;
+	amuFile* amufile = 0;
 	str8 owner_str_if_sufile_is_0 = {0,0};
 	
 	template<typename...T>
@@ -1590,11 +1590,11 @@ struct suLogger{
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Log;
 			message.verbosity = verbosity;
@@ -1612,11 +1612,11 @@ struct suLogger{
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, t->file,  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, t->file,  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Log;
 			message.verbosity = verbosity;
@@ -1634,11 +1634,11 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Error;
 			constexpr auto arg_count{sizeof...(T)};
@@ -1656,11 +1656,11 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Error;
 			constexpr auto arg_count{sizeof...(T)};
@@ -1677,11 +1677,11 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("warning"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Warn;
 			constexpr auto arg_count{sizeof...(T)};
@@ -1697,11 +1697,11 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", WarningFormat("warning"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Warn;
 			constexpr auto arg_count{sizeof...(T)};
@@ -1717,11 +1717,11 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", MagentaFormat("note"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", MagentaFormat("note"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Note;
 			constexpr auto arg_count{sizeof...(T)};
@@ -1737,11 +1737,11 @@ struct suLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			compiler.mutexes.log.lock();
-			str8 out = to_str8_su(VTS_CyanFg, (sufile ? sufile->file->name : owner_str_if_sufile_is_0), MagenetaFormat("note"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), MagenetaFormat("note"), ": ", args...);
 			Log("", out);
 			compiler.mutexes.log.unlock();
 		}else{
-			suMessage message;
+			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
 			message.type = Message_Note;
 			constexpr auto arg_count{sizeof...(T)};
@@ -1753,7 +1753,7 @@ struct suLogger{
 	}
 };
 
-struct suFile{
+struct amuFile{
 	File* file;
 	str8 file_buffer;
 	Type stage;
@@ -1761,7 +1761,7 @@ struct suFile{
 	//to prevent multiple compiler threads from starting on the same file
 	b32 being_processed = 0;
 
-	suLogger logger;
+	amuLogger logger;
 
 	//for files to wait on other files to finish certain stages
 	//NOTE(sushi) this may only be necessary for validator
@@ -1773,31 +1773,31 @@ struct suFile{
 	}cv;
 
 	struct{ // lexer
-		suArena<Token> tokens;
-		suArena<u32> declarations; // list of : tokens
-		suArena<u32> imports;      // list of import tokens
-		suArena<u32> internals;    // list of internal tokens
-		suArena<u32> runs;         // list of run tokens
+		amuArena<Token> tokens;
+		amuArena<u32> declarations; // list of : tokens
+		amuArena<u32> imports;      // list of import tokens
+		amuArena<u32> internals;    // list of internal tokens
+		amuArena<u32> runs;         // list of run tokens
 	}lexer;
 
 	struct{ // preprocessor
-		suArena<suFile*> imported_files;
-		suArena<u32> exported_decl;
-		suArena<u32> internal_decl;
-		suArena<u32> runs;
+		amuArena<amuFile*> imported_files;
+		amuArena<u32> exported_decl;
+		amuArena<u32> internal_decl;
+		amuArena<u32> runs;
 	
 	}preprocessor;
 
 	struct{ // parser
 		//node that all top-level declarations attach to 
-		suNode base;
+		amuNode base;
 
 		//arrays organizing toplevel declarations and import directives
-		suArena<Statement*> import_directives;
+		amuArena<Statement*> import_directives;
 		//TODO(sushi) it may not be necessary to have exported and imported in separate arrays anymore
-		suArena<Declaration*> exported_decl;
-		suArena<Declaration*> imported_decl;
-		suArena<Declaration*> internal_decl;
+		amuArena<Declaration*> exported_decl;
+		amuArena<Declaration*> imported_decl;
+		amuArena<Declaration*> internal_decl;
 	}parser;
 
 	struct{
@@ -1837,7 +1837,7 @@ struct suFile{
 //// Lexer
 
 struct Lexer {
-	suFile* sufile;
+	amuFile* amufile;
 	void lex();
 };
 
@@ -1845,7 +1845,7 @@ struct Lexer {
 //// Preprocessor
 
 struct Preprocessor {
-	suFile* sufile;
+	amuFile* amufile;
 	void preprocess();
 };
 
@@ -1854,12 +1854,12 @@ struct Preprocessor {
 
 struct Parser;
 struct ParserThread{
-	suFile* sufile;
+	amuFile* amufile;
 	
 	Parser* parser;
 	Type stage; //entry stage
 
-	suNode* node;
+	amuNode* node;
 	Token* curt;
 
 	b32 is_internal;
@@ -1869,8 +1869,8 @@ struct ParserThread{
 	condvar cv;
 	
 	Declaration* declare();
-	suNode* define(suNode* node, Type stage);
-	suNode* parse_import(Token* start);
+	amuNode* define(amuNode* node, Type stage);
+	amuNode* parse_import(Token* start);
 
 	template<typename ...args> FORCE_INLINE b32
 	curr_match(args... in){DPZoneScoped;
@@ -1893,7 +1893,7 @@ struct ParserThread{
 	}
 
 	template<typename... T>
-	suNode* binop_parse(suNode* node, suNode* ret, Type next_stage, T... tokchecks);
+	amuNode* binop_parse(amuNode* node, amuNode* ret, Type next_stage, T... tokchecks);
 };
 
 struct Parser {
@@ -1904,7 +1904,7 @@ struct Parser {
 
 	
 	//file the parser is working in
-	suFile* sufile;
+	amuFile* amufile;
 
 	void parse();
 
@@ -1917,7 +1917,7 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 	SetThreadName("parser thread started.");
 	ParserThread* pt = (ParserThread*)pthreadinfo;
 	pt->check_var_decl_semicolon = 1;
-	pt->sufile = pt->parser->sufile;
+	pt->amufile = pt->parser->amufile;
 	pt->define(pt->node, pt->stage);
 	pt->finished = 1;
 	pt->cv.notify_all();
@@ -1927,7 +1927,7 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 //// Validator
 
 struct Validator{
-	suFile* sufile;
+	amuFile* amufile;
 
 	//keeps track of what element we are currently working in
 	struct{
@@ -1942,16 +1942,16 @@ struct Validator{
 	struct{
 		//stacks of declarations known in current scope
 		//this array stores the index of the last declaration that was pushed before a new scope begins
-		suArena<u32> known_declarations_scope_begin_offsets;
-		suArena<Declaration*> known_declarations;
+		amuArena<u32> known_declarations_scope_begin_offsets;
+		amuArena<Declaration*> known_declarations;
 		//stacks of elements that we are working with
 		struct{
-			suArena<Scope*>      scopes;
-			suArena<Struct*>     structs;
-			suArena<Variable*>   variables;
-			suArena<Function*>   functions;
-			suArena<Expression*> expressions;
-			suArena<Statement*>  statements;
+			amuArena<Scope*>      scopes;
+			amuArena<Struct*>     structs;
+			amuArena<Variable*>   variables;
+			amuArena<Function*>   functions;
+			amuArena<Expression*> expressions;
+			amuArena<Statement*>  statements;
 		}nested;
 	}stacks;
 
@@ -1972,7 +1972,7 @@ struct Validator{
 	//starts the validation stage
 	void         start();
 	//recursive validator function
-	suNode*      validate(suNode* node);
+	amuNode*      validate(amuNode* node);
 	//checks if a variable is going to conflict with another variable in its scope
 	//return false if the variable conflicts with another
 	b32          check_shadowing(Declaration* d);
@@ -1996,10 +1996,10 @@ struct Compiler{
 
 	Stopwatch ctime;
 
-	suLogger logger;
+	amuLogger logger;
 
 	//TODO(sushi) we probably want to just chunk arenas for suFiles instead of randomly allocating them.
-	map<str8, suFile*> files;
+	map<str8, amuFile*> files;
 	
 	struct{
 		//we represent builtin scalars as structs internally because it is possible for the user
@@ -2035,12 +2035,12 @@ struct Compiler{
 	}mutexes;
 
 	//returns a carray of the suFiles created by the request
-	suArena<suFile*> compile(CompilerRequest* request, b32 wait = 1);
+	amuArena<amuFile*> compile(CompilerRequest* request, b32 wait = 1);
 
-	suFile* start_lexer       (suFile* sufile);
-	suFile* start_preprocessor(suFile* sufile);
-	suFile* start_parser      (suFile* sufile);
-	suFile* start_validator   (suFile* sufile);
+	amuFile* start_lexer       (amuFile* amufile);
+	amuFile* start_preprocessor(amuFile* amufile);
+	amuFile* start_parser      (amuFile* amufile);
+	amuFile* start_validator   (amuFile* amufile);
 
 	void init();
 
@@ -2059,7 +2059,7 @@ struct CompilerThread{
 	Type stage;
 	condvar wait;
 	b32 finished;
-	suFile* sufile;
+	amuFile* amufile;
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2208,12 +2208,12 @@ str8 show(Expression* e){
 //// Memory
 
 struct{
-	suChunkedArena<Function>   functions;
-	suChunkedArena<Variable>   variables;
-	suChunkedArena<Struct>     structs;
-	suChunkedArena<Scope>      scopes;
-	suChunkedArena<Expression> expressions;
-	suChunkedArena<Statement>  statements;
+	amuChunkedArena<Function>   functions;
+	amuChunkedArena<Variable>   variables;
+	amuChunkedArena<Struct>     structs;
+	amuChunkedArena<Scope>      scopes;
+	amuChunkedArena<Expression> expressions;
+	amuChunkedArena<Statement>  statements;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
@@ -2288,4 +2288,4 @@ struct{
 
 }arena;
 
-#endif //SU_TYPES_H
+#endif //AMU_TYPES_H

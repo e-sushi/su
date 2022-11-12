@@ -28,15 +28,15 @@
 #endif
 
 #define perror(token, ...)\
-sufile->logger.error(token, __VA_ARGS__)
+amufile->logger.error(token, __VA_ARGS__)
 
 #define perror_ret(token, ...){\
-sufile->logger.error(token, __VA_ARGS__);\
+amufile->logger.error(token, __VA_ARGS__);\
 return 0;\
 }
 
 #define pwarn(token, ...)\
-sufile->logger.warn(token, __VA_ARGS__);
+amufile->logger.warn(token, __VA_ARGS__);
 
 
 #define expect(...) if(curr_match(__VA_ARGS__))
@@ -46,9 +46,9 @@ sufile->logger.warn(token, __VA_ARGS__);
 
 
 template<typename... T>
-suNode* ParserThread::binop_parse(suNode* node, suNode* ret, Type next_stage, T... tokchecks){
-    suNode* out = ret;
-    suNode* lhs_node = ret;
+amuNode* ParserThread::binop_parse(amuNode* node, amuNode* ret, Type next_stage, T... tokchecks){
+    amuNode* out = ret;
+    amuNode* lhs_node = ret;
     while(next_match(tokchecks...)){
         curt++;
         //make binary op expression
@@ -72,8 +72,8 @@ suNode* ParserThread::binop_parse(suNode* node, suNode* ret, Type next_stage, T.
 
 
 
-suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
-    //ThreadSetName(suStr8("parsing ", curt->raw, " in ", curt->file));
+amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
+    //ThreadSetName(amuStr8("parsing ", curt->raw, " in ", curt->file));
     switch(stage){
         case psFile:{ //-------------------------------------------------------------------------------------------------File
             // i dont think this stage will ever be touched
@@ -88,7 +88,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 expect(Token_OpenBrace){
                     curt++;
                     while(!curr_match(Token_CloseBrace)){
-                        suNode* n = define(&s->node, psImport);
+                        amuNode* n = define(&s->node, psImport);
                         if(!n) return 0;
                         expect(Token_Comma) {
                             curt++;
@@ -98,13 +98,13 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
                     }     
                 }else{
-                    suNode* n = define(&s->node, psImport);
+                    amuNode* n = define(&s->node, psImport);
                     if(!n) return 0;
                 }
                 //NOTE(sushi) still not sure if we want to allow scoped importing
                 //            this also doesnt work so im just commenting it out for now
                 //if(is_global){
-                    sufile->parser.import_directives.add(s);
+                    amufile->parser.import_directives.add(s);
                 //}else{
                 //    insert_last(node, &s->node);
                 //}
@@ -176,13 +176,13 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
         case psScope:{ //-----------------------------------------------------------------------------------------------Scope
             Scope* s = arena.make_scope(curt->raw);
-            suNode* me = &s->node;
+            amuNode* me = &s->node;
             insert_last(node, me);
             while(!next_match(Token_CloseBrace)){
                 curt++;
                 expect(Token_Identifier){
                     if(curt->is_declaration){
-                        suNode* ret = define(me, psDeclaration);
+                        amuNode* ret = define(me, psDeclaration);
                         if(!ret) return 0;
                         Declaration* d = DeclarationFromNode(ret);
                     }else{
@@ -215,8 +215,8 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     s->decl.declared_identifier = curt->raw;
 
                     if(curt->is_global){
-                        if(is_internal) sufile->parser.internal_decl.add(&s->decl);
-                        else            sufile->parser.exported_decl.add(&s->decl);
+                        if(is_internal) amufile->parser.internal_decl.add(&s->decl);
+                        else            amufile->parser.exported_decl.add(&s->decl);
                     }
                     //TODO(sushi) since these expects arent linked to any alternatives they can just early out to reduce nesting
                     curt++;
@@ -233,7 +233,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                                             perror(curt, "only declarations are allowed inside struct definitions. NOTE(sushi) if this is a declaration, then this error indicates something wrong internally, please let me know.");
                                             return 0;
                                         }
-                                        suNode* fin = define(&s->decl.node, psDeclaration);
+                                        amuNode* fin = define(&s->decl.node, psDeclaration);
                                         if(!fin){
                                             return 0;
                                         } 
@@ -259,7 +259,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     b32 is_global = curt->is_global;
                     str8 id = curt->raw;
                     f->internal_label = id;
-                    f->internal_label = suStr8(f->internal_label, "@");
+                    f->internal_label = amuStr8(f->internal_label, "@");
                     curt++;
                     expect(Token_OpenParen){ // name(
                         //disable checking for semicolon after variable declaration
@@ -274,9 +274,9 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                                 curt->decl_type = Declaration_Variable;
                                 Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
                                 if(!v) return 0;
-                                f->internal_label = suStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
+                                f->internal_label = amuStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
-                                    f->internal_label = suStr8(f->internal_label, STR8("*"));
+                                    f->internal_label = amuStr8(f->internal_label, STR8("*"));
                                 }
                                 expect(Token_Comma){
                                     expect_next(Token_CloseParen) perror_ret(curt,"trailing comma in function declaration.");
@@ -293,18 +293,18 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                             //TODO(sushi) multiple return types
                             expect_group(TokenGroup_Type){ // name(...) : <type>
                                 f->data.structure = builtin_from_type(curt->type);
-                                f->internal_label = suStr8(f->internal_label, "@", curt->raw);
+                                f->internal_label = amuStr8(f->internal_label, "@", curt->raw);
                                 if(is_global){
-                                    if(is_internal) sufile->parser.internal_decl.add(&f->decl);
-                                    else            sufile->parser.exported_decl.add(&f->decl);
+                                    if(is_internal) amufile->parser.internal_decl.add(&f->decl);
+                                    else            amufile->parser.exported_decl.add(&f->decl);
                                 }
                             }else expect(Token_Identifier){ // name(...) : <type>
                                 //we are most likely referencing a struct type in this case
                                 f->data.structure = 0;
-                                f->internal_label = suStr8(f->internal_label, "@", curt->raw);
+                                f->internal_label = amuStr8(f->internal_label, "@", curt->raw);
                                 if(curt->is_global){
-                                    if(is_internal) sufile->parser.internal_decl.add(&f->decl);
-                                    else            sufile->parser.exported_decl.add(&f->decl);
+                                    if(is_internal) amufile->parser.internal_decl.add(&f->decl);
+                                    else            amufile->parser.exported_decl.add(&f->decl);
                                 }
                             } else perror(curt, "expected a type specifier after ':' in function declaration.");
                             curt++;
@@ -317,10 +317,10 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Variable:{ //name
-                    Variable* v = arena.make_variable(suStr8(curt->raw, " -decl"));
+                    Variable* v = arena.make_variable(amuStr8(curt->raw, " -decl"));
                     if(curt->is_global){
-                        if(is_internal) sufile->parser.internal_decl.add(&v->decl);
-                        else            sufile->parser.exported_decl.add(&v->decl);
+                        if(is_internal) amufile->parser.internal_decl.add(&v->decl);
+                        else            amufile->parser.exported_decl.add(&v->decl);
                     }
                     v->decl.declared_identifier = curt->raw;
                     v->decl.identifier = curt->raw;
@@ -400,7 +400,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     expect(Token_Semicolon){
                         curt++;
                     }else{
-                        suNode* n = define(&s->node, psExpression);
+                        amuNode* n = define(&s->node, psExpression);
                         if(!n) return 0;
                         change_parent(&s->node, n);
                     }
@@ -416,7 +416,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     expect(Token_OpenParen){
                         curt++;
                         expect(Token_CloseParen) perror_ret(curt, "expected an expression for if statement.");
-                        suNode* n = define(&s->node, psExpression);
+                        amuNode* n = define(&s->node, psExpression);
                         if(!n) return 0;
                         curt++;
                         expect(Token_CloseParen){
@@ -449,14 +449,14 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     insert_last(node, &s->node);
                     curt++;
                     expect(Token_OpenBrace){
-                        suNode* n = define(&s->node, psScope);
+                        amuNode* n = define(&s->node, psScope);
                         if(!n) return 0;
                         s->token_end = curt;
                     }else{
                         //check that the user isnt trying to declare anything in an unscoped else statement
                         expect(Token_Identifier)
                             if(curt->is_declaration) perror_ret(curt, "can't declare something in an unscoped else statement.");
-                        suNode* n = define(&s->node, psStatement);
+                        amuNode* n = define(&s->node, psStatement);
                         if(!n) return 0;
                         curt++;
                         expect(Token_Semicolon){}
@@ -469,7 +469,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 case Token_Pound:{
                     TestMe;
                     curt++;
-                    suNode* n = define(node, psDirective);
+                    amuNode* n = define(node, psDirective);
                     if(!n) return 0;
                 }break;
 
@@ -479,7 +479,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     s->token_start = curt;
                     s->type = Statement_Expression;
                     insert_last(node, &s->node);
-                    suNode* ret = define(&s->node, psExpression);
+                    amuNode* ret = define(&s->node, psExpression);
                     if(!ret) return 0;
                     curt++;
                     s->token_end = curt;
@@ -494,7 +494,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
         case psExpression:{ //-------------------------------------------------------------------------------------Expression
             expect(Token_Identifier){
                 //go down expression chain first
-                suNode* n = define(node, psConditional);
+                amuNode* n = define(node, psConditional);
                 if(!n) return 0;
                 Expression* e = ExpressionFromNode(n);
 
@@ -504,7 +504,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     op->type = Expression_BinaryOpAssignment;
                     change_parent(&op->node, &e->node);
                     curt++;
-                    suNode* ret = define(&op->node, psExpression);
+                    amuNode* ret = define(&op->node, psExpression);
                     insert_last(node, &op->node);
                     return &op->node;                                                
                 }
@@ -628,7 +628,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                 case Token_OpenParen:{
                     curt++;
                     Token* start = curt;
-                    suNode* ret = define(node, psExpression);
+                    amuNode* ret = define(node, psExpression);
                     curt++;
                     expect(Token_CloseParen){
                         return ret;
@@ -664,7 +664,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
                     curt++;
 
-                    suNode* n = define(&id->node, psExpression);
+                    amuNode* n = define(&id->node, psExpression);
                     if(!n) return 0;
                     return &e->node;
                 }break;
@@ -674,7 +674,7 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
                     e->token_start = curt;
                     expect_next(Token_OpenParen){
                         //this must be a function call
-                        e->node.debug = suStr8("call ", curt->raw);
+                        e->node.debug = amuStr8("call ", curt->raw);
                         e->type = Expression_FunctionCall;
                         curt++;
                         while(1){
@@ -717,58 +717,58 @@ suNode* ParserThread::define(suNode* node, Type stage){DPZoneScoped;
 
 void Parser::parse(){DPZoneScoped;
     Stopwatch time = start_stopwatch();
-    sufile->logger.log(Verbosity_Stages, "Parsing...");
-    SetThreadName("Parsing ", sufile->file->name);
+    amufile->logger.log(Verbosity_Stages, "Parsing...");
+    SetThreadName("Parsing ", amufile->file->name);
 
     threads = array<ParserThread>(deshi_allocator);
     pending_globals.init();
 
    
-    sufile->logger.log(Verbosity_StageParts, "Checking that imported files are parsed");
+    amufile->logger.log(Verbosity_StageParts, "Checking that imported files are parsed");
 
     threads.reserve(
-        sufile->preprocessor.internal_decl.count+
-        sufile->preprocessor.exported_decl.count+
-        sufile->lexer.imports.count
+        amufile->preprocessor.internal_decl.count+
+        amufile->preprocessor.exported_decl.count+
+        amufile->lexer.imports.count
     );
     
     
-    for(u32 idx : sufile->lexer.imports){
+    for(u32 idx : amufile->lexer.imports){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
         pt->cv.init();
-        pt->curt = sufile->lexer.tokens.readptr(idx);
+        pt->curt = amufile->lexer.tokens.readptr(idx);
         pt->parser = this;
-        pt->node = &sufile->parser.base;
+        pt->node = &amufile->parser.base;
         pt->stage = psDirective;
         DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
         
-    for(u32 idx : sufile->preprocessor.internal_decl){
+    for(u32 idx : amufile->preprocessor.internal_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
         pt->cv.init();
-        pt->curt = sufile->lexer.tokens.readptr(idx);
+        pt->curt = amufile->lexer.tokens.readptr(idx);
         pt->parser = this;
-        pt->node = &sufile->parser.base;
+        pt->node = &amufile->parser.base;
         pt->stage = psDeclaration;
         pt->is_internal = 1;
         DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
 
-    for(u32 idx : sufile->preprocessor.exported_decl){
+    for(u32 idx : amufile->preprocessor.exported_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
         pt->cv.init();
-        pt->curt = sufile->lexer.tokens.readptr(idx);
+        pt->curt = amufile->lexer.tokens.readptr(idx);
         pt->parser = this;
-        pt->node = &sufile->parser.base;
+        pt->node = &amufile->parser.base;
         pt->stage = psDeclaration;
         pt->is_internal = 0;
         DeshThreadManager->add_job({&parse_threaded_stub, pt});
     }
 
-    sufile->logger.log(Verbosity_StageParts, "Waking threads");
+    amufile->logger.log(Verbosity_StageParts, "Waking threads");
 
     DeshThreadManager->wake_threads();
 
@@ -778,17 +778,17 @@ void Parser::parse(){DPZoneScoped;
         }
     }
 
-    sufile->logger.log(Verbosity_StageParts, "Joining nodes to base.");
+    amufile->logger.log(Verbosity_StageParts, "Joining nodes to base.");
     //join everything under one node. 
     //import nodes are not joined here because leaving them out keeps the tree clean
     //and we can just manually access them in validator
-    forI(sufile->parser.internal_decl.count){
-        change_parent(&sufile->parser.base, &sufile->parser.internal_decl.read(i)->node);
+    forI(amufile->parser.internal_decl.count){
+        change_parent(&amufile->parser.base, &amufile->parser.internal_decl.read(i)->node);
     }
-    forI(sufile->parser.exported_decl.count){
-        change_parent(&sufile->parser.base, &sufile->parser.exported_decl.read(i)->node);
+    forI(amufile->parser.exported_decl.count){
+        change_parent(&amufile->parser.base, &amufile->parser.exported_decl.read(i)->node);
     }
     
         
-    sufile->logger.log(Verbosity_Stages, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
+    amufile->logger.log(Verbosity_Stages, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
 }

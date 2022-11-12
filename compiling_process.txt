@@ -17,7 +17,7 @@ Preprocessing:
         does not care about importing only 'sin' from "math.su", all it does is start lexing and 
         preprocessing on files.
     Resolve ':' tokens as possible declarations:
-        This simply checks that the colons marked by lexer are actually declarations. Following su's rule of
+        This simply checks that the colons marked by lexer are actually declarations. Following amu's rule of
         <identifier> [<funcargs>] ":" <typeid> we parse around the colon to see if it is a valid declaration
         and if it is mark the <identifier> token as a declaration. This is useful so that in parsing we dont 
         have to look for a : when we come across every identifier.

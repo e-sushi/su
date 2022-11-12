@@ -142,8 +142,8 @@
 	running freely through the stages until it reaches validator, since validator is the stage in which 
 	we join all the files information together. 
 
-	amu organizes information by file using suFile. When a file is loaded a suFile is made for it
-	and represents any instance of it. suFile stores information for all stages and is how stages
+	amu organizes information by file using amuFile. When a file is loaded a amuFile is made for it
+	and represents any instance of it. amuFile stores information for all stages and is how stages
 	communicate information between each other. 
 
 	Something I would like to try and follow is that all data from previous stages is static. 
@@ -218,10 +218,10 @@
 
 	Assembler
 	--------- TODOs that should mainly involve working in the assembler
-	[0,   **, 2022/07/25, feature] assemble su to C code. 
-	[!!, ***, 2022/07/25, feature] assemble su to x86_64 assembly. 
-	[!,  ***, 2022/07/25, feature] assemble su to LLVM bytecode
-	[!!, ***, 2022/07/25, feature] assemble su to nasau's instruction set
+	[0,   **, 2022/07/25, feature] assemble amu to C code. 
+	[!!, ***, 2022/07/25, feature] assemble amu to x86_64 assembly. 
+	[!,  ***, 2022/07/25, feature] assemble amu to LLVM bytecode
+	[!!, ***, 2022/07/25, feature] assemble amu to nasau's instruction set
 	[0, ****, 2022/07/25, feature] make a general interface for all of these?
 
 
@@ -264,7 +264,7 @@
 		some difficulties of this are
 			* only getting output of select files
 			* getting the data for multiple stages
-			* after validation we combine all data into one suFile, so per file information is only accessible through tokens
+			* after validation we combine all data into one amuFile, so per file information is only accessible through tokens
 			* how is the output formatted? can we use this output to continue compilation later?
 			* a file's data is not contiguous internally, it would need to be stitched together
 	[0,  **, 2022/07/31, vis, bug] fix implementation of graphviz visualization of the AST tree
@@ -376,7 +376,7 @@ void speed_test(const u64 samples, str8 filepath){
 	compiler.logger.log(0, "speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
 }
 
-void print_tree(suNode* node, u32 indent = 0){
+void print_tree(amuNode* node, u32 indent = 0){
 	logger_pop_indent(-1);
 	logger_push_indent(indent);
 	Log("", node->debug);

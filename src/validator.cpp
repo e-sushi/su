@@ -92,7 +92,7 @@ b32 type_conversion(Type to, Type from){
 
 //checks the known stack to see if there are any variable name conflicts in the same scope
 b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
-    suLogger& logger = sufile->logger;
+    amuLogger& logger = amufile->logger;
     forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
         Declaration* dk = stacks.known_declarations[stacks.known_declarations.count - 1 - i];
         if(dk==d) continue;
@@ -137,9 +137,9 @@ void Validator::pop_known_decls(){
     }
 }
 
-suNode* Validator::validate(suNode* node){DPZoneScoped;
-    suLogger& logger = sufile->logger;
-    //TODO(sushi) we could possibly just store a validated flag on suNode 
+amuNode* Validator::validate(amuNode* node){DPZoneScoped;
+    amuLogger& logger = amufile->logger;
+    //TODO(sushi) we could possibly just store a validated flag on amuNode 
     if(match_any(node->type, NodeType_Variable, NodeType_Structure, NodeType_Function) &&
        DeclarationFromNode(node)->validated){
         //early out if this declaration has already been validated
@@ -256,10 +256,10 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             stacks.known_declarations.add(&f->decl);
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
             
-            Declaration* d = DeclarationFromNode(sufile->validator.functions.at(f->decl.identifier));
+            Declaration* d = DeclarationFromNode(amufile->validator.functions.at(f->decl.identifier));
             if(!d){
                 //this is the first occurance of this function that we know of so we add it to the function map
-                d = DeclarationFromNode(sufile->validator.functions.atIdx(sufile->validator.functions.add(f->decl.identifier, &arena.make_function(suStr8("funcgroup of ", f->decl.identifier))->decl.node)));
+                d = DeclarationFromNode(amufile->validator.functions.atIdx(amufile->validator.functions.add(f->decl.identifier, &arena.make_function(amuStr8("funcgroup of ", f->decl.identifier))->decl.node)));
                 d->identifier = f->decl.identifier;
                 FunctionFromDeclaration(d)->overloads.init();
             }        
@@ -284,7 +284,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
             }
 
             b32 found_nonpos = 0; //set when we find an argument that has a default value
-            suNode* def = 0;
+            amuNode* def = 0;
 
             for_node(f->decl.node.first_child){
                 //we must save the defintion and validate it later for reasons explained below
@@ -458,7 +458,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
 
                 case Expression_FunctionCall:{
                     //validate call id
-                    Declaration* d = DeclarationFromNode(sufile->validator.functions.at(e->token_start->raw));
+                    Declaration* d = DeclarationFromNode(amufile->validator.functions.at(e->token_start->raw));
                     //this is kind of ugly                    
                     if(!d){
                         //its possible this function has not been validated yet so we look for it again in our known decls list
@@ -467,7 +467,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                         if(d){
                             if(d->type == Declaration_Function){
                                 if(!validate(&d->node)) return 0;
-                                d = DeclarationFromNode(sufile->validator.functions.at(e->token_start->raw));
+                                d = DeclarationFromNode(amufile->validator.functions.at(e->token_start->raw));
                             }else{
                                 logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
                                 logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
@@ -483,7 +483,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     //we need to match this call to an overload
                     //we start by gathering the arguments this call has as well as counting how many positional arguments there are
                     //we also do our check for using a positional argument after a named arg here
-                    suArena<Expression*> arguments; arguments.init(); defer{arguments.deinit();};
+                    amuArena<Expression*> arguments; arguments.init(); defer{arguments.deinit();};
                     u32 n_pos_args = 0;
                     b32 found_named = 0;
                     for_node(e->node.first_child){
@@ -502,7 +502,7 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
                     //we can filter out any functions whose argument count is less than whats in the call
                     //TODO(sushi) it may be more efficient to use a view of the original array and moving its elements around rather than
                     //            copying potentially the entire thing
-                    suArena<Function*> overloads; overloads.init(); defer{overloads.deinit();};
+                    amuArena<Function*> overloads; overloads.init(); defer{overloads.deinit();};
                     forI(fg->overloads.count){
                         Function* ol = fg->overloads[i];
                         if(ol->args.count >= arguments.count){
@@ -754,14 +754,14 @@ suNode* Validator::validate(suNode* node){DPZoneScoped;
 }
 
 void Validator::start(){DPZoneScoped;
-    suLogger& logger = sufile->logger;
+    amuLogger& logger = amufile->logger;
     Stopwatch validate_time = start_stopwatch();
     logger.log(Verbosity_Stages, "Validating...");
-    SetThreadName("Validating ", sufile->file->name);
+    SetThreadName("Validating ", amufile->file->name);
 
     //wait for imported files to finish validation
     logger.log(Verbosity_StageParts, "Waiting for imported files to finish validation.");
-    for(suFile* sf : sufile->preprocessor.imported_files){
+    for(amuFile* sf : amufile->preprocessor.imported_files){
         while(sf->stage < FileStage_Validator){
             sf->cv.validate.wait();
         }
@@ -769,7 +769,7 @@ void Validator::start(){DPZoneScoped;
     
     stacks.known_declarations_scope_begin_offsets.add(0);
 
-    for(Statement* s : sufile->parser.import_directives){
+    for(Statement* s : amufile->parser.import_directives){
         for_node(s->node.first_child){
             Expression* e = ExpressionFromNode(it);
             //TODO(sushi) we already do this in Compiler::compile, so find a nice way to cache this if possible
@@ -780,7 +780,7 @@ void Validator::start(){DPZoneScoped;
             if(last_slash == npos) last_slash = 0;
             str8 filename = str8{filepath.str+last_slash+1, filepath.count-(last_slash+1)};
 
-            suFile* sufileex = compiler.files.atPtrVal(filename);
+            amuFile* sufileex = compiler.files.atPtrVal(filename);
 
             if(!sufileex) logger.error("INTERNAL: an imported file was not processed in the compiler before reaching validator");
 
@@ -789,19 +789,19 @@ void Validator::start(){DPZoneScoped;
             }else{
                 //we are just importing everything
                 for(Declaration* d : sufileex->parser.imported_decl){
-                    change_parent(&sufile->parser.base, &d->node);
+                    change_parent(&amufile->parser.base, &d->node);
                     move_to_parent_first(&d->node);
-                    sufile->parser.imported_decl.add(d);
+                    amufile->parser.imported_decl.add(d);
                 }
                 for(Declaration* d : sufileex->parser.exported_decl){
-                    change_parent(&sufile->parser.base, &d->node);
+                    change_parent(&amufile->parser.base, &d->node);
                     move_to_parent_first(&d->node);
-                    sufile->parser.imported_decl.add(d);
+                    amufile->parser.imported_decl.add(d);
                 }
                 //copy function map as well
                 //this kind of sucks and i want to make it better eventually
                 forI(sufileex->validator.functions.data.count){
-                    sufile->validator.functions.add(DeclarationFromNode(sufileex->validator.functions.atIdx(i))->identifier, sufileex->validator.functions.atIdx(i));
+                    amufile->validator.functions.add(DeclarationFromNode(sufileex->validator.functions.atIdx(i))->identifier, sufileex->validator.functions.atIdx(i));
                 }
             }
         }
@@ -809,7 +809,7 @@ void Validator::start(){DPZoneScoped;
 
 
 
-    for_node(sufile->parser.base.first_child){
+    for_node(amufile->parser.base.first_child){
         //add global declarations to known declarations
         if(match_any(it->type, NodeType_Function, NodeType_Variable, NodeType_Structure)){
             //NOTE(sushi) we dont return on fail here because we still want to validate other things 
@@ -821,13 +821,13 @@ void Validator::start(){DPZoneScoped;
 
     //stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
-    for_node(sufile->parser.base.first_child){
+    for_node(amufile->parser.base.first_child){
         //NOTE(sushi) we dont return on 0 here so we can gather as many errors as we can 
         validate(it);
     }
     
-    sufile->stage = FileStage_Validator;
-    sufile->cv.validate.notify_all();
+    amufile->stage = FileStage_Validator;
+    amufile->cv.validate.notify_all();
 
     logger.log(Verbosity_Stages, "Validating finished in ", peek_stopwatch(validate_time), " ms.");
 }
