@@ -1,5 +1,5 @@
-s32 main() {
-    s32 a;
-    s32 b = a = 2;
+main() : s32 {
+    a:s32;
+    b:s32 = a = 2;
     return a+b;
 }

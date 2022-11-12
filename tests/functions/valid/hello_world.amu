@@ -1,6 +1,6 @@
 s32 putchar(s32 c);
 
-s32 main() {
+main() : s32 {
     putchar(72);
     putchar(101);
     putchar(108);

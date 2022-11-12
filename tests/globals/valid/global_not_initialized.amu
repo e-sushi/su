@@ -1,7 +1,7 @@
-s32 foo;
+foo:s32;
 
-s32 main() {
-    for (s32 i = 0; i < 3; i = i + 1)
+main() : s32 {
+    for (i:s32 = 0; i < 3; i = i + 1)
         foo = foo + 1;
     return foo;
 }

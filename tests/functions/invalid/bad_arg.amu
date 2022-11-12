@@ -2,6 +2,6 @@ s32 foo(s32 a){
     return 3 + a;
 }
 
-s32 main(){
+main() : s32{
     return foo();
 }

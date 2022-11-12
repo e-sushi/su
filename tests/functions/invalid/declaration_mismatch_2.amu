@@ -1,6 +1,6 @@
 s32 foo(s32 a, s32 b);
 
-s32 main() {
+main() : s32 {
     return 5;
 }
 

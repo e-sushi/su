@@ -1,4 +1,4 @@
-s32 main() {
+main() : s32 {
     for (;;;)
         3;
     return 0;

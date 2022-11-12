@@ -1,6 +1,6 @@
-s32 main() {
+main() : s32 {
     if (5) {
-        s32 i = 1;
+        i:s32 = 1;
         return i;
     }
 }

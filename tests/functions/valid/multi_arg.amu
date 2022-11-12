@@ -2,6 +2,6 @@ s32 sub_3(s32 x, s32 y, s32 z) {
     return x - y - z;
 }
 
-s32 main() {
+main() : s32 {
     return sub_3(10, 4, 2);
 }

@@ -2,7 +2,7 @@ s32 foo(s32 a) {
     return a + 1;
 }
 
-s32 main() {
+main() : s32 {
     return foo(4);
 }
 

@@ -1,7 +1,7 @@
-s32 foo = 3;
+foo:s32 = 3;
 
-s32 main() {
+main() : s32 {
     return foo;
 }
 
-s32 foo = 0;
+foo:s32 = 0;

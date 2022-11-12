@@ -1,9 +1,9 @@
-s32 a = 3;
+a:s32 = 3;
 
-s32 main() {
-    s32 ret = 0;
+main() : s32 {
+    ret:s32 = 0;
     if (a) {
-        s32 a = 0;
+        a:s32 = 0;
         ret = 4;
     }
     return ret;

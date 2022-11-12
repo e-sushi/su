@@ -1,2 +1,2 @@
-s32 main() {
+main() : s32 {
   return 0;

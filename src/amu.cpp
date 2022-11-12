@@ -255,8 +255,6 @@
 
 	Other
 	----- other TODOs that may involve working on several parts of the project or just dont fit in any of the other categories
-	[!!!!, *, 2022/08/02] rename occurances of su throughout the project to amu
-		this includes file names, names of structs (suNode), etc.
 	[!!!, *, 2022/07/27, tests] tests need rewritten to be in amu's new syntax
 	[!!, ***, 2022/08/02] add a system for outputting each stage's data for external use
 		NOTE its probably best to put this off until the compiler is stable

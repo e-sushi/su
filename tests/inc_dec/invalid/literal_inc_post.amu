@@ -1,4 +1,4 @@
-s32 main(){
+main() : s32{
   2++;
   return 0;
 }

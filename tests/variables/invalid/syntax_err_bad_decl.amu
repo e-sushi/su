@@ -1,4 +1,4 @@
-s32 main() {
-    ints a = 1;
+main() : s32 {
+    a:ints = 1;
     return a;
 }

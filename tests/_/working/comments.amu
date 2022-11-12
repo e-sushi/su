@@ -3,7 +3,7 @@
 /* external multi line comment
 external multi line comment
         s32 external multi line comment
-*/s32 main(){
+*/main() : s32{
  //internal single line comment
 
      /* internal multi line comment
@@ -11,7 +11,7 @@ internal multi line comment
         s32 internal multi line comment
              */
 
-	for(s32 a = 0; a < 10; a++){//internal single line comment
+	for(a:s32 = 0; a < 10; a++){//internal single line comment
 		a++;//internal single line comment
 	
 	}

@@ -2,8 +2,8 @@ s32 foo() {
     return 3;
 }
 
-s32 foo = 4;
+foo:s32 = 4;
 
-s32 main() {
+main() : s32 {
     return foo;
 }

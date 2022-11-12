@@ -1,7 +1,7 @@
-s32 main() {
+main() : s32 {
 
     while (1) {
-        s32 a = 2;
+        a:s32 = 2;
     }
 
     return a;

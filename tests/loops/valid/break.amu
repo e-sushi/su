@@ -1,6 +1,6 @@
-s32 main() {
-    s32 sum = 0;
-    for (s32 i = 0; i < 10; i = i + 1) {
+main() : s32 {
+    sum:s32 = 0;
+    for (i:s32 = 0; i < 10; i = i + 1) {
         sum = sum + i;
         if (sum > 10)
             break;
