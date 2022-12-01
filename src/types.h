@@ -8,21 +8,21 @@
 #include "core/threading.h"
 #include "ctype.h"
 
-#define SetThreadName(...) DeshThreadManager->set_thread_name(amuStr8(__VA_ARGS__))
+#define SetThreadName(...) threader_set_thread_name(amuStr8(__VA_ARGS__))
 
 //attempt at making str8 building thread safe
 #define amuStr8(...) to_str8_amu(__VA_ARGS__)
 template<class...T>
 str8 to_str8_amu(T... args){DPZoneScoped;
-	persist mutex tostr8_lock = init_mutex();
-	tostr8_lock.lock();
-	global_mem_lock.lock();
+	persist mutex tostr8_lock = mutex_init();
+	mutex_lock(&tostr8_lock);
+	mutex_lock(&global_mem_lock);
 	str8b str; str8_builder_init(&str, {0}, deshi_temp_allocator);
 	constexpr auto arg_count{sizeof...(T)};
 	str8 arr[arg_count] = {to_str8(args, deshi_temp_allocator)...};
 	forI(arg_count) str8_builder_append(&str, arr[i]);
-	global_mem_lock.unlock();
-	tostr8_lock.unlock();
+	mutex_unlock(&global_mem_lock);
+	mutex_unlock(&tostr8_lock);
 	return str.fin;
 }
 
@@ -169,11 +169,11 @@ struct amuNode{
 };
 
 global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
-	target->lock.lock();
-	node->lock.lock();
+	mutex_lock(&target->lock);
+	mutex_lock(&node->lock);
 	defer{
-		node->lock.unlock();
-		target->lock.unlock();
+		mutex_unlock(&node->lock);
+		mutex_unlock(&target->lock);
 	};
 	if (target->next) target->next->prev = node;
 	node->next = target->next;
@@ -183,11 +183,11 @@ global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
 }
 
 global inline void insert_before(amuNode* target, amuNode* node) { DPZoneScoped;
-	target->lock.lock();
-	node->lock.lock();
+	mutex_lock(&target->lock);
+	mutex_lock(&node->lock);
 	defer{
-		target->lock.unlock();
-		node->lock.unlock();
+		mutex_unlock(&target->lock);
+		mutex_unlock(&node->lock);
 	};
 	if (target->prev) target->prev->next = node;
 	node->prev = target->prev;
@@ -196,19 +196,19 @@ global inline void insert_before(amuNode* target, amuNode* node) { DPZoneScoped;
 }
 
 global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
-	node->lock.lock();
-	defer {node->lock.unlock();};
+	mutex_lock(&node->lock);
+	defer {mutex_unlock(&node->lock);};
 	if (node->next) node->next->prev = node->prev;
 	if (node->prev) node->prev->next = node->next;
 	node->next = node->prev = 0;
 }
 
 global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
-	parent->lock.lock();
-	child->lock.lock();
+	mutex_lock(&parent->lock);
+	mutex_lock(&child->lock);
 	defer {
-		parent->lock.unlock();
-		child->lock.unlock();
+		mutex_unlock(&parent->lock);
+		mutex_unlock(&child->lock);
 	};
 
 	if (parent == 0) { child->parent = 0; return; }
@@ -227,11 +227,11 @@ global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
 }
 
 global void insert_first(amuNode* parent, amuNode* child) { DPZoneScoped;
-	parent->lock.lock();
-	child->lock.lock();
+	mutex_lock(&parent->lock);
+	mutex_lock(&child->lock);
 	defer{
-		parent->lock.unlock();
-		child->lock.unlock();
+		mutex_unlock(&parent->lock);
+		mutex_unlock(&child->lock);
 	};
 	if (parent == 0) { child->parent = 0; return; }
 	
@@ -249,11 +249,11 @@ global void insert_first(amuNode* parent, amuNode* child) { DPZoneScoped;
 }
 
 global void change_parent(amuNode* new_parent, amuNode* node) { DPZoneScoped;
-	new_parent->lock.lock();
-	node->lock.lock();
+	mutex_lock(&new_parent->lock);
+	mutex_lock(&node->lock);
 	defer {
-		new_parent->lock.unlock();
-		node->lock.unlock();
+		mutex_unlock(&new_parent->lock);
+		mutex_unlock(&node->lock);
 	};
 	//if old parent, remove self from it 
 	if (node->parent) {
@@ -277,8 +277,8 @@ global void change_parent(amuNode* new_parent, amuNode* node) { DPZoneScoped;
 }
 
 global void move_to_parent_first(amuNode* node){ DPZoneScoped;
-	node->lock.lock();
-	defer { node->lock.unlock(); };
+	mutex_lock(&node->lock);
+	defer { mutex_unlock(&node->lock); };
 	if(!node->parent) return;
 	
 	amuNode* parent = node->parent;
@@ -292,8 +292,8 @@ global void move_to_parent_first(amuNode* node){ DPZoneScoped;
 }
 
 global void move_to_parent_last(amuNode* node){ DPZoneScoped;
-	node->lock.lock();
-	defer{node->lock.unlock();};
+	mutex_lock(&node->lock);
+	defer{mutex_unlock(&node->lock);};
 	if(!node->parent) return;
 	
 	amuNode* parent = node->parent;
@@ -307,8 +307,8 @@ global void move_to_parent_last(amuNode* node){ DPZoneScoped;
 }
 
 global void remove(amuNode* node) { DPZoneScoped;
-	node->lock.lock();
-	defer{node->lock.unlock();};
+	mutex_lock(&node->lock);
+	defer{mutex_unlock(&node->lock);};
 	//add children to parent (and remove self from children)
 	for(amuNode* it = node->first_child; it != 0; ) {
 		amuNode* next = it->next;
@@ -333,25 +333,25 @@ global void remove(amuNode* node) { DPZoneScoped;
 	
 	//remove self horizontally
 	remove_horizontally(node);
-	node->lock.unlock();
+	mutex_unlock(&node->lock);
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Memory
 
-mutex global_mem_lock = init_mutex();
+mutex global_mem_lock = mutex_init();
 
 void* amu_memalloc(upt size){
-	global_mem_lock.lock();
+	mutex_lock(&global_mem_lock);
 	void* ret = memalloc(size);
-	global_mem_lock.unlock();
+	mutex_unlock(&global_mem_lock);
 	return ret;
 }
 
 void amu_memzfree(void* ptr){
-	global_mem_lock.lock();
+	mutex_lock(&global_mem_lock);
 	memzfree(ptr);
-	global_mem_lock.unlock();
+	mutex_unlock(&global_mem_lock);
 }
 
 //attempt at implementing a thread safe memory region 
@@ -366,55 +366,55 @@ struct amuChunkedArena{
 	mutex read_lock;
 
 	void init(upt n_obj_per_chunk){
-		write_lock.init();
-		read_lock.init();
+		write_lock = mutex_init();
+		read_lock = mutex_init();
 		arena_count = 1;
 		arenas = (Arena**)amu_memalloc(sizeof(Arena*)*arena_space);
-		global_mem_lock.lock();
+		mutex_lock(&global_mem_lock);
 		arenas[arena_count-1] = memory_create_arena(sizeof(T)*n_obj_per_chunk); 
-		global_mem_lock.unlock();
+		mutex_unlock(&global_mem_lock);
 	}
 
 	void deinit(){
-		global_mem_lock.lock();
+		mutex_lock(&global_mem_lock);
 		forI(arena_count){
 			memory_delete_arena(arenas[i]);
 		}
-		global_mem_lock.unlock();
+		mutex_unlock(&global_mem_lock);
 		amu_memzfree(arenas);
 	}
 
 	T* add(const T& in){
-		write_lock.lock();
+		mutex_lock(&write_lock);
 
 		//make a new arena if needed
 		if(arenas[arena_count-1]->used + sizeof(T) > arenas[arena_count-1]->size){
-			global_mem_lock.lock();
+			mutex_lock(&global_mem_lock);
 			if(arena_space == arena_count){
 				arena_space += 16;
 				arenas = (Arena**)memrealloc(arenas, arena_space*sizeof(Arena*));
 			}
 			arenas[arena_count] = memory_create_arena(arenas[arena_count-1]->size);
 			arena_count++;
-			global_mem_lock.unlock();
+			mutex_unlock(&global_mem_lock);
 		}
 		count++;
 		memcpy(arenas[arena_count-1]->cursor, &in, sizeof(T));
 		T* ret = (T*)arenas[arena_count-1]->cursor;
 		arenas[arena_count-1]->used += sizeof(T);
 		arenas[arena_count-1]->cursor += sizeof(T);
-		write_lock.unlock();
+		mutex_unlock(&write_lock);
 		return ret;
 	}
 
 	T read(upt idx){
 		persist u64 read_count = 0;
-		read_lock.lock();
+		mutex_lock(&read_lock);
 		read_count++;
 		if(read_count==1){
-			write_lock.lock();
+			mutex_lock(&write_lock);
 		}
-		read_lock.unlock();
+		mutex_unlock(&read_lock);
 
 		Assert(idx < count);
 
@@ -424,18 +424,18 @@ struct amuChunkedArena{
 
 		T ret = *(T*)(arenas[arenaidx]->start + (offset - arenaidx * chunk_size));
 
-		read_lock.lock();
+		mutex_lock(&read_lock);
 		read_count--;
 		if(!read_count){
-			write_lock.unlock();
+			mutex_unlock(&write_lock);
 		}
-		read_lock.unlock();
+		mutex_unlock(&read_lock);
 
 		return ret; 
 	}
 
 	void remove(upt idx){
-		write_lock.lock();
+		mutex_lock(&write_lock);
 		Assert(idx < count);
 
 		u64 chunk_size = arenas[0]->size;
@@ -461,7 +461,7 @@ struct amuChunkedArena{
 			}
 		}
 
-		write_lock.unlock();
+		mutex_unlock(&write_lock);
 	}
 
 };
@@ -475,32 +475,32 @@ struct amuArena{
 	u64 space = 0;
 
 	void init(upt initial_size = 16){DPZoneScoped;
-		write_lock.init();
-		read_lock.init();
-		global_mem_lock.lock();
+		write_lock = mutex_init();
+		read_lock = mutex_init();
+		mutex_lock(&global_mem_lock);
 		space = initial_size;
 		data = (T*)memalloc(sizeof(T)*space); 
-		global_mem_lock.unlock();
+		mutex_unlock(&global_mem_lock);
 	}
 
 	void deinit(){DPZoneScoped;
-		write_lock.deinit();
-		read_lock.deinit();
-		global_mem_lock.lock();
+		mutex_deinit(&write_lock);
+		mutex_deinit(&read_lock);
+		mutex_lock(&global_mem_lock);
 		memzfree(data);
-		global_mem_lock.unlock();
+		mutex_unlock(&global_mem_lock);
 		count = 0;
 		space = 0;
 	}
 
 	void add(const T& in){DPZoneScoped;
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		if(count == space){
-			global_mem_lock.lock();
+			mutex_lock(&global_mem_lock);
 			space += 16;
 			data = (T*)memrealloc(data, sizeof(T)*space);
-			global_mem_lock.unlock();
+			mutex_unlock(&global_mem_lock);
 		}
 		memcpy(data+count, &in, sizeof(T));
 		count++;
@@ -508,8 +508,8 @@ struct amuArena{
 
 	//TODO(sushi) need to implement a system for allowing an arbitrary amount of threads to read while blocking writing
 	T read(upt idx) {DPZoneScoped;
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 
 		Assert(idx < count);
 
@@ -519,23 +519,23 @@ struct amuArena{
 	}
 
 	void modify(upt idx, const T& val){DPZoneScoped;
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		Assert(idx < count)
 		memcpy(data+idx, &val, sizeof(T));
 	}
 
 	void insert(upt idx, const T& val){DPZoneScoped;
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		Assert(idx <= count);
 		if(idx == count){
 			add(val);
 		} else if(count == space){
-			global_mem_lock.lock();
+			mutex_lock(&global_mem_lock);
 			space += 16;
 			data = (T*)memrealloc(data, sizeof(T)*space);
-			global_mem_lock.unlock();
+			mutex_unlock(&global_mem_lock);
 			memmove(data+idx+1, data+idx, (count-idx)*sizeof(T));
 			memcpy(data+idx, &val, sizeof(T));
 			count++;
@@ -551,8 +551,8 @@ struct amuArena{
 	}
 
 	T* readptr(u64 idx){
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		//NOTE(sushi) its probably possible that once the thread gets into here 
 		//            that another thread has removed enough elements to make this idx invalid
 		//            the solution is to just avoid situations where this would happen
@@ -564,16 +564,16 @@ struct amuArena{
 	}
 
 	void remove(upt idx){DPZoneScoped;
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		Assert(idx < count);
 		count--;
 		memmove(data + idx, data + idx + 1, (count - idx) * sizeof(T));
 	}
 
 	void remove_unordered(upt idx){
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		Assert(idx < count);
 		T endval = data[count-1];
 		count--;
@@ -583,14 +583,14 @@ struct amuArena{
 	}
 
 	void clear(){
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		count = 0;
 	}
 
 	T pop(u64 _count = 1){ 
-		write_lock.lock();
-		defer{write_lock.unlock();};
+		mutex_lock(&write_lock);
+		defer{mutex_unlock(&write_lock);};
 		Assert(_count <= count);
 		T ret;
 		forI(_count){
@@ -607,8 +607,8 @@ struct amuArena{
 };
 
 
-//sorted binary searched map for matching identifiers with
-//their declarations. this map supports storing keys who have collided
+//sorted binary mutex_deinit(&seark);
+//their mutex_deinit(&declarations); this map supports storing keys who have collided
 //by storing them as neighbors and storing the unhashed key with the value
 //this was delle's idea
 //TODO(sushi) decide if we should store pair<str8,Decl*> in data or just use the str8 `identifier`
@@ -1590,10 +1590,10 @@ struct amuLogger{
 		if(globals.supress_messages) return;
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1612,10 +1612,10 @@ struct amuLogger{
 		if(globals.supress_messages) return;
 		if(globals.verbosity < verbosity) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, t->file,  VTS_Default, "(",t->l0,",",t->c0,"): ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1634,10 +1634,10 @@ struct amuLogger{
 	void error(Token* token, T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1656,10 +1656,10 @@ struct amuLogger{
 	void error(T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", ErrorFormat("error"), ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1677,10 +1677,10 @@ struct amuLogger{
 	void warn(Token* token, T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1697,10 +1697,10 @@ struct amuLogger{
 	void warn(T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), VTS_Default, ": ", WarningFormat("warning"), ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1717,10 +1717,10 @@ struct amuLogger{
 	void note(Token* token, T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, token->file, VTS_Default, "(",token->l0,",",token->c0,"): ", MagentaFormat("note"), ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1737,10 +1737,10 @@ struct amuLogger{
 	void note(T...args){DPZoneScoped;
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
-			compiler.mutexes.log.lock();
+			mutex_lock(&compiler.mutexes.log);
 			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), MagenetaFormat("note"), ": ", args...);
 			Log("", out);
-			compiler.mutexes.log.unlock();
+			mutex_unlock(&compiler.mutexes.log);
 		}else{
 			amuMessage message;
 			message.time_made = peek_stopwatch(compiler.ctime);
@@ -1824,12 +1824,12 @@ struct amuFile{
 		parser.imported_decl.init();
 		parser.internal_decl.init();
 		parser.base.debug = STR8("base");
-		parser.base.lock.init();
+		parser.base.lock = mutex_init();
 		validator.functions.init();
-		cv.lex.init();
-		cv.preprocess.init();
-		cv.parse.init();
-		cv.validate.init();
+		cv.lex = condition_variable_init();
+		cv.preprocess = condition_variable_init();
+		cv.parse = condition_variable_init();
+		cv.validate = condition_variable_init();
 	}
 };
 
@@ -1921,7 +1921,7 @@ void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 	pt->amufile = pt->parser->amufile;
 	pt->define(pt->node, pt->stage);
 	pt->finished = 1;
-	pt->cv.notify_all();
+	condition_variable_notify_all(&pt->cv);
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2103,7 +2103,7 @@ str8 get_typename(Function* f){
 }
 
 //this overload may be unecessary
-str8 get_typename(TNode* n){
+str8 get_typename(amuNode* n){
 	switch(n->type){
 		case NodeType_Variable:   return get_typename(VariableFromNode(n));
 		case NodeType_Expression: return get_typename(ExpressionFromNode(n));
@@ -2221,7 +2221,7 @@ struct{
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
 		//compiler.logger.log(Verbosity_Debug, "Making a function with debug message ", debugmsg);
-		function->decl.node.lock.init();
+		function->decl.node.lock = mutex_init();
 		function->decl.node.type = NodeType_Function;
 		function->decl.node.debug = debugmsg;
 		return function;
@@ -2231,7 +2231,7 @@ struct{
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
 		//compiler.logger.log(Verbosity_Debug, "Making a variable with debug message ", debugmsg);
-		variable->decl.node.lock.init();
+		variable->decl.node.lock = mutex_init();
 		variable->decl.node.type = NodeType_Variable;
 		variable->decl.node.debug = debugmsg;
 		return variable;
@@ -2241,7 +2241,7 @@ struct{
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
 		//compiler.logger.log(Verbosity_Debug, "Making a structure with debug message ", debugmsg);
-		structure->decl.node.lock.init();
+		structure->decl.node.lock = mutex_init();
 		structure->decl.node.type = NodeType_Structure;
 		structure->decl.node.debug = debugmsg;
 		return structure;
@@ -2251,7 +2251,7 @@ struct{
 	Scope* make_scope(str8 debugmsg = STR8("")){DPZoneScoped;
 		Scope* scope = scopes.add(Scope());
 		//compiler.logger.log(Verbosity_Debug, "Making a scope with debug message ", debugmsg);
-		scope->node.lock.init();
+		scope->node.lock = mutex_init();
 		scope->node.type = NodeType_Scope;
 		scope->node.debug = debugmsg;
 		return scope;
@@ -2261,7 +2261,7 @@ struct{
 	Expression* make_expression(str8 debugmsg = STR8("")){DPZoneScoped;
 		Expression* expression = expressions.add(Expression());
 		//compiler.logger.log(Verbosity_Debug, "Making an expression with debug message ", debugmsg);
-		expression->node.lock.init();
+		expression->node.lock = mutex_init();
 		expression->node.type = NodeType_Expression;
 		expression->node.debug = debugmsg;
 		return expression;
@@ -2271,7 +2271,7 @@ struct{
 	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
 		Statement* statement = statements.add(Statement());
 		//compiler.logger.log(Verbosity_Debug, "Making a statement with debug message ", debugmsg);
-		statement->node.lock.init();
+		statement->node.lock = mutex_init();
 		statement->node.type = NodeType_Statement;
 		statement->node.debug = debugmsg;
 		return statement;

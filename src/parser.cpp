@@ -245,7 +245,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                         } else perror(curt, "INTERNAL: expected 'struct' after ':' for struct definition. NOTE(sushi) tell me if this happens");
                     } else perror(curt, "INTERNAL: expected ':' for struct declaration. NOTE(sushi) tell me if this happens");
 
-                    this->cv.notify_all();
+                    condition_variable_notify_all(&this->cv);
                 }break;
 
                 case Declaration_Function:{
@@ -736,45 +736,45 @@ void Parser::parse(){DPZoneScoped;
     for(u32 idx : amufile->lexer.imports){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
-        pt->cv.init();
+        pt->cv = condition_variable_init();
         pt->curt = amufile->lexer.tokens.readptr(idx);
         pt->parser = this;
         pt->node = &amufile->parser.base;
         pt->stage = psDirective;
-        DeshThreadManager->add_job({&parse_threaded_stub, pt});
+        threader_add_job({&parse_threaded_stub, pt});
     }
         
     for(u32 idx : amufile->preprocessor.internal_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
-        pt->cv.init();
+        pt->cv = condition_variable_init();
         pt->curt = amufile->lexer.tokens.readptr(idx);
         pt->parser = this;
         pt->node = &amufile->parser.base;
         pt->stage = psDeclaration;
         pt->is_internal = 1;
-        DeshThreadManager->add_job({&parse_threaded_stub, pt});
+        threader_add_job({&parse_threaded_stub, pt});
     }
 
     for(u32 idx : amufile->preprocessor.exported_decl){
         threads.add(ParserThread());
         ParserThread* pt = threads.last;
-        pt->cv.init();
+        pt->cv = condition_variable_init();
         pt->curt = amufile->lexer.tokens.readptr(idx);
         pt->parser = this;
         pt->node = &amufile->parser.base;
         pt->stage = psDeclaration;
         pt->is_internal = 0;
-        DeshThreadManager->add_job({&parse_threaded_stub, pt});
+        threader_add_job({&parse_threaded_stub, pt});
     }
 
     amufile->logger.log(Verbosity_StageParts, "Waking threads");
 
-    DeshThreadManager->wake_threads();
+    threader_wake_threads();
 
     forI(threads.count){
         while(!threads[i].finished){
-            threads[i].cv.wait();
+            condition_variable_wait(&threads[i].cv);
         }
     }
 

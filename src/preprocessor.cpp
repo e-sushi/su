@@ -207,7 +207,6 @@ void Preprocessor::preprocess(){DPZoneScoped;
                 case Declaration_Function:  return STR8("func");
                 case Declaration_Variable:  return STR8("var");
                 case Declaration_Structure: return STR8("struct");
-
             }
             return STR8(ErrorFormat("UNKNOWN"));
         };

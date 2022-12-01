@@ -224,7 +224,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         if(stacks.nested.structs[i]==v->data.structure){
                             logger.error(v->decl.token_start, "circular definition.");
                             str8b b;
-                            global_mem_lock.lock();
+                            mutex_lock(&global_mem_lock);
                             str8_builder_init(&b, current.structure->decl.identifier, deshi_temp_allocator);
                             str8_builder_append(&b, STR8(" -> "));
                             forX(j, stacks.nested.structs.count - i){
@@ -232,7 +232,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                 str8_builder_append(&b, STR8(" -> "));
                             }
                             str8_builder_append(&b, current.structure->decl.identifier);
-                            global_mem_lock.unlock();
+                            mutex_unlock(&global_mem_lock);
                             logger.note(v->decl.token_start, b.fin);
                             //NOTE(sushi) we do not free the builder here because of post-logging
                             return 0;
@@ -763,7 +763,7 @@ void Validator::start(){DPZoneScoped;
     logger.log(Verbosity_StageParts, "Waiting for imported files to finish validation.");
     for(amuFile* sf : amufile->preprocessor.imported_files){
         while(sf->stage < FileStage_Validator){
-            sf->cv.validate.wait();
+            condition_variable_wait(&sf->cv.validate);
         }
     }
     
@@ -827,7 +827,7 @@ void Validator::start(){DPZoneScoped;
     }
     
     amufile->stage = FileStage_Validator;
-    amufile->cv.validate.notify_all();
+    condition_variable_notify_all(&amufile->cv.validate);
 
     logger.log(Verbosity_Stages, "Validating finished in ", peek_stopwatch(validate_time), " ms.");
 }

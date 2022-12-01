@@ -49,17 +49,17 @@ void compile_threaded_func(void* in){DPZoneScoped;
     }
 
     ct->finished = 1;
-    ct->wait.notify_all();
+    condition_variable_notify_all(&ct->wait);
     //memzfree(ct);
 }
 
 void Compiler::init(){DPZoneScoped;
     compiler.logger.owner_str_if_sufile_is_0 = STR8("compiler");
-    compiler.mutexes.log.init();
-    compiler.mutexes.preprocessor.init();
-    compiler.mutexes.parser.init();
-    compiler.mutexes.lexer.init();
-    compiler.mutexes.compile_request.init();
+    compiler.mutexes.log = mutex_init();
+    compiler.mutexes.preprocessor = mutex_init();
+    compiler.mutexes.parser = mutex_init();
+    compiler.mutexes.lexer = mutex_init();
+    compiler.mutexes.compile_request = mutex_init();
     
     Expression* caste; //casting expression
     Function*   castf; //casting function
@@ -143,11 +143,11 @@ void Compiler::init(){DPZoneScoped;
 }
 
 amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneScoped;
-    logger.log(Verbosity_StageParts, "Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
-    //we must lock this function because it is possible it is called from 2 different threads at the same time requesting
-    //the same file.
-    mutexes.compile_request.lock();
+    //we must lock this function because it is possible it is called from 2 different threads at the same time requesting the same file.
+    mutex_lock(&mutexes.compile_request);
+
+    logger.log(Verbosity_StageParts, "Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
     SetThreadName("Beginning compiler request on ", request->filepaths.count, (request->filepaths.count == 1 ? " file." : " files."));
 
@@ -178,7 +178,7 @@ amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneS
             File* file = file_init(filepath, FileAccess_Read);
             if(!file){
                 logger.error("Unable to open file at path ", filepath);
-                mutexes.compile_request.unlock();
+                mutex_unlock(&mutexes.compile_request);
                 return out;
             } 
 
@@ -203,26 +203,26 @@ amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneS
         }
 
         amufile->being_processed = 1;
-        ct[i].wait.init();
+        ct[i].wait = condition_variable_init();
         ct[i].filepath = request->filepaths[i];
         ct[i].stage = request->stage;
         ct[i].amufile = amufile;
-        DeshThreadManager->add_job({&compile_threaded_func, &ct[i]});
+        threader_add_job({&compile_threaded_func, &ct[i]});
     }
 
-    mutexes.compile_request.unlock();
+    mutex_unlock(&mutexes.compile_request);
 
     DPTracyMessageL("compiler: waking threads");
-    DeshThreadManager->wake_threads(request->filepaths.count);
+    threader_wake_threads(request->filepaths.count);
 
     if(wait){
         SetThreadName("Waiting on compiler threads to finish");
         forI(request->filepaths.count){
             if(!ct[i].amufile) continue; //this happens when the file was already being processed and we skipped that slot
             while(!ct[i].finished){
-                ct[i].wait.wait();
+                condition_variable_wait(&ct[i].wait);
             }
-            ct[i].wait.deinit();
+            condition_variable_deinit(&ct[i].wait);
             ct[i].amufile->being_processed = 0;
         }
     }
@@ -240,9 +240,9 @@ amuFile* Compiler::start_lexer(amuFile* amufile){DPZoneScoped;
 		return amufile;
 	}
 
-    global_mem_lock.lock();
+    mutex_lock(&global_mem_lock);
     Lexer* lexer = (Lexer*)memalloc(sizeof(Lexer));
-    global_mem_lock.unlock();
+    mutex_unlock(&global_mem_lock);
 	
     logger.log(Verbosity_StageParts, "Reading file contents of ", CyanFormatComma(amufile->file->name), " into a buffer");
     amufile->file_buffer = file_read_alloc(amufile->file, amufile->file->bytes, deshi_temp_allocator); 
@@ -268,9 +268,9 @@ amuFile* Compiler::start_preprocessor(amuFile* amufile){DPZoneScoped;
         return amufile;
     } 
 
-    global_mem_lock.lock();
+    mutex_lock(&global_mem_lock);
     Preprocessor* preprocessor = (Preprocessor*)memalloc(sizeof(Preprocessor)); 
-    global_mem_lock.unlock();        
+    mutex_unlock(&global_mem_lock);       
 
     preprocessor->amufile = amufile;
     preprocessor->preprocess();
@@ -294,9 +294,9 @@ amuFile* Compiler::start_parser(amuFile* amufile){DPZoneScoped;
         return amufile;
     }
     
-    global_mem_lock.lock();
+    mutex_lock(&global_mem_lock);
     Parser* parser = (Parser*)memalloc(sizeof(Parser)); 
-    global_mem_lock.unlock();
+    mutex_unlock(&global_mem_lock);
     
     parser->amufile = amufile;
     parser->parse();
@@ -320,9 +320,9 @@ amuFile* Compiler::start_validator(amuFile* amufile){
         return amufile;
     }
 
-    global_mem_lock.lock();
+    mutex_lock(&global_mem_lock);
     Validator* validator = (Validator*)memalloc(sizeof(Validator));
-    global_mem_lock.unlock();
+    mutex_unlock(&global_mem_lock);
 
     validator->amufile = amufile;
     validator->init();

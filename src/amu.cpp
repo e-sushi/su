@@ -393,8 +393,8 @@ int main(){DPZoneScoped;
    	platform_init();
    	logger_init();
 
-	DeshThreadManager->init(255);
-	DeshThreadManager->spawn_thread(10);
+	threader_init(255);
+	threader_spawn_thread(10);
 	
 	arena.init();
 
