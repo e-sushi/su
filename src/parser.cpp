@@ -407,6 +407,12 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                         amuNode* n = define(&s->node, psExpression);
                         if(!n) return 0;
                         change_parent(&s->node, n);
+                        curt++;
+                        expect(Token_Semicolon){
+                            return &s->node;
+                        }else{
+                            perror_ret(s->token_start, "expected a ';' after return statement expression.");
+                        }
                     }
                     return &s->node;
                 }break;
@@ -482,6 +488,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                     Statement* s = arena.make_statement();
                     s->token_start = curt;
                     s->type = Statement_Expression;
+                    s->node.debug = STR8("exp statement");
                     insert_last(node, &s->node);
                     amuNode* ret = define(&s->node, psExpression);
                     if(!ret) return 0;
