@@ -265,6 +265,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                         //disable checking for semicolon after variable declaration
                         check_var_decl_semicolon = 0;
                         //TODO(sushi) god please clean this up
+                        b32 found_defaulted = 0;
                         while(1){
                             curt++;
                             expect(Token_CloseParen) { break; }
@@ -278,6 +279,8 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                                 forI(v->pointer_depth){
                                     f->internal_label = amuStr8(f->internal_label, STR8("*"));
                                 }
+                                if(v->initialized) f->default_count++, found_defaulted = 1;
+                                else if(found_defaulted) perror_ret(curt, "arguments following an argument with a default value must also have a default value");
                                 expect(Token_Comma){
                                     expect_next(Token_CloseParen) perror_ret(curt,"trailing comma in function declaration.");
                                 }else expect(Token_CloseParen){break;}
@@ -354,6 +357,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             Token* before = curt++;
                             Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
                             if(!e) return 0;
+                            v->initialized = 1;
                             curt++;
                         } else if(v->data.implicit) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
                         //NOTE(sushi) we do not do this check when we are parsing a function declarations arguments

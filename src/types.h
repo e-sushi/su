@@ -204,15 +204,15 @@ global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
 }
 
 global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
+	if (parent == 0) { child->parent = 0; return; }
+	if(parent==child){DebugBreakpoint;}
+
 	mutex_lock(&parent->lock);
 	mutex_lock(&child->lock);
 	defer {
 		mutex_unlock(&parent->lock);
 		mutex_unlock(&child->lock);
 	};
-
-	if (parent == 0) { child->parent = 0; return; }
-	if(parent==child){DebugBreakpoint;}
 	
 	child->parent = parent;
 	if (parent->first_child) {
@@ -249,14 +249,13 @@ global void insert_first(amuNode* parent, amuNode* child) { DPZoneScoped;
 }
 
 global void change_parent(amuNode* new_parent, amuNode* node) { DPZoneScoped;
-	mutex_lock(&new_parent->lock);
 	mutex_lock(&node->lock);
-	defer {
-		mutex_unlock(&new_parent->lock);
-		mutex_unlock(&node->lock);
-	};
+	defer { mutex_unlock(&node->lock); };
+
 	//if old parent, remove self from it 
 	if (node->parent) {
+		mutex_lock(&node->parent->lock);
+		defer{mutex_unlock(&node->parent->lock);};
 		if (node->parent->child_count > 1) {
 			if (node == node->parent->first_child) node->parent->first_child = node->next;
 			if (node == node->parent->last_child)  node->parent->last_child = node->prev;
@@ -333,7 +332,6 @@ global void remove(amuNode* node) { DPZoneScoped;
 	
 	//remove self horizontally
 	remove_horizontally(node);
-	mutex_unlock(&node->lock);
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -598,6 +596,14 @@ struct amuArena{
 			count--;
 		}
 		return ret;
+	}
+
+	amuArena<T> copy(){
+		amuArena<T> nu;
+		nu.init(count);
+		nu.count = count;
+		CopyMemory(nu.data,data,sizeof(T)*count);
+		return nu;
 	}
 
 	inline T* begin(){ return &data[0]; }
@@ -1437,7 +1443,9 @@ struct Function {
 	//NOTE(sushi) this can probably just be replaced by using nodes 
 	amuArena<Function*> overloads;
 
+	// list of arguments this function takes
 	amuArena<Variable*> args;
+	u32 default_count; // how many of these arguments have default values
 
 	TypedValue data;
 	Struct* struct_data;
@@ -1460,6 +1468,8 @@ enum{
 };
 struct Variable{
 	Declaration decl;
+
+	u32 initialized; // set true when this variable is given a value where it is declared
 
 	//number of times * appears on a variable's type specifier
 	u32 pointer_depth;
@@ -1779,6 +1789,8 @@ struct amuFile{
 		amuArena<u32> imports;      // list of import tokens
 		amuArena<u32> internals;    // list of internal tokens
 		amuArena<u32> runs;         // list of run tokens
+		
+		b32 failed;
 	}lexer;
 
 	struct{ // preprocessor
@@ -1786,7 +1798,6 @@ struct amuFile{
 		amuArena<u32> exported_decl;
 		amuArena<u32> internal_decl;
 		amuArena<u32> runs;
-	
 	}preprocessor;
 
 	struct{ // parser
@@ -1805,7 +1816,6 @@ struct amuFile{
 		//known functions stored in a map 
 		//this is to support overloading, as every function identifier is stored in this once
 		//with each overload accessible through nodes
-
 		nodemap functions;
 	}validator;
 
@@ -1956,8 +1966,6 @@ struct Validator{
 		}nested;
 	}stacks;
 
-	
-
 	void init(){DPZoneScoped;
 		stacks.nested.scopes.init();
 		stacks.nested.structs.init();
@@ -1967,7 +1975,6 @@ struct Validator{
 		stacks.nested.statements.init();
 		stacks.known_declarations.init();
 		stacks.known_declarations_scope_begin_offsets.init();
-
 	}
 
 	//starts the validation stage
@@ -1991,6 +1998,13 @@ struct Validator{
 struct CompilerRequest{
 	Type stage;
 	array<str8> filepaths;
+};
+
+struct CompilerReport{
+	b32 successful; // true if the entire compilation was successful
+
+	amuArena<amuFile*> units; // array of amuFiles created by this compile request
+
 };
 
 struct Compiler{
@@ -2035,7 +2049,6 @@ struct Compiler{
 		mutex compile_request;
 	}mutexes;
 
-	//returns a carray of the suFiles created by the request
 	amuArena<amuFile*> compile(CompilerRequest* request, b32 wait = 1);
 
 	amuFile* start_lexer       (amuFile* amufile);
@@ -2165,7 +2178,9 @@ b32 is_builtin_type(Struct* s){
 
 //laziness
 FORCE_INLINE b32 types_match(Variable* v0, Variable* v1)    { return v0->data.structure == v1->data.structure; }
-FORCE_INLINE b32 types_match(Variable* v,  Expression* e)   { return v->data.structure == e->data.structure; }
+FORCE_INLINE b32 types_match(Variable* v,  Expression* e)   { 
+	return v->data.structure == e->data.structure; 
+	}
 FORCE_INLINE b32 types_match(Variable* v,  Struct* s)       { return v->data.structure == s; }
 FORCE_INLINE b32 types_match(Expression* e0, Expression* e1){ return e0->data.structure == e1->data.structure; }
 FORCE_INLINE b32 types_match(Expression* e,  Variable* v)   { return e->data.structure == v->data.structure; }

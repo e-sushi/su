@@ -457,6 +457,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 }break;
 
                 case Expression_FunctionCall:{
+                    //TODO(sushi)
                     //validate call id
                     Declaration* d = DeclarationFromNode(amufile->validator.functions.at(e->token_start->raw));
                     //this is kind of ugly                    
@@ -497,17 +498,33 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         }
                         arguments.add(ExpressionFromNode(it));
                     }
+
+                    // we remove the argument nodes from the call expression because we will be adding them 
+                    // back in the correct order later
+                    forI(arguments.count){
+                        change_parent(0,&arguments[i]->node);
+                    }
                     
                     //next we store all the overloads in a separate array so we can trim it
                     //we can filter out any functions whose argument count is less than whats in the call
                     //TODO(sushi) it may be more efficient to use a view of the original array and moving its elements around rather than
                     //            copying potentially the entire thing
+                    u32 min_req_args = -1; // the minimum amount of args required to call this overload 
                     amuArena<Function*> overloads; overloads.init(); defer{overloads.deinit();};
                     forI(fg->overloads.count){
                         Function* ol = fg->overloads[i];
-                        if(ol->args.count >= arguments.count){
+                        min_req_args = Min(min_req_args, ol->args.count - ol->default_count);
+                        if(ol->args.count >= arguments.count && ol->args.count-ol->default_count <= arguments.count){
                             overloads.add(ol);
                         }
+                    }
+
+                    // it's possible we figure it out immediately, so just skip all the filtering
+                    if(overloads.count == 1) goto skip_checks;
+
+                    if(arguments.count < min_req_args){
+                        logger.error(e->token_start, "no overload of ", fg->decl.identifier, " takes just ", arguments.count, " arguments. The least arguments acceptable is ", min_req_args, ".");
+                        return 0;
                     }
 
                     //early check that the user doesnt give too many arguments for all overloads
@@ -517,8 +534,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     }
 
                     //now we trim the list using positional args
-                    //in order to remove a function, the type of the positional arg has to be different and not convertable
-                    //to the function's argument
+                    //in order to remove a function, the type of the positional arg has to be different and not convertable to the function's argument
                     forX(ci, n_pos_args){
                         Expression* carg = ExpressionFromNode(validate(&arguments[ci]->node));
                         //NOTE(sushi) iterate in reverse so when we remove an element we dont have to adjust the index
@@ -559,16 +575,21 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                 }
                             }
                             if(!found){
+                                //we need to make sure that the user isn't trying to name a positional argument that was already set
+                                forI(n_pos_args){
+                                    Variable* farg = ol->args[i];
+                                    if(str8_equal_lazy(farg->decl.identifier, lhs->token_start->raw)){
+                                        logger.error(lhs->token_start, "argument '", lhs->token_start->raw, "' has already been specified by a positional argument.");
+                                    }
+                                }
                                 overloads.remove(fi);
                             }
                         }
                     }
 
-                    //if there is still more than one overload in the list we need to be more strict about types, filtering out overloads
-                    //who dont have any types matching passed types. As long as one of an overload's argument's types matches a call argument
-                    //it can stay
+                    //if there is still more than one overload in the list we need to be more strict about types, filtering out overloads who 
+                    //dont have any types matching passed types. As long as one of an overload's argument's types matches a call argument it can stay
                     if(overloads.count > 1){
-                        Function* exmatch = 0;
                         forX_reverse(fi, overloads.count){
                             Function* ol = overloads[fi];
                             b32 pos_has_matching = 0;
@@ -579,8 +600,8 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                     pos_has_matching = 1; break;
                                 }else{
                                     //we have a special case here where we allow a function to pass based on scalar types ignoring size.
-                                    //so if an argument doesnt match because it's size is different, but it's underlying type (signed, unsigned, float) is the same,
-                                    //then we allow it
+                                    //so if an argument doesnt match because it's size is different, but it's underlying type 
+                                    //(signed, unsigned, float) is the same, then we allow it
                                     #define subcase(b0,b1,b2,b3,b4,b5,b6,b7,b8,b9)\
                                     switch(carg->data.structure->type){\
                                         case DataType_Signed8:    if(b0)pos_has_matching=1; break;\
@@ -595,14 +616,14 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                         case DataType_Float64:    if(b9)pos_has_matching=1; break;\
                                     }
                                     switch(farg->data.structure->type){
-                                        case DataType_Signed8:    subcase(1,1,1,1,0,0,0,0,0,0); break; 
-                                        case DataType_Signed16:   subcase(1,1,1,1,0,0,0,0,0,0); break;
-                                        case DataType_Signed32:   subcase(1,1,1,1,0,0,0,0,0,0); break;
-                                        case DataType_Signed64:   subcase(1,1,1,1,0,0,0,0,0,0); break;
-                                        case DataType_Unsigned8:  subcase(0,0,0,0,1,1,1,1,0,0); break;
-                                        case DataType_Unsigned16: subcase(0,0,0,0,1,1,1,1,0,0); break;
-                                        case DataType_Unsigned32: subcase(0,0,0,0,1,1,1,1,0,0); break;
-                                        case DataType_Unsigned64: subcase(0,0,0,0,1,1,1,1,0,0); break;
+                                        case DataType_Signed8:    subcase(1,1,1,1,1,1,1,1,0,0); break; 
+                                        case DataType_Signed16:   subcase(1,1,1,1,1,1,1,1,0,0); break;
+                                        case DataType_Signed32:   subcase(1,1,1,1,1,1,1,1,0,0); break;
+                                        case DataType_Signed64:   subcase(1,1,1,1,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned8:  subcase(1,1,1,1,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned16: subcase(1,1,1,1,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned32: subcase(1,1,1,1,1,1,1,1,0,0); break;
+                                        case DataType_Unsigned64: subcase(1,1,1,1,1,1,1,1,0,0); break;
                                         case DataType_Float32:    subcase(0,0,0,0,0,0,0,0,1,1); break;
                                         case DataType_Float64:    subcase(0,0,0,0,0,0,0,0,1,1); break;
                                     }
@@ -640,29 +661,39 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         }
                         return 0;
                     }
-                    
+skip_checks:
                     //now we only have 1 overload chosen so we must change the call to directly represent it
                     //we reorganize the named arguments to be in order and remove the assignment, so it appears 
                     //as though this was a normal function call to later stages
-                    //TODO(sushi) finish final type checking here as well as rearraging arguments
                     Function* pick = overloads[0];
                     logger.log(Verbosity_Debug, "call to ", e->token_start->raw, " picked overload ", gen_func_sig(pick));
                     forI(pick->args.count){
                         Variable* farg = pick->args[i];
+                        b32 found = 0;
                         if(i<n_pos_args){
                             Expression* carg = arguments[i];
                             if(farg->data.structure->size < carg->data.structure->size){
-                                logger.warn(carg->token_start, "argument passed to ");
-                            }                             
+                                logger.warn(carg->token_start, "argument passed to ", pick->decl.identifier, " is larger than the size of the parameter. The value may be narrowed.");
+                            } 
+                            insert_last(&e->node, &carg->node);   
+                            found = 1;
                         }else{
-
+                            forX_reverse(j,arguments.count){
+                                Expression* carg = arguments[j];
+                                Expression* lhs = (Expression*)carg->node.first_child;
+                                if(!lhs) continue;
+                                if(str8_equal_lazy(lhs->token_start->raw, farg->decl.identifier)){
+                                    insert_last(&e->node, carg->node.last_child);
+                                    arguments.remove(i);
+                                    found = 1;
+                                    break;
+                                }
+                            }
                         }
-
+                        if(!found && !farg->initialized){
+                            logger.error(e->token_start, "missing argument ", farg->decl.identifier, " in call to ", pick->decl.identifier);
+                        }
                     }
-
-
-
-                    int i = 0;
                 }break;
 
                 //initial binary op cases that lead into another set of cases for doing specific work with them

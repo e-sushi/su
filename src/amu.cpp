@@ -342,20 +342,20 @@ str8 format_time(f64 ms){
 		f64 fmin = floor(Minutes(ms));
 		f64 fsec = floor(Seconds(ms)) - fmin * 60;
 		f64 fms  = ms - fmin*60*1000 - fsec*1000;
-		return toStr8(fmin, "m ", fsec, "s ", fms, " ms");
+		return to_str8_amu(fmin, "m ", fsec, "s ", fms, " ms");
 	}else if(floor(Seconds(ms))){
 		f64 fsec = floor(Seconds(ms));
 		f64 fms  = ms - fsec*SecondsToMS(1);
-		return toStr8(fsec, "s ", fms, "ms");
+		return to_str8_amu(fsec, "s ", fms, "ms");
 	}else{
-		return toStr8(ms, " ms");
+		return to_str8_amu(ms, " ms");
 	}
 }
 
 void speed_test(const u64 samples, str8 filepath){
 	f64 sum = 0;
 	
-	compiler.logger.log(0, "performing speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples.");
+	compiler.logger.log(0, "performing speed_test() on ", CyanFormatComma(filepath), " with ", samples, " samples.");
 	globals.supress_messages = 1;
 	Stopwatch ttime = start_stopwatch();
 	forI(samples){
@@ -371,7 +371,7 @@ void speed_test(const u64 samples, str8 filepath){
 		compiler.reset();
 	}
 	globals.supress_messages = 0;
-	compiler.logger.log(0, "speed_test() on ", CyanFormatDyn(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
+	compiler.logger.log(0, "speed_test() on ", CyanFormatComma(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
 }
 
 void print_tree(amuNode* node, u32 indent = 0){
@@ -405,7 +405,7 @@ int main(){DPZoneScoped;
 
 	CompilerRequest cr; 
 	//cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
-	cr.filepaths.add(STR8("tests/_/main.su"));
+	cr.filepaths.add(STR8("tests/_/main.amu"));
 
 	cr.stage = FileStage_Validator;
 
@@ -415,7 +415,7 @@ int main(){DPZoneScoped;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
-	//print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
+	print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
 	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
   
 	return 1;

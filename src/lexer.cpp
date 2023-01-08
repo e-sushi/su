@@ -251,7 +251,7 @@ void Lexer::lex(){DPZoneScoped;
 				while(*stream.str != '\'') {//skip until closing single quotes
 					stream_next; 
 					if(*stream.str == 0){
-						lex_error(token, "Unexpected EOF when lexing single quotes");
+						logger.error(&token, "Unexpected EOF when lexing single quotes");
 					}
 				}
 				
@@ -272,6 +272,7 @@ void Lexer::lex(){DPZoneScoped;
 					stream_next; //skip until closing double quotes
 					if(!stream){
 						logger.error("unexpected end of file. expected closing double quotes for double quotes starting on line ", token.l0, " column ", token.c0);
+						break;
 					}	
 				} 
 				

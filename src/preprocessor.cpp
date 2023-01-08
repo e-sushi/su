@@ -111,6 +111,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
             }
         }
     }
+    
     if(cr.filepaths.count){
         cr.stage = FileStage_Validator;
         amufile->preprocessor.imported_files = compiler.compile(&cr, 0);
