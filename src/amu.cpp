@@ -398,13 +398,10 @@ int main(){DPZoneScoped;
 	
 	arena.init();
 
-
-	//speed_test(50, STR8("tests/imports/valid/imports.su"));
 	compiler.init();
 	compiler.ctime = start_stopwatch();
 
 	CompilerRequest cr; 
-	//cr.filepaths.add(STR8("tests/imports/valid/imports.su"));
 	cr.filepaths.add(STR8("tests/_/main.amu"));
 
 	cr.stage = FileStage_Validator;
@@ -415,8 +412,8 @@ int main(){DPZoneScoped;
 
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
 
-	print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
-	//generate_ast_graph_svg("ast.svg", &compiler.files.atIdx(0)->parser.exported_decl.atIdx(0)->node);
+	//print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
+	generate_ast_graph_svg("ast.svg", &compiler.files.atIdxPtrVal(0)->parser.base);
   
 	return 1;
 }

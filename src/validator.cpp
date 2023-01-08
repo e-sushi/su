@@ -496,6 +496,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         }else{
                             n_pos_args++;
                         }
+                        if(!validate(it)) return 0;
                         arguments.add(ExpressionFromNode(it));
                     }
 
@@ -536,7 +537,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     //now we trim the list using positional args
                     //in order to remove a function, the type of the positional arg has to be different and not convertable to the function's argument
                     forX(ci, n_pos_args){
-                        Expression* carg = ExpressionFromNode(validate(&arguments[ci]->node));
+                        Expression* carg = arguments[ci];
                         //NOTE(sushi) iterate in reverse so when we remove an element we dont have to adjust the index
                         forX_reverse(fi, overloads.count){
                             Variable* farg = overloads[fi]->args[ci];
@@ -694,6 +695,8 @@ skip_checks:
                             logger.error(e->token_start, "missing argument ", farg->decl.identifier, " in call to ", pick->decl.identifier);
                         }
                     }
+
+                    e->data = pick->data;
                 }break;
 
                 //initial binary op cases that lead into another set of cases for doing specific work with them

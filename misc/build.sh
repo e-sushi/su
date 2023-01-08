@@ -191,7 +191,7 @@ misc_folder="$( cd -- "$( dirname -- "${BASH_SOURCE[0]:-$0}"; )" &> /dev/null &&
 root_folder="$misc_folder/.."
 vulkan_folder="$VULKAN_SDK"
 tracy_folder="H:/src/tracy-0.7.8" #TODO(sushi) make this an env var
-graphviz_folder="H:/src/graphviz_debug"
+graphviz_folder="H:/src/graphviz"
 
 
 if [ $vulkan_override != 0 ]; then
@@ -235,6 +235,7 @@ libs=(
   #graphviz libs
   cdt
   cgraph
+  cgraph++
   gvc
 )
 #_____________________________________________________________________________________________________
@@ -242,9 +243,9 @@ libs=(
 #_____________________________________________________________________________________________________
 defines_build=""
 if [ $build_release == 0 ]; then
-  defines_build="-DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_RELEASE=0"
+  defines_build="-DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_RELEASE=0 -DAMU_GRAPHVIZ"
 else
-  defines_build="-DBUILD_INTERNAL=0 -DBUILD_SLOW=0 -DBUILD_RELEASE=1"
+  defines_build="-DBUILD_INTERNAL=0 -DBUILD_SLOW=0 -DBUILD_RELEASE=1 -DAMU_GRAPHVIZ"
 fi
 
 

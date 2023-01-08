@@ -1,4 +1,4 @@
-#ifdef SU_GRAPHVIZ
+#ifdef AMU_GRAPHVIZ
 #include "graphviz/gvc.h"
 
 Agraph_t* gvgraph = 0;
@@ -6,7 +6,7 @@ GVC_t* gvc = 0;
 u32 colidx = 1;
 u32 groupid = 0;
 
-void make_ast_graph(TNode* node, Agnode_t* parent, TNode* align_to){
+void make_ast_graph(amuNode* node, Agnode_t* parent, amuNode* align_to){
     static u32 i = 0;
 	i++;
 	u32 colsave = colidx;
@@ -16,8 +16,10 @@ void make_ast_graph(TNode* node, Agnode_t* parent, TNode* align_to){
 	//DEBUG
 	//if(node->type == NodeType_Expression)agset(me, "label", dataTypeStrs[ExpressionFromNode(node)->datatype]);
 	//else agset(me, "label", node->comment.str);
-	agset(me, "label", (char*)node->debug.str);
+	str8 out = str8_copy(node->debug);
+	agset(me, "label", (char*)out.str);
 	agset(me, "color", to_string(colsave).str);
+	free(out.str);
 	
 	
 	for_node(node->first_child){
@@ -36,9 +38,9 @@ void make_ast_graph(TNode* node, Agnode_t* parent, TNode* align_to){
 	agset(edge, "color", to_string(colsave).str);
 }
 
-void generate_ast_graph_svg(const char* filename, TNode* start){
+void generate_ast_graph_svg(const char* filename, amuNode* start){
     gvc = gvContext();
-	gvgraph = agopen("ast tree", Agdirected, 0);
+	gvgraph = agopen("ast tree", {1,0,0,1}, 0);
 	agattr(gvgraph, AGNODE,"fontcolor",   "white");
 	agattr(gvgraph, AGNODE,"color",       "1");
 	agattr(gvgraph, AGNODE,"shape",       "box");
@@ -70,7 +72,7 @@ void generate_ast_graph_svg(const char* filename, TNode* start){
 
 #else
 
-void make_ast_graph(TNode* node, void* parent, TNode* align_to){}
-void generate_ast_graph_svg(const char* filename, TNode* start){}
+void make_ast_graph(amuNode* node, void* parent, amuNode* align_to){}
+void generate_ast_graph_svg(const char* filename, amuNode* start){}
 
 #endif

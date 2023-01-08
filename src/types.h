@@ -111,7 +111,7 @@ struct {
 	b32 warnings_as_errors = true;
 	b32 show_code = true;
 	b32 log_immediatly           = true;
-	b32 assert_compiler_on_error = true;
+	b32 assert_compiler_on_error = false;
 	b32 disable_colors           = false;
 	OSOut osout = OSOut_Windows;
 
