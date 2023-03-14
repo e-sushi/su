@@ -310,7 +310,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 forX(j, f->args.count){
                     Variable* myarg = f->args[j];
                     Variable* olarg = ol->args[j];
-                    if (!types_match(myarg, olarg)) break;
+                    if(!types_match(myarg, olarg)) break;
 
                     if(j == f->args.count - 1){
                         if(ol->args.count > f->args.count){
@@ -410,6 +410,12 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     if(!current.function){
                         logger.error(s->token_start, "cannot use a return statement outside of a function.");
                     }
+                    for_node(s->node.first_child){
+                        Expression* e = (Expression*)validate(it);
+                        if(!e) return 0;
+
+                    }
+
                 }break;
             }
 
@@ -726,6 +732,7 @@ skip_checks:
                 if(!lhs) return 0;
                 Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
                 if(!rhs) return 0;
+                logger.log(Verbosity_Debug, "validating binary op expression");
                 //temporary erroring until we implement operator overloading for structs
                 if(e->type != Expression_BinaryOpAssignment && (!(lhs->data.structure->type || rhs->data.structure->type))){
                     logger.error(lhs->token_start, "operator overloading for user-defined structures is not supported yet.");
@@ -740,15 +747,53 @@ skip_checks:
                     case Expression_BinaryOpBitShiftLeft:
                     case Expression_BinaryOpBitShiftRight:
                     case Expression_BinaryOpBitAND:{
+                        logger.log(Verbosity_Debug, "  validating bitwise binary operator");
+                        if(is_float(rhs)){
+                            logger.log(Verbosity_Debug, "    right hand side is float, inserting reinterpret cast");
+                            Expression* rein = arena.make_expression(STR8("reinterpret : s64"));
+                            rein->type = Expression_Reinterpret;
+                            rein->token_start = rhs->token_start;
+                            rein->token_end = rhs->token_end;
+                            rein->data.structure = compiler.builtin.types.signed64;
+                            insert_above(&rhs->node, &rein->node);
+                        }else if(!is_int(rhs)){
+                            logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                            return 0;
+                        }
+                        if(is_float(lhs)){
+                            logger.log(Verbosity_Debug, "    left hand side is float, inserting reinterpret cast");
+                            Expression* rein = arena.make_expression(STR8("reinterpret : s64"));
+                            rein->type = Expression_Reinterpret;
+                            rein->token_start = lhs->token_start;
+                            rein->token_end = lhs->token_end;
+                            rein->data.structure = compiler.builtin.types.signed64;
+                            insert_above(&lhs->node, &rein->node);
+                        }else if(!is_int(lhs)){
+                            logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                            return 0;
+                        }
+                        e->data.structure = compiler.builtin.types.signed64;
                     }break;
                     
                     case Expression_BinaryOpPlus:
                     case Expression_BinaryOpMinus:
                     case Expression_BinaryOpMultiply:
-                    case Expression_BinaryOpDivision:
+                    case Expression_BinaryOpDivision:{
+                        if(rhs->data.structure->type > lhs->data.structure->type || rhs->data.structure == lhs->data.structure){
+                            e->data.structure = rhs->data.structure;
+                        }else if(rhs->data.structure->type < lhs->data.structure->type){
+                            e->data.structure = lhs->data.structure;
+                        }
+
+                    }break;
+
                     case Expression_BinaryOpAND:
-                    case Expression_BinaryOpOR:
+                    case Expression_BinaryOpOR:{
+
+                    }break;
+
                     case Expression_BinaryOpModulo:{
+
                     }break;
 
                     case Expression_BinaryOpLessThan:
@@ -781,6 +826,7 @@ skip_checks:
                     }break;
                 }
             }
+            e->node.debug = to_str8_amu(e->node.debug, " : ", e->data.structure->decl.identifier);
             return &e->node;
         }break;
     }
