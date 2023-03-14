@@ -265,9 +265,6 @@
 			* after validation we combine all data into one amuFile, so per file information is only accessible through tokens
 			* how is the output formatted? can we use this output to continue compilation later?
 			* a file's data is not contiguous internally, it would need to be stitched together
-	[0,  **, 2022/07/31, vis, bug] fix implementation of graphviz visualization of the AST tree
-		for whatever reason I get linker errors on Agdirected when trying to compile with graphviz
-		not sure why, because I have it setup just like I did back when we worked on su in January
 	[!!, ***, 2022/07/25, threading, memory, bug] 
 		due to the randomness of these issues, i cannot provide examples,
 		but you can probably make them more likely to occur by using many large files that import each other

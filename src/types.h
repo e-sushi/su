@@ -104,14 +104,14 @@ struct Format{
 
 struct {
 	u32 warning_level = 1;
-	u32 verbosity = Verbosity_Always;
+	u32 verbosity = Verbosity_Debug;
 	u32 indent = 0;
 	b32 supress_warnings   = false;
 	b32 supress_messages   = false;
 	b32 warnings_as_errors = true;
 	b32 show_code = true;
 	b32 log_immediatly           = true;
-	b32 assert_compiler_on_error = false;
+	b32 assert_compiler_on_error = true;
 	b32 disable_colors           = false;
 	OSOut osout = OSOut_Windows;
 
@@ -168,6 +168,18 @@ struct amuNode{
 	str8 debug;
 };
 
+/*
+	before:
+		O
+	   / \	
+	  O	- T <- target 
+		N <- node
+
+	after:
+	   O
+	  / \ 
+     O - T - N  
+*/
 global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
 	mutex_lock(&target->lock);
 	mutex_lock(&node->lock);
@@ -182,6 +194,20 @@ global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
 	
 }
 
+
+/*
+	before:
+		O
+	   / \	
+	  O	- T <- target 
+		N <- node
+
+	after:
+		  O
+	   /     \  
+      O - N - T
+	NOTE this doesn't connect it to the target's parent! use the insert_first/last functions if a parent exists.
+*/
 global inline void insert_before(amuNode* target, amuNode* node) { DPZoneScoped;
 	mutex_lock(&target->lock);
 	mutex_lock(&node->lock);
@@ -195,6 +221,19 @@ global inline void insert_before(amuNode* target, amuNode* node) { DPZoneScoped;
 	target->prev = node;
 }
 
+/*
+	before:
+		O
+	   / \
+	  O - N <- node
+
+	after:
+		O
+	   / \   
+      O   N  
+	NOTE still connected to parent! this causes an incorrect structure, so you must remove from parent as well
+*/
+
 global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
 	mutex_lock(&node->lock);
 	defer {mutex_unlock(&node->lock);};
@@ -202,6 +241,19 @@ global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
 	if (node->prev) node->prev->next = node->next;
 	node->next = node->prev = 0;
 }
+
+/*
+	before:
+		O <- parent
+	   / \	
+	  A	- B  
+		N <- node
+
+	after:
+		O
+	 /  |  \	
+    A - B - N 
+*/
 
 global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
 	if (parent == 0) { child->parent = 0; return; }
@@ -226,6 +278,19 @@ global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
 	parent->child_count++;
 }
 
+/*
+	before:
+		O <- parent
+	   / \	
+	  A	- B  
+		N <- node
+
+	after:
+		O
+	 /  |  \	
+    N - A - B 
+*/
+
 global void insert_first(amuNode* parent, amuNode* child) { DPZoneScoped;
 	mutex_lock(&parent->lock);
 	mutex_lock(&child->lock);
@@ -246,6 +311,41 @@ global void insert_first(amuNode* parent, amuNode* child) { DPZoneScoped;
 	}
 	parent->child_count++;
 	
+}
+
+global void change_parent(amuNode* new_parent, amuNode* node);
+global void remove(amuNode* node);
+global void insert_above(amuNode* below, amuNode* above){DPZoneScoped;
+	mutex_lock(&below->lock);
+	mutex_lock(&above->lock);
+	defer{
+		mutex_unlock(&below->lock);
+		mutex_unlock(&above->lock);
+	};
+
+	amuNode copy = *below;
+	remove(below);
+	copy.parent->child_count++;
+
+	if(copy.parent){
+		above->parent = copy.parent;
+		if(copy.next && copy.prev){
+			insert_after(copy.prev, above);
+		}else if( copy.next && !copy.prev){
+			insert_before(copy.next, above);
+			copy.parent->first_child = above;
+		}else if(!copy.next &&  copy.prev){
+			insert_after(copy.prev, above);
+			copy.parent->last_child = above;
+		}else{
+			copy.parent->first_child = copy.parent->last_child = above;
+		}
+	}
+
+	//insert_after(below, above);
+	//above->parent = below->parent;
+	change_parent(above, below);
+	//if(!above->next) above->parent->last_child = above;
 }
 
 global void change_parent(amuNode* new_parent, amuNode* node) { DPZoneScoped;
@@ -613,7 +713,7 @@ struct amuArena{
 };
 
 
-//sorted binary mutex_deinit(&seark);
+// sorted map
 //their mutex_deinit(&declarations); this map supports storing keys who have collided
 //by storing them as neighbors and storing the unhashed key with the value
 //this was delle's idea
@@ -751,11 +851,6 @@ struct nodemap{
 				}
 				return 0;
 			}
-		}
-		if(index != -1){
-			return data[index].second;
-		}else{
-			return 0;
 		}
 		return 0;
 	}
@@ -1844,6 +1939,11 @@ struct amuFile{
 };
 
 
+struct StageStatus{
+	b32 failed;
+
+};
+
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Lexer
 
@@ -1918,10 +2018,6 @@ struct Parser {
 	amuFile* amufile;
 
 	void parse();
-
-	void spawn_parser(ParserThread pt);
-
-	void wait_for_dependency(str8 id);
 };
 
 void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
@@ -2175,6 +2271,15 @@ b32 is_builtin_type(Variable* v){
 b32 is_builtin_type(Struct* s){
 	return s->type;
 }
+
+b32 is_float(Expression* e){ return e->data.structure->type == DataType_Float32 || e->data.structure->type == DataType_Float64; }
+b32 is_float(Variable* v){ return v->data.structure->type == DataType_Float32 || v->data.structure->type == DataType_Float64; }
+b32 is_float(Struct* s){ return s->type == DataType_Float32 || s->type == DataType_Float64; }
+b32 is_int(Expression* e){ return e->data.structure->type >= DataType_Unsigned8 && e->data.structure->type <= DataType_Signed64; }
+b32 is_int(Variable* v){ return v->data.structure->type >= DataType_Unsigned8 && v->data.structure->type <= DataType_Signed64; }
+b32 is_int(Struct* s){ return s->type >= DataType_Unsigned8 && s->type <= DataType_Signed64; }
+
+
 
 //laziness
 FORCE_INLINE b32 types_match(Variable* v0, Variable* v1)    { return v0->data.structure == v1->data.structure; }
