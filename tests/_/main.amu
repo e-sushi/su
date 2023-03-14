@@ -1,13 +1,9 @@
-vec2:struct{
-    x:f32;
-    y:f32;
+float() : f32 {
+    return 2.0;
 }
 
 main() : s32 {
-    a:vec2;
-    b:vec2;
-    a+b;
-    return 1/2;
+    return 1.0 & float();
 }   
 
 

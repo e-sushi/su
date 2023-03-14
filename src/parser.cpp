@@ -636,6 +636,16 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                     return &e->node;
                 }break;
 
+                case Token_LiteralString:{
+                    Expression* e = arena.make_expression(curt->raw);
+                    e->token_start = curt;
+                    e->type = Expression_Literal;
+                    e->data.structure = compiler.builtin.types.str;
+                    e->data.string = e->token_start->raw;
+                    insert_last(node, &e->node);
+                    return &e->node;
+                }break;
+
                 case Token_OpenParen:{
                     curt++;
                     Token* start = curt;
