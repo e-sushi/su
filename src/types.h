@@ -654,6 +654,7 @@ struct amuArena{
 		//NOTE(sushi) its probably possible that once the thread gets into here 
 		//            that another thread has removed enough elements to make this idx invalid
 		//            the solution is to just avoid situations where this would happen
+		//TODO(sushi) I don't remember what I meant by avoiding 'situations like this', clear this up or make it impossible
 		Assert(idx < count);
 
 		T* ret = data + idx;
@@ -1300,6 +1301,8 @@ enum {
 	
 	//Special ternary conditional expression type
 	Expression_TernaryConditional,
+
+	Expression_InitializerList,
 	
 	//Types
 	Expression_Literal,
@@ -1631,7 +1634,8 @@ enum {
 	psAdditive,   
 	psTerm,       
 	psAccess, 
-	psFactor,    
+	psFactor,
+	psInitializer,
 };
 
 const str8 psStrs[] = {
@@ -1974,7 +1978,7 @@ struct ParserThread{
 	Token* curt;
 
 	b32 is_internal;
-	b32 check_var_decl_semicolon = 1;
+	b32 parsing_func_args = 0;
 
 	b32 finished=0;
 	condvar cv;
@@ -2023,7 +2027,6 @@ struct Parser {
 void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
 	SetThreadName("parser thread started.");
 	ParserThread* pt = (ParserThread*)pthreadinfo;
-	pt->check_var_decl_semicolon = 1;
 	pt->amufile = pt->parser->amufile;
 	pt->define(pt->node, pt->stage);
 	pt->finished = 1;
@@ -2116,8 +2119,9 @@ struct Compiler{
 		//we represent builtin scalars as structs internally because it is possible for the user
 		//to define conversions between them and other structs and it makes some things easier to implement
 		union{
-			Struct* arr[13];
+			Struct* arr[14];
 			struct{
+				Struct* void_;
 				Struct* unsigned8;
 				Struct* unsigned16;
 				Struct* unsigned32;
@@ -2195,21 +2199,10 @@ str8 type_token_to_str(Type type){
     return STR8("UNKNOWN DATA TYPE");
 }
 
-str8 get_typename(Variable* v){
-	return v->data.structure->decl.identifier;
-}
-
-str8 get_typename(Expression* e){
-	return e->data.structure->decl.identifier;
-}
-
-str8 get_typename(Struct* s){
-	return s->decl.identifier;
-}
-
-str8 get_typename(Function* f){
-	return f->data.structure->decl.identifier;
-}
+str8 get_typename(Variable* v)  { return v->data.structure->decl.identifier; }
+str8 get_typename(Expression* e){ return e->data.structure->decl.identifier; }
+str8 get_typename(Struct* s)    { return s->decl.identifier; }
+str8 get_typename(Function* f)  { return f->data.structure->decl.identifier; }
 
 //this overload may be unecessary
 str8 get_typename(amuNode* n){
@@ -2242,6 +2235,7 @@ u64 builtin_sizes(Type type){
 
 Struct* builtin_from_type(Type type){
 	switch(type){
+		case DataType_Void:       return compiler.builtin.types.void_;
 		case DataType_Unsigned8:  return compiler.builtin.types.unsigned8;
 		case DataType_Unsigned16: return compiler.builtin.types.unsigned16;
 		case DataType_Unsigned32: return compiler.builtin.types.unsigned32;
@@ -2260,17 +2254,9 @@ Struct* builtin_from_type(Type type){
 	return 0;
 }
 
-b32 is_builtin_type(Expression* e){
-	return e->data.structure->type;
-}
-
-b32 is_builtin_type(Variable* v){
-	return v->data.structure->type;
-}
-
-b32 is_builtin_type(Struct* s){
-	return s->type;
-}
+b32 is_builtin_type(Expression* e){ return e->data.structure->type; }
+b32 is_builtin_type(Variable* v){ return v->data.structure->type; }
+b32 is_builtin_type(Struct* s){ return s->type; }
 
 b32 is_float(Expression* e){ return e->data.structure->type == DataType_Float32 || e->data.structure->type == DataType_Float64; }
 b32 is_float(Variable* v){ return v->data.structure->type == DataType_Float32 || v->data.structure->type == DataType_Float64; }
@@ -2278,14 +2264,12 @@ b32 is_float(Struct* s){ return s->type == DataType_Float32 || s->type == DataTy
 b32 is_int(Expression* e){ return e->data.structure->type >= DataType_Unsigned8 && e->data.structure->type <= DataType_Signed64; }
 b32 is_int(Variable* v){ return v->data.structure->type >= DataType_Unsigned8 && v->data.structure->type <= DataType_Signed64; }
 b32 is_int(Struct* s){ return s->type >= DataType_Unsigned8 && s->type <= DataType_Signed64; }
-
+//b32 is_scalar(Expression* e){ return e->data.structure->type < }
 
 
 //laziness
 FORCE_INLINE b32 types_match(Variable* v0, Variable* v1)    { return v0->data.structure == v1->data.structure; }
-FORCE_INLINE b32 types_match(Variable* v,  Expression* e)   { 
-	return v->data.structure == e->data.structure; 
-	}
+FORCE_INLINE b32 types_match(Variable* v,  Expression* e)   { return v->data.structure == e->data.structure; }
 FORCE_INLINE b32 types_match(Variable* v,  Struct* s)       { return v->data.structure == s; }
 FORCE_INLINE b32 types_match(Expression* e0, Expression* e1){ return e0->data.structure == e1->data.structure; }
 FORCE_INLINE b32 types_match(Expression* e,  Variable* v)   { return e->data.structure == v->data.structure; }
@@ -2385,6 +2369,12 @@ struct{
 		expression->node.type = NodeType_Expression;
 		expression->node.debug = debugmsg;
 		return expression;
+	}
+
+	FORCE_INLINE
+	Expression* copy_expression(Expression* from){
+		Expression* expression = expression.add(Expression());
+		
 	}
 
 	FORCE_INLINE

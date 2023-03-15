@@ -1,9 +1,15 @@
-float() : f32 {
-    return 2.0;
+vec2 : struct {
+    x : f32 = 2.3;
+    y : u32 = 1.2;
 }
 
+func(a:u32, b:u32) : void {}
+
 main() : s32 {
-    return 1.0 & float();
+    a : vec2 = {1,2};
+    b := vec2{y=1.2};
+    func(b = 1, a = 2);
+    return 1;
 }   
 
 

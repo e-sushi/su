@@ -30,10 +30,10 @@
 #define perror(token, ...)\
 amufile->logger.error(token, __VA_ARGS__)
 
-#define perror_ret(token, ...){\
+#define perror_ret(token, ...)do{\
 amufile->logger.error(token, __VA_ARGS__);\
 return 0;\
-}
+}while(0)
 
 #define pwarn(token, ...)\
 amufile->logger.warn(token, __VA_ARGS__);
@@ -234,9 +234,10 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                                             return 0;
                                         }
                                         amuNode* fin = define(&s->decl.node, psDeclaration);
-                                        if(!fin){
-                                            return 0;
-                                        } 
+                                        if(!fin) return 0;
+                                        if(((Declaration*)fin)->type != Declaration_Variable){
+                                            perror_ret(curt, "only variables may be declared inside of structs.");
+                                        }
                                         Declaration* d = DeclarationFromNode(fin);
                                         s->members.add(d->identifier, &d->node);
                                     }
@@ -244,6 +245,10 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             } else perror(curt, "expected a '{' after 'struct' in definition of struct '", s->decl.identifier, "'.");
                         } else perror(curt, "INTERNAL: expected 'struct' after ':' for struct definition. NOTE(sushi) tell me if this happens");
                     } else perror(curt, "INTERNAL: expected ':' for struct declaration. NOTE(sushi) tell me if this happens");
+
+                    for_node(s->decl.node.first_child){
+                        amufile->logger.log(Verbosity_Debug, it->debug);
+                    }
 
                     condition_variable_notify_all(&this->cv);
                 }break;
@@ -263,7 +268,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                     curt++;
                     expect(Token_OpenParen){ // name(
                         //disable checking for semicolon after variable declaration
-                        check_var_decl_semicolon = 0;
+                        parsing_func_args = 1;
                         //TODO(sushi) god please clean this up
                         b32 found_defaulted = 0;
                         while(1){
@@ -287,8 +292,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                                 else perror_ret(curt, "expected a , or ) after function variable declaration.");
                             } else perror_ret(curt, "expected an identifier for function variable declaration.");
                         }
-                        //reenable
-                        check_var_decl_semicolon = 1;
+                        parsing_func_args = 0;
                         curt++;
                         expect(Token_Colon){ // name(...) :
                             f->decl.colon_anchor = curt;
@@ -320,7 +324,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Declaration_Variable:{ //name
-                    Variable* v = arena.make_variable(amuStr8(curt->raw, " -decl"));
+                    Variable* v = arena.make_variable(amuStr8(curt->raw, " - decl"));
                     if(curt->is_global){
                         if(is_internal) amufile->parser.internal_decl.add(&v->decl);
                         else            amufile->parser.exported_decl.add(&v->decl);
@@ -340,7 +344,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             //do nothing, because the variable's structure will be filled out later
                         }else expect(Token_Assignment) v->data.implicit = 1;
                         else perror(curt, "expected a typename or assignment for variable declaration, found ", token_type_str(curt->type), " instead.");
-                        curt++;
+                        if(!v->data.implicit) curt++;
                         //parse pointer and array stuff 
                         while(1){
                             expect(Token_Multiplication){
@@ -354,17 +358,16 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             }
                         }
                         expect(Token_Assignment){ // name : <type> = || name := 
-                            Token* before = curt++;
-                            Expression* e = ExpressionFromNode(define(&v->decl.node, psExpression));
+                            curt++;
+                            Expression* e = (Expression*)define(&v->decl.node, psExpression);
                             if(!e) return 0;
                             v->initialized = 1;
                             curt++;
-                        } else if(v->data.implicit) perror(curt, "Expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
-                        //NOTE(sushi) we do not do this check when we are parsing a function declarations arguments
-                        if(check_var_decl_semicolon){
-                            expect(Token_Semicolon){}
-                            else perror_ret(curt, "expected ; after variable declaration.");
-                        }
+                        } else if(!parsing_func_args) perror(curt, "expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+
+                        expect(Token_Semicolon){}
+                        else if(!parsing_func_args) perror_ret(curt, "expected ; after variable declaration.");
+
                         insert_last(node, &v->decl.node);
                         return &v->decl.node;
                     } else perror(curt, "Expected a ':' after identifier for variable decalration.");
@@ -510,11 +513,13 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 Expression* e = ExpressionFromNode(n);
 
                 expect_next(Token_Assignment){
-                    curt++;
+                    Token* before = curt++;
                     Expression* op = arena.make_expression(curt->raw);
+                    op->token_start = before;
                     op->type = Expression_BinaryOpAssignment;
                     change_parent(&op->node, &e->node);
                     curt++;
+                    op->token_end = curt;
                     amuNode* ret = define(&op->node, psExpression);
                     insert_last(node, &op->node);
                     return &op->node;                                                
@@ -649,7 +654,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 case Token_OpenParen:{
                     curt++;
                     Token* start = curt;
-                    amuNode* ret = define(node, psExpression);
+                    amuNode* ret = define(node, psExpression); if(!ret) return 0;
                     curt++;
                     expect(Token_CloseParen){
                         return ret;
@@ -691,44 +696,70 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 }break;
 
                 case Token_Identifier:{
-                    Expression* e = arena.make_expression();
-                    e->token_start = curt;
+                    Expression* identifier_expression = arena.make_expression();
+                    identifier_expression->token_start = curt;
                     expect_next(Token_OpenParen){
                         //this must be a function call
-                        e->node.debug = amuStr8("call ", curt->raw);
-                        e->type = Expression_FunctionCall;
+                        identifier_expression->node.debug = amuStr8("call ", curt->raw);
+                        identifier_expression->type = Expression_FunctionCall;
                         curt++;
                         while(1){
                             curt++;
                             expect(Token_CloseParen) {break;}
-                            Expression* arg = ExpressionFromNode(define(&e->node, psExpression));
+                            Expression* arg = ExpressionFromNode(define(&identifier_expression->node, psExpression));
                             if(!arg) return 0;
                             curt++;
                             expect(Token_Comma){}
                             else expect(Token_CloseParen) {break;}
                             else perror_ret(curt, "expected a , or ) after function argument.");
                         }
-                        insert_last(node, &e->node);
-                        e->token_end = curt;
+                        insert_last(node, &identifier_expression->node);
+                        identifier_expression->token_end = curt;
                     }else{
                         //this is just some identifier
-                        e->node.debug = curt->raw;
-                        e->type = Expression_Identifier;
-                        insert_last(node, &e->node);
+                        identifier_expression->node.debug = curt->raw;
+                        identifier_expression->type = Expression_Identifier;
+                        insert_last(node, &identifier_expression->node);
                         expect_next(Token_Increment, Token_Decrement){
                             curt++;
                             Expression* incdec = arena.make_expression((curt->type == Token_Increment ? STR8("++") : STR8("--")));
                             incdec->type = (curt->type == Token_Increment ? Expression_IncrementPostfix : Expression_DecrementPostfix);
                             insert_last(node, &incdec->node);
-                            change_parent(&incdec->node, &e->node);
+                            change_parent(&incdec->node, &identifier_expression->node);
                             return &incdec->node;
+                        } else expect_next(Token_OpenBrace) {
+                            curt++;
+                            amuNode* initializer = define(&identifier_expression->node, psInitializer);
+                            if(!initializer) return 0;
                         }
                     }
-                    return &e->node;
+                    return &identifier_expression->node;
                 }break;
 
-                
+                case Token_OpenBrace:{
+                    amuNode* initializer = define(node, psInitializer);
+                    if(!initializer) return 0;
+                    return initializer;
+                }break;
             }
+
+        }break;
+        case psInitializer:{  //----------------------------------------------------------------------------------------Initializer
+            Expression* initializer = arena.make_expression(STR8("initializer"));
+            initializer->type = Expression_InitializerList;
+            initializer->token_start = curt;
+            insert_last(node, &initializer->node);
+            while(1){
+                curt++;
+                Expression* exp = (Expression*)define(&initializer->node, psExpression);
+                if(!exp) return 0;
+                curt++;
+                expect(Token_Comma){}
+                else expect(Token_CloseBrace) break;
+                else perror_ret(curt, "expected a , or } after initializer list element.");
+            }
+            initializer->token_end = curt;
+            return &initializer->node;
         }break;
     }
 

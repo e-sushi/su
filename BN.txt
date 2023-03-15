@@ -13,7 +13,7 @@
               | <var-id> ":" "=" ( <scalar-type> | <string> | <struct-type> <initializer> )
 <func-decl>   = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
 <imp-decl>    = "implicit" "(" <id> ":" <type> ")" ":" <type> <statement>
-<struct-decl> = <struct-id> ":" "struct" <scope> [ <var-id> ]  ";"
+<struct-decl> = <struct-id> ":" "struct" "{" { <var-decl> } "}" [ <var-id> ]  ";"
 <op-decl>     = "operator" [ <int> ] //TODO
 <statement>   = <scope>  
               | <directive>
@@ -48,14 +48,14 @@
               | <call> 
               | "(" <exp> ")" 
               | <incdec> <var-id> | <var-id> <incdec> 
-              | <struct-type> <initializer>
+              | [ <struct-type> ] <initializer>
               | <var-id> 
               | <cast>
               | <reinterpret>
 <call>        = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
               | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
 <arg>         = <exp> | <id> "=" <expr>
-<initializer> = "{" <assignment> { "," <assignment> } "}"
+<initializer> = "{" <exp> { "," <exp> } "}"
 <cast>        = "<" <type> ">" <exp>
 <reinterpret> = "<" "!" <type> ">" <exp>
 <type>        = <scalar-type> | <struct-type>

@@ -70,6 +70,8 @@ void Compiler::init(){DPZoneScoped;
         builtin.types.arr[i]->members.init();
     } 
 
+
+    builtin.types.void_     ->decl.identifier = STR8("void");
     builtin.types.unsigned8 ->decl.identifier = STR8("u8");
     builtin.types.unsigned16->decl.identifier = STR8("u16");
     builtin.types.unsigned32->decl.identifier = STR8("u32");
@@ -84,6 +86,7 @@ void Compiler::init(){DPZoneScoped;
     builtin.types.any       ->decl.identifier = STR8("any");
     builtin.types.str       ->decl.identifier = STR8("str");
 
+    builtin.types.void_     ->type = DataType_Void;
     builtin.types.unsigned8 ->type = DataType_Unsigned8;
     builtin.types.unsigned16->type = DataType_Unsigned16;
     builtin.types.unsigned32->type = DataType_Unsigned32;
@@ -98,6 +101,7 @@ void Compiler::init(){DPZoneScoped;
     builtin.types.any       ->type = DataType_Any;
     builtin.types.str       ->type = DataType_String;
 
+    builtin.types.void_     ->size = 0;
     builtin.types.unsigned8 ->size = sizeof(u8);
     builtin.types.unsigned16->size = sizeof(u16);
     builtin.types.unsigned32->size = sizeof(u32);
@@ -339,4 +343,3 @@ void Compiler::reset(){
     files.clear();
 
 }
-

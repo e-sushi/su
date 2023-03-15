@@ -69,7 +69,7 @@ switch(to){                                    \
     case Token_Unsigned64: {  return false; }   \
     case Token_Float32:    {  return false; }   \
     case Token_Float64:    {  return false; }   \
-    case Token_Struct:     {  return false; } \
+    case Token_Struct:     {  return false; }   \
 }
 
 //checks if a conversion from one type to another is valid
@@ -167,7 +167,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
             if(!check_shadowing(&v->decl)) return 0;
             stacks.known_declarations.add(&v->decl);
             //if this variable's structure is null, then it is a user defined struct that we must look for
-            if(!v->data.structure){
+            if(!v->data.implicit && !v->data.structure){
                 Token* typespec = v->decl.token_start + 2;
                 Declaration* d = find_decl(typespec->raw);
                 if(!d){
@@ -198,7 +198,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     }
                     //if types are compatible just inject a conversion node 
                     //we dont inject the actual conversion process because that would require us to copy nodes
-                    //instead we just put a cast node here indicating which type to convert to and its handled later
+                    //instead we just put a cast node here indicating which type to convert to and it's handled later
                     Expression* cast = arena.make_expression(STR8("cast"));
                     cast->type = Expression_CastImplicit;
                     cast->token_start = v->decl.token_start;
@@ -362,8 +362,8 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
             push_struct(s);
             defer{pop_struct();};
             if(!check_shadowing(&s->decl)) return 0;
-            stacks.known_declarations.add(&s->decl);
 
+            stacks.known_declarations.add(&s->decl);
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
 
             for_node(s->decl.node.first_child){
@@ -448,7 +448,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 case Expression_Identifier:{
                     Declaration* d = find_decl(e->token_start->raw);
                     if(!d){
-                        logger.error(e->token_start, "unknown identifier '", e->token_start->raw, "'");
+                        logger.error(e->token_start, "unknown identifier '", e->token_start->raw, "'.");
                         return 0;
                     }
                     //make sure this declaration is validated so we can get type information from it
@@ -459,7 +459,24 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             e->data = v->data;
                         }break;
                     }
-                    
+                    // TODO(sushi) re-do how this works, there must be a better way to communicate this situation.
+                    if(e->node.child_count == 1){
+                        if(e->node.first_child->type == NodeType_Expression){
+                            if(((Expression*)e->node.first_child)->type == Expression_InitializerList){
+                                if(d->type != Declaration_Structure){
+                                    logger.error(e->token_start, "an identifier preceeding an initializer list must be a typename, found the name of a ", (d->type == Declaration_Function ? "function" : "variable"), " instead.");
+                                    return 0;
+                                }
+                                if(!validate(e->node.first_child)) return 0;
+                            }else{
+                                logger.error(e->token_start, "INTERNAL ERROR: an Expression_Identifier has a child node that is not an initializer list, this shouldn't happen. NOTE(sushi) tell me about this.");
+                                return 0;
+                            } 
+                        }else{
+                            logger.error(d->token_start, "INTERNAL ERROR: an Expression_Identifier has a child node that is not an expression, this shouldn't happen. NOTE(sushi) tell me about this.");
+                            return 0;
+                        }
+                    }
                 }break;
 
                 case Expression_FunctionCall:{
@@ -502,7 +519,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         }else{
                             n_pos_args++;
                         }
-                        if(!validate(it)) return 0;
+                        if(!found_named && !validate(it)) return 0;
                         arguments.add(ExpressionFromNode(it));
                     }
 
@@ -563,12 +580,12 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     //or the named argument's type doesnt match and isnt convertable
                     forX(ci, arguments.count-n_pos_args){
                         Expression* carg = arguments[ci+n_pos_args];
-                        Expression* lhs = ExpressionFromNode(carg->node.first_child);
+                        Expression* lhs = (Expression*)carg->node.first_child;
                         if(lhs->type != Expression_Identifier){
                             logger.error(lhs->token_start, "expected an identifier for lhs of named argument.");
                             return 0;
                         }
-                        Expression* rhs = ExpressionFromNode(validate(carg->node.last_child));
+                        Expression* rhs = (Expression*)validate(carg->node.last_child);
                         if(!rhs) return 0;
                         forX_reverse(fi, overloads.count){
                             Function* ol = overloads[fi];
@@ -682,7 +699,16 @@ skip_checks:
                             if(farg->data.structure->size < carg->data.structure->size){
                                 logger.warn(carg->token_start, "argument passed to ", pick->decl.identifier, " is larger than the size of the parameter. The value may be narrowed.");
                             } 
-                            insert_last(&e->node, &carg->node);   
+
+                            if(!types_match(farg, carg)){
+                                Expression* cast = arena.make_expression(STR8("cast"));
+                                cast->type = Expression_CastImplicit;
+                                cast->data = farg->data;
+                                insert_last(&cast->node, &carg->node);
+                                insert_last(&e->node, &cast->node);   
+                            }else{
+                                insert_last(&e->node, &carg->node);   
+                            }
                             found = 1;
                         }else{
                             forX_reverse(j,arguments.count){
@@ -690,8 +716,16 @@ skip_checks:
                                 Expression* lhs = (Expression*)carg->node.first_child;
                                 if(!lhs) continue;
                                 if(str8_equal_lazy(lhs->token_start->raw, farg->decl.identifier)){
-                                    insert_last(&e->node, carg->node.last_child);
-                                    arguments.remove(i);
+                                    if(!types_match(farg, carg)){
+                                        Expression* cast = arena.make_expression(STR8("cast"));
+                                        cast->type = Expression_CastImplicit;
+                                        cast->data = farg->data;
+                                        insert_last(&cast->node, carg->node.last_child);
+                                        insert_last(&e->node, &cast->node);
+                                    }else{
+                                        insert_last(&e->node, carg->node.last_child);
+                                    }
+                                    arguments.remove(j);
                                     found = 1;
                                     break;
                                 }
@@ -727,106 +761,227 @@ skip_checks:
                 case Expression_BinaryOpNotEqual:
                 case Expression_BinaryOpAs:
                 case Expression_BinaryOpMemberAccess:
-                case Expression_BinaryOpAssignment:
-                Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
-                if(!lhs) return 0;
-                Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
-                if(!rhs) return 0;
-                logger.log(Verbosity_Debug, "validating binary op expression");
-                //temporary erroring until we implement operator overloading for structs
-                if(e->type != Expression_BinaryOpAssignment && (!(lhs->data.structure->type || rhs->data.structure->type))){
-                    logger.error(lhs->token_start, "operator overloading for user-defined structures is not supported yet.");
-                    logger.note(lhs->token_start, "when trying to use operator ", ExTypeStrings[e->type], " between ", get_typename(lhs), " and ", get_typename(rhs));
-                    return 0;
-                }
-                switch(e->type){    
-                    //NOTE(sushi) performing bitwise operations on floats without reinterpretting is allowed, but they are always coerced to int
-                    //bit binary ops are special because they will always return an integer
-                    case Expression_BinaryOpBitOR:
-                    case Expression_BinaryOpBitXOR:
-                    case Expression_BinaryOpBitShiftLeft:
-                    case Expression_BinaryOpBitShiftRight:
-                    case Expression_BinaryOpBitAND:{
-                        logger.log(Verbosity_Debug, "  validating bitwise binary operator");
-                        if(is_float(rhs)){
-                            logger.log(Verbosity_Debug, "    right hand side is float, inserting reinterpret cast");
-                            Expression* rein = arena.make_expression(STR8("reinterpret : s64"));
-                            rein->type = Expression_Reinterpret;
-                            rein->token_start = rhs->token_start;
-                            rein->token_end = rhs->token_end;
-                            rein->data.structure = compiler.builtin.types.signed64;
-                            insert_above(&rhs->node, &rein->node);
-                        }else if(!is_int(rhs)){
-                            logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                case Expression_BinaryOpAssignment:{
+                    Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
+                    if(!lhs) return 0;
+                    Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
+                    if(!rhs) return 0;
+                    logger.log(Verbosity_Debug, "validating binary op expression");
+                    //temporary erroring until we implement operator overloading for structs
+                    if(e->type != Expression_BinaryOpAssignment && (!(lhs->data.structure->type || rhs->data.structure->type))){
+                        logger.error(lhs->token_start, "operator overloading for user-defined structures is not supported yet.");
+                        logger.note(lhs->token_start, "when trying to use operator ", ExTypeStrings[e->type], " between ", get_typename(lhs), " and ", get_typename(rhs));
+                        return 0;
+                    }
+                    switch(e->type){    
+                        //NOTE(sushi) performing bitwise operations on floats without reinterpretting is allowed, but they are always coerced to int
+                        //bit binary ops are special because they will always return an integer
+                        case Expression_BinaryOpBitOR:
+                        case Expression_BinaryOpBitXOR:
+                        case Expression_BinaryOpBitShiftLeft:
+                        case Expression_BinaryOpBitShiftRight:
+                        case Expression_BinaryOpBitAND:{
+                            logger.log(Verbosity_Debug, "  validating bitwise binary operator");
+                            if(is_float(rhs)){
+                                logger.log(Verbosity_Debug, "    right hand side is float, inserting reinterpret cast");
+                                Expression* rein = arena.make_expression(STR8("reinterpret : s64"));
+                                rein->type = Expression_Reinterpret;
+                                rein->token_start = rhs->token_start;
+                                rein->token_end = rhs->token_end;
+                                rein->data.structure = compiler.builtin.types.signed64;
+                                insert_above(&rhs->node, &rein->node);
+                            }else if(!is_int(rhs)){
+                                logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                                return 0;
+                            }
+                            if(is_float(lhs)){
+                                logger.log(Verbosity_Debug, "    left hand side is float, inserting reinterpret cast");
+                                Expression* rein = arena.make_expression(STR8("reinterpret : s64"));
+                                rein->type = Expression_Reinterpret;
+                                rein->token_start = lhs->token_start;
+                                rein->token_end = lhs->token_end;
+                                rein->data.structure = compiler.builtin.types.signed64;
+                                insert_above(&lhs->node, &rein->node);
+                            }else if(!is_int(lhs)){
+                                logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                                return 0;
+                            }
+                            // a bitwise operation always returns a signed 64 bit integer
+                            // TODO(sushi) should it?
+                            e->data.structure = compiler.builtin.types.signed64;
+                        }break;
+                        
+                        case Expression_BinaryOpPlus:
+                        case Expression_BinaryOpMinus:
+                        case Expression_BinaryOpMultiply:
+                        case Expression_BinaryOpDivision:{
+                            logger.log(Verbosity_Debug, "  validating basic arithmatic operation");
+                            if(rhs->data.structure->type > lhs->data.structure->type || rhs->data.structure == lhs->data.structure){
+                                logger.log(Verbosity_Debug, "    the result of the operation will take the type of the rhs: ", get_typename(rhs->data.structure));
+                                e->data.structure = rhs->data.structure;
+                            }else if(rhs->data.structure->type < lhs->data.structure->type){
+                                logger.log(Verbosity_Debug, "    the result of the operation will take the type of the lhs: ", get_typename(lhs->data.structure));
+                                e->data.structure = lhs->data.structure;
+                            }
+                        }break;
+
+                        case Expression_BinaryOpAND:
+                        case Expression_BinaryOpOR:{
+
+                        }break;
+
+                        case Expression_BinaryOpModulo:{
+
+                        }break;
+
+                        case Expression_BinaryOpLessThan:
+                        case Expression_BinaryOpGreaterThan:
+                        case Expression_BinaryOpLessThanOrEqual:
+                        case Expression_BinaryOpGreaterThanOrEqual:
+                        case Expression_BinaryOpEqual:
+                        case Expression_BinaryOpNotEqual:{
+
+                        }break;
+
+                        case Expression_BinaryOpAs:
+                        case Expression_BinaryOpMemberAccess:{
+
+                        }break;
+
+                        case Expression_BinaryOpAssignment:{
+
+                            // if(lhs->data.type != rhs->data.type || 
+                            // lhs->data.type == Token_Struct && rhs->data.type == Token_Struct &&
+                            // lhs->data.struct_type != rhs->data.struct_type){
+                            //     if(!rhs->data.struct_type->conversions.has(get_typename(lhs))){
+                            //         logger.error(lhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
+                            //         logger.note(lhs->token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(rhs), ") : ", get_typename(lhs));
+                            //         return 0;
+                            //     }
+                            // }
+
+
+                        }break;
+
+                        
+                    }
+                }break;
+
+                case Expression_InitializerList:{
+                    logger.log(Verbosity_Debug, "  validating initializer list");
+                    if(stacks.nested.variables.count){
+                        // this initializer list is PROBABLY being assigned to a variable
+                        Variable* v = current.variable;
+                        Struct* var_structure = 0;
+                        if(v->data.implicit){
+                            // the type of the variable is inferred from the identifier used before the initializer list
+                            // so there must be an identifier before it
+                            Expression* typespec = (Expression*)e->node.parent;
+                            if(typespec->type != Expression_Identifier){
+                                logger.error(e->token_start, "expected a typename before initializer list for implicitly typed variable '", v->decl.identifier, "'.");
+                                return 0;
+                            }
+                            //we need to find the structure belonging to the typename
+                            Declaration* d = find_decl(typespec->token_start->raw);
+                            if(d->type != Declaration_Structure){
+                                logger.error(typespec->token_start, "an identifier preceeding an initializer list must be a typename, found the name of a ", (d->type == Declaration_Function ? "function" : "variable"), " instead.");
+                                return 0;
+                            }
+                            var_structure = (Struct*)d;
+                            
+                        }else{
+                            var_structure = v->data.structure;
+                        }
+                        //the type of the variable needs to have been validated
+                        if(!validate((amuNode*)var_structure)) return 0;
+                        e->data = v->data;
+
+                        // we handle this in the same way as function arguments
+                        // first, gather all arguments, counting how many are positional, then loop over 
+                        // the members of the struct to find matches 
+                        amuArena<Expression*> arguments; arguments.init(); defer{arguments.deinit();};
+                        u32 n_pos_args = 0;
+                        b32 found_named = 0;
+                        for_node(e->node.first_child){
+                            if(((Expression*)it)->type == Expression_BinaryOpAssignment){
+                                found_named = 1;
+                            }else if(found_named){
+                                logger.error(((Expression*)it)->token_start, "positional arguments cannot come after named arguments.");
+                                return 0;
+                            }else{
+                                n_pos_args++;
+                            }
+                            if(!found_named && !validate(it)) return 0;
+                            arguments.add(((Expression*)it));
+                        }
+
+                        if(arguments.count > var_structure->members.hashes.count){
+                            logger.error(e->token_start, "too many arguments given in initializer list. ", var_structure->decl.identifier, " only has ", var_structure->members.hashes.count, " members, but ", arguments.count, " arguments are given.");
                             return 0;
                         }
-                        if(is_float(lhs)){
-                            logger.log(Verbosity_Debug, "    left hand side is float, inserting reinterpret cast");
-                            Expression* rein = arena.make_expression(STR8("reinterpret : s64"));
-                            rein->type = Expression_Reinterpret;
-                            rein->token_start = lhs->token_start;
-                            rein->token_end = lhs->token_end;
-                            rein->data.structure = compiler.builtin.types.signed64;
-                            insert_above(&lhs->node, &rein->node);
-                        }else if(!is_int(lhs)){
-                            logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
-                            return 0;
+
+                        // we remove the argument nodes from the initializer list expression because we will be adding them 
+                        // back in the correct order later
+                        forI(arguments.count){
+                            change_parent(0,&arguments[i]->node);
                         }
-                        e->data.structure = compiler.builtin.types.signed64;
-                    }break;
-                    
-                    case Expression_BinaryOpPlus:
-                    case Expression_BinaryOpMinus:
-                    case Expression_BinaryOpMultiply:
-                    case Expression_BinaryOpDivision:{
-                        if(rhs->data.structure->type > lhs->data.structure->type || rhs->data.structure == lhs->data.structure){
-                            e->data.structure = rhs->data.structure;
-                        }else if(rhs->data.structure->type < lhs->data.structure->type){
-                            e->data.structure = lhs->data.structure;
+                        // TODO(sushi) add type narrowing warnings
+                        u32 i = 0;
+                        for_node(((amuNode*)var_structure)->first_child){
+                            b32 filled = 0;
+                            Variable* member = (Variable*)it;
+                            if(i<n_pos_args){
+                                Expression* arg = arguments[i];
+                                if(!types_match(arg, member)){
+                                    if(!can_type_convert(&arg->data, &member->data)){
+                                        logger.error(arg->token_start, "no known conversion exists from ", get_typename(arg), " to ", get_typename(member));
+                                        return 0;
+                                    }
+                                    Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(arg), " to ", get_typename(member)));
+                                    cast->type = Expression_CastImplicit;
+                                    cast->data = member->data;
+                                    insert_last(&cast->node, &arg->node);
+                                    insert_last(&e->node, &cast->node);
+                                }else{
+                                    insert_last(&e->node, &arg->node);
+                                }
+                                filled = 1;
+                            }else{
+                                forX_reverse(j,arguments.count){
+                                    Expression* arg = arguments[j];
+                                    Expression* lhs = (Expression*)arg->node.first_child;
+                                    Expression* rhs = (Expression*)validate(arg->node.last_child);
+                                    if(!rhs || !lhs) continue;
+                                    if(str8_equal_lazy(lhs->token_start->raw, member->decl.identifier)){
+                                        if(!types_match(member, arg)){
+                                            Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(rhs), " to ", get_typename(member)));
+                                            cast->type = Expression_CastImplicit;
+                                            cast->data = member->data;
+                                            insert_last(&cast->node, &rhs->node);
+                                            insert_last(&e->node, &cast->node);
+                                        }else{
+                                            insert_last(&e->node, &rhs->node);
+                                        }
+                                        arguments.remove(j);
+                                        break;
+                                        filled = 1;
+                                    }
+                                }
+                            }
+                            if(!filled){
+                                Expression* def = arena.make_expression();
+                                if(member->initialized){
+                                    def = (Expression*)((amuNode*)member)->first_child;
+                                    NotImplemented; // should we copy the expression or just reference it somehow?
+                                }
+                            }
+                            i++;
+                            filled = 0;
                         }
-
-                    }break;
-
-                    case Expression_BinaryOpAND:
-                    case Expression_BinaryOpOR:{
-
-                    }break;
-
-                    case Expression_BinaryOpModulo:{
-
-                    }break;
-
-                    case Expression_BinaryOpLessThan:
-                    case Expression_BinaryOpGreaterThan:
-                    case Expression_BinaryOpLessThanOrEqual:
-                    case Expression_BinaryOpGreaterThanOrEqual:
-                    case Expression_BinaryOpEqual:
-                    case Expression_BinaryOpNotEqual:{
-
-                    }break;
-
-                    case Expression_BinaryOpAs:
-                    case Expression_BinaryOpMemberAccess:{
-
-                    }break;
-
-                    case Expression_BinaryOpAssignment:{
-
-                        // if(lhs->data.type != rhs->data.type || 
-                        // lhs->data.type == Token_Struct && rhs->data.type == Token_Struct &&
-                        // lhs->data.struct_type != rhs->data.struct_type){
-                        //     if(!rhs->data.struct_type->conversions.has(get_typename(lhs))){
-                        //         logger.error(lhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
-                        //         logger.note(lhs->token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(rhs), ") : ", get_typename(lhs));
-                        //         return 0;
-                        //     }
-                        // }
-
-
-                    }break;
-                }
+                    }                    
+                }break;
             }
-            e->node.debug = to_str8_amu(e->node.debug, " : ", e->data.structure->decl.identifier);
+            //e->node.debug = to_str8_amu(e->node.debug, " : ", e->data.structure->decl.identifier);
             return &e->node;
         }break;
     }
