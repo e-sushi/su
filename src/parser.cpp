@@ -235,7 +235,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                                         }
                                         amuNode* fin = define(&s->decl.node, psDeclaration);
                                         if(!fin) return 0;
-                                        if(((Declaration*)fin)->type != Declaration_Variable){
+                                        if(((Declaration*)fin)->type == Declaration_Function){
                                             perror_ret(curt, "only variables may be declared inside of structs.");
                                         }
                                         Declaration* d = DeclarationFromNode(fin);
@@ -251,6 +251,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                     }
 
                     condition_variable_notify_all(&this->cv);
+                    return (amuNode*)decl;
                 }break;
 
                 case Declaration_Function:{

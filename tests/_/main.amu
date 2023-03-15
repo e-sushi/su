@@ -2,26 +2,13 @@ player : struct {
     name   : str;
     health : u32;
     mana   : u32;
-    weapon : sword;  
 }
 
-sword : struct {
-    name      : str;
-    length    : f32;
-    sharpness : u32;
-}
 
-set_sword(p:player, s:sword):void{
-    //p.weapon = s;
-}
 
 main() : s32 {
-    set_sword(
-        p=player{name="John",},
-        s=sword{
-            name = "sting",
-            length = 3,
-            sharpness = 100,
-        }
-    );
+    p:player;
+    p.name;
+    p.health;
+    p.mana;
 }

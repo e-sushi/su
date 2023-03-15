@@ -762,7 +762,6 @@ skip_checks:
                 case Expression_BinaryOpEqual:
                 case Expression_BinaryOpNotEqual:
                 case Expression_BinaryOpAs:
-                case Expression_BinaryOpMemberAccess:
                 case Expression_BinaryOpAssignment:{
                     Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
                     if(!lhs) return 0;
@@ -852,22 +851,40 @@ skip_checks:
 
                         case Expression_BinaryOpAssignment:{
 
-                            // if(lhs->data.type != rhs->data.type || 
-                            // lhs->data.type == Token_Struct && rhs->data.type == Token_Struct &&
-                            // lhs->data.struct_type != rhs->data.struct_type){
-                            //     if(!rhs->data.struct_type->conversions.has(get_typename(lhs))){
-                            //         logger.error(lhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
-                            //         logger.note(lhs->token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(rhs), ") : ", get_typename(lhs));
-                            //         return 0;
-                            //     }
-                            // }
-
-
+                            if(!types_match(lhs, rhs)){
+                                if(!can_type_convert(&rhs->data, &lhs->data)){
+                                    logger.error(rhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
+                                    return 0;
+                                }
+                                Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(rhs), " to ", get_typename(lhs)));
+                                cast->type = Expression_CastImplicit;
+                                cast->data = lhs->data;
+                                insert_above((amuNode*)rhs, (amuNode*)cast);
+                            }else{
+                                e->data = rhs->data;
+                            }
                         }break;
 
                         
                     }
                 }break;
+
+                case Expression_BinaryOpMemberAccess:{
+                    logger.log(Verbosity_Debug, "  validating member access");
+                    Expression* lhs = (Expression*)validate(e->node.first_child);
+                    Expression* rhs = (Expression*)e->node.last_child;
+                    if(!lhs) return 0;
+                    Struct* structure = lhs->data.structure;
+                    if(!validate((amuNode*)structure)) return 0;
+                    Variable* member = (Variable*)structure->members.at(rhs->token_start->raw);
+                    if(!member){
+                        logger.error(rhs->token_start, "'", structure->decl.identifier, "' has no member '", rhs->token_start->raw, "'.");
+                        return 0;
+                    }
+                    e->data.structure = member->data.structure;
+
+                }break;
+
 
                 case Expression_InitializerList:{
                     logger.log(Verbosity_Debug, "  validating initializer list");
@@ -1007,7 +1024,7 @@ skip_checks:
                     }
                 }break;
             }
-            e->node.debug = to_str8_amu(e->node.debug, " : ", e->data.structure->decl.identifier);
+            Assert(e->data.structure, "an expression is required to have a structure assigned to it!");            
             return &e->node;
         }break;
     }

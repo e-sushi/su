@@ -13,7 +13,7 @@
               | <var-id> ":" "=" ( <scalar-type> | <string> | <struct-type> <initializer> )
 <func-decl>   = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
 <imp-decl>    = "implicit" "(" <id> ":" <type> ")" ":" <type> <statement>
-<struct-decl> = <struct-id> ":" "struct" "{" { <var-decl> } "}" [ <var-id> ]  ";"
+<struct-decl> = <struct-id> ":" "struct" "{" { <var-decl> | <struct-decl> } "}" [ <var-id> ]  ";"
 <op-decl>     = "operator" [ <int> ] //TODO
 <statement>   = <scope>  
               | <directive>
