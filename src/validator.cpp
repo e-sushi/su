@@ -468,6 +468,8 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                     return 0;
                                 }
                                 if(!validate(e->node.first_child)) return 0;
+                                
+                                e->data = ((Expression*)e->node.first_child)->data;
                             }else{
                                 logger.error(e->token_start, "INTERNAL ERROR: an Expression_Identifier has a child node that is not an initializer list, this shouldn't happen. NOTE(sushi) tell me about this.");
                                 return 0;
@@ -681,7 +683,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         //TODO(sushi) remove this following line or make it more useful by showing what types the arguments were
                         logger.note(e->token_start, "call was ", show(e));
                         forI(overloads.count){
-                            logger.note(overloads[i]->decl.token_start, "could be ", gen_func_sig(overloads[i]));
+                            logger.note(overloads[i]->decl.token_start, "could be ", show(overloads[i]));
                         }
                         return 0;
                     }
@@ -690,7 +692,7 @@ skip_checks:
                     //we reorganize the named arguments to be in order and remove the assignment, so it appears 
                     //as though this was a normal function call to later stages
                     Function* pick = overloads[0];
-                    logger.log(Verbosity_Debug, "call to ", e->token_start->raw, " picked overload ", gen_func_sig(pick));
+                    logger.log(Verbosity_Debug, "call to ", e->token_start->raw, " picked overload ", show(pick));
                     forI(pick->args.count){
                         Variable* farg = pick->args[i];
                         b32 found = 0;
@@ -711,8 +713,8 @@ skip_checks:
                             }
                             found = 1;
                         }else{
-                            forX_reverse(j,arguments.count){
-                                Expression* carg = arguments[j];
+                            forX_reverse(j,arguments.count-n_pos_args){
+                                Expression* carg = arguments[arguments.count-1-j];
                                 Expression* lhs = (Expression*)carg->node.first_child;
                                 if(!lhs) continue;
                                 if(str8_equal_lazy(lhs->token_start->raw, farg->decl.identifier)){
@@ -725,7 +727,7 @@ skip_checks:
                                     }else{
                                         insert_last(&e->node, carg->node.last_child);
                                     }
-                                    arguments.remove(j);
+                                    arguments.remove(arguments.count-1-j);
                                     found = 1;
                                     break;
                                 }
@@ -869,119 +871,143 @@ skip_checks:
 
                 case Expression_InitializerList:{
                     logger.log(Verbosity_Debug, "  validating initializer list");
-                    if(stacks.nested.variables.count){
-                        // this initializer list is PROBABLY being assigned to a variable
-                        Variable* v = current.variable;
-                        Struct* var_structure = 0;
-                        if(v->data.implicit){
-                            // the type of the variable is inferred from the identifier used before the initializer list
-                            // so there must be an identifier before it
-                            Expression* typespec = (Expression*)e->node.parent;
-                            if(typespec->type != Expression_Identifier){
+                    Expression* parent = (Expression*)e->node.parent;
+                    
+                    //figure out what structure we're working with
+                    Struct* structure = 0;
+                    if(parent->type == Expression_Identifier){
+                        // in this case, the type of the initializer list is specified
+                        Declaration* d = find_decl(parent->token_start->raw);
+                        if(d->type != Declaration_Structure){
+                            logger.error(parent->token_start, "an identifier preceding an initializer list must be a typename, found the name of a ", (d->type == Declaration_Function ? "function" : "variable"), " instead.");
+                            return 0;
+                        }
+                        structure = (Struct*)d;
+                        
+                    }else{
+                        // the initializer list does not have an identifier preceeding it, so we must figure out where we are using it
+                        // there are a couple places where this is okay:
+                        //   as an argument for another initializer list
+                        //   when declaring a non-implicit variable.
+                        // there may be more, im not sure yet
+                        if(current.variable){
+                            Variable* v = current.variable;
+                            if(v->data.implicit){
                                 logger.error(e->token_start, "expected a typename before initializer list for implicitly typed variable '", v->decl.identifier, "'.");
                                 return 0;
                             }
-                            //we need to find the structure belonging to the typename
-                            Declaration* d = find_decl(typespec->token_start->raw);
-                            if(d->type != Declaration_Structure){
-                                logger.error(typespec->token_start, "an identifier preceeding an initializer list must be a typename, found the name of a ", (d->type == Declaration_Function ? "function" : "variable"), " instead.");
+                            structure = v->data.structure;
+                        }else if(stacks.nested.expressions.count > 1){
+                            Expression* prev = stacks.nested.expressions[stacks.nested.expressions.count-1];
+                            if(prev->type == Expression_FunctionCall){
+                                logger.error(e->token_start, "an initializer list used as a function argument must specify its type.");
                                 return 0;
                             }
-                            var_structure = (Struct*)d;
-                            
-                        }else{
-                            var_structure = v->data.structure;
                         }
-                        //the type of the variable needs to have been validated
-                        if(!validate((amuNode*)var_structure)) return 0;
-                        e->data = v->data;
+                    }
+                    
+                    //the type of the variable needs to have been validated
+                    if(!validate((amuNode*)structure)) return 0;
+                    e->data.structure = structure;
 
-                        // we handle this in the same way as function arguments
-                        // first, gather all arguments, counting how many are positional, then loop over 
-                        // the members of the struct to find matches 
-                        amuArena<Expression*> arguments; arguments.init(); defer{arguments.deinit();};
-                        u32 n_pos_args = 0;
-                        b32 found_named = 0;
-                        for_node(e->node.first_child){
-                            if(((Expression*)it)->type == Expression_BinaryOpAssignment){
-                                found_named = 1;
-                            }else if(found_named){
-                                logger.error(((Expression*)it)->token_start, "positional arguments cannot come after named arguments.");
-                                return 0;
-                            }else{
-                                n_pos_args++;
-                            }
-                            if(!found_named && !validate(it)) return 0;
-                            arguments.add(((Expression*)it));
-                        }
-
-                        if(arguments.count > var_structure->members.hashes.count){
-                            logger.error(e->token_start, "too many arguments given in initializer list. ", var_structure->decl.identifier, " only has ", var_structure->members.hashes.count, " members, but ", arguments.count, " arguments are given.");
+                    // we handle this in the same way as function arguments
+                    // first, gather all arguments, counting how many are positional, then loop over 
+                    // the members of the struct to find matches 
+                    amuArena<Expression*> arguments; arguments.init(); defer{arguments.deinit();};
+                    u32 n_pos_args = 0;
+                    b32 found_named = 0;
+                    for_node(e->node.first_child){
+                        if(((Expression*)it)->type == Expression_BinaryOpAssignment){
+                            found_named = 1;
+                        }else if(found_named){
+                            logger.error(((Expression*)it)->token_start, "positional arguments cannot come after named arguments.");
                             return 0;
+                        }else{
+                            n_pos_args++;
                         }
+                        if(!found_named && !validate(it)) return 0;
+                        arguments.add(((Expression*)it));
+                    }
 
-                        // we remove the argument nodes from the initializer list expression because we will be adding them 
-                        // back in the correct order later
-                        forI(arguments.count){
-                            change_parent(0,&arguments[i]->node);
-                        }
-                        // TODO(sushi) add type narrowing warnings
-                        u32 i = 0;
-                        for_node(((amuNode*)var_structure)->first_child){
-                            b32 filled = 0;
-                            Variable* member = (Variable*)it;
-                            if(i<n_pos_args){
-                                Expression* arg = arguments[i];
-                                if(!types_match(arg, member)){
-                                    if(!can_type_convert(&arg->data, &member->data)){
-                                        logger.error(arg->token_start, "no known conversion exists from ", get_typename(arg), " to ", get_typename(member));
-                                        return 0;
-                                    }
-                                    Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(arg), " to ", get_typename(member)));
-                                    cast->type = Expression_CastImplicit;
-                                    cast->data = member->data;
-                                    insert_last(&cast->node, &arg->node);
-                                    insert_last(&e->node, &cast->node);
-                                }else{
-                                    insert_last(&e->node, &arg->node);
+                    if(arguments.count > structure->members.hashes.count){
+                        logger.error(e->token_start, "too many arguments given in initializer list. ", structure->decl.identifier, " only has ", structure->members.hashes.count, " members, but ", arguments.count, " arguments are given.");
+                        return 0;
+                    }
+
+                    // we remove the argument nodes from the initializer list expression because we will be adding them 
+                    // back in the correct order later
+                    forI(arguments.count){
+                        change_parent(0,&arguments[i]->node);
+                    }
+                    // TODO(sushi) add type narrowing warnings
+                    u32 i = 0;
+                    for_node(((amuNode*)structure)->first_child){
+                        b32 filled = 0;
+                        Variable* member = (Variable*)it;
+                        if(i<n_pos_args){
+                            Expression* arg = arguments[i];
+                            if(!types_match(arg, member)){
+                                if(!can_type_convert(&arg->data, &member->data)){
+                                    logger.error(arg->token_start, "no known conversion exists from ", get_typename(arg), " to ", get_typename(member));
+                                    return 0;
                                 }
-                                filled = 1;
+                                Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(arg), " to ", get_typename(member)));
+                                cast->type = Expression_CastImplicit;
+                                cast->data = member->data;
+                                insert_last(&cast->node, &arg->node);
+                                insert_last(&e->node, &cast->node);
                             }else{
-                                forX_reverse(j,arguments.count){
-                                    Expression* arg = arguments[j];
-                                    Expression* lhs = (Expression*)arg->node.first_child;
-                                    Expression* rhs = (Expression*)validate(arg->node.last_child);
-                                    if(!rhs || !lhs) continue;
-                                    if(str8_equal_lazy(lhs->token_start->raw, member->decl.identifier)){
-                                        if(!types_match(member, arg)){
-                                            Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(rhs), " to ", get_typename(member)));
-                                            cast->type = Expression_CastImplicit;
-                                            cast->data = member->data;
-                                            insert_last(&cast->node, &rhs->node);
-                                            insert_last(&e->node, &cast->node);
-                                        }else{
-                                            insert_last(&e->node, &rhs->node);
-                                        }
-                                        arguments.remove(j);
-                                        break;
-                                        filled = 1;
+                                insert_last(&e->node, &arg->node);
+                            }
+                            filled = 1;
+                        }else{
+                            forX_reverse(j,arguments.count-n_pos_args){
+                                Expression* arg = arguments[arguments.count-1-j];
+                                Expression* lhs = (Expression*)arg->node.first_child;
+                                Expression* rhs = (Expression*)arg->node.last_child;//(Expression*)validate(arg->node.last_child);
+                                if(!rhs || !lhs) continue;
+                                if(str8_equal_lazy(lhs->token_start->raw, member->decl.identifier)){
+
+                                    push_variable(member);
+                                    rhs = (Expression*)validate((amuNode*)rhs);
+                                    if(!rhs) return 0;
+                                    pop_variable();
+
+                                    if(!types_match(member, arg)){
+                                        Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(rhs), " to ", get_typename(member)));
+                                        cast->type = Expression_CastImplicit;
+                                        cast->data = member->data;
+                                        insert_last(&cast->node, &rhs->node);
+                                        insert_last(&e->node, &cast->node);
+                                    }else{
+                                        insert_last(&e->node, &rhs->node);
                                     }
+                                    arguments.remove(arguments.count-1-j);
+                                    filled = 1;
+                                    break;
                                 }
                             }
-                            if(!filled){
-                                Expression* def = arena.make_expression();
-                                if(member->initialized){
-                                    def = (Expression*)((amuNode*)member)->first_child;
-                                    NotImplemented; // should we copy the expression or just reference it somehow?
-                                }
-                            }
-                            i++;
-                            filled = 0;
                         }
-                    }                    
+                        if(!filled){
+                            //if(member->initialized){
+                                // //TODO(sushi) I really don't want to be copying this here, but I can't think of anyway to get a proper view of a 
+                                // //            a node w/o changing how all node info is accessed across the code.
+                                // //            Ideally, any sort of initializer for a struct will be simple (especially since it can only be an 
+                                // //            expression), so these copies shouldn't be TOO large.                                    
+                                // insert_last(&e->node, copy_branch(((amuNode*)member)->first_child));
+                            //}
+                            // ACTUALLY, we will just use a placeholder that later stages will need to recognize as such.
+                            // but I will keep previous code in case this sucks 
+                            Expression* placeholder = arena.make_expression(STR8("placeholder"));
+                            placeholder->type = Expression_Literal;
+                            placeholder->data.pointer_depth = -1;
+                            insert_last(&e->node, &placeholder->node);
+                        }
+                        i++;
+                    }
                 }break;
             }
-            //e->node.debug = to_str8_amu(e->node.debug, " : ", e->data.structure->decl.identifier);
+            e->node.debug = to_str8_amu(e->node.debug, " : ", e->data.structure->decl.identifier);
             return &e->node;
         }break;
     }

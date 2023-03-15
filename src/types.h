@@ -1431,7 +1431,7 @@ struct Struct;
 struct Declaration;
 struct TypedValue{
 	Struct* structure;
-	u32 pointer_depth;
+	u32 pointer_depth; // a value of -1 indicates that this value is a placeholder
 	b32 implicit = 0; //special indicator for variables that were declared with no type and depend on the expression they are assigned
 	str8 type_name;
 	union {
@@ -2204,7 +2204,6 @@ str8 get_typename(Expression* e){ return e->data.structure->decl.identifier; }
 str8 get_typename(Struct* s)    { return s->decl.identifier; }
 str8 get_typename(Function* f)  { return f->data.structure->decl.identifier; }
 
-//this overload may be unecessary
 str8 get_typename(amuNode* n){
 	switch(n->type){
 		case NodeType_Variable:   return get_typename(VariableFromNode(n));
@@ -2278,8 +2277,14 @@ FORCE_INLINE b32 types_match(Struct* s0, Struct* s1)        { return s0 == s1; }
 FORCE_INLINE b32 types_match(Struct* s,  Variable* v)       { return v->data.structure == s; }
 FORCE_INLINE b32 types_match(Struct* s,  Expression* e)     { return e->data.structure == s; }
 
+b32 is_expression_type(amuNode* n, Type type){
+	if(n->type != NodeType_Expression) return false;
+	if(((Expression*)n)->type == type) return true;
+	return false;
+}
+
 //allocates a string into temp memory
-str8 gen_func_sig(Function* f, b32 display_var_names = 1){
+str8 show(Function* f, b32 display_var_names = 1){
 	Assert(!f->overloads.count, "gen_sig_func was passed an overload base");
 
 	str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
@@ -2372,12 +2377,6 @@ struct{
 	}
 
 	FORCE_INLINE
-	Expression* copy_expression(Expression* from){
-		Expression* expression = expression.add(Expression());
-		
-	}
-
-	FORCE_INLINE
 	Statement* make_statement(str8 debugmsg = STR8("")){DPZoneScoped;
 		Statement* statement = statements.add(Statement());
 		//compiler.logger.log(Verbosity_Debug, "Making a statement with debug message ", debugmsg);
@@ -2398,5 +2397,54 @@ struct{
 	}
 
 }arena;
+
+// copies a node and all of its children recursively
+// TODO(sushi) it's VERY possible something goes wrong here. several of our structures contain data
+//             that are mutable. I do not want to do deep copies at the moment, but it may be necesary
+// NOTE(sushi) due to the aforementioned issue, this should only be used where you know data on the copied
+//             branch is not going to be modified. 
+amuNode* copy_branch(amuNode* node){
+	amuNode* out = 0;
+	switch(node->type){
+		case NodeType_Program:{
+			TestMe;
+		}break;
+		case NodeType_Structure:{
+			Struct* s = arena.make_struct(node->debug);
+			CopyMemory((u8*)s+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Struct)-sizeof(amuNode));
+			out = (amuNode*)s;
+		}break;
+		case NodeType_Function:{
+			Function* f = arena.make_function(node->debug);
+			CopyMemory((u8*)f+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Function)-sizeof(amuNode));
+			out = (amuNode*)f;
+		}break;
+		case NodeType_Variable:{
+			Variable* v = arena.make_variable(node->debug);
+			CopyMemory((u8*)v+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Variable)-sizeof(amuNode));
+			out = (amuNode*)v;
+		}break;
+		case NodeType_Scope:{
+			Scope* s = arena.make_scope(node->debug);
+			CopyMemory((u8*)s+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Scope)-sizeof(amuNode));
+			out = (amuNode*)s;
+		}break;
+		case NodeType_Statement:{
+			Statement* s = arena.make_statement(node->debug);
+			CopyMemory((u8*)s+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Scope)-sizeof(amuNode));
+			out = (amuNode*)s;
+		}break;
+		case NodeType_Expression:{
+			Expression* e = arena.make_expression(node->debug);
+			CopyMemory((u8*)e+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Expression)-sizeof(amuNode));
+			out = (amuNode*)e;
+		}break;
+		default: FixMe;
+	}
+	for_node(node->first_child){
+		insert_last(out, copy_branch(it));
+	}
+	return out;
+}
 
 #endif //AMU_TYPES_H

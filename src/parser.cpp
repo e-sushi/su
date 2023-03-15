@@ -363,10 +363,13 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             if(!e) return 0;
                             v->initialized = 1;
                             curt++;
-                        } else if(!parsing_func_args) perror(curt, "expected a type specifier or assignment after ':' in declaration of variable '", id, "'");
+                        }
+                        else if(v->data.implicit) perror(curt, "implicitly defined variable '", id, "' requires an assignment to deduce its type.");
+                        else expect(Token_Semicolon) {}
+                        else if(!parsing_func_args) perror(curt, "expected a ; or assignment after typename in declaration of variable '", id, "'.");
 
-                        expect(Token_Semicolon){}
-                        else if(!parsing_func_args) perror_ret(curt, "expected ; after variable declaration.");
+                        //expect(Token_Semicolon){}
+                        //else if(!parsing_func_args) perror_ret(curt, "expected ; after variable declaration.");
 
                         insert_last(node, &v->decl.node);
                         return &v->decl.node;
@@ -749,12 +752,22 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
             initializer->type = Expression_InitializerList;
             initializer->token_start = curt;
             insert_last(node, &initializer->node);
-            while(1){
+            expect_next(Token_CloseBrace){
+                curt++;
+                initializer->token_end = curt;
+                return &initializer->node;
+            }else while(1){
                 curt++;
                 Expression* exp = (Expression*)define(&initializer->node, psExpression);
                 if(!exp) return 0;
                 curt++;
-                expect(Token_Comma){}
+                expect(Token_Comma){
+                    // allow trailing comma
+                    expect_next(Token_CloseBrace){
+                        curt++;
+                        break;
+                    }
+                }
                 else expect(Token_CloseBrace) break;
                 else perror_ret(curt, "expected a , or } after initializer list element.");
             }
