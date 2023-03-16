@@ -90,7 +90,7 @@ b32 type_conversion(Type to, Type from){
     return false;
 }
 
-//checks the known stack to see if there are any variable name conflicts in the same scope
+//checks the known stack to see if there are any name conflicts in the same scope
 b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
     amuLogger& logger = amufile->logger;
     forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
@@ -180,7 +180,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
                     return 0;
                 }
-                v->data.structure = StructFromDeclaration(d);
+                v->data.structure = (Struct*)d;
             }
             
             if(v->data.implicit){
@@ -188,7 +188,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 if(!e) return 0;
                 v->data = e->data;
             }else if(v->decl.node.child_count){
-                Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
+                Expression* e = (Expression*)validate(((amuNode*)v)->first_child);
                 if(!e) return 0;
                 if(v->data.structure != e->data.structure){
                     if(!e->data.structure->conversions.at(v->data.structure->decl.identifier)){
@@ -947,7 +947,7 @@ skip_checks:
                     }
 
                     if(arguments.count > structure->members.hashes.count){
-                        logger.error(e->token_start, "too many arguments given in initializer list. ", structure->decl.identifier, " only has ", structure->members.hashes.count, " members, but ", arguments.count, " arguments are given.");
+                        logger.error(e->token_start, "too many arguments given in initializer list. ", structure->decl.identifier, " only has ", structure->members.hashes.count, (structure->members.hashes.count == 1 ? " member" : " members"), ", but ", arguments.count, (arguments.count == 1 ? " argument" : " arguments"), " are given.");
                         return 0;
                     }
 

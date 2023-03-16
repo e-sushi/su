@@ -1019,6 +1019,7 @@ enum{
 	Token_Continue,                    // continue
 	Token_Defer,                       // defer
 	Token_StructDecl,                  // struct
+	Token_NamespaceDecl,               // namespace
 	Token_This,                        // this
 	Token_Using,                       // using
 	Token_As,                          // as
@@ -1605,6 +1606,7 @@ enum{
 	Declaration_Function,
 	Declaration_Variable,
 	Declaration_Structure,
+	Declaration_Namespace,
 };
 
 struct Program {
@@ -1894,6 +1896,8 @@ struct amuFile{
 
 	struct{ // preprocessor
 		amuArena<amuFile*> imported_files;
+		// these declarations are tokens that the preprocessor THINKS should be either internal or exported,
+		// but it could be wrong. this is resolved by the parser.
 		amuArena<u32> exported_decl;
 		amuArena<u32> internal_decl;
 		amuArena<u32> runs;

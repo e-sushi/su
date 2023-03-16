@@ -199,11 +199,21 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
         }break;
 
         case psDeclaration:{ //-----------------------------------------------------------------------------------Declaration
-            expect(Token_Identifier) {} else perror_ret(curt, "INTERNAL: parser stage psDeclaration started, but current token is not an identifier.");
+            // TODO(sushi) rewrite this stuff, it's garbage
+            str8 name;
+            expect(Token_Identifier) {
+                name = curt->raw;
+            } else expect(Token_Colon){ // anonymous struct declaration
+                str8b gen;
+                str8_builder_init(&gen, amufile->file->front);
+                str8_builder_replace_codepoint(&gen, ' ', '_'); // TODO(sushi) add more needed replacements as they show up
+                name = amuStr8("anonymous_struct_",gen.fin,"_",curt->l0,"_",curt->c0);
+                str8_builder_deinit(&gen);
+            } else perror_ret(curt, "INTERNAL: parser stage psDeclaration started, but current token is not an identifier or colon.");
             DPTracyDynMessage(toStr("declaring identifier ", curt->raw));
             switch(curt->decl_type){
                 case Declaration_Structure:{
-                    Struct* s = arena.make_struct(curt->raw);
+                    Struct* s = arena.make_struct(name);
                     Declaration* decl = &s->decl;
 
                     s->members.init();
@@ -211,40 +221,45 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                     s->conversions.init();
                     s->decl.token_start = curt;
                     s->decl.type = Declaration_Structure;
-                    s->decl.identifier = curt->raw;
-                    s->decl.declared_identifier = curt->raw;
+                    s->decl.identifier = name;
+                    s->decl.declared_identifier = name;
 
                     if(curt->is_global){
                         if(is_internal) amufile->parser.internal_decl.add(&s->decl);
                         else            amufile->parser.exported_decl.add(&s->decl);
                     }
-                    //TODO(sushi) since these expects arent linked to any alternatives they can just early out to reduce nesting
-                    curt++;
-                    expect(Token_Colon){
-                        s->decl.colon_anchor = curt;
+
+                    //it's possible we have either an identifier, for named structs, or a colon, for anonymous structs
+                    //so we don't fail upon not finding an identifier. 
+                    expect(Token_Identifier){curt++;}
+                    expect(Token_Colon){curt++;}
+                    else perror_ret(curt, "INTERNAL: expected ':' for struct declaration. NOTE(sushi) tell me if this happens");
+                    
+                    expect(Token_StructDecl){curt++;}
+                    else perror_ret(curt, "INTERNAL: expected 'struct' after ':' for struct definition. NOTE(sushi) tell me if this happens");
+
+                    expect(Token_OpenBrace){}
+                    else perror_ret(curt, "expected a '{' after 'struct' in definition of struct '", s->decl.identifier, "'.");
+
+                    while(!next_match(Token_CloseBrace)){
                         curt++;
-                        expect(Token_StructDecl){
-                            curt++;
-                            expect(Token_OpenBrace){
-                                while(!next_match(Token_CloseBrace)){
-                                    curt++;
-                                    expect(Token_Identifier){
-                                        if(!curt->is_declaration){
-                                            perror(curt, "only declarations are allowed inside struct definitions. NOTE(sushi) if this is a declaration, then this error indicates something wrong internally, please let me know.");
-                                            return 0;
-                                        }
-                                        amuNode* fin = define(&s->decl.node, psDeclaration);
-                                        if(!fin) return 0;
-                                        if(((Declaration*)fin)->type == Declaration_Function){
-                                            perror_ret(curt, "only variables may be declared inside of structs.");
-                                        }
-                                        Declaration* d = DeclarationFromNode(fin);
-                                        s->members.add(d->identifier, &d->node);
-                                    }
-                                }
-                            } else perror(curt, "expected a '{' after 'struct' in definition of struct '", s->decl.identifier, "'.");
-                        } else perror(curt, "INTERNAL: expected 'struct' after ':' for struct definition. NOTE(sushi) tell me if this happens");
-                    } else perror(curt, "INTERNAL: expected ':' for struct declaration. NOTE(sushi) tell me if this happens");
+                        expect(Token_Identifier){
+                            if(!curt->is_declaration){
+                                perror(curt, "only declarations are allowed inside struct definitions. NOTE(sushi) if this is a declaration, then this error indicates something wrong internally, please let me know.");
+                                return 0;
+                            }
+                            amuNode* fin = define(&s->decl.node, psDeclaration);
+                            if(!fin) return 0;
+                            if(((Declaration*)fin)->type == Declaration_Function){
+                                perror_ret(curt, "only variables may be declared inside of structs.");
+                            }
+                            Declaration* d = DeclarationFromNode(fin);
+                            s->members.add(d->identifier, &d->node);
+                        }
+                    }
+                    curt++;
+
+                    if(node) insert_last(node, (amuNode*)decl);
 
                     for_node(s->decl.node.first_child){
                         amufile->logger.log(Verbosity_Debug, it->debug);
@@ -324,6 +339,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
 
                 }break;
 
+                case Declaration_VariableStructure:
                 case Declaration_Variable:{ //name
                     Variable* v = arena.make_variable(amuStr8(curt->raw, " - decl"));
                     if(curt->is_global){
@@ -341,11 +357,22 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                         curt++;
                         expect_group(TokenGroup_Type){ // name : <type>
                             v->data.structure = builtin_from_type(curt->type);
-                        }else expect(Token_Identifier){ // name : <type>
-                            //do nothing, because the variable's structure will be filled out later
+                        }else expect(Token_Identifier, Token_Colon){ // name : <type>
+                            // it's possible the user is defining a struct as the type specifier for this variable, so 
+                            // we must parse it.
+                            if(curt->is_declaration){
+                                amuNode* n = define(node, psDeclaration);
+                                if(!n) return 0;
+                                // we can set the variable's type information early
+                                // and we have to in the case of anonymous structs being used as the type,
+                                // because otherwise we would have to have a complex procedure later for finding
+                                // the anonymous struct belonging to a variable in validation.
+                                v->data.structure = (Struct*)n;
+                            }
                         }else expect(Token_Assignment) v->data.implicit = 1;
                         else perror(curt, "expected a typename or assignment for variable declaration, found ", token_type_str(curt->type), " instead.");
                         if(!v->data.implicit) curt++;
+
                         //parse pointer and array stuff 
                         while(1){
                             expect(Token_Multiplication){
@@ -354,9 +381,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                                 curt++;
                             }else expect(Token_OpenSquare){
                                 NotImplemented;
-                            }else{
-                                break;
-                            }
+                            }else break;
                         }
                         expect(Token_Assignment){ // name : <type> = || name := 
                             curt++;

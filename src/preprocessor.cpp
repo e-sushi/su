@@ -124,20 +124,66 @@ void Preprocessor::preprocess(){DPZoneScoped;
     decls_loc.init();
     for(u32 idx : amufile->lexer.declarations){
         Token* tok = amufile->lexer.tokens.readptr(idx);
+
         if((tok-1)->type == Token_Identifier){
-            // this must be a variable declaration, so we check that the next token is either in token group 
-            // type or is just another identifier, we check both because it is possible a struct type is being used
-            // also it is possible for there to be no type specifier and an assignment instead
-            // if it is none of these things we check if its a struct declaration, which is just simply checking if "struct" was found after :
-            if((tok+1)->group == TokenGroup_Type || (tok+1)->type == Token_Identifier || (tok+1)->type == Token_Assignment){
+            // this is either a variable or struct declaration
+            if((tok+1)->group == TokenGroup_Type || (tok+1)->type == Token_Assignment){
+                //this is a normal declaration using a built-in type, or it is implicitly typed
                 (tok-1)->is_declaration = 1;
                 (tok-1)->decl_type = Declaration_Variable;
                 if(tok->is_global) decls_glob.add((tok-1)->idx);
                 else               decls_loc.add((tok-1)->idx);
-            }
-            else if((tok+1)->type == Token_StructDecl){
+            }else if((tok+1)->type == Token_Identifier){
+                // this is most likely a variable declaration, but we have to check if the type specifier is actually
+                // a declaration of a structure
+                if((tok+2)->type == Token_Colon){
+                    // this colon will be examined again, though, but this time it will be seen as a struct 
+                    // definition, so we need to check in that case if the identifier is preceded by a colon,
+                    // and if it is, do nothing, because we've already handled it here.
+                    if((tok+3)->type != Token_StructDecl){
+                        if((tok+3)->type == Token_NamespaceDecl){
+                            logger.error(tok+3, "the type of a variable cannot be a namespace.");
+                            break;
+                        }
+                        logger.error(tok+3, "unexpected token in variable declaration type specifier.");
+                        break;
+                    }
+                }
+                (tok-1)->is_declaration = 1;
+                (tok-1)->decl_type = Declaration_Variable;
+                if(tok->is_global) decls_glob.add((tok-1)->idx);
+                else               decls_loc.add((tok-1)->idx);
+            }else if((tok+1)->type == Token_Colon){
+                // this is a variable declaration that is using an anonymous struct declaration as its type specifier
+                // we do the same procedure as above
+                if((tok+2)->type != Token_StructDecl){
+                    if((tok+2)->type == Token_NamespaceDecl){
+                            logger.error(tok+2, "the type of a variable cannot be a namespace.");
+                            break;
+                        }
+                    logger.error(tok+2, "unexpected token in variable declaration type specifier.");
+                    break;
+                }
+                (tok-1)->is_declaration = 1;
+                (tok-1)->decl_type = Declaration_Variable;
+                if(tok->is_global) decls_glob.add((tok-1)->idx);
+                else               decls_loc.add((tok-1)->idx);
+            }else if((tok+1)->type == Token_StructDecl){
+                // this is a struct declaration, so, as mentioned above, we must check if this is being used as a type specifier
+                // if so, we don't do anything. this declaration will be handled when the variable declaration is parsed
                 (tok-1)->is_declaration = 1;
                 (tok-1)->decl_type = Declaration_Structure;
+                if((tok-2)->type != Token_Colon){
+                    if(tok->is_global) decls_glob.add((tok-1)->idx);
+                    else               decls_loc.add((tok-1)->idx);
+                }
+            }
+        }else if((tok+1)->type == Token_StructDecl){
+            // this must be an anonymous struct declaration, but we have to check if it is the type specifier of 
+            // a variable declaration. if it is, we don't do anything.
+            tok->is_declaration = 1;
+            tok->decl_type = Declaration_Structure;
+            if((tok-1)->type != Token_Colon){
                 if(tok->is_global) decls_glob.add((tok-1)->idx);
                 else               decls_loc.add((tok-1)->idx);
             }
@@ -146,8 +192,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
             Token* cur = tok;
             while(cur->type != Token_OpenParen){
                 if(!cur->idx){
-                    //TODO(sushi) this error probably isnt valid after custom operators are implemented
-                    logger.error(tok, "Malformed syntax at start of file. ')' followed by ':' followed by a type or identifier implies a function declaration (for now). TODO(sushi) need better detection of what is happening here.");
+                    logger.error(tok, "Malformed syntax at start of file. ')' followed by ':' followed by a type or identifier implies a function declaration.");
                     break;
                 }
                 cur--;
