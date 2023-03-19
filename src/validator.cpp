@@ -141,25 +141,25 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
     amuLogger& logger = amufile->logger;
     //TODO(sushi) we could possibly just store a validated flag on amuNode 
     if(match_any(node->type, NodeType_Variable, NodeType_Structure, NodeType_Function) &&
-       DeclarationFromNode(node)->validated){
+       ((Declaration*)node)->validated){
         //early out if this declaration has already been validated
         
         return node;
     }
     if(globals.verbosity == Verbosity_Debug){
         switch(node->type){
-            case NodeType_Expression: logger.log(Verbosity_Debug, "validating expression '", ExpressionFromNode(node)->token_start->raw, "' of type ", ExTypeStrings[ExpressionFromNode(node)->type]); break;
-            case NodeType_Function:   logger.log(Verbosity_Debug, "validating function ", FunctionFromNode(node)->decl.identifier); break;
+            case NodeType_Expression: logger.log(Verbosity_Debug, "validating expression '", ((Expression*)node)->token_start->raw, "' of type ", ExTypeStrings[((Expression*)node)->type]); break;
+            case NodeType_Function:   logger.log(Verbosity_Debug, "validating function ", ((Function*)node)->decl.identifier); break;
             case NodeType_Scope:      logger.log(Verbosity_Debug, "validating scope"); break;
-            case NodeType_Statement:  logger.log(Verbosity_Debug, "validating statement '", StatementFromNode(node)->token_start->raw, "'"); break;
-            case NodeType_Structure:  logger.log(Verbosity_Debug, "validating struct '", StructFromNode(node)->decl.identifier, "'"); break;
-            case NodeType_Variable:   logger.log(Verbosity_Debug, "validating variable '", VariableFromNode(node)->decl.identifier, "'"); break;
+            case NodeType_Statement:  logger.log(Verbosity_Debug, "validating statement '", ((Statement*)node)->token_start->raw, "'"); break;
+            case NodeType_Structure:  logger.log(Verbosity_Debug, "validating struct '", ((Struct*)node)->decl.identifier, "'"); break;
+            case NodeType_Variable:   logger.log(Verbosity_Debug, "validating variable '", ((Variable*)node)->decl.identifier, "'"); break;
 
         }
     }
     switch(node->type){
         case NodeType_Variable:{
-            Variable* v = VariableFromNode(node);
+            Variable* v = (Variable*)node;
 
             push_variable(v);
             defer{pop_variable();};
@@ -168,6 +168,30 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
             stacks.known_declarations.add(&v->decl);
             //if this variable's structure is null, then it is a user defined struct that we must look for
             if(!v->data.implicit && !v->data.structure){
+                // Declaration* d = 0;
+                // Token* typespec = v->decl.token_start;
+                
+                // while(1){
+                //     if(d->type == Declaration_Structure){
+                //         d = (Declaration*)((Struct*)d)->members.at(typespec->raw);
+                //     }else{
+                //         d = (Declaration*)((Module*)d)->members.at(typespec->raw);
+                //     }
+                //     if(sub->type != Declaration_Structure && d->type != Declaration_Namespace){
+                //         logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct.");
+                //         logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
+                //     }
+                //     if((typespec+1)->type != Token_Dot){
+                //         if(d->type == Declaration_Namespace){
+                //             logger.error(typespec, "a namespace may not be used as the type of a variable.");
+                //             return 0;
+                //         }
+                //         v->data.structure = (Struct*)d;
+                //     }
+                //     typespec += 2;
+                // }
+                
+                
                 Token* typespec = v->decl.token_start + 2;
                 Declaration* d = find_decl(typespec->raw);
                 if(!d){
@@ -175,16 +199,41 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
                     return 0;
                 }
-                if(d->type != Declaration_Structure){
-                    logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct");
+                if(d->type != Declaration_Structure && d->type != Declaration_Namespace){
+                    logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct.");
                     logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
                     return 0;
                 }
+                // if((typespec+1)->type == Token_Dot){
+                //     while(1){
+                //         typespec += 2;
+                //         Declaration* sub = 0;
+                //         if(d->type == Declaration_Structure){
+                //             sub = (Declaration*)((Struct*)d)->members.at(typespec->raw);
+                //         }else{
+                //             sub = (Declaration*)((Module*)d)->members.at(typespec->raw);
+                //         }
+                //         if(sub->type != Declaration_Structure && d->type != Declaration_Namespace){
+                //             logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct.");
+                //             logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
+                //         }
+                //         if((typespec+1)->type != Token_Dot){
+                //             if(d->type == Declaration_Namespace){
+                //                 logger.error(typespec, "a namespace may not be used as the type of a variable.");
+                //                 return 0;
+                //             }
+                //             v->data.structure = (Struct*)d;
+                //         }
+                //     }
+                // }else if(d->type == Declaration_Namespace){
+                //     logger.error(typespec, "a namespace may not be used as the type of a variable.");
+                //     return 0;
+                // }
                 v->data.structure = (Struct*)d;
             }
             
             if(v->data.implicit){
-                Expression* e = ExpressionFromNode(validate(v->decl.node.first_child));
+                Expression* e = (Expression*)validate(v->decl.node.first_child);
                 if(!e) return 0;
                 v->data = e->data;
             }else if(v->decl.node.child_count){
@@ -249,22 +298,22 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
         }break;
 
         case NodeType_Function:{
-            Function* f = FunctionFromNode(node);
+            Function* f = (Function*)node;
             push_function(f);
             defer{pop_function();};
 
             stacks.known_declarations.add(&f->decl);
             stacks.known_declarations_scope_begin_offsets.add(stacks.known_declarations.count);
             
-            Declaration* d = DeclarationFromNode(amufile->validator.functions.at(f->decl.identifier));
+            Declaration* d = (Declaration*)amufile->validator.functions.at(f->decl.identifier);
             if(!d){
                 //this is the first occurance of this function that we know of so we add it to the function map
-                d = DeclarationFromNode(amufile->validator.functions.atIdx(amufile->validator.functions.add(f->decl.identifier, &arena.make_function(amuStr8("funcgroup of ", f->decl.identifier))->decl.node)));
+                d = (Declaration*)amufile->validator.functions.atIdx(amufile->validator.functions.add(f->decl.identifier, &arena.make_function(amuStr8("funcgroup of ", f->decl.identifier))->decl.node));
                 d->identifier = f->decl.identifier;
-                FunctionFromDeclaration(d)->overloads.init();
+                ((Function*)d)->overloads.init();
             }        
             
-            Function* fg = FunctionFromDeclaration(d);
+            Function* fg = (Function*)d;
             fg->overloads.add(f);
 
             if(!f->data.structure){
@@ -280,7 +329,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     logger.note(typespec, "used as type specifier for '", f->decl.identifier, "'");
                     return 0;
                 }
-                f->data.structure = StructFromDeclaration(d);
+                f->data.structure = (Struct*)d;
             }
 
             b32 found_nonpos = 0; //set when we find an argument that has a default value
@@ -291,7 +340,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 if(it->type == NodeType_Scope) {def = it; continue;}
                 if(!validate(it)) return 0;
 
-                Variable* arg = VariableFromNode(it);
+                Variable* arg = (Variable*)it;
                 f->args.add(arg);
                 
                 if(it->child_count){
@@ -315,18 +364,18 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     if(j == f->args.count - 1){
                         if(ol->args.count > f->args.count){
                             if(ol->args[j+1]->decl.node.first_child){
-                                AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
+                                //AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
                                 logger.error(f->decl.token_start, "calls to this function will be ambiguous.");
                                 logger.note(ol->decl.token_start, "see function that makes it ambiguous.");
                             }
                         }else{
-                            AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
+                            //AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
                             logger.error(f->decl.token_start, "overloads must differ by type.");
                             logger.note(ol->decl.token_start, "see conflicting function.");
                         }
                     }else if(j == ol->args.count - 1){
                         if(f->args[j+1]->decl.node.first_child){
-                            AddFlag(ol->decl.node.flags, FunctionFlag_ERRORED);
+                            //AddFlag(ol->decl.node.flags, FunctionFlag_ERRORED);
                             logger.error(ol->decl.token_start, "calls to this function will be ambiguous.");
                             logger.note(f->decl.token_start, "see function that makes it ambiguous.");
                         }
@@ -358,7 +407,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
         }break;
 
         case NodeType_Structure:{
-            Struct* s = StructFromNode(node);
+            Struct* s = (Struct*)node;
             push_struct(s);
             defer{pop_struct();};
             if(!check_shadowing(&s->decl)) return 0;
@@ -378,7 +427,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
         }break;
 
         case NodeType_Scope:{
-            Scope* s = ScopeFromNode(node);
+            Scope* s = (Scope*)node;
             push_scope(s);
             defer{pop_scope();};
 
@@ -394,7 +443,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
         }break;
 
         case NodeType_Statement:{
-            Statement* s = StatementFromNode(node);
+            Statement* s = (Statement*)node;
             push_statement(s);
             defer{pop_statement();};
 
@@ -423,7 +472,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
         }break;
 
         case NodeType_Expression:{
-            Expression* e = ExpressionFromNode(node);
+            Expression* e = (Expression*)node;
             push_expression(e);
             defer{pop_expression();};
             
@@ -433,7 +482,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 }break;
                 case Expression_Reinterpret:{
                     //will have one node that is the typename we want to reinterpret to
-                    Expression* type_name = ExpressionFromNode(e->node.first_child);
+                    Expression* type_name = (Expression*)e->node.first_child;
                     
                     Declaration* d = find_decl(type_name->token_start->raw);
                     if(!d){
@@ -455,7 +504,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     if(!validate(&d->node)) return 0;
                     switch(d->type){
                         case Declaration_Variable:{
-                            Variable* v = VariableFromDeclaration(d);
+                            Variable* v = (Variable*)d;
                             e->data = v->data;
                         }break;
                     }
@@ -484,7 +533,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 case Expression_FunctionCall:{
                     //TODO(sushi)
                     //validate call id
-                    Declaration* d = DeclarationFromNode(amufile->validator.functions.at(e->token_start->raw));
+                    Declaration* d = (Declaration*)amufile->validator.functions.at(e->token_start->raw);
                     //this is kind of ugly                    
                     if(!d){
                         //its possible this function has not been validated yet so we look for it again in our known decls list
@@ -493,7 +542,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         if(d){
                             if(d->type == Declaration_Function){
                                 if(!validate(&d->node)) return 0;
-                                d = DeclarationFromNode(amufile->validator.functions.at(e->token_start->raw));
+                                d = (Declaration*)amufile->validator.functions.at(e->token_start->raw);
                             }else{
                                 logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
                                 logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
@@ -504,7 +553,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             return 0;
                         }
                     }
-                    Function* fg = FunctionFromDeclaration(d);
+                    Function* fg = (Function*)d;
                     
                     //we need to match this call to an overload
                     //we start by gathering the arguments this call has as well as counting how many positional arguments there are
@@ -513,22 +562,22 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     u32 n_pos_args = 0;
                     b32 found_named = 0;
                     for_node(e->node.first_child){
-                        if(ExpressionFromNode(it)->type == Expression_BinaryOpAssignment){
+                        if(((Expression*)it)->type == Expression_BinaryOpAssignment){
                             found_named = 1;
                         }else if(found_named){
-                            logger.error(ExpressionFromNode(it)->token_start, "positional arguments cannot come after named arguments.");
+                            logger.error(((Expression*)it)->token_start, "positional arguments cannot come after named arguments.");
                             return 0;
                         }else{
                             n_pos_args++;
                         }
                         if(!found_named && !validate(it)) return 0;
-                        arguments.add(ExpressionFromNode(it));
+                        arguments.add((Expression*)it);
                     }
 
                     // we remove the argument nodes from the call expression because we will be adding them 
                     // back in the correct order later
                     forI(arguments.count){
-                        change_parent(0,&arguments[i]->node);
+                        change_parent(0, &arguments[i]->node);
                     }
                     
                     //next we store all the overloads in a separate array so we can trim it
@@ -659,8 +708,8 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             b32 non_pos_has_matching = 0;
                             forX(ci, arguments.count - n_pos_args){
                                 Expression* carg = arguments[ci+n_pos_args];
-                                Expression* lhs = ExpressionFromNode(carg->node.first_child);
-                                Expression* rhs = ExpressionFromNode(carg->node.last_child);
+                                Expression* lhs = (Expression*)carg->node.first_child;
+                                Expression* rhs = (Expression*)carg->node.last_child;
                                 b32 match = 0;
                                 forI(ol->args.count - n_pos_args){
                                     Variable* farg = ol->args[i];
@@ -741,6 +790,12 @@ skip_checks:
                     e->data = pick->data;
                 }break;
 
+                case Expression_UnaryOpNegate:{
+                    Expression* u = (Expression*)validate(((amuNode*)e)->first_child);
+                    if(!u) return 0;
+                    e->data = u->data;
+                }break;
+
                 //initial binary op cases that lead into another set of cases for doing specific work with them
                 //this kind of sucks, but I don't want to duplicate validating lhs and rhs throughout every single case
                 case Expression_BinaryOpBitOR:
@@ -763,9 +818,9 @@ skip_checks:
                 case Expression_BinaryOpNotEqual:
                 case Expression_BinaryOpAs:
                 case Expression_BinaryOpAssignment:{
-                    Expression* lhs = ExpressionFromNode(validate(e->node.first_child));
+                    Expression* lhs = (Expression*)validate(e->node.first_child);
                     if(!lhs) return 0;
-                    Expression* rhs = ExpressionFromNode(validate(e->node.last_child));
+                    Expression* rhs = (Expression*)validate(e->node.last_child);
                     if(!rhs) return 0;
                     logger.log(Verbosity_Debug, "validating binary op expression");
                     //temporary erroring until we implement operator overloading for structs
@@ -1049,7 +1104,7 @@ void Validator::start(){DPZoneScoped;
 
     for(Statement* s : amufile->parser.import_directives){
         for_node(s->node.first_child){
-            Expression* e = ExpressionFromNode(it);
+            Expression* e = (Expression*)it;
             //TODO(sushi) we already do this in Compiler::compile, so find a nice way to cache this if possible
             str8 filepath = e->token_start->raw;
             //TODO(sushi) it may be better to just interate the string backwards and look for / or \ instead
@@ -1079,7 +1134,7 @@ void Validator::start(){DPZoneScoped;
                 //copy function map as well
                 //this kind of sucks and i want to make it better eventually
                 forI(sufileex->validator.functions.data.count){
-                    amufile->validator.functions.add(DeclarationFromNode(sufileex->validator.functions.atIdx(i))->identifier, sufileex->validator.functions.atIdx(i));
+                    amufile->validator.functions.add(((Declaration*)sufileex->validator.functions.atIdx(i))->identifier, sufileex->validator.functions.atIdx(i));
                 }
             }
         }
@@ -1092,7 +1147,7 @@ void Validator::start(){DPZoneScoped;
         if(match_any(it->type, NodeType_Function, NodeType_Variable, NodeType_Structure)){
             //NOTE(sushi) we dont return on fail here because we still want to validate other things 
             //check_shadowing(DeclarationFromNode(it));
-            stacks.known_declarations.add(DeclarationFromNode(it));
+            stacks.known_declarations.add((Declaration*)it);
         }
     }
 

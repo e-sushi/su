@@ -1,11 +1,13 @@
-a::struct {
-    b::struct{
-        c::struct{
-            d:u32;
-        };
-    };
-};
+#import "tests/_/math.amu"
 
 main() : s32 {
-    a.b.c.e;
+    sin(1.2);
+    i : mint = {
+        sign = -1,
+        count = 2,
+        mag = 0x213,
+    };
+    i.mag;
+    i.sign;
+    i.count;
 }

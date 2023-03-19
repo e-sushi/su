@@ -1,0 +1,20 @@
+cos(x : f32) : f32 {
+    // do cos
+    return 0.0;
+}
+
+sin(x : f32) : f32 {
+    // do cos
+    return 0.0;
+}
+
+log(x: f32) : f32 {
+    // do cos
+    return 0.0;
+}
+
+mint : struct {
+    mag   : u64*;
+    count : u64;
+    sign  : s8;
+}

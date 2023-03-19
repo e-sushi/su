@@ -54,8 +54,6 @@ enum{
 	//// @level2 //// (all the other warnings)
 	W_Level2_Start = W_Level1_End,
 
-
-
 	W_Level2_End,
 	//// @level3 //// (warnings you might want to be aware of, but are valid in most cases)
 	W_Level3_Start = W_Level2_End,
@@ -145,6 +143,7 @@ enum NodeType : u32 {
 	NodeType_Scope,
 	NodeType_Statement,
 	NodeType_Expression,
+	NodeType_Module,
 };
 
 //thread safe version of TNode
@@ -193,7 +192,6 @@ global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
 	target->next = node;
 	
 }
-
 
 /*
 	before:
@@ -254,7 +252,6 @@ global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
 	 /  |  \	
     A - B - N 
 */
-
 global void insert_last(amuNode* parent, amuNode* child) { DPZoneScoped;
 	if (parent == 0) { child->parent = 0; return; }
 	if(parent==child){DebugBreakpoint;}
@@ -1073,99 +1070,99 @@ enum{
 const char* TokenTypes_Names[] = {
 	NAME(Token_Null),
 	NAME(Token_ERROR),
-	NAME(Token_EOF),                      
-	
+	NAME(Token_EOF),
+
 	NAME(TokenGroup_Identifier),
 	NAME(Token_Identifier),
-	
+
 	NAME(TokenGroup_Literal),
 	NAME(Token_LiteralFloat),
 	NAME(Token_LiteralInteger),
 	NAME(Token_LiteralCharacter),
 	NAME(Token_LiteralString),
-	
+
 	NAME(TokenGroup_Control),
 	NAME(Token_Semicolon),
-	NAME(Token_OpenBrace),                      
-	NAME(Token_CloseBrace),                     
-	NAME(Token_OpenParen),                      
-	NAME(Token_CloseParen),                     
-	NAME(Token_OpenSquare),                     
-	NAME(Token_CloseSquare),                    
-	NAME(Token_Comma),                          
-	NAME(Token_QuestionMark),                   
-	NAME(Token_Colon),                          
-	NAME(Token_Dot),                            
-	NAME(Token_At),                             
-	NAME(Token_Pound),                          
-	NAME(Token_Backtick),                       
-	
+	NAME(Token_OpenBrace),
+	NAME(Token_CloseBrace),
+	NAME(Token_OpenParen),
+	NAME(Token_CloseParen),
+	NAME(Token_OpenSquare),
+	NAME(Token_CloseSquare),
+	NAME(Token_Comma),
+	NAME(Token_QuestionMark),
+	NAME(Token_Colon),
+	NAME(Token_Dot),
+	NAME(Token_At),
+	NAME(Token_Pound),
+	NAME(Token_Backtick),
+
 	NAME(TokenGroup_Operator),
 	NAME(Token_Plus),
-	NAME(Token_Increment),                  
-	NAME(Token_PlusAssignment),             
-	NAME(Token_Negation),                   
-	NAME(Token_Decrement),                  
-	NAME(Token_NegationAssignment),         
-	NAME(Token_Multiplication),             
-	NAME(Token_MultiplicationAssignment),   
-	NAME(Token_Division),                   
-	NAME(Token_DivisionAssignment),         
-	NAME(Token_BitNOT),                     
-	NAME(Token_BitNOTAssignment),           
-	NAME(Token_BitAND),                     
-	NAME(Token_BitANDAssignment),           
-	NAME(Token_AND),                        
-	NAME(Token_BitOR),                      
-	NAME(Token_BitORAssignment),            
-	NAME(Token_OR),                         
-	NAME(Token_BitXOR),                     
-	NAME(Token_BitXORAssignment),           
-	NAME(Token_BitShiftLeft),               
-	NAME(Token_BitShiftLeftAssignment),     
-	NAME(Token_BitShiftRight),              
-	NAME(Token_BitShiftRightAssignment),    
-	NAME(Token_Modulo),                     
-	NAME(Token_ModuloAssignment),           
-	NAME(Token_Assignment),                 
-	NAME(Token_Equal),                      
-	NAME(Token_LogicalNOT),                 
-	NAME(Token_NotEqual),                   
-	NAME(Token_LessThan),                   
-	NAME(Token_LessThanOrEqual),            
-	NAME(Token_GreaterThan),                
-	NAME(Token_GreaterThanOrEqual),         
-	
+	NAME(Token_Increment),
+	NAME(Token_PlusAssignment),
+	NAME(Token_Negation),
+	NAME(Token_Decrement),
+	NAME(Token_NegationAssignment),
+	NAME(Token_Multiplication),
+	NAME(Token_MultiplicationAssignment),
+	NAME(Token_Division),
+	NAME(Token_DivisionAssignment),
+	NAME(Token_BitNOT),
+	NAME(Token_BitNOTAssignment),
+	NAME(Token_BitAND),
+	NAME(Token_BitANDAssignment),
+	NAME(Token_AND),
+	NAME(Token_BitOR),
+	NAME(Token_BitORAssignment),
+	NAME(Token_OR),
+	NAME(Token_BitXOR),
+	NAME(Token_BitXORAssignment),
+	NAME(Token_BitShiftLeft),
+	NAME(Token_BitShiftLeftAssignment),
+	NAME(Token_BitShiftRight),
+	NAME(Token_BitShiftRightAssignment),
+	NAME(Token_Modulo),
+	NAME(Token_ModuloAssignment),
+	NAME(Token_Assignment),
+	NAME(Token_Equal),
+	NAME(Token_LogicalNOT),
+	NAME(Token_NotEqual),
+	NAME(Token_LessThan),
+	NAME(Token_LessThanOrEqual),
+	NAME(Token_GreaterThan),
+	NAME(Token_GreaterThanOrEqual),
+
 	NAME(TokenGroup_Keyword),
 	NAME(Token_Return),
-	NAME(Token_If),                          
-	NAME(Token_Else),                        
-	NAME(Token_For),                         
-	NAME(Token_While),                       
-	NAME(Token_Break),                       
-	NAME(Token_Continue),                    
-	NAME(Token_Defer),                       
-	NAME(Token_StructDecl),                  
-	NAME(Token_This),                        
-	NAME(Token_Using),                       
-	NAME(Token_As),                          
-	
+	NAME(Token_If),
+	NAME(Token_Else),
+	NAME(Token_For),
+	NAME(Token_While),
+	NAME(Token_Break),
+	NAME(Token_Continue),
+	NAME(Token_Defer),
+	NAME(Token_StructDecl),
+	NAME(Token_This),
+	NAME(Token_Using),
+	NAME(Token_As),
+
 	NAME(TokenGroup_Type),
 	NAME(Token_Void),
-	NAME(Token_Signed8),                
-	NAME(Token_Signed16),               
-	NAME(Token_Signed32),               
-	NAME(Token_Signed64),               
-	NAME(Token_Unsigned8),              
-	NAME(Token_Unsigned16),             
-	NAME(Token_Unsigned32),             
-	NAME(Token_Unsigned64),             
-	NAME(Token_Float32),                
-	NAME(Token_Float64),                
-	NAME(Token_String),                 
-	NAME(Token_Any),                    
-	NAME(Token_Struct),                 
-	
+	NAME(Token_Signed8),
+	NAME(Token_Signed16),
+	NAME(Token_Signed32),
+	NAME(Token_Signed64),
+	NAME(Token_Unsigned8),
+	NAME(Token_Unsigned16),
+	NAME(Token_Unsigned32),
+	NAME(Token_Unsigned64),
+	NAME(Token_Float32),
+	NAME(Token_Float64),
+	NAME(Token_String),
+	NAME(Token_Any),
+	NAME(Token_Struct),
+
 	NAME(TokenGroup_Directive),
 	NAME(Token_Directive_Import),
 	NAME(Token_Directive_Include),
@@ -1307,6 +1304,7 @@ enum {
 	
 	//Types
 	Expression_Literal,
+	Expression_Type,
 	
 	//Unary Operators
 	Expression_UnaryOpBitComp,
@@ -1359,9 +1357,12 @@ static str8 ExTypeStrings[] = {
 	
 	//Special ternary conditional expression type
 	STR8("tern"),//Expression_TernaryConditional,
+
+	STR8("initializer"),
 	
 	//Types
 	STR8("literal"),//Expression_Literal,
+	STR8("type"),//Expression_Type,
 	
 	//Unary Operators
 	STR8("~"),//Expression_UnaryOpBitComp,
@@ -1450,9 +1451,6 @@ struct TypedValue{
 	};
 };
 
-enum{
-	ExpressionFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
-};
 struct Expression {
 	amuNode node;
 	Token* token_start;
@@ -1462,8 +1460,6 @@ struct Expression {
 
 	TypedValue data;
 };
-#define ExpressionFromNode(x) CastFromMember(Expression, node, x)
-
 
 enum {
 	Statement_Unknown,
@@ -1481,9 +1477,6 @@ enum {
 	Statement_Import,
 };
 
-enum{
-	StatementFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
-};
 struct Statement {
 	amuNode node;
 	Token* token_start;
@@ -1491,11 +1484,7 @@ struct Statement {
 	
 	Type type = Statement_Unknown;
 };
-#define StatementFromNode(x) CastFromMember(Statement, node, x)
 
-enum{
-	ScopeFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
-};
 struct Scope {
 	amuNode node;
 	Token* token_start;
@@ -1503,16 +1492,15 @@ struct Scope {
 	
 	b32 has_return_statement = false;
 };
-#define ScopeFromNode(x) CastFromMember(Scope, node, x)
 
-//represents information about an original declaration and is stored on 
-//Struct,Function,and Variable.
-//TODO(sushi) this setup is kind of scuffed, maybe just store the 3 structs on decl in a union so we can avoid having 2 layers of casting (eg. VariableFromDeclaration)
-
+struct Module;
 struct Struct;
 struct Variable;
 struct Function;
 struct ParserThread;
+
+//represents information about an original declaration and is stored on 
+//Struct,Function,and Variable.
 struct Declaration{
 	amuNode node;
 	Token* token_start;
@@ -1530,11 +1518,6 @@ struct Declaration{
 	b32 validated = 0;
 };
 
-#define DeclarationFromNode(x) CastFromMember(Declaration, node, x)
-
-enum{
-	FunctionFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
-};
 struct Function {
 	Declaration decl;
 	//an array of overloads
@@ -1558,13 +1541,7 @@ struct Function {
 	b32 inlined;
 	
 };
-#define FunctionFromDeclaration(x) CastFromMember(Function, decl, x)
-#define FunctionFromNode(x) FunctionFromDeclaration(DeclarationFromNode(x))
 
-
-enum{
-	VariableFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
-};
 struct Variable{
 	Declaration decl;
 
@@ -1575,12 +1552,7 @@ struct Variable{
 
 	TypedValue data;
 };
-#define VariableFromDeclaration(x) CastFromMember(Variable, decl, x)
-#define VariableFromNode(x) VariableFromDeclaration(DeclarationFromNode(x))
 
-enum{
-	StructFlag_ERRORED = 1<<0, //set when an error occurs on this declaration
-};
 struct Struct {
 	Declaration decl;
 	u64 size; //size of struct in bytes
@@ -1598,8 +1570,11 @@ struct Struct {
 
 	nodemap operators;
 };
-#define StructFromDeclaration(x) CastFromMember(Struct, decl, x)
-#define StructFromNode(x) StructFromDeclaration(DeclarationFromNode(x))
+
+struct Module{
+	Declaration decl;
+	nodemap members;
+};
 
 enum{
 	Declaration_Unknown,
@@ -1638,6 +1613,7 @@ enum {
 	psAccess, 
 	psFactor,
 	psInitializer,
+	psType,
 };
 
 const str8 psStrs[] = {
@@ -2051,7 +2027,8 @@ struct Validator{
 		Scope*      scope = 0;
 		Function*   function = 0;
 		Statement*  statement = 0;
-	}current;	
+		Module*     module = 0;
+	}current;
 
 	struct{
 		//stacks of declarations known in current scope
@@ -2066,6 +2043,7 @@ struct Validator{
 			amuArena<Function*>   functions;
 			amuArena<Expression*> expressions;
 			amuArena<Statement*>  statements;
+			amuArena<Module*>     modules;
 		}nested;
 	}stacks;
 
@@ -2076,6 +2054,7 @@ struct Validator{
 		stacks.nested.functions.init();
 		stacks.nested.expressions.init();
 		stacks.nested.statements.init();
+		stacks.nested.modules.init();
 		stacks.known_declarations.init();
 		stacks.known_declarations_scope_begin_offsets.init();
 	}
@@ -2083,7 +2062,7 @@ struct Validator{
 	//starts the validation stage
 	void         start();
 	//recursive validator function
-	amuNode*      validate(amuNode* node);
+	amuNode*     validate(amuNode* node);
 	//checks if a variable is going to conflict with another variable in its scope
 	//return false if the variable conflicts with another
 	b32          check_shadowing(Declaration* d);
@@ -2111,7 +2090,6 @@ struct CompilerReport{
 };
 
 struct Compiler{
-
 	Stopwatch ctime;
 
 	amuLogger logger;
@@ -2210,9 +2188,9 @@ str8 get_typename(Function* f)  { return f->data.structure->decl.identifier; }
 
 str8 get_typename(amuNode* n){
 	switch(n->type){
-		case NodeType_Variable:   return get_typename(VariableFromNode(n));
-		case NodeType_Expression: return get_typename(ExpressionFromNode(n));
-		case NodeType_Structure:  return get_typename(StructFromNode(n));
+		case NodeType_Variable:   return get_typename((Variable*)n);
+		case NodeType_Expression: return get_typename((Expression*)n);
+		case NodeType_Structure:  return get_typename((Struct*)n);
 		default: Assert(false,"Invalid node type given to get_typename()"); return {0};
 	}
 	return {0};
@@ -2271,15 +2249,15 @@ b32 is_int(Struct* s){ return s->type >= DataType_Unsigned8 && s->type <= DataTy
 
 
 //laziness
-FORCE_INLINE b32 types_match(Variable* v0, Variable* v1)    { return v0->data.structure == v1->data.structure; }
-FORCE_INLINE b32 types_match(Variable* v,  Expression* e)   { return v->data.structure == e->data.structure; }
-FORCE_INLINE b32 types_match(Variable* v,  Struct* s)       { return v->data.structure == s; }
-FORCE_INLINE b32 types_match(Expression* e0, Expression* e1){ return e0->data.structure == e1->data.structure; }
-FORCE_INLINE b32 types_match(Expression* e,  Variable* v)   { return e->data.structure == v->data.structure; }
-FORCE_INLINE b32 types_match(Expression* e,  Struct* s)     { return e->data.structure == s; }
-FORCE_INLINE b32 types_match(Struct* s0, Struct* s1)        { return s0 == s1; }
-FORCE_INLINE b32 types_match(Struct* s,  Variable* v)       { return v->data.structure == s; }
-FORCE_INLINE b32 types_match(Struct* s,  Expression* e)     { return e->data.structure == s; }
+FORCE_INLINE b32 types_match(Variable* v0,   Variable* v1)   { return v0->data.structure == v1->data.structure; }
+FORCE_INLINE b32 types_match(Variable* v,    Expression* e)  { return v->data.structure == e->data.structure; }
+FORCE_INLINE b32 types_match(Variable* v,    Struct* s)      { return v->data.structure == s; }
+FORCE_INLINE b32 types_match(Expression* e0, Expression* e1) { return e0->data.structure == e1->data.structure; }
+FORCE_INLINE b32 types_match(Expression* e,  Variable* v)    { return e->data.structure == v->data.structure; }
+FORCE_INLINE b32 types_match(Expression* e,  Struct* s)      { return e->data.structure == s; }
+FORCE_INLINE b32 types_match(Struct* s0,     Struct* s1)     { return s0 == s1; }
+FORCE_INLINE b32 types_match(Struct* s,      Variable* v)    { return v->data.structure == s; }
+FORCE_INLINE b32 types_match(Struct* s,      Expression* e)  { return e->data.structure == s; }
 
 b32 is_expression_type(amuNode* n, Type type){
 	if(n->type != NodeType_Expression) return false;
@@ -2328,6 +2306,7 @@ struct{
 	amuChunkedArena<Scope>      scopes;
 	amuChunkedArena<Expression> expressions;
 	amuChunkedArena<Statement>  statements;
+	amuChunkedArena<Module>     modules;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
@@ -2391,6 +2370,16 @@ struct{
 	}
 
 	FORCE_INLINE
+	Module* make_module(str8 debugmsg = STR8("")){DPZoneScoped;
+		Module* module = modules.add(Module());
+		//compiler.logger.log(Verbosity_Debug, "Making a ns with debug message ", debugmsg);
+		module->decl.node.lock = mutex_init();
+		module->decl.node.type = NodeType_Module;
+		module->decl.node.debug = debugmsg;
+		return module;
+	}
+
+	FORCE_INLINE
 	void init(){DPZoneScoped;
 		functions.init(256);   
 		variables.init(256);   
@@ -2398,6 +2387,7 @@ struct{
 		scopes.init(256);      
 		expressions.init(256); 
 		statements.init(256);
+		modules.init(256);
 	}
 
 }arena;
@@ -2442,6 +2432,11 @@ amuNode* copy_branch(amuNode* node){
 			Expression* e = arena.make_expression(node->debug);
 			CopyMemory((u8*)e+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Expression)-sizeof(amuNode));
 			out = (amuNode*)e;
+		}break;
+		case NodeType_Module:{
+			Module* m = arena.make_module(node->debug);
+			CopyMemory((u8*)m+sizeof(amuNode), (u8*)node+sizeof(amuNode), sizeof(Module)-sizeof(amuNode));
+			out = (amuNode*)m;
 		}break;
 		default: FixMe;
 	}
