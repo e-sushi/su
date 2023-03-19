@@ -73,6 +73,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                         //TODO(sushi) look for imports on PATH
                         logger.error(curt, "unable to find path '", curt->raw, "'.");
                         logger.note(curt, "Finding files through PATH or relative to the importing file is not currently supported.");
+                        amufile->preprocessor.failed = 1;
                     }
                     //NOTE(sushi) we do not handle selective imports here, that is handled in parsing
                     curt++;
@@ -83,6 +84,8 @@ void Preprocessor::preprocess(){DPZoneScoped;
                         break;
                     }else{
                         logger.error(curt, "expected a comma, open brace, or close brace after import string.");
+                        amufile->preprocessor.failed = 1;
+
                     }
                 }
             }
@@ -114,7 +117,9 @@ void Preprocessor::preprocess(){DPZoneScoped;
     
     if(cr.filepaths.count){
         cr.stage = FileStage_Validator;
-        amufile->preprocessor.imported_files = compiler.compile(&cr, 0);
+        CompilerReport report = compiler.compile(&cr, 0);
+        if(report.failed) return;
+        amufile->preprocessor.imported_files = report.units;
     }
     
     logger.log(Verbosity_StageParts, "Resolving colon tokens as possible valid declarations.");
@@ -141,6 +146,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                     // definition, so we need to check in that case if the identifier is preceded by a colon,
                     // and if it is, do nothing, because we've already handled it here.
                     if((tok+3)->type != Token_StructDecl){
+                        amufile->preprocessor.failed = 1;
                         if((tok+3)->type == Token_NamespaceDecl){
                             logger.error(tok+3, "the type of a variable cannot be a namespace.");
                             break;
@@ -157,6 +163,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
                 // this is a variable declaration that is using an anonymous struct declaration as its type specifier
                 // we do the same procedure as above
                 if((tok+2)->type != Token_StructDecl){
+                    amufile->preprocessor.failed = 1;
                     if((tok+2)->type == Token_NamespaceDecl){
                             logger.error(tok+2, "the type of a variable cannot be a namespace.");
                             break;
@@ -193,6 +200,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
             while(cur->type != Token_OpenParen){
                 if(!cur->idx){
                     logger.error(tok, "Malformed syntax at start of file. ')' followed by ':' followed by a type or identifier implies a function declaration.");
+                    amufile->preprocessor.failed = 1;
                     break;
                 }
                 cur--;
@@ -244,6 +252,7 @@ void Preprocessor::preprocess(){DPZoneScoped;
     logger.log(Verbosity_StageParts, "Finding run directives ", ErrorFormat("(NotImplemented)"));
     for(u32 idx : amufile->lexer.runs){
         logger.error(&amufile->lexer.tokens[idx], "#run is not implemented yet.");
+        amufile->preprocessor.failed = 1;
     }
 
     if(globals.verbosity >= Verbosity_Debug){

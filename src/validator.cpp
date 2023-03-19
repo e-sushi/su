@@ -104,6 +104,7 @@ b32 Validator::check_shadowing(Declaration* d){DPZoneScoped;
             (dk->type == Declaration_Variable ? "variable" : (dk->type == Declaration_Function ? "function" : "structure")),
             " '", d->identifier, "'");
             logger.note(dk->token_start, "see original declaration of '", dk->identifier, "'");
+            amufile->validator.failed = 1;
             return 0;
         }
     }
@@ -132,7 +133,7 @@ void Validator::pop_known_decls(){
     forI(n){
         Declaration* d = stacks.known_declarations.pop();
         if(d->type == Declaration_Function){
-            Function* f = FunctionFromDeclaration(d);
+            Function* f = (Function*)d;
         }
     }
 }
@@ -197,11 +198,13 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 if(!d){
                     logger.error(typespec, "unknown identifier '", typespec->raw, "'");
                     logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
+                    amufile->validator.failed = 1;
                     return 0;
                 }
                 if(d->type != Declaration_Structure && d->type != Declaration_Namespace){
                     logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct.");
                     logger.note(typespec, "used as type specifier for '", v->decl.identifier, "'");
+                    amufile->validator.failed = 1;
                     return 0;
                 }
                 // if((typespec+1)->type == Token_Dot){
@@ -243,6 +246,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     if(!e->data.structure->conversions.at(v->data.structure->decl.identifier)){
                         logger.error(v->decl.token_start, "no known conversion from ", get_typename(e), " to ", get_typename(v));
                         logger.note(v->decl.token_start, ErrorFormat("(Not Implemented)"), "for implicit conversion define implicit(name:", get_typename(e), ") : ", get_typename(v));
+                        amufile->validator.failed = 1;
                         return 0;
                     }
                     //if types are compatible just inject a conversion node 
@@ -266,6 +270,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     if(v->data.structure == current.structure){
                         logger.error(v->decl.token_start, "a structure cannot contain a variable whose type is that structure.");
                         logger.note(v->decl.token_start, "use a pointer instead.");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
 
@@ -284,6 +289,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             mutex_unlock(&global_mem_lock);
                             logger.note(v->decl.token_start, b.fin);
                             //NOTE(sushi) we do not free the builder here because of post-logging
+                            amufile->validator.failed = 1;
                             return 0;
                         }
                     }
@@ -327,6 +333,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 if(d->type != Declaration_Structure){
                     logger.error(typespec, "identifier '", typespec->raw, "' does not represent a struct");
                     logger.note(typespec, "used as type specifier for '", f->decl.identifier, "'");
+                    amufile->validator.failed = 1;
                     return 0;
                 }
                 f->data.structure = (Struct*)d;
@@ -348,6 +355,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     found_nonpos = 1;
                 }else if(found_nonpos){
                     logger.error(arg->decl.token_start, "positional arguments cannot follow defaulted arguments.");
+                    amufile->validator.failed = 1;
                     return 0;
                 }
             }
@@ -367,17 +375,20 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                 //AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
                                 logger.error(f->decl.token_start, "calls to this function will be ambiguous.");
                                 logger.note(ol->decl.token_start, "see function that makes it ambiguous.");
+                                amufile->validator.failed = 1;
                             }
                         }else{
                             //AddFlag(f->decl.node.flags, FunctionFlag_ERRORED);
                             logger.error(f->decl.token_start, "overloads must differ by type.");
                             logger.note(ol->decl.token_start, "see conflicting function.");
+                            amufile->validator.failed = 1;
                         }
                     }else if(j == ol->args.count - 1){
                         if(f->args[j+1]->decl.node.first_child){
                             //AddFlag(ol->decl.node.flags, FunctionFlag_ERRORED);
                             logger.error(ol->decl.token_start, "calls to this function will be ambiguous.");
                             logger.note(f->decl.token_start, "see function that makes it ambiguous.");
+                            amufile->validator.failed = 1;
                         }
                         break;
                     }
@@ -458,6 +469,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                 case Statement_Return:{
                     if(!current.function){
                         logger.error(s->token_start, "cannot use a return statement outside of a function.");
+                        amufile->validator.failed = 1;
                     }
                     for_node(s->node.first_child){
                         Expression* e = (Expression*)validate(it);
@@ -487,10 +499,12 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     Declaration* d = find_decl(type_name->token_start->raw);
                     if(!d){
                         logger.error(type_name->token_start, "unknown identifier '", type_name->token_start->raw, "'");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
                     if(d->type != Declaration_Structure){
                         logger.error(type_name->token_start, "identifier '", type_name->token_start->raw, "' is not a typename");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
                 }break;
@@ -498,6 +512,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                     Declaration* d = find_decl(e->token_start->raw);
                     if(!d){
                         logger.error(e->token_start, "unknown identifier '", e->token_start->raw, "'.");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
                     //make sure this declaration is validated so we can get type information from it
@@ -514,6 +529,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             if(((Expression*)e->node.first_child)->type == Expression_InitializerList){
                                 if(d->type != Declaration_Structure){
                                     logger.error(e->token_start, "an identifier preceeding an initializer list must be a typename, found the name of a ", (d->type == Declaration_Function ? "function" : "variable"), " instead.");
+                                    amufile->validator.failed = 1;
                                     return 0;
                                 }
                                 if(!validate(e->node.first_child)) return 0;
@@ -521,10 +537,12 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                 e->data = ((Expression*)e->node.first_child)->data;
                             }else{
                                 logger.error(e->token_start, "INTERNAL ERROR: an Expression_Identifier has a child node that is not an initializer list, this shouldn't happen. NOTE(sushi) tell me about this.");
+                                amufile->validator.failed = 1;
                                 return 0;
                             } 
                         }else{
                             logger.error(d->token_start, "INTERNAL ERROR: an Expression_Identifier has a child node that is not an expression, this shouldn't happen. NOTE(sushi) tell me about this.");
+                            amufile->validator.failed = 1;
                             return 0;
                         }
                     }
@@ -546,10 +564,12 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             }else{
                                 logger.error(e->token_start, "attempt to call '", e->token_start->raw, "', but it is not a function.");
                                 logger.note(e->token_start, e->token_start->raw, " is a ", (d->type == Declaration_Structure ? "structure." : "variable."));
+                                amufile->validator.failed = 1;
                                 return 0;    
                             }
                         }else{
                             logger.error(e->token_start, "attempt to call unknown identifier '", e->token_start->raw, "'");
+                            amufile->validator.failed = 1;
                             return 0;
                         }
                     }
@@ -566,6 +586,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                             found_named = 1;
                         }else if(found_named){
                             logger.error(((Expression*)it)->token_start, "positional arguments cannot come after named arguments.");
+                            amufile->validator.failed = 1;
                             return 0;
                         }else{
                             n_pos_args++;
@@ -599,12 +620,14 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
 
                     if(arguments.count < min_req_args){
                         logger.error(e->token_start, "no overload of ", fg->decl.identifier, " takes just ", arguments.count, " arguments. The least arguments acceptable is ", min_req_args, ".");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
 
                     //early check that the user doesnt give too many arguments for all overloads
                     if(!overloads.count){
                         logger.error(e->token_start, "too many arguments given in call to '", e->token_start->raw, "'.");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
 
@@ -619,6 +642,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                 overloads.remove(fi);
                                 if(!overloads.count){
                                     logger.error(e->token_start, "unable to match positional arguments to any overload of '", e->token_start->raw, "'.");
+                                    amufile->validator.failed = 1;
                                     //TODO(sushi) there is more information we can give here
                                     return 0;
                                 }
@@ -634,6 +658,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         Expression* lhs = (Expression*)carg->node.first_child;
                         if(lhs->type != Expression_Identifier){
                             logger.error(lhs->token_start, "expected an identifier for lhs of named argument.");
+                            amufile->validator.failed = 1;
                             return 0;
                         }
                         Expression* rhs = (Expression*)validate(carg->node.last_child);
@@ -655,6 +680,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                                     Variable* farg = ol->args[i];
                                     if(str8_equal_lazy(farg->decl.identifier, lhs->token_start->raw)){
                                         logger.error(lhs->token_start, "argument '", lhs->token_start->raw, "' has already been specified by a positional argument.");
+                                        amufile->validator.failed = 1;
                                     }
                                 }
                                 overloads.remove(fi);
@@ -726,6 +752,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
 
                     if(!overloads.count){
                         logger.error(e->token_start, "unable to match function call to any overload of ", e->token_start->raw);
+                        amufile->validator.failed = 1;
                         return 0;
                     }else if(overloads.count > 1){
                         logger.error(e->token_start, "call to ", e->token_start->raw, " is ambiguous.");
@@ -734,6 +761,7 @@ amuNode* Validator::validate(amuNode* node){DPZoneScoped;
                         forI(overloads.count){
                             logger.note(overloads[i]->decl.token_start, "could be ", show(overloads[i]));
                         }
+                        amufile->validator.failed = 1;
                         return 0;
                     }
 skip_checks:
@@ -784,6 +812,7 @@ skip_checks:
                         }
                         if(!found && !farg->initialized){
                             logger.error(e->token_start, "missing argument ", farg->decl.identifier, " in call to ", pick->decl.identifier);
+                            amufile->validator.failed = 1;
                         }
                     }
 
@@ -827,6 +856,7 @@ skip_checks:
                     if(e->type != Expression_BinaryOpAssignment && (!(lhs->data.structure->type || rhs->data.structure->type))){
                         logger.error(lhs->token_start, "operator overloading for user-defined structures is not supported yet.");
                         logger.note(lhs->token_start, "when trying to use operator ", ExTypeStrings[e->type], " between ", get_typename(lhs), " and ", get_typename(rhs));
+                        amufile->validator.failed = 1;
                         return 0;
                     }
                     switch(e->type){    
@@ -848,6 +878,7 @@ skip_checks:
                                 insert_above(&rhs->node, &rein->node);
                             }else if(!is_int(rhs)){
                                 logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                                amufile->validator.failed = 1;
                                 return 0;
                             }
                             if(is_float(lhs)){
@@ -860,6 +891,7 @@ skip_checks:
                                 insert_above(&lhs->node, &rein->node);
                             }else if(!is_int(lhs)){
                                 logger.error(e->token_start, "the operator ", ExTypeStrings[e->type], " is not defined between types ", get_typename(lhs), " and ", get_typename(rhs), ".");
+                                amufile->validator.failed = 1;
                                 return 0;
                             }
                             // a bitwise operation always returns a signed 64 bit integer
@@ -909,6 +941,7 @@ skip_checks:
                             if(!types_match(lhs, rhs)){
                                 if(!can_type_convert(&rhs->data, &lhs->data)){
                                     logger.error(rhs->token_start, "no known conversion from ", get_typename(rhs), " to ", get_typename(lhs));
+                                    amufile->validator.failed = 1;
                                     return 0;
                                 }
                                 Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(rhs), " to ", get_typename(lhs)));
@@ -934,6 +967,7 @@ skip_checks:
                     Variable* member = (Variable*)structure->members.at(rhs->token_start->raw);
                     if(!member){
                         logger.error(rhs->token_start, "'", structure->decl.identifier, "' has no member '", rhs->token_start->raw, "'.");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
                     e->data.structure = member->data.structure;
@@ -952,6 +986,7 @@ skip_checks:
                         Declaration* d = find_decl(parent->token_start->raw);
                         if(d->type != Declaration_Structure){
                             logger.error(parent->token_start, "an identifier preceding an initializer list must be a typename, found the name of a ", (d->type == Declaration_Function ? "function" : "variable"), " instead.");
+                            amufile->validator.failed = 1;
                             return 0;
                         }
                         structure = (Struct*)d;
@@ -966,6 +1001,7 @@ skip_checks:
                             Variable* v = current.variable;
                             if(v->data.implicit){
                                 logger.error(e->token_start, "expected a typename before initializer list for implicitly typed variable '", v->decl.identifier, "'.");
+                                amufile->validator.failed = 1;
                                 return 0;
                             }
                             structure = v->data.structure;
@@ -973,6 +1009,7 @@ skip_checks:
                             Expression* prev = stacks.nested.expressions[stacks.nested.expressions.count-1];
                             if(prev->type == Expression_FunctionCall){
                                 logger.error(e->token_start, "an initializer list used as a function argument must specify its type.");
+                                amufile->validator.failed = 1;
                                 return 0;
                             }
                         }
@@ -993,6 +1030,7 @@ skip_checks:
                             found_named = 1;
                         }else if(found_named){
                             logger.error(((Expression*)it)->token_start, "positional arguments cannot come after named arguments.");
+                            amufile->validator.failed = 1;
                             return 0;
                         }else{
                             n_pos_args++;
@@ -1003,6 +1041,7 @@ skip_checks:
 
                     if(arguments.count > structure->members.hashes.count){
                         logger.error(e->token_start, "too many arguments given in initializer list. ", structure->decl.identifier, " only has ", structure->members.hashes.count, (structure->members.hashes.count == 1 ? " member" : " members"), ", but ", arguments.count, (arguments.count == 1 ? " argument" : " arguments"), " are given.");
+                        amufile->validator.failed = 1;
                         return 0;
                     }
 
@@ -1021,6 +1060,7 @@ skip_checks:
                             if(!types_match(arg, member)){
                                 if(!can_type_convert(&arg->data, &member->data)){
                                     logger.error(arg->token_start, "no known conversion exists from ", get_typename(arg), " to ", get_typename(member));
+                                    amufile->validator.failed = 1;
                                     return 0;
                                 }
                                 Expression* cast = arena.make_expression(amuStr8("cast ", get_typename(arg), " to ", get_typename(member)));
@@ -1097,6 +1137,7 @@ void Validator::start(){DPZoneScoped;
     for(amuFile* sf : amufile->preprocessor.imported_files){
         while(sf->stage < FileStage_Validator){
             condition_variable_wait(&sf->cv.validate);
+            if(sf->stage == FileStage_ERROR) return;
         }
     }
     
@@ -1115,7 +1156,10 @@ void Validator::start(){DPZoneScoped;
 
             amuFile* sufileex = compiler.files.atPtrVal(filename);
 
-            if(!sufileex) logger.error("INTERNAL: an imported file was not processed in the compiler before reaching validator");
+            if(!sufileex){
+                logger.error("INTERNAL: an imported file was not processed in the compiler before reaching validator");
+                amufile->validator.failed = 1;
+            } 
 
             if(e->node.child_count){
 

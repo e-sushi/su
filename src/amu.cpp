@@ -404,10 +404,23 @@ int main(){DPZoneScoped;
 	cr.stage = FileStage_Validator;
 
 	DPFrameMark;
-	compiler.compile(&cr);
+	CompilerReport report = compiler.compile(&cr);
 	DPFrameMark;
-
+	
 	compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
+
+	if(report.failed){
+		compiler.logger.error("compilation failed.");
+		compiler.logger.note("file status:");
+		forI(compiler.files.count){
+			amuFile* file = compiler.files.data[i];
+			compiler.logger.log(Verbosity_Always, CyanFormatComma(file->file->name), ":");
+			compiler.logger.log(Verbosity_Always, "         lexer: ", (file->lexer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+			compiler.logger.log(Verbosity_Always, "  preprocessor: ", (file->preprocessor.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+			compiler.logger.log(Verbosity_Always, "        parser: ", (file->parser.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+			compiler.logger.log(Verbosity_Always, "     validator: ", (file->validator.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+		}
+	}
 
 	//print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
 	generate_ast_graph_svg("ast.svg", &compiler.files.atIdxPtrVal(0)->parser.base);

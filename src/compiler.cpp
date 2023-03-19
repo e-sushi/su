@@ -33,24 +33,34 @@ void compile_threaded_func(void* in){DPZoneScoped;
 
     compiler.logger.log(Verbosity_StageParts, "Starting compiler chain for ", CyanFormatComma(ct->amufile->file->name));
 
-    //TODO(sushi) support for passing each stages file and starting compilation from stages passed lexing if 
-    //            necessary
+    defer{
+        ct->finished = 1;
+        condition_variable_notify_all(&ct->wait);
+        // since each stage may wait on another, we must make sure that stages
+        // who wait on a stage that will never be reached wake up.
+        condition_variable_notify_all(&ct->amufile->cv.lex);
+        condition_variable_notify_all(&ct->amufile->cv.preprocess);
+        condition_variable_notify_all(&ct->amufile->cv.parse);
+        condition_variable_notify_all(&ct->amufile->cv.validate);
+        ct->amufile->stage = FileStage_ERROR;
+    };
+
     if(ct->stage > FileStage_Null){
         compiler.start_lexer(ct->amufile);
+        if(ct->amufile->lexer.failed) return;
     }
     if(ct->stage > FileStage_Lexer){
-        compiler.start_preprocessor(ct->amufile);    
+        compiler.start_preprocessor(ct->amufile); 
+        if(ct->amufile->preprocessor.failed) return;
     }
     if(ct->stage > FileStage_Preprocessor){
         compiler.start_parser(ct->amufile);
+        if(ct->amufile->parser.failed) return;
     }
     if(ct->stage > FileStage_Parser){
         compiler.start_validator(ct->amufile);
+        if(ct->amufile->validator.failed) return;
     }
-
-    ct->finished = 1;
-    condition_variable_notify_all(&ct->wait);
-    //memzfree(ct);
 }
 
 void Compiler::init(){DPZoneScoped;
@@ -146,7 +156,7 @@ void Compiler::init(){DPZoneScoped;
     }
 }
 
-amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneScoped;
+CompilerReport Compiler::compile(CompilerRequest* request, b32 wait){DPZoneScoped;
 
     //we must lock this function because it is possible it is called from 2 different threads at the same time requesting the same file.
     mutex_lock(&mutexes.compile_request);
@@ -163,8 +173,8 @@ amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneS
 
     CompilerThread* ct = (CompilerThread*)memtalloc(sizeof(CompilerThread) * request->filepaths.count);
 
-    amuArena<amuFile*> out;
-    out.init();
+    CompilerReport report = {0};
+    report.units.init();
 
     forI(request->filepaths.count){
         str8 filepath = request->filepaths[i];
@@ -183,7 +193,7 @@ amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneS
             if(!file){
                 logger.error("Unable to open file at path ", filepath);
                 mutex_unlock(&mutexes.compile_request);
-                return out;
+                return report;
             } 
 
             //we must allocate these somewhere because just storing them in map will move them if we have too many
@@ -195,9 +205,9 @@ amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneS
             amufile->logger.amufile = amufile;
 
             files.add(filename, amufile);
-            out.add(amufile);
+            report.units.add(amufile);
         }else{
-            out.add(amufile);
+            report.units.add(amufile);
             //its possible that a file is actually already being processed by another thread, such as when multiple files
             //import the same file, so we just skip it if it is
             //TODO(sushi) this may not be as simple as this. we may also have to check if the requested stage here
@@ -225,12 +235,15 @@ amuArena<amuFile*> Compiler::compile(CompilerRequest* request, b32 wait){DPZoneS
             if(!ct[i].amufile) continue; //this happens when the file was already being processed and we skipped that slot
             while(!ct[i].finished){
                 condition_variable_wait(&ct[i].wait);
+                if(ct->amufile->stage == FileStage_ERROR){
+                    report.failed = 1;
+                }
             }
             condition_variable_deinit(&ct[i].wait);
             ct[i].amufile->being_processed = 0;
         }
     }
-    return out;
+    return report;
 }
 
 amuFile* Compiler::start_lexer(amuFile* amufile){DPZoneScoped;
@@ -282,6 +295,7 @@ amuFile* Compiler::start_preprocessor(amuFile* amufile){DPZoneScoped;
     amufile->stage = FileStage_Preprocessor;
 
     memzfree(preprocessor);
+
     return amufile;
 }
 
@@ -306,8 +320,8 @@ amuFile* Compiler::start_parser(amuFile* amufile){DPZoneScoped;
     parser->parse();
 
     amufile->stage = FileStage_Parser;
-
     memzfree(parser);
+
     return amufile;
 }
 

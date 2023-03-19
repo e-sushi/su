@@ -10,4 +10,6 @@ main() : s32 {
     i.mag;
     i.sign;
     i.count;
+
+    hey : str = sin(1.2);
 }

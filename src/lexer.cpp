@@ -253,6 +253,7 @@ void Lexer::lex(){DPZoneScoped;
 					stream_next; 
 					if(*stream.str == 0){
 						logger.error(&token, "Unexpected EOF when lexing single quotes");
+						amufile->lexer.failed = 1;
 					}
 				}
 				
@@ -273,6 +274,7 @@ void Lexer::lex(){DPZoneScoped;
 					stream_next; //skip until closing double quotes
 					if(!stream){
 						logger.error("unexpected end of file. expected closing double quotes for double quotes starting on line ", token.l0, " column ", token.c0);
+						amufile->lexer.failed = 1;
 						break;
 					}	
 				} 
@@ -295,6 +297,7 @@ void Lexer::lex(){DPZoneScoped;
 				token.type = Token_CloseParen; 
 				if(!paren_depth){
 					logger.error(&token, "closing parenthesis ')' with no opening parenthesis '('.");
+					amufile->lexer.failed = 1;
 					return;
 				}
 				paren_depth--;
@@ -331,6 +334,7 @@ void Lexer::lex(){DPZoneScoped;
 				token.type = Token_CloseBrace;
 				if(!scope_depth){
 					logger.error(&token, "closing brace '}' with no opening brace '{'.");
+					amufile->lexer.failed = 1;
 				}
 				if(scope_depth == internal_scope_depth){
 					internal_scope_depth = -1;
@@ -365,6 +369,7 @@ void Lexer::lex(){DPZoneScoped;
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
 						logger.error(&token, "multi-line comment has no ending */ token.");
+						amufile->lexer.failed = 1;
 						return;
 					}
 					stream_next; stream_next;
@@ -416,6 +421,7 @@ void Lexer::lex(){DPZoneScoped;
 						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
 							logger.error(&token, "invalid directive following #. Directive was '", token.raw, "'");
+							amufile->lexer.failed = 1;
 							type = Token_ERROR;
 						}else{
 							switch(type){
@@ -425,6 +431,7 @@ void Lexer::lex(){DPZoneScoped;
 								case Token_Directive_Internal:{
 									if(scope_depth){
 										logger.error(&token, "attempt to use #internal inside of a scope. #internal only applies to top-level definitions.");
+										amufile->lexer.failed = 1;
 									}else{
 										amufile->lexer.internals.add(amufile->lexer.tokens.count);
 									}
@@ -439,6 +446,7 @@ void Lexer::lex(){DPZoneScoped;
 				}else{
 					logger.error(&token, "invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
 					token.type = Token_ERROR;
+					amufile->lexer.failed = 1;
 					stream_next;
 				}
 			}break;
@@ -474,12 +482,14 @@ void Lexer::lex(){DPZoneScoped;
 		Token* lob = &amufile->lexer.tokens[last_open_brace];
 		logger.error("a brace was never closed");
 		logger.note(lob, "see last opened brace");
+		amufile->lexer.failed = 1;
 	}
 
 	if(paren_depth){
 		Token* lop = &amufile->lexer.tokens[last_open_paren];
 		logger.error("a parenthesis was never closed.");
 		logger.note(lop, "see last opened parentheis.");
+		amufile->lexer.failed = 1;
 	}
 
 	amufile->lexer.tokens.add(Token{Token_EOF, Token_EOF});	

@@ -32,6 +32,7 @@ amufile->logger.error(token, __VA_ARGS__)
 
 #define perror_ret(token, ...)do{\
 amufile->logger.error(token, __VA_ARGS__);\
+amufile->parser.failed = 1;\
 return 0;\
 }while(0)
 
@@ -190,7 +191,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 }else expect(Token_EOF){
                     perror_ret(curt, "unexpected end of file.");
                 } else {
-                    define(me, psStatement);
+                    if(!define(me, psStatement)) return 0;
                 }
             }
             curt++;

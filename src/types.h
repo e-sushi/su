@@ -190,7 +190,6 @@ global inline void insert_after(amuNode* target, amuNode* node) { DPZoneScoped;
 	node->next = target->next;
 	node->prev = target;
 	target->next = node;
-	
 }
 
 /*
@@ -859,9 +858,6 @@ struct nodemap{
 	}
 };
 
-
-
-
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Registers
 enum Registers{
@@ -1522,7 +1518,6 @@ struct Function {
 	Declaration decl;
 	//an array of overloads
 	//this is only used on the base Function that represents overloads
-	//NOTE(sushi) this can probably just be replaced by using nodes 
 	amuArena<Function*> overloads;
 
 	// list of arguments this function takes
@@ -1530,7 +1525,7 @@ struct Function {
 	u32 default_count; // how many of these arguments have default values
 
 	TypedValue data;
-	Struct* struct_data;
+
 	//this label is how a function is internally referred to in the case of overloading
 	//it is where name mangling happens
 	//format:
@@ -1539,7 +1534,6 @@ struct Function {
 
 	//set when the function is to be inlined 
 	b32 inlined;
-	
 };
 
 struct Variable{
@@ -1646,6 +1640,7 @@ enum{
 	FileStage_Preprocessor,
 	FileStage_Parser,
 	FileStage_Validator,
+	FileStage_ERROR, // set when the file has errored in some stage and cannot continue
 };
 
 struct Token;
@@ -1825,7 +1820,7 @@ struct amuLogger{
 		if(globals.supress_messages) return;
 		if(globals.log_immediatly){
 			mutex_lock(&compiler.mutexes.log);
-			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), MagenetaFormat("note"), ": ", args...);
+			str8 out = to_str8_amu(VTS_CyanFg, (amufile ? amufile->file->name : owner_str_if_sufile_is_0), ": ", MagentaFormat("note"), ": ", args...);
 			Log("", out);
 			mutex_unlock(&compiler.mutexes.log);
 		}else{
@@ -1877,6 +1872,8 @@ struct amuFile{
 		amuArena<u32> exported_decl;
 		amuArena<u32> internal_decl;
 		amuArena<u32> runs;
+
+		b32 failed;
 	}preprocessor;
 
 	struct{ // parser
@@ -1889,6 +1886,8 @@ struct amuFile{
 		amuArena<Declaration*> exported_decl;
 		amuArena<Declaration*> imported_decl;
 		amuArena<Declaration*> internal_decl;
+
+		b32 failed;
 	}parser;
 
 	struct{
@@ -1896,6 +1895,8 @@ struct amuFile{
 		//this is to support overloading, as every function identifier is stored in this once
 		//with each overload accessible through nodes
 		nodemap functions;
+
+		b32 failed;
 	}validator;
 
 	void init(){
@@ -1920,12 +1921,6 @@ struct amuFile{
 		cv.parse = condition_variable_init();
 		cv.validate = condition_variable_init();
 	}
-};
-
-
-struct StageStatus{
-	b32 failed;
-
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1965,7 +1960,6 @@ struct ParserThread{
 	
 	Declaration* declare();
 	amuNode* define(amuNode* node, Type stage);
-	amuNode* parse_import(Token* start);
 
 	template<typename ...args> FORCE_INLINE b32
 	curr_match(args... in){DPZoneScoped;
@@ -1997,7 +1991,6 @@ struct Parser {
 	//map of identifiers to global declarations
 	nodemap pending_globals;
 
-	
 	//file the parser is working in
 	amuFile* amufile;
 
@@ -2083,16 +2076,17 @@ struct CompilerRequest{
 };
 
 struct CompilerReport{
-	b32 successful; // true if the entire compilation was successful
+	b32 failed;
 
 	amuArena<amuFile*> units; // array of amuFiles created by this compile request
-
 };
 
 struct Compiler{
 	Stopwatch ctime;
 
 	amuLogger logger;
+
+	b32 failed;
 
 	//TODO(sushi) we probably want to just chunk arenas for suFiles instead of randomly allocating them.
 	map<str8, amuFile*> files;
@@ -2131,7 +2125,7 @@ struct Compiler{
 		mutex compile_request;
 	}mutexes;
 
-	amuArena<amuFile*> compile(CompilerRequest* request, b32 wait = 1);
+	CompilerReport compile(CompilerRequest* request, b32 wait = 1);
 
 	amuFile* start_lexer       (amuFile* amufile);
 	amuFile* start_preprocessor(amuFile* amufile);
