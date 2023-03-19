@@ -63,7 +63,7 @@ amuNode* ParserThread::binop_parse(amuNode* node, amuNode* ret, Type next_stage,
 
         //evaluate next expression
         curt++;
-        Expression* rhs = ExpressionFromNode(define(&op->node, next_stage));
+        Expression* rhs = (Expression*)(define(&op->node, next_stage));
 
         out = &op->node;
     }
@@ -162,7 +162,6 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             else perror_ret(curt, "expected a , after subimport.");
                         }else perror_ret(curt, "expected an identifier for subimport.");
                     }
-
                 }
                 return &e->node;
             }
@@ -184,7 +183,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                     if(curt->is_declaration){
                         amuNode* ret = define(me, psDeclaration);
                         if(!ret) return 0;
-                        Declaration* d = DeclarationFromNode(ret);
+                        Declaration* d = (Declaration*)ret;
                     }else{
                         define(me, psStatement);
                     }
@@ -253,7 +252,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                             if(((Declaration*)fin)->type == Declaration_Function){
                                 perror_ret(curt, "only variables may be declared inside of structs.");
                             }
-                            Declaration* d = DeclarationFromNode(fin);
+                            Declaration* d = (Declaration*)fin;
                             s->members.add(d->identifier, &d->node);
                         }
                     }
@@ -294,7 +293,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                                 //its possible the user made an error that caused this token to not be marked as a declaration, but since 
                                 //we know it should be here we manually mark it 
                                 curt->decl_type = Declaration_Variable;
-                                Variable* v = VariableFromNode(define(&f->decl.node, psDeclaration));
+                                Variable* v = (Variable*)define(&f->decl.node, psDeclaration);
                                 if(!v) return 0;
                                 f->internal_label = amuStr8(f->internal_label, (v->decl.token_start + 2)->raw, ",");
                                 forI(v->pointer_depth){
@@ -339,7 +338,6 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
 
                 }break;
 
-                case Declaration_VariableStructure:
                 case Declaration_Variable:{ //name
                     Variable* v = arena.make_variable(amuStr8(curt->raw, " - decl"));
                     if(curt->is_global){
@@ -539,7 +537,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 //go down expression chain first
                 amuNode* n = define(node, psConditional);
                 if(!n) return 0;
-                Expression* e = ExpressionFromNode(n);
+                Expression* e = (Expression*)n;
 
                 expect_next(Token_Assignment){
                     Token* before = curt++;
@@ -555,7 +553,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 }
                 return n;
             }else{
-                Expression* e = ExpressionFromNode(define(node, psConditional));
+                Expression* e = (Expression*)(define(node, psConditional));
                 return &e->node;
             }
 
@@ -565,63 +563,63 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
             expect(Token_If){
                 NotImplemented;
             }else{
-                Expression* e = ExpressionFromNode(define(node, psLogicalOR));
+                Expression* e = (Expression*)(define(node, psLogicalOR));
                 return &e->node;
             }
         }break;
 
         case psLogicalOR:{ //---------------------------------------------------------------------------------------LogicalOR
-            Expression* e = ExpressionFromNode(define(node, psLogicalAND));
+            Expression* e = (Expression*)(define(node, psLogicalAND));
             return binop_parse(node, &e->node, psLogicalAND, Token_OR);
         }break;
 
         case psLogicalAND:{ //-------------------------------------------------------------------------------------LogicalAND
-            Expression* e = ExpressionFromNode(define(node, psBitwiseOR));
+            Expression* e = (Expression*)(define(node, psBitwiseOR));
             return binop_parse(node, &e->node, psBitwiseOR, Token_AND);
         }break;
 
         case psBitwiseOR:{ //---------------------------------------------------------------------------------------BitwiseOR
-            Expression* e = ExpressionFromNode(define(node, psBitwiseXOR));
+            Expression* e = (Expression*)(define(node, psBitwiseXOR));
             return binop_parse(node, &e->node, psBitwiseXOR, Token_BitOR);
         }break;
 
         case psBitwiseXOR:{ //-------------------------------------------------------------------------------------BitwiseXOR
-            Expression* e = ExpressionFromNode(define(node, psBitwiseAND));
+            Expression* e = (Expression*)(define(node, psBitwiseAND));
             return binop_parse(node, &e->node, psBitwiseAND, Token_BitXOR);
         }break;
 
         case psBitwiseAND:{ //-------------------------------------------------------------------------------------BitwiseAND
-            Expression* e = ExpressionFromNode(define(node, psEquality));
+            Expression* e = (Expression*)(define(node, psEquality));
             return binop_parse(node, &e->node, psEquality, Token_BitAND);
         }break;
 
         case psEquality:{ //-----------------------------------------------------------------------------------------Equality
-            Expression* e = ExpressionFromNode(define(node, psRelational));
+            Expression* e = (Expression*)(define(node, psRelational));
             return binop_parse(node, &e->node, psRelational, Token_NotEqual, Token_Equal);
         }break;
 
         case psRelational:{ //-------------------------------------------------------------------------------------Relational
-            Expression* e = ExpressionFromNode(define(node, psBitshift));
+            Expression* e = (Expression*)(define(node, psBitshift));
             return binop_parse(node, &e->node, psBitshift, Token_LessThan, Token_GreaterThan, Token_LessThanOrEqual, Token_GreaterThanOrEqual);
         }break;
 
         case psBitshift:{ //-----------------------------------------------------------------------------------------Bitshift
-            Expression* e = ExpressionFromNode(define(node, psAdditive));
+            Expression* e = (Expression*)(define(node, psAdditive));
             return binop_parse(node, &e->node, psAdditive, Token_BitShiftLeft, Token_BitShiftRight);
         }break;
 
         case psAdditive:{ //-----------------------------------------------------------------------------------------Additive
-            Expression* e = ExpressionFromNode(define(node, psTerm));
+            Expression* e = (Expression*)(define(node, psTerm));
             return binop_parse(node, &e->node, psTerm, Token_Plus, Token_Negation);
         }break;
 
         case psTerm:{ //-------------------------------------------------------------------------------------------------Term
-            Expression* e = ExpressionFromNode(define(node, psAccess));
+            Expression* e = (Expression*)(define(node, psAccess));
             return binop_parse(node, &e->node, psFactor, Token_Multiplication, Token_Division, Token_Modulo);
         }break;
 
         case psAccess:{
-            Expression* e = ExpressionFromNode(define(node, psFactor));
+            Expression* e = (Expression*)(define(node, psFactor));
             //dont use binop_parse because this stage is special
             while(next_match(Token_Dot)){
                 curt++;
@@ -650,6 +648,18 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                 default:{
                     perror_ret(curt, "unexpected token '", curt->raw, "' found in expression.");
                 }break;
+
+                case Token_Negation:{
+                    Expression* e = arena.make_expression(curt->raw);
+                    e->token_start = e->token_end = curt;
+                    e->type = Expression_UnaryOpNegate;
+                    curt++;
+                    amuNode* ret = define((amuNode*)e, psFactor);
+                    if(!ret) return 0;
+                    insert_last(node, (amuNode*)e);
+                    return &e->node;
+                }break;
+
                 case Token_LiteralFloat:{
                     Expression* e = arena.make_expression(curt->raw);
                     e->token_start = curt;
@@ -735,7 +745,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
                         while(1){
                             curt++;
                             expect(Token_CloseParen) {break;}
-                            Expression* arg = ExpressionFromNode(define(&identifier_expression->node, psExpression));
+                            Expression* arg = (Expression*)(define(&identifier_expression->node, psExpression));
                             if(!arg) return 0;
                             curt++;
                             expect(Token_Comma){}
@@ -773,7 +783,7 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
             }
 
         }break;
-        case psInitializer:{  //----------------------------------------------------------------------------------------Initializer
+        case psInitializer:{  //----------------------------------------------------------------------------------Initializer
             Expression* initializer = arena.make_expression(STR8("initializer"));
             initializer->type = Expression_InitializerList;
             initializer->token_start = curt;
@@ -800,8 +810,35 @@ amuNode* ParserThread::define(amuNode* node, Type stage){DPZoneScoped;
             initializer->token_end = curt;
             return &initializer->node;
         }break;
-    }
+        case psType:{ //-------------------------------------------------------------------------------------------------Type
+            Expression* type = arena.make_expression(STR8("type"));
+            type->type = Expression_Type;
+            type->token_start = curt;
+            insert_last(node, (amuNode*)type);
+            
+            expect(Token_Identifier){}
+            else perror_ret(curt, "expected an identifier for type specifier.");
 
+            while(next_match(Token_Dot)){
+                curt++;
+                Expression* op = arena.make_expression(curt->raw);
+                op->type = Expression_Type;
+                op->token_start = curt-1;
+                insert_last(node, (amuNode*)op);
+                change_parent((amuNode*)op, (amuNode*)type);
+
+                curt++;
+                expect(Token_Identifier){
+                    Expression* rhs = arena.make_expression(curt->raw);
+                    rhs->token_start = curt;
+                    rhs->token_end = curt;
+                    rhs->type = Expression_Type;
+                    insert_last((amuNode*)op, (amuNode*)rhs);
+                    type = op;
+                }else perror_ret(curt, "expected identifier after '.' in type specifier.");
+            }
+        }break;
+    }
 
     return 0;
 }
@@ -822,7 +859,6 @@ void Parser::parse(){DPZoneScoped;
         amufile->preprocessor.exported_decl.count+
         amufile->lexer.imports.count
     );
-    
     
     for(u32 idx : amufile->lexer.imports){
         threads.add(ParserThread());
