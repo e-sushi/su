@@ -1,0 +1,96 @@
+render : module(Renderer);
+
+#import math
+#import color
+
+// enums take special parameters telling the compiler what kind of enumeration it is
+// here we are specifiying flags, so we can just tell the compiler that and it do the
+// = 1 << 0;
+// = 1 << 1;
+// etc. for us.
+stage : enum(flags) {
+    RSVK_INSTANCE,
+	RSVK_SURFACE,
+	RSVK_PHYSICALDEVICE,
+    // etc...
+}
+
+// singleton struct
+// we don't need to name the type or give it a prefix, because this being a
+// module means the user would write render.stats
+
+// obviously this would cause an issue if the user would want to do
+// using render;
+// and they have a different stats variable *in the same scope* (shadowing).
+// a lib writer would just see this as user error, but they could prefix it if they
+// want, or put it in another module grouping singletons like these, possibly into
+// a "global" module
+
+stats :: struct {
+    renderTime : f64;
+    totalVertices : u64;
+    // etc...
+}
+
+settings :: struct {
+    debugging : b32 = true;
+    printf : b32 = true;
+    // etc...
+}
+
+vertex2 : struct {
+    pos : vec(2);
+    uv : vec(2);
+    color : u32;
+}
+
+
+//
+// and so on, for all of render's types...
+//
+
+// how parameters are handled is an open question.
+// to me, each renderer would just be its own module with all its respective types
+// and the value passed to the render module (Renderer) would just be that module, and 
+// we'd be able to use it like so:
+// 
+// Renderer.init()
+// 
+// and such.
+// or, this file would be able to do 
+//
+// #import Renderer as renderer
+// 
+// and the user would just be providing the name of the renderer module
+// this would allow a library to be very modular, so in the case of deshi
+// if someone wanted to provide a different renderer backend, all they would have to do
+// is pass a module different from what deshi provides. you can do this in C of course,
+// but I think this would be a lot easier.
+
+#if Renderer == Vulkan
+init() : void { 
+    // do a whole bunch of initialization 
+}
+#else if Renderer == OpenGL
+    // yeah
+
+// etc.
+
+// make a nested module for all of render's draw functions 
+// this allows us to use the syntax
+// 
+// render.draw.rect(...)
+//
+// and with using, the user can expose all of the functions into whatever scope they want
+// 
+// using render.draw;
+// rect(...);
+
+draw : module {
+    rect() : void {}
+    circle() : void {}
+    // etc...
+}
+
+// and so on for the rest of render's implementation
+

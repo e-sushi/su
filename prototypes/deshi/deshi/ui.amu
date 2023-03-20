@@ -1,0 +1,79 @@
+ui : module;
+
+#import render as render
+#import math{vec}
+#import str
+#import color
+#import input
+
+keybinds :: struct {
+    inputtext :: struct{
+        // buncha keybinds...
+    }
+}
+
+drawcmd : struct{
+    node : Node;
+    texture : Texture*;
+    // etc..
+}
+
+drawcmd_create(count:u64=1) : drawcmd{
+    // blah
+}
+
+// we are able to give this a very general name, because we support overloading
+// this, coupled with UFCS, allows us to write code like 
+// 
+// dc : drawcmd = drawcmd_create();
+// defer dc.delete();
+
+delete(dc:drawcmd*) : void{
+    // blah
+} 
+
+pos : enum {
+    static,
+    relative,
+    absolute,
+    // etc...
+}
+
+size : enum(flags) {
+    normal,
+    auto_y,
+    auto_x,
+    percent_y,
+    percent_x,
+    // ... 
+    // at the end, we manually set special values
+    auto = auto_x | auto_y,
+    percent = percent_x | percent_y
+    // etc...
+}
+
+// the rest of ui's types
+
+// there are some internal functions used in ui2.cpp in deshi that we probably
+// dont want to clutter the module the user users, so we can declare those things
+// in an internal 'scope'
+
+#internal 
+
+mouse_in_item(item : Item*) : b32 {}
+
+EvalContext : struct {
+    // ...
+}
+
+eval_item_branch(item : Item*, context : EvalContext*){
+    // ...
+}
+
+// and so on. to resume exporting declarations, we can say something like #export
+
+#export
+
+update(context : Context*) : void {
+    // update
+} 

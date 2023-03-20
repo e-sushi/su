@@ -1,0 +1,38 @@
+#import deshi(Vulkan) as deshi
+
+main() : s32 {
+    deshi.render.init();
+    deshi.ui.init();
+    deshi.logger.init();
+    //etc..
+
+
+    while(deshi.platform.update()){
+        deshi.render.draw.rect(/*...*/);
+
+        deshi.ui.base.style = {
+            font = deshi.assets.load.font("gohufont-11.bdf"),
+            font_height = 11,
+            text_color = deshi.color.white,
+        };
+
+        // gonna do a bunch of ui stuff
+        {
+            using deshi.ui;
+
+            window := item_begin("my_window");
+                window.style = {
+                    positioning = pos.fixed,
+                    sizing = size.auto,
+                    pos = {100, 100},
+                };
+                text := widgets.create_text("hello!", name="my_text");
+                text.style = {
+                    positioning = pos.relative,
+                    pos = {20,20},
+                };
+            item_end();
+        }
+
+    }
+}

@@ -1,0 +1,16 @@
+// declare the file as a module that takes a parameter 
+deshi : module(Renderer);
+
+// the way this would be meant to work is that the library writer would tell the user 
+// that the normal way to use the lib is to import deshi (this file), which would import
+// the following imports as modules into the scope the import is used in, and of course the 
+// user could give a name to the imports if they like
+
+// of course, there is nothing stopping the user from importing each module manually as well
+
+#import render(Renderer) as render
+#import input as input
+#import ui as ui
+#import logger as logger
+
+// and so on...
