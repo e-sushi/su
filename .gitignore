@@ -23,30 +23,10 @@
 
 #folders
 .vs/
-.vscode/
 build/
-docs/
 docs/doxygen/
 
 #specific files
 TODOs.txt
 misc/shell.bat
 wlist_match12.txt
-
-#data ignores
-data/cfg/*
-data/fonts/*
-data/logs/*
-data/models/*
-#data/shaders/*
-data/temp/*
-data/textures/*
-
-#specific files
-imgui.ini
-TODOs.txt
-misc/suugu.vcxproj.user
-
-#delle specifics
-misc/shell.bat
-

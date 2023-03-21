@@ -1,0 +1,30 @@
+{
+    "name": "amu",
+    "displayName": "amu",
+    "description": "Support for the amu language.",
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.52.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "amu",
+                "extensions": [
+                    "amu"
+                ],
+                "configuration": "./configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "amu",
+                "scopeName": "source.amu",
+                "path": "./amu.json"
+            }
+        ]
+	}
+}

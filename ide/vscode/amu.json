@@ -1,0 +1,225 @@
+{
+	"scopeName": "source.amu",
+	"name": "amu",
+	"patterns":
+	[
+		{ "include": "#block-comments" },
+		{ "include": "#comments" },
+		{ "include": "#directives" },
+		{ "include": "#keywords" },
+		{ "include": "#literals" },
+		{ "include": "#symbols" }
+	],
+	"repository":{
+		"block-comments":{
+			"name": "comment.block.amu",
+			"begin": "(\\/\\*)",
+			"end": "(\\*\\/)",
+			"beginCaptures":{
+				"1":{ "name": "punctuation.definition.comment.amu" }
+			},
+			"endCaptures":{
+				"1":{ "name": "punctuation.definition.comment.amu" }
+			},
+			"patterns":
+			[
+				{ "include": "#block-comments",
+					"name": "comment.block.amu"
+				}
+			]
+		},
+		"comments":{
+			"patterns":
+			[
+				{ "match": "(\/\/)(.*)",
+					"captures":{
+						"1":{ "name": "punctuation.definition.comment.amu" },
+						"2":{ "name": "comment.line.double-slash.amu" }
+					}
+				}
+			]
+		},
+		"directives":{
+			"patterns":
+			[
+				{ "match": "(#if|#else) ",
+					"name": "keyword.control.directive.conditional.amu"
+				},
+				{ "match": "(#inline) ",
+					"name": "keyword.control.directive.function.inline.amu"
+				},
+				{ "match": "(#compile_time) ",
+					"name": "keyword.control.directive.function.compile_time.amu"
+				},
+				{ "match": "(#must) ",
+					"name": "keyword.control.directive.function.must.amu"
+				},
+				{ "match": "(#import)\\s+([^\"]+)",
+					"captures":{
+						"1":{ "name": "keyword.control.directive.import.amu" }
+					}
+				},
+				{ "match": "(#import)\\s+(\")([^\"]+)(\")",
+					"captures":{
+						"1":{ "name": "keyword.control.directive.import.amu" },
+						"2":{ "name": "punctuation.definition.string.import.begin.amu" },
+						"3":{ "name": "string.quoted.other.import" },
+						"4":{ "name": "punctuation.definition.string.import.end.amu" }
+					}
+				},
+				{ "match": "(#import)\\s+(\"[^\"]*)?$",
+					"captures":{
+						"1":{ "name": "keyword.control.directive.import.amu" },
+						"2":{ "name": "punctuation.definition.string.import.begin.amu" },
+						"3":{ "name": "string.quoted.other.import" }
+					}
+				},
+				{ "match": "(#inline)\\s+(\")([^\"]+)(\")",
+					"captures":{
+						"1":{ "name": "keyword.control.directive.inline.amu" },
+						"2":{ "name": "punctuation.definition.string.inline.begin.amu" },
+						"3":{ "name": "string.quoted.other.inline" },
+						"4":{ "name": "punctuation.definition.string.inline.end.amu" }
+					}
+				},
+				{ "match": "(#inline)\\s+(\"[^\"]*)?$",
+					"captures":{
+						"1":{ "name": "keyword.control.directive.inline.amu" },
+						"2":{ "name": "punctuation.definition.string.inline.begin.amu" },
+						"3":{ "name": "string.quoted.other.inline" }
+					}
+				},
+				{ "match": "(#scope_export|#scope_file|#scope_module) ",
+					"name": "keyword.control.directive.scope.amu"
+				}
+			]
+		},
+		"keywords":{
+			"patterns":
+			[
+				{ "match": "\\b(if|else|switch|case)\\b",
+					"name": "keyword.control.conditional.amu"
+				},
+				{ "match": "\\b(return|break|continue)\\b",
+					"name": "keyword.control.jump.amu"
+				},
+				{ "match": "\\b(while)\\b",
+					"name": "keyword.control.loop.while.amu"
+				},
+				{ "match": "\\b(for)\\b",
+					"name": "keyword.control.loop.for.amu"
+				},
+				{ "match": "\\b(defer)\\b",
+					"name": "keyword.control.defer.amu"
+				},
+				{ "match": "\\b(using)\\b",
+					"name": "keyword.control.using.amu"
+				},
+				{ "match": "\\b(struct)\\b",
+					"name": "keyword.declaration.struct.amu"
+				},
+				{ "match": "\\b(enum)\\b",
+					"name": "keyword.declaration.enum.amu"
+				},
+				{ "match": "\\b(union)\\b",
+					"name": "keyword.declaration.union.amu"
+				},
+				{ "match": "\\b(module)\\b",
+					"name": "keyword.declaration.module.amu"
+				},
+				{ "match": "\\b(u8|u16|u32|u64|s8|s16|s32|s64|f32|f64|bool|string|void)\\b",
+					"name": "storage.type.amu"
+				}
+			]
+		},
+		"literals":{
+			"patterns":
+			[
+				{ "match": "\\b(0b[01_]+)\\b",
+					"name": "constant.numeric.binary.amu"
+				},
+				{ "match": "\\b(0x[0-9a-fA-F_]+)\\b",
+					"name": "constant.numeric.hex.amu"
+				},
+				{ "match": "((\\d[\\d_]*\\.\\d[\\d_]*)|(\\.\\d[\\d_]*))((e|E)(\\+|-)?(\\d[\\d_]*)*)?",
+					"name": "constant.numeric.float.amu"
+				},
+				{ "match": "\\b(\\d[\\d_]*)\\b",
+					"name": "constant.numeric.integer.amu"
+				},
+				{ "match": "\\b(true)\\b",
+					"name": "constant.language.true.amu"
+				},
+				{ "match": "\\b(false)\\b",
+					"name": "constant.language.false.amu"
+				},
+				{
+					"name": "string.quoted.double.amu",
+					"begin": "\"",
+					"end": "\"",
+					"patterns":
+					[
+						{ "match": "\\\\(\\\\|[nrt'\"%]|x[a-fA-F0-9]{,2})",
+							"name": "constant.character.escape.amu"
+						},
+						{ "match": "(%\\d+|%)",
+							"name": "constant.other.placeholder.amu"
+						},
+						{ "match": "\\\\.",
+							"name": "invalid.illegal.unknown-escape.amu"
+						}
+					]
+				},
+				{
+					"name": "string.quoted.single.amu",
+					"begin": "'",
+					"end": "'",
+					"patterns":
+					[
+						{ "match": "\\\\(\\\\|[nrt'\"]|x[a-fA-F0-9]{,2}|u[a-fA-F0-9]{,8})",
+							"name": "constant.character.escape.amu"
+						},
+						{ "match": "\\\\.",
+							"name": "invalid.illegal.unknown-escape.amu"
+						}
+					]
+				}
+			]
+		},
+		"symbols":{
+			"patterns":
+			[
+				{ "match": "(:|=|\\+|-|\\*|\/|<|>|~|\\||&|!|\\^|%)+",
+					"name": "keyword.operator.amu"
+				},
+				{ "match": "\\(",
+					"name": "punctuation.section.parens.begin.amu"
+				},
+				{ "match": "\\)",
+					"name": "punctuation.section.parens.end.amu"
+				},
+				{ "match": "\\{",
+					"name": "punctuation.section.braces.begin.amu"
+				},
+				{ "match": "\\}",
+					"name": "punctuation.section.braces.end.amu"
+				},
+				{ "match": "\\[",
+					"name": "punctuation.section.brackets.begin.amu"
+				},
+				{ "match": "\\]",
+					"name": "punctuation.section.brackets.end.amu"
+				},
+				{ "match": "(\\.)",
+					"name": "punctuation.accessor.amu"
+				},
+				{ "match": "(,)",
+					"name": "punctuation.separator.amu"
+				},
+				{ "match": "(;)",
+					"name": "punctuation.terminator.amu"
+				}
+			]
+		}
+	}
+}
