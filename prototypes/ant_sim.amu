@@ -1,3 +1,16 @@
+/* ant_sim deshi example
+
+Index:
+@main
+@entity
+@need
+@agent
+@action
+@advert
+@world
+@ui
+*/
+
 #import array;
 #import color;
 #import common;
@@ -15,16 +28,19 @@ Deshi: #import deshi;
 
 
 main:()->s32{
-	Deshi.init("ant_sim", static_memory=Megabytes(256), temp_memory=Megabytes(512));
+	Deshi.init("ant_sim", static_memory=megabytes(256), temp_memory=megabytes(512));
 	
-	setup_simulation();
-	setup_rendering();
+	logger.push_channel("ant_sim");
+	setup_world();
 	setup_ui();
+	logger.pop_channel("ant_sim");
 
 	Deshi.update_start();{
+		logger.push_channel("ant_sim");
 		update_input();
-		update_simulation();
+		update_world();
 		update_ui();
+		logger.pop_channel("ant_sim");
 	}Deshi.update_end();
 	
 	return 0;
@@ -58,7 +74,7 @@ EntityColors:Color[EntityType.count][7]:{
 }
 
 Entity:struct{
-	overlap: SNode #expand; //entities in the same tile
+	overlap: SNode; //entities in the same tile
 	type:    EntityType;
 	flags:   EntityFlags;
 	color:   Color;
@@ -161,6 +177,83 @@ MAX_NEED_TYPE_STRING_WIDTH::#run()->u32{
 
 
 //-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @agent
+
+
+Race:enum{
+	BLACK_GARDEN_ANT_QUEEN,
+	BLACK_GARDEN_ANT_MALE,
+	BLACK_GARDEN_ANT_WORKER,
+	COTTON_ANT_QUEEN,
+	COTTON_ANT_MALE,
+	COTTON_ANT_MINOR_WORKER,
+	COTTON_ANT_MAJOR_WORKER,
+}
+
+RACE_STRINGS:u8[][]:{
+	"Queen Black Garden Ant",
+	"Male Black Garden Ant",
+	"Worker Black Garden Ant",
+	"Queen Cotton Ant",
+	"Male Cotton Ant",
+	"Minor Worker Cotton Ant",
+	"Major Worker Cotton Ant",
+};#assert(RACE_STRINGS.count == Compiler.types.Race.count);
+
+RACE_SPECIES_STRINGS:u8[][]:{
+	"Lasius Niger",
+	"Lasius Niger",
+	"Lasius Niger",
+	"Solenopsis xyloni",
+	"Solenopsis xyloni",
+	"Solenopsis xyloni",
+	"Solenopsis xyloni",
+};#assert(RACE_SPECIES_STRINGS.count == Compiler.types.Race.count);
+
+Agent:struct{
+	entity: Entity #expand = { type = EntityType.AGENT };
+	using   SNode;
+	race:   Race;
+	needs:  Need[];
+
+	action_index:  u32;
+	active_advert: Advert*;
+
+	path:       u8[]; //list of movement directions
+	path_index: u32;  //progress along path
+}
+
+implicit(Entity* entity)->Agent*{
+	return (Agent*)((u8*)entity - Compiler.types.Agent.offsets.entity);
+}
+
+implicit(SNode* node)->Agent*{
+	return (Agent*)((u8*)node - Compiler.types.Agent.offsets.next);
+}
+
+agents: Heap;
+
+make_agent:(race:Race, needs:Need[]={}, flags:EntityFlags=EntityFlags.NONE, pos:Vec2i={0,0}, age:u32=0, name:u8[]=RACE_STRINGS[race])->Agent*{
+	agent := (Agent*)agents.alloc(sizeof(Agent) + needs.count*sizeof(Need));
+	agent.flags = flags;
+	agent.age   = age;
+	agent.pos   = pos;
+	agent.name  = name;
+	agent.race  = race;
+
+	agent.needs = (Need*)(agent+1);
+	agent.needs.count = needs.count;
+	memcpy(agent.needs, needs, needs.count*sizeof(Need));
+	
+	return agent;
+}
+
+destroy:(agent: Agent*)->void{
+	//TODO this
+}
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
 //// @action
 
 
@@ -230,65 +323,117 @@ ACTION_DEFINITIONS:ActionDef[]:{
 	},
 };#assert(ACTION_DEFINITIONS.count == Compiler.types.ActionType.count);
 
-
-//-////////////////////////////////////////////////////////////////////////////////////////////////
-//// @agent
-
-
-Race:enum{
-	BLACK_GARDEN_ANT_QUEEN,
-	BLACK_GARDEN_ANT_MALE,
-	BLACK_GARDEN_ANT_WORKER,
-	COTTON_ANT_QUEEN,
-	COTTON_ANT_MALE,
-	COTTON_ANT_MINOR_WORKER,
-	COTTON_ANT_MAJOR_WORKER,
+Directions:enum{
+	NORTH,
+	EAST,
+	SOUTH,
+	WEST
 }
 
-RACE_STRINGS:u8[][]:{
-	"Queen Black Garden Ant",
-	"Male Black Garden Ant",
-	"Worker Black Garden Ant",
-	"Queen Cotton Ant",
-	"Male Cotton Ant",
-	"Minor Worker Cotton Ant",
-	"Major Worker Cotton Ant",
-};#assert(RACE_STRINGS.count == Compiler.types.Race.count);
-
-RACE_SPECIES_STRINGS:u8[][]:{
-	"Lasius Niger",
-	"Lasius Niger",
-	"Lasius Niger",
-	"Solenopsis xyloni",
-	"Solenopsis xyloni",
-	"Solenopsis xyloni",
-	"Solenopsis xyloni",
-};#assert(RACE_SPECIES_STRINGS.count == Compiler.types.Race.count);
-
-Agent:struct{
-	entity: Entity #expand = { type = EntityType.AGENT };
-	using   SNode;
-	race:   Race;
-	needs:  Need[];
-
-	action_index:  u32;
-	active_advert: Advert*;
-
-	path:       u8[]; //list of movement directions
-	path_index: u32;  //progress along path
+DIRECTION_TO_MOVEMENT:Vec2i[]:{
+	[Directions.NORTH] = { 0, 1},
+	[Directions.EAST]  = { 1, 0},
+	[Directions.SOUTH] = { 0,-1},
+	[Directions.WEST]  = {-1, 0},
 }
 
-implicit(Entity* entity)->Agent*{
-	return (Agent*)((u8*)entity - Compiler.types.Agent.offsets.entity);
+perform_actions:(agent: Agent*)->void{
+	if(agent.active_advert == 0) return;
+	
+	//perform the action
+	advert := agent.active_advert;
+	action := &advert.actions[agent.action_index];
+	switch(action.type){
+		default;{
+			if(action.type < Compiler.types.ActionType.count){
+				logger.error("Unhandled action type: ", ACTION_TYPE_STRINGS[action.type]);
+			}else{
+				logger.error("Unhandled action type: ", action.type);
+			}
+		}
+
+		case ActionType.IDLE;{
+			action.progress += (1.0 / (f32)action.time);
+		}
+		
+		case ActionType.WALK;{
+			if(agent.path.size){
+				//if already at the destination, complete the walk action
+				//else, generate a path and consume the tick doing it (wait)
+				if(agent.pos == action.target){
+					action.progress = 1.0;
+				}else{
+					agent.generate_path(action.target);
+				}
+			}else{
+				//if there is an entity in the way and it's not an agent of the same race, generate a new path
+				//else, move to next nav node
+				next_node := agent.pos + DIRECTION_TO_MOVEMENT[agent.path[agent.path_index]];
+				entity_in_way = get_entity(next_node);
+				if(entity_in_way && !(entity_in_way.type == EntityType.AGENT && ((Agent*)entity_in_way).race == agent.race)){
+					agent.generate_path(action.target);
+				}else{
+					agent.move_to(next_node);
+					agent.path_index += 1;
+				}
+				
+				//at destination?
+				if(agent.pos == action.target){
+					action.progress = 1.0;
+				}
+			}
+		}
+
+		case ActionType.DIG;{
+			target_entity := get_entity(action.target);
+			if(agent.pos.distanceSq(action.target) > 1){
+				//if line of sight on the dirt and it's no longer there, skip the action
+				//else, path to the dirt
+				if(line_of_sight(agent.pos, action.target) && target_entity && (target_entity.type != EntityType.DIRT)){
+					agent.action_index += 1;
+				}else{
+					//TODO(delle) handle pathing to dig once we switch to graph navigation (to allow travelling to closest point and not knowing if the path is valid)
+					action.progress = 1.0;
+				}
+			}else if(target_entity && (target_entity.type == EntityType.DIRT)){
+				set_entity(action.target, 0);
+				//update_navgraph(); //TODO(delle) smarter modification of the navgraph
+				//TODO(delle) adding dirt to inventory to drag it
+			}
+		}
+
+		case ActionType.EAT_LEAF;{
+			//TODO(delle) leaf eating
+			action.progress = 1.0;
+		}
+
+		case ActionType.DRINK_WATER;{
+			//TODO(delle) water drinking
+			action.progress = 1.0;
+		}
+	}
+
+	//if action completed
+	if(action.progress >= 1.0){
+		//award costs
+		for(need:Need* in agent.needs){
+			if(abs(advert.completion_time - advert.ongoing_time) > ADVERT_TIME_DELTA_EPSILON){
+				//TODO(delle) make a memory if adverted completion time didnt match actual
+			}
+
+			//remove advert from queue
+			agent.active_advert = 0;
+
+			//delete the advert
+			if(advert.owner.flags.has_flag(AdvertFlags.CONSUME_OWNER_ON_COMPLETION)){
+				adver.owner.destroy();
+			}
+			if(advert.flags.has_flag(AdvertFlags.CONSUME_ADVERT_ON_COMPLETION)){
+				advert.destroy();
+			}
+		}
+	}
 }
-
-implicit(SNode* node)->Agent*{
-	return (Agent*)((u8*)node - Compiler.types.Agent.offsets.next);
-}
-
-agents: Heap;
-
-//TODO port agent creation/deletion
 
 
 //-////////////////////////////////////////////////////////////////////////////////////////////////
@@ -296,6 +441,17 @@ agents: Heap;
 
 
 //TODO port adverts
+
+collect_adverts:(agent: Agent*)->Advert*[]{
+	adverts: Advert*[..](temporary_allocator);
+	for(advert:Advert* in adverts){
+		if(advert.def == 0) continue;
+		if(distanceSq(agent.pos, advert.owner.pos) <= advert.rangeSq){
+			adverts.append(advert);
+		}
+	}
+	return adverts;
+}
 
 
 //-////////////////////////////////////////////////////////////////////////////////////////////////
@@ -309,15 +465,22 @@ TICKS_PER_WORLD_DAY    :: 24 * TICKS_PER_WORLD_HOUR;
 TICKS_PER_WORLD_MONTH  :: 30 * TICKS_PER_WORLD_DAY;
 TICKS_PER_WORLD_YEAR   :: 12 * TICKS_PER_WORLD_MONTH;
 
-setup_simulation:()->void(){
+setup_world:()->void(){
 	
 }
 
-update_simulation:()->void(){
+update_world:()->void(){
 	
 }
 
-//TODO port world
+line_of_sight:(start:Vec2i, end:Vec2i)->b32{
+	//TODO this
+	return false;
+}
+
+generate_path:(agent:Agent*, target:Vec2i)->void{
+	//TODO this
+}
 
 
 //-////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,14 +496,3 @@ update_ui:()->void(){
 }
 
 //TODO port ui
-
-
-//-////////////////////////////////////////////////////////////////////////////////////////////////
-//// @input
-
-
-update_input:()->void{
-	
-}
-
-//TODO port input
