@@ -1,0 +1,346 @@
+#import array;
+#import color;
+#import common;
+#import heap;
+#import math;
+#import node;
+#import pool;
+#import vector;
+Compiler: #import compiler;
+Deshi: #import deshi;
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @main
+
+
+main:()->s32{
+	Deshi.init("ant_sim", static_memory=Megabytes(256), temp_memory=Megabytes(512));
+	
+	setup_simulation();
+	setup_rendering();
+	setup_ui();
+
+	Deshi.update_start();{
+		update_input();
+		update_simulation();
+		update_ui();
+	}Deshi.update_end();
+	
+	return 0;
+}
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @entity
+
+
+EntityType:enum{
+	NULL,
+	WALL,
+	AGENT,
+	LEAF,
+	DIRT,
+	WATER,
+}
+
+EntityFlags:enumflags{
+	NONE,
+}
+
+EntityColors:Color[EntityType.count][7]:{
+	0xff0000ff, 0xff0000ff, 0xff0000ff, 0xff0000ff, 0xff0000ff, 0xff0000ff, 0xff0000ff,
+	0xffaaaaaa, 0xffaaaaaa, 0xffaaaaaa, 0xffaaaaaa, 0xffaaaaaa, 0xffaaaaaa, 0xffaaaaaa,
+	0,          0,          0,          0,          0,          0,          0         ,
+	0xff709a88, 0xff7ba694, 0xff86b19f, 0xff91bdab, 0xff9cc9b7, 0xffa8d5c3, 0xffb4e1cf,
+	0xff3d5f82, 0xff45678a, 0xff4c6e93, 0xff53769b, 0xff5a7ea3, 0xff6286ac, 0xff698eb4,
+	0xff595d47, 0xff60644d, 0xff666a54, 0xff6d715a, 0xff747861, 0xff7a7e67, 0xff81856e,
+}
+
+Entity:struct{
+	overlap: SNode #expand; //entities in the same tile
+	type:    EntityType;
+	flags:   EntityFlags;
+	color:   Color;
+	age:     u64;
+	pos:     Vec2i;
+	name:    u8[];
+	adverts: Advert*[..];
+	
+	using union{
+		water:using struct{
+			evaluated: b32;
+			pressure:  u32;
+			surface:   SNode;
+		}
+	}
+}
+
+implicit(SNode* node)->Entity*{
+	return (Entity*)((u8*)node - Compiler.types.Entity.offsets.overlap);
+}
+
+entities: Pool(Entity);
+
+make_entity:(type:EntityType, flags:EntityFlags=EntityFlags.NONE, pos:Vec2i={0,0}, age:u32=0, name:u8[]="")->Entity*{
+	entity := entities.push();
+	entity.type  = type;
+	entity.flags = flags;
+	entity.age   = age;
+	entity.pos   = pos;
+	entity.name  = name;
+	switch(type){
+		case EntityType.LEAF;  make_advert(AdvertType.EAT_LEAF,    AdvertFlags.CONSUME_OWNER_ON_COMPLETION, entity);
+		case EntityType.DIRT;  make_advert(AdvertType.DIG,         AdvertFlags.CONSUME_OWNER_ON_COMPLETION, entity);
+		case EntityType.WATER; make_advert(AdvertType.DRINK_WATER, AdvertFlags.CONSUME_OWNER_ON_COMPLETION, entity);
+	}
+	return entity;
+}
+
+destroy:(Entity* entity)->void{
+	if(entity == get_entity(entity.pos)){
+		if(overlap.next){
+			set_entity(entity.pos, overlap.next);
+		}else{
+			set_entity(entity.pos, 0);
+		}
+	}
+	entity.overlap.unlink();
+
+	if(entity.type == EntityType.AGENT){
+		agents.destroy(entity);
+	}else{
+		entity.type = EntityType.NULL;
+		entities.destroy(entity);
+	}
+}
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @need
+
+
+NeedType:enum{
+	BLADDER,
+	FOOD,
+	HEALTH,
+	MATING,
+	SLEEP,
+	WATER,
+}
+
+NEED_TYPE_STRINGS:u8[][]:{
+	"Bladder",
+	"Food",
+	"Health",
+	"Mating",
+	"Sleep",
+	"Water",
+};#assert(NEED_TYPE_STRINGS.count == Compiler.types.NeedType.count);
+
+Need:struct{
+	type:  NeedType;
+	value: f32;
+	delta: f32;
+}
+
+tick:(using Need*)->void{
+	value += delta;
+	value  = value.clamp(0,1);
+}
+
+MAX_NEED_TYPE_STRING_WIDTH::#run()->u32{
+	u32 max = 0;
+	for(s in NEED_TYPE_STRINGS){
+		if(s.count > max){
+			max = s.count;
+		}
+	}
+	return max;
+}
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @action
+
+
+UNKNOWN_ACTION_COMPLETION_TIME :: 0;
+
+ActionType:enum{
+	IDLE,
+	WALK,
+	DIG,
+	EAT_LEAF,
+	DRINK_WATER,
+}
+
+ACTION_TYPE_STRINGS:u8[][]:{
+	"Idle",
+	"Walk",
+	"Dig",
+	"Eat Leaf",
+	"Drink Water",
+};#assert(ACTION_TYPE_STRINGS.size == Compiler.types.ActionType.count);
+
+ActionDef:struct{
+	type:  ActionType;
+	time:  u32;
+	costs: f32[Compiler.types.NeedType.count];
+}
+
+Action:struct{
+	def:      ActionDef* #expand;
+	target:   Vec2i;
+	progress: f32;
+}
+
+ACTION_DEFINITIONS:ActionDef[]:{
+	{ActionType.IDLE,
+		time  = 1*TICKS_PER_WORLD_SECOND,
+		costs = {},
+	},
+	
+	{ActionType.WALK,
+		time  = UNKNOWN_ACTION_COMPLETION_TIME,
+		costs = {},
+	},
+	
+	{ActionType.DIG,
+		time  = 90*TICKS_PER_WORLD_SECOND,
+		costs = {
+			[NeedType.SLEEP] = .01,
+		},
+	},
+	
+	{ActionType.EAT_LEAF,
+		time  = 60*TICKS_PER_WORLD_SECOND,
+		costs = {
+			[NeedType.BLADDER] = .30,
+			[NeedType.FOOD]    = .30,
+			[NeedType.WATER]   = .10,
+		},
+	},
+	
+	{ActionType.DRINK_WATER,
+		time  = 30*TICKS_PER_WORLD_SECOND,
+		costs = {
+			[NeedType.BLADDER] = .30,
+			[NeedType.WATER]   = .90,
+		},
+	},
+};#assert(ACTION_DEFINITIONS.count == Compiler.types.ActionType.count);
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @agent
+
+
+Race:enum{
+	BLACK_GARDEN_ANT_QUEEN,
+	BLACK_GARDEN_ANT_MALE,
+	BLACK_GARDEN_ANT_WORKER,
+	COTTON_ANT_QUEEN,
+	COTTON_ANT_MALE,
+	COTTON_ANT_MINOR_WORKER,
+	COTTON_ANT_MAJOR_WORKER,
+}
+
+RACE_STRINGS:u8[][]:{
+	"Queen Black Garden Ant",
+	"Male Black Garden Ant",
+	"Worker Black Garden Ant",
+	"Queen Cotton Ant",
+	"Male Cotton Ant",
+	"Minor Worker Cotton Ant",
+	"Major Worker Cotton Ant",
+};#assert(RACE_STRINGS.count == Compiler.types.Race.count);
+
+RACE_SPECIES_STRINGS:u8[][]:{
+	"Lasius Niger",
+	"Lasius Niger",
+	"Lasius Niger",
+	"Solenopsis xyloni",
+	"Solenopsis xyloni",
+	"Solenopsis xyloni",
+	"Solenopsis xyloni",
+};#assert(RACE_SPECIES_STRINGS.count == Compiler.types.Race.count);
+
+Agent:struct{
+	entity: Entity #expand = { type = EntityType.AGENT };
+	using   SNode;
+	race:   Race;
+	needs:  Need[];
+
+	action_index:  u32;
+	active_advert: Advert*;
+
+	path:       u8[]; //list of movement directions
+	path_index: u32;  //progress along path
+}
+
+implicit(Entity* entity)->Agent*{
+	return (Agent*)((u8*)entity - Compiler.types.Agent.offsets.entity);
+}
+
+implicit(SNode* node)->Agent*{
+	return (Agent*)((u8*)node - Compiler.types.Agent.offsets.next);
+}
+
+agents: Heap;
+
+//TODO port agent creation/deletion
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @advert
+
+
+//TODO port adverts
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @world
+
+
+TICKS_PER_WORLD_SECOND :: 1;
+TICKS_PER_WORLD_MINUTE :: 60 * TICKS_PER_WORLD_SECOND;
+TICKS_PER_WORLD_HOUR   :: 60 * TICKS_PER_WORLD_MINUTE;
+TICKS_PER_WORLD_DAY    :: 24 * TICKS_PER_WORLD_HOUR;
+TICKS_PER_WORLD_MONTH  :: 30 * TICKS_PER_WORLD_DAY;
+TICKS_PER_WORLD_YEAR   :: 12 * TICKS_PER_WORLD_MONTH;
+
+setup_simulation:()->void(){
+	
+}
+
+update_simulation:()->void(){
+	
+}
+
+//TODO port world
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @ui
+
+
+setup_ui:()->void(){
+	
+}
+
+update_ui:()->void(){
+	
+}
+
+//TODO port ui
+
+
+//-////////////////////////////////////////////////////////////////////////////////////////////////
+//// @input
+
+
+update_input:()->void{
+	
+}
+
+//TODO port input
