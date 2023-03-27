@@ -1,0 +1,102 @@
+map : struct(?kT, ?vT){
+    #if !signature_exists(hash:(kT)->u64) error(f"the type {kT.name} must define a hash function before it can be used as a key in a map.");
+    keys   : kT[];
+    values : vT[];
+}
+
+// #compiletime if const(key) checks at if the key is a value determinable at compile time, 
+// and runs the functions at compiletime if so
+
+// returns the index where the iterator got to when looking for the key
+// and a boolean determining if it was found r not 
+find: (using map(?kT, ?vT), key: kT) -> u32, u32 
+#compiletime if const(key){
+    hash := key.hash();
+    index := -1;
+    middle := 0;
+    found := 0;
+    if(hashes.count){
+        left := 0;
+        right := hashes.count-1;
+        while(left <= right){
+            middle = left + (right-left)/2;
+            if(hashes[middle] == hash){
+                index = middle;
+                found = 1;
+                break;
+            }
+            if(hashes[middle] < key_hash){
+                left = middle+1;
+                middle = left+(right-left)/2;
+            }else{
+                right = middle-1;
+            }
+        }
+    }
+
+    return index,found;
+
+}
+
+has: (m: map(?kT, ?vT)*, key: kT) -> u32 
+#compiletime if const(key){
+    _,found := m.find(key); //would be nice if there were a way to do this on one line 
+    return found;
+}
+
+// tries to add a key to the map. the second value indicates if the key already existed
+add: (m: map(?kT, ?vT)*, key: kT, value: vT) -> u32 
+#compiletime if const(key) && const(value){
+    using m;
+    idx,found := m.find(key);
+    if(!found){
+        hashes.insert(idx, key);
+        values.insert(idx, value);
+    }
+    return idx, found;
+}
+
+operator [](m: map(?kT, ?vT), key: kT){
+    return m.find(key);
+}
+
+
+// example use
+
+#dontcompile
+
+Apple : struct{
+    is_rotten : u32;
+    is_delicious : u32;
+}
+
+Banana : struct {
+    curvature : f32;
+    calories : f32;
+}
+
+hash: (using Banana*) -> u64 {
+    return curvature << calories; // or something
+}
+
+main: () -> s32 {
+    // error: the type Apple must define a hash function before it can be used as a key in a map.
+    apples_to_bananas : map(Apple, Banana);
+
+    bananas_to_apples : map(Banana, Apple);
+
+    b0 : Banana = {2, 200};
+    b1 : Banana = {3, 400};
+
+    a0 : Apple = {0,1};
+    a1 : Apple = {1,0};
+
+    bananas_to_apples.add(b0, a0);
+    bananas_to_apples.add(b1, a1);
+
+    if(bananas_to_apples.has(b0)){
+        // true
+    }
+
+    print(bananas_to_apples[b0]); // prints the apple
+}
