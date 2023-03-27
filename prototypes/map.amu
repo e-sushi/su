@@ -1,5 +1,5 @@
 map : struct(?kT, ?vT){
-    #if !signature_exists(hash:(kT)->u64) error(f"the type {kT.name} must define a hash function before it can be used as a key in a map.");
+    #if(!signature_exists(hash:(kT)->u64)) error(f"the type {kT.name} must define a hash function before it can be used as a key in a map.");
     keys   : kT[];
     values : vT[];
 }
@@ -10,7 +10,7 @@ map : struct(?kT, ?vT){
 // returns the index where the iterator got to when looking for the key
 // and a boolean determining if it was found r not 
 find: (using map(?kT, ?vT), key: kT) -> u32, u32 
-#compiletime if const(key){
+#compiletime if(const(key)){
     hash := key.hash();
     index := -1;
     middle := 0;
@@ -39,14 +39,14 @@ find: (using map(?kT, ?vT), key: kT) -> u32, u32
 }
 
 has: (m: map(?kT, ?vT)*, key: kT) -> u32 
-#compiletime if const(key){
+#if(const(key)) compiletime{
     _,found := m.find(key); //would be nice if there were a way to do this on one line 
     return found;
 }
 
 // tries to add a key to the map. the second value indicates if the key already existed
 add: (m: map(?kT, ?vT)*, key: kT, value: vT) -> u32 
-#compiletime if const(key) && const(value){
+#if(const(key) && const(value)) compiletime{
     using m;
     idx,found := m.find(key);
     if(!found){
