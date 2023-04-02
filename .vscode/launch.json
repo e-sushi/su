@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(Windows) Launch",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debug/amu.exe",
+            "args": [],
+            "presentation": {
+                "hidden": false,
+                "group": "",
+                "order": 1,
+            },
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "",
+            "internalConsoleOptions": "openOnSessionStart",
+            "visualizerFile": "${workspaceFolder}/deshi/src/kigu/debugvis.natvis",
+            
+        }
+    ]
+}

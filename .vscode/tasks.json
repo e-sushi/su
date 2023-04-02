@@ -1,0 +1,94 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "buildscript",
+            "type": "shell",
+            "command": "sh.exe",
+            "options": {
+                "cwd": "${workspaceFolder}/misc/"
+            },
+            "presentation": {
+                "echo": false,
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "args":[
+                "build.sh",
+                "--time",
+                //"-graphics",
+                //"opengl",
+                // "-compiler",
+                // "clang",
+                // "-linker",
+                // "ld",
+                //"--v",
+                //"--s",
+                //"--p"
+            ]
+        },
+        {
+            "label": "cl build",
+            "type": "shell",
+            "command": "cl.exe",
+            "args": [
+                "/Zi",
+                "/permissive",
+                "/diagnostics:column",
+                "/EHsc",
+                "/nologo",
+                "/MD",
+                "/MP",
+                "/Oi",
+                "/GR",
+                "/Gm-",
+                "/Fm",
+                "/utf-8",
+                "/w",
+                "/std:c++17",
+                "/F104857600",
+                //"/D\"DESHI_WAIT_FOR_TRACY_CONNECTION\"",
+                "/D\"TRACY_ON_DEMAND\"",
+                "/D\"TRACY_NO_EXIT\"",
+                //"/D\"TRACY_ENABLE\"",
+                "/D\"BUILD_SLOW=1\"",
+                "/D\"BUILD_INTERNAL=1\"",
+                "/D\"DESHI_WINDOWS=1\"",
+                "/D\"DESHI_VULKAN=1\"",
+                //"/D\"DESHI_OPENGL=1\"",
+                //"/D\"DESHI_ALLOW_CHARINPUT_CONTROLCHARS\""
+                "/I\"C:/src/tracy-0.7.8\"",
+                "/I\"C:/src/graphviz/include/\"",
+                "/I\"src\"",
+                "/I\"deshi/src\"", 
+                "/I\"deshi/src/external\"", 
+                "/I\"C:/src/glfw-3.3.2.bin.WIN64/include\"", //need to make env vars for these
+                "/I\"C:/VulkanSDK/1.2.162.1/include\"",
+                "/I\"C:/src/asio-1.22.1/include\"",
+                "deshi/src/deshi.cpp",
+                "src/main.cpp",
+                "/Fe:build/debug/sandbox.exe",
+                "/Fo\"build/debug/\"",
+                "/Fd",
+                "/link",
+                "/nologo",
+                "/opt:ref",
+                "/incremental:no",
+                "/libpath:C:/src/glfw-3.3.2.bin.WIN64/lib-vc2019", 
+                "/libpath:C:/VulkanSDK/1.2.162.1/lib", 
+                "/libpath:C:\\src\\graphviz\\lib",
+                "glfw3.lib", 
+                "opengl32.lib", 
+                "gdi32.lib", 
+                "shell32.lib", 
+                "Ws2_32.lib",
+                "vulkan-1.lib", 
+                "shaderc_combined.lib",
+                "cdt.lib",
+                "cgraph.lib",
+                "gvc.lib",
+            ]
+        },
+        
+    ]
+}
