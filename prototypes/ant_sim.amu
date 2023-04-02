@@ -113,7 +113,7 @@ make_entity:(type:EntityType, flags:EntityFlags=EntityFlags.NONE, pos:Vec2i={0,0
 	return entity;
 }
 
-destroy:(Entity* entity)->void{
+destroy:(entity:Entity*)->void{
 	if(entity == get_entity(entity.pos)){
 		if(overlap.next){
 			set_entity(entity.pos, overlap.next);
@@ -167,7 +167,7 @@ tick:(using Need*)->void{
 
 MAX_NEED_TYPE_STRING_WIDTH::#run()->u32{
 	u32 max = 0;
-	for(s in NEED_TYPE_STRINGS){
+	for(s:u8[] in NEED_TYPE_STRINGS){
 		if(s.count > max){
 			max = s.count;
 		}
