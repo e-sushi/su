@@ -5,6 +5,7 @@
 	[
 		{ "include": "#block-comments" },
 		{ "include": "#comments" },
+		{ "include": "#labels" },
 		{ "include": "#directives" },
 		{ "include": "#keywords" },
 		{ "include": "#literals" },
@@ -39,31 +40,51 @@
 				}
 			]
 		},
+		"labels":{
+			"patterns":
+			[
+				{ "match": "([a-fA-F_]?\\w+)\\s*(:)\\s*(#import)\\s+([a-fA-F_]?\\w+)\\s*[;{]",
+					"captures":{
+						"1":{ "name": "entity.name.namespace.amu" },
+						"2":{ "name": "keyword.operator.amu" },
+						"3":{ "name": "keyword.control.directive.import.amu" },
+						"4":{ "name": "entity.name.namespace.amu" }
+					}
+				}
+			]
+		},
 		"directives":{
 			"patterns":
 			[
-				{ "match": "(#if|#else) ",
+				{ "match": "\b(#if|#else)\b",
 					"name": "keyword.control.directive.conditional.amu"
 				},
-				{ "match": "(#inline) ",
+				{ "match": "\b(#inline)\b",
 					"name": "keyword.control.directive.function.inline.amu"
 				},
-				{ "match": "(#compile_time) ",
+				{ "match": "\b(#compiletime)\b",
 					"name": "keyword.control.directive.function.compile_time.amu"
 				},
-				{ "match": "(#must) ",
+				{ "match": "\b(#must)\b",
 					"name": "keyword.control.directive.function.must.amu"
 				},
-				{ "match": "(#import)\\s+([^\"]+)",
+				{ "match": "\b(#assert)\b",
+					"name": "keyword.control.directive.assert.amu"
+				},
+				{ "match": "\b(#expand)\b",
+					"name": "keyword.control.directive.declaration.expand.amu"
+				},
+				{ "match": "(#import)\\s+([a-fA-F_]?\\w+)\\s*[;{]",
 					"captures":{
-						"1":{ "name": "keyword.control.directive.import.amu" }
+						"1":{ "name": "keyword.control.directive.import.amu" },
+						"2":{ "name": "entity.name.namespace.amu" }
 					}
 				},
 				{ "match": "(#import)\\s+(\")([^\"]+)(\")",
 					"captures":{
 						"1":{ "name": "keyword.control.directive.import.amu" },
 						"2":{ "name": "punctuation.definition.string.import.begin.amu" },
-						"3":{ "name": "string.quoted.other.import" },
+						"3":{ "name": "string.quoted.other.import.amu" },
 						"4":{ "name": "punctuation.definition.string.import.end.amu" }
 					}
 				},
@@ -71,14 +92,14 @@
 					"captures":{
 						"1":{ "name": "keyword.control.directive.import.amu" },
 						"2":{ "name": "punctuation.definition.string.import.begin.amu" },
-						"3":{ "name": "string.quoted.other.import" }
+						"3":{ "name": "string.quoted.other.import.amu" }
 					}
 				},
 				{ "match": "(#inline)\\s+(\")([^\"]+)(\")",
 					"captures":{
 						"1":{ "name": "keyword.control.directive.inline.amu" },
 						"2":{ "name": "punctuation.definition.string.inline.begin.amu" },
-						"3":{ "name": "string.quoted.other.inline" },
+						"3":{ "name": "string.quoted.other.inline.amu" },
 						"4":{ "name": "punctuation.definition.string.inline.end.amu" }
 					}
 				},
@@ -86,7 +107,7 @@
 					"captures":{
 						"1":{ "name": "keyword.control.directive.inline.amu" },
 						"2":{ "name": "punctuation.definition.string.inline.begin.amu" },
-						"3":{ "name": "string.quoted.other.inline" }
+						"3":{ "name": "string.quoted.other.inline.amu" }
 					}
 				},
 				{ "match": "(#scope_export|#scope_file|#scope_module) ",
@@ -97,7 +118,7 @@
 		"keywords":{
 			"patterns":
 			[
-				{ "match": "\\b(if|else|switch|case)\\b",
+				{ "match": "\\b(if|else|switch|case|default)\\b",
 					"name": "keyword.control.conditional.amu"
 				},
 				{ "match": "\\b(return|break|continue)\\b",
