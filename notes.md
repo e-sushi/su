@@ -50,5 +50,21 @@ The lexer is currently not multithreaded, but it probably can be. One case where
 
 ### semantic analysis
 
+---
+
 ## language
 Notes about the syntax and features of the language itself.
+
+### struct
+> **2023-04-05 12:44:09**: ?! <br>
+Singleton anonymous structs are somewhat difficult to implement in the syntax. Originally, I had wanted to use the syntax
+> ```
+> name :: struct {}
+> ```
+> the idea being that since variables are declared as `name : type`, and structs are decalred as `name : struct`, and anonymous struct is just `:struct`, and you chain the syntax to make what I originally wanted. However, delle brought up that we need a constant syntax and showed that in jai, they use `::`. I kept coming up with a constant syntax for amu in the back of my mind for awhile, but couldn't settle on one. When delle was writing the ant_sim prototype, he came up with the syntax 
+>``` 
+> name : using struct{}
+>```
+> I think this syntax is very nice, but it doesn't mesh well with how I interpret `using` (which I actually didn't realize until delle pointed it out to me). What this means with my current interpretation of `using` is that the struct on the right hand side will have its members taken out and put into `name`. For a struct what this means is that we are aliasing the name used to declare a variable of that type. 
+
+### using 
