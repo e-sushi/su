@@ -131,8 +131,6 @@ enum{
 	Message_Note
 };
 
-
-
 //~////////////////////////////////////////////////////////////////////////////////////////////////
 //// Nodes
 enum NodeType : u32 {
@@ -144,12 +142,13 @@ enum NodeType : u32 {
 	NodeType_Statement,
 	NodeType_Expression,
 	NodeType_Module,
+	NodeType_Label,
 };
 
 //thread safe version of TNode
 //this only accounts for modifying a node, not reading it
 //but I believe that modification and reading shouldnt happen at the same time, so its probably fine
-//TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is parser adding stuff to its base node
+//TODO(sushi) decide if this is necessary, the only place threading becomes a problem with this is syntax_analyzer adding stuff to its base node
 //            but that can be deferred.
 struct amuNode{
 	Type  type;
@@ -160,7 +159,7 @@ struct amuNode{
 	amuNode* parent = 0;
 	amuNode* first_child = 0;
 	amuNode* last_child = 0;
-	u32     child_count = 0;
+	u32      child_count = 0;
 	
 	mutex lock;
 
@@ -230,7 +229,6 @@ global inline void insert_before(amuNode* target, amuNode* node) { DPZoneScoped;
       O   N  
 	NOTE still connected to parent! this causes an incorrect structure, so you must remove from parent as well
 */
-
 global inline void remove_horizontally(amuNode* node) { DPZoneScoped;
 	mutex_lock(&node->lock);
 	defer {mutex_unlock(&node->lock);};
@@ -856,6 +854,8 @@ struct nodemap{
 		Assert(idx < data.count);
 		return data[idx].second;
 	}
+
+
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
@@ -931,7 +931,7 @@ global str8 registers_x64[] = {
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Lexer
+//// LexicalAnalyzer
 enum{
 	Token_Null = 0,
 	Token_ERROR = 0,                // when something doesnt make sense during lexing
@@ -963,6 +963,7 @@ enum{
 	Token_At,                             // @
 	Token_Pound,                          // #
 	Token_Backtick,                       // `
+	Token_FunctionArrow,                  // ->
 	
 	//// operators ////
 	TokenGroup_Operator,
@@ -1012,7 +1013,7 @@ enum{
 	Token_Continue,                    // continue
 	Token_Defer,                       // defer
 	Token_StructDecl,                  // struct
-	Token_NamespaceDecl,               // namespace
+	Token_ModuleDecl,                  // module
 	Token_This,                        // this
 	Token_Using,                       // using
 	Token_As,                          // as
@@ -1021,7 +1022,7 @@ enum{
 	//// types  ////
 	TokenGroup_Type,
 	Token_Void = TokenGroup_Type, // void
-	//NOTE(sushi) the order of these entries matter, primarily for type conversion reasons. see Validator::init
+	//NOTE(sushi) the order of these entries matter, primarily for type conversion reasons. see SemanticAnalyzer::init
 	Token_Unsigned8,              // u8
 	Token_Unsigned16,             // u16
 	Token_Unsigned32,             // u32 
@@ -1240,14 +1241,14 @@ str8 token_type_str(Type type){
 		case Token_Void:                     return STR8("void");
 		case Token_Unsigned8:                return STR8("u8");
 		case Token_Unsigned16:               return STR8("u16");
-		case Token_Unsigned32:               return STR8("u32 ");
-		case Token_Unsigned64:               return STR8("u64 ");
+		case Token_Unsigned32:               return STR8("u32");
+		case Token_Unsigned64:               return STR8("u64");
 		case Token_Signed8:                  return STR8("s8");
-		case Token_Signed16:                 return STR8("s16 ");
-		case Token_Signed32:                 return STR8("s32 ");
+		case Token_Signed16:                 return STR8("s16");
+		case Token_Signed32:                 return STR8("s32");
 		case Token_Signed64:                 return STR8("s64");
-		case Token_Float32:                  return STR8("f32 ");
-		case Token_Float64:                  return STR8("f64 ");
+		case Token_Float32:                  return STR8("f32");
+		case Token_Float64:                  return STR8("f64");
 		case Token_String:                   return STR8("str");
 		case Token_Any:                      return STR8("any");
 		case Token_Struct:                   return STR8("struct");
@@ -1291,6 +1292,11 @@ enum {
 
 	Expression_Identifier,
 	
+	Expression_IdentifierModule,
+	Expression_IdentifierStruct,
+	Expression_IdentifierVariable,
+	Expression_IdentifierFunction,
+
 	Expression_FunctionCall,
 	
 	//Special ternary conditional expression type
@@ -1348,6 +1354,11 @@ static str8 ExTypeStrings[] = {
 	STR8("null"),//Expression_NULL,
 
 	STR8("id"),//Expression_Identifier,
+
+	STR8("module_id"), 
+	STR8("struct_id"), 
+	STR8("variable_id"), 
+	STR8("function_id"), 
 	
 	STR8("call"),//Expression_FunctionCall,
 	
@@ -1478,7 +1489,7 @@ struct Statement {
 	Token* token_start;
 	Token* token_end;
 	
-	Type type = Statement_Unknown;
+	Type type;
 };
 
 struct Scope {
@@ -1486,17 +1497,58 @@ struct Scope {
 	Token* token_start;
 	Token* token_end;
 	
-	b32 has_return_statement = false;
+	b32 has_return_statement;
 };
 
 struct Module;
 struct Struct;
 struct Variable;
 struct Function;
-struct ParserThread;
+struct SyntaxAnalyzerThread;
+struct Entity;
+
+enum{
+	Declaration_Unknown,
+	Declaration_Label,
+	Declaration_Function,
+	Declaration_Variable,
+	Declaration_Structure,
+	Declaration_Module,
+};
+
+// the handle of anything in amu
+struct Label {
+	amuNode node;
+	str8 identifier;
+
+	Entity* entity; // entity this label belongs to 
+	Label* original; // if this label is an alias of another label, we point to it with this
+};
+
+enum{
+	Entity_Unknown,
+	Entity_Variable,
+	Entity_Function,
+	Entity_Structure,
+	Entity_Module,
+	Entity_Loop,
+};
+
+// represents anything that may have a label in amu
+struct Entity {
+	amuNode node;
+	Type type;
+
+	Label* label; // the label for this entity. 0 indicates an anonymous entity.
+ 
+	str8 internal_label; // the label of this entity that is distinct from the label assigned to it.
+
+	Token* token_start;
+	Token* token_end;
+};
 
 //represents information about an original declaration and is stored on 
-//Struct,Function,and Variable.
+//Struct, Function, Variable, and Module
 struct Declaration{
 	amuNode node;
 	Token* token_start;
@@ -1515,7 +1567,7 @@ struct Declaration{
 };
 
 struct Function {
-	Declaration decl;
+	Entity entity;
 	//an array of overloads
 	//this is only used on the base Function that represents overloads
 	amuArena<Function*> overloads;
@@ -1537,7 +1589,7 @@ struct Function {
 };
 
 struct Variable{
-	Declaration decl;
+	Entity entity; 	
 
 	u32 initialized; // set true when this variable is given a value where it is declared
 
@@ -1548,13 +1600,14 @@ struct Variable{
 };
 
 struct Struct {
-	Declaration decl;
+	Entity entity;
 	u64 size; //size of struct in bytes
 
 	//set to 0 if this is a user defined struct
 	//otherwise this struct is something that is built in
 	//and is indiciated by the DataType_* types
 	Type type;
+
 	
 	nodemap members;
 
@@ -1566,16 +1619,11 @@ struct Struct {
 };
 
 struct Module{
-	Declaration decl;
-	nodemap members;
-};
-
-enum{
-	Declaration_Unknown,
-	Declaration_Function,
-	Declaration_Variable,
-	Declaration_Structure,
-	Declaration_Namespace,
+	Entity entity;
+	// in order to nicely support overloading, we store a main function node
+	// representing all of the functions here. the main function is just the 
+	// first one we come across.
+	nodemap functions;
 };
 
 struct Program {
@@ -1587,6 +1635,7 @@ struct Program {
 enum {
 	psFile,
 	psDirective,
+	psLabel,
 	psImport,
 	psRun,
 	psScope,
@@ -1608,30 +1657,6 @@ enum {
 	psFactor,
 	psInitializer,
 	psType,
-};
-
-const str8 psStrs[] = {
-	STR8("File"),
-	STR8("Directive"),
-	STR8("Import"),
-	STR8("Run"),
-	STR8("Scope"),
-	STR8("Declaration"),
-	STR8("Statement"),
-	STR8("Expression"),
-	STR8("Conditional"),
-	STR8("LogicalOR"),  
-	STR8("LogicalAND"), 
-	STR8("BitwiseOR"),  
-	STR8("BitwiseXOR"), 
-	STR8("BitwiseAND"), 
-	STR8("Equality"),   
-	STR8("Relational"), 
-	STR8("Bitshift"),   
-	STR8("Additive"),   
-	STR8("Term"),       
-	STR8("Access"),
-	STR8("Factor"),     
 };
 
 enum{
@@ -1862,13 +1887,15 @@ struct amuFile{
 		amuArena<u32> internals;    // list of internal tokens
 		amuArena<u32> runs;         // list of run tokens
 		
+		amuArena<u32> labels; // list of : tokens
+
 		b32 failed;
-	}lexer;
+	}lexical_analyzer;
 
 	struct{ // preprocessor
 		amuArena<amuFile*> imported_files;
 		// these declarations are tokens that the preprocessor THINKS should be either internal or exported,
-		// but it could be wrong. this is resolved by the parser.
+		// but it could be wrong. this is resolved by the syntax_analyzer.
 		amuArena<u32> exported_decl;
 		amuArena<u32> internal_decl;
 		amuArena<u32> runs;
@@ -1876,10 +1903,7 @@ struct amuFile{
 		b32 failed;
 	}preprocessor;
 
-	struct{ // parser
-		//node that all top-level declarations attach to 
-		amuNode base;
-
+	struct{ // syntax_analyzer
 		//arrays organizing toplevel declarations and import directives
 		amuArena<Statement*> import_directives;
 		//TODO(sushi) it may not be necessary to have exported and imported in separate arrays anymore
@@ -1888,34 +1912,32 @@ struct amuFile{
 		amuArena<Declaration*> internal_decl;
 
 		b32 failed;
-	}parser;
+	}syntax_analyzer;
+		
 
 	struct{
-		//known functions stored in a map 
-		//this is to support overloading, as every function identifier is stored in this once
-		//with each overload accessible through nodes
-		nodemap functions;
-
+		// TODO(sushi) remove this struct if no other vars are added to it.
 		b32 failed;
-	}validator;
+	}semantic_analyzer;
+
+	// the module representing this file. this is where the AST of the file lives 
+	Module* module;
 
 	void init(){
-		lexer.tokens.init();
-		lexer.declarations.init();
-		lexer.imports.init();
-		lexer.internals.init();
-		lexer.runs.init();
+		lexical_analyzer.tokens.init();
+		lexical_analyzer.declarations.init();
+		lexical_analyzer.imports.init();
+		lexical_analyzer.internals.init();
+		lexical_analyzer.labels.init();
+		lexical_analyzer.runs.init();
 		preprocessor.imported_files.init();
 		preprocessor.exported_decl.init();
 		preprocessor.internal_decl.init();
 		preprocessor.runs.init();
-		parser.import_directives.init();
-		parser.exported_decl.init();
-		parser.imported_decl.init();
-		parser.internal_decl.init();
-		parser.base.debug = STR8("base");
-		parser.base.lock = mutex_init();
-		validator.functions.init();
+		syntax_analyzer.import_directives.init();
+		syntax_analyzer.exported_decl.init();
+		syntax_analyzer.imported_decl.init();
+		syntax_analyzer.internal_decl.init();
 		cv.lex = condition_variable_init();
 		cv.preprocess = condition_variable_init();
 		cv.parse = condition_variable_init();
@@ -1924,9 +1946,9 @@ struct amuFile{
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Lexer
+//// LexicalAnalyzer
 
-struct Lexer {
+struct LexicalAnalyzer {
 	amuFile* amufile;
 	void lex();
 };
@@ -1940,17 +1962,21 @@ struct Preprocessor {
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Parser
+//// SyntaxAnalyzer
 
-struct Parser;
-struct ParserThread{
+struct SyntaxAnalyzer;
+struct SyntaxAnalyzerThread{
 	amuFile* amufile;
 	
-	Parser* parser;
+	SyntaxAnalyzer* syntax_analyzer;
 	Type stage; //entry stage
 
 	amuNode* node;
 	Token* curt;
+
+	// to give better error messages, we store a stack of labels so that we may refer back to them 
+	amuArena<Label*> label_stack;
+	Label* current_label;
 
 	b32 is_internal;
 	b32 parsing_func_args = 0;
@@ -1981,35 +2007,42 @@ struct ParserThread{
 		return (((curt + 1)->group == in) || ...);
 	}
 
+	template<typename ...args> FORCE_INLINE b32
+	prev_match(args... in){DPZoneScoped;
+		return (((curt-1)->type == in) || ...);
+	}
+
+	template<typename ...args> FORCE_INLINE b32
+	prev_match_group(args... in){DPZoneScoped;
+		return (((curt-1)->group == in) || ...);
+	}
+
 	template<typename... T>
 	amuNode* binop_parse(amuNode* node, amuNode* ret, Type next_stage, T... tokchecks);
 };
 
-struct Parser {
-	array<ParserThread> threads;
+struct SyntaxAnalyzer {
+	amuArena<SyntaxAnalyzerThread> threads;
 
-	//map of identifiers to global declarations
-	nodemap pending_globals;
-
-	//file the parser is working in
+	//file the syntax_analyzer is working in
 	amuFile* amufile;
 
-	void parse();
+	void analyze();
 };
 
-void parse_threaded_stub(void* pthreadinfo){DPZoneScoped;
-	SetThreadName("parser thread started.");
-	ParserThread* pt = (ParserThread*)pthreadinfo;
-	pt->amufile = pt->parser->amufile;
+void semantic_analyzer_threaded_stub(void* pthreadinfo){DPZoneScoped;
+	SetThreadName("syntax_analyzer thread started.");
+	SyntaxAnalyzerThread* pt = (SyntaxAnalyzerThread*)pthreadinfo;
+	pt->amufile = pt->syntax_analyzer->amufile;
 	pt->define(pt->node, pt->stage);
 	pt->finished = 1;
 	condition_variable_notify_all(&pt->cv);
 }
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
-//// Validator
+//// SemanticAnalyzer
 
-struct Validator{
+struct SemanticAnalyzer{
 	amuFile* amufile;
 
 	//keeps track of what element we are currently working in
@@ -2081,12 +2114,14 @@ struct CompilerReport{
 	amuArena<amuFile*> units; // array of amuFiles created by this compile request
 };
 
-struct Compiler{
+struct  Compiler{
 	Stopwatch ctime;
 
 	amuLogger logger;
 
 	b32 failed;
+
+	str8 working_dir = STR8("tests/_/");
 
 	//TODO(sushi) we probably want to just chunk arenas for suFiles instead of randomly allocating them.
 	map<str8, amuFile*> files;
@@ -2113,6 +2148,25 @@ struct Compiler{
 				Struct* str;
 			};
 		}types;
+		union{
+			Label* arr[14];
+			struct{
+				Label* void_;
+				Label* unsigned8;
+				Label* unsigned16;
+				Label* unsigned32;
+				Label* unsigned64;
+				Label* signed8;
+				Label* signed16;
+				Label* signed32;
+				Label* signed64;
+				Label* float32;
+				Label* float64;
+				Label* ptr;
+				Label* any;
+				Label* str;
+			};
+		}labels;
 	}builtin;
 
 	//locked when doing non-thread safe stuff 
@@ -2120,7 +2174,7 @@ struct Compiler{
 	struct{
 		mutex lexer;
 		mutex preprocessor;
-		mutex parser;
+		mutex syntax_analyzer;
 		mutex log; //lock when using logger
 		mutex compile_request;
 	}mutexes;
@@ -2175,20 +2229,33 @@ str8 type_token_to_str(Type type){
     return STR8("UNKNOWN DATA TYPE");
 }
 
-str8 get_typename(Variable* v)  { return v->data.structure->decl.identifier; }
-str8 get_typename(Expression* e){ return e->data.structure->decl.identifier; }
-str8 get_typename(Struct* s)    { return s->decl.identifier; }
-str8 get_typename(Function* f)  { return f->data.structure->decl.identifier; }
-
-str8 get_typename(amuNode* n){
-	switch(n->type){
-		case NodeType_Variable:   return get_typename((Variable*)n);
-		case NodeType_Expression: return get_typename((Expression*)n);
-		case NodeType_Structure:  return get_typename((Struct*)n);
-		default: Assert(false,"Invalid node type given to get_typename()"); return {0};
-	}
-	return {0};
+str8 get_typename(Variable* v){ 
+	if(v->data.structure->entity.label) return v->data.structure->entity.label->identifier;
+	return v->data.structure->entity.internal_label;
 }
+str8 get_typename(Expression* e){ 
+	if(e->data.structure->entity.label) return e->data.structure->entity.label->identifier;
+	return e->data.structure->entity.internal_label; 
+}
+str8 get_typename(Struct* s){ 
+	if(s->entity.label) return s->entity.label->identifier;
+	return s->entity.internal_label;
+}
+str8 get_typename(Function* f){ 
+	if(f->data.structure->entity.label) return f->data.structure->entity.label->identifier;
+	return f->data.structure->entity.internal_label; 
+}
+
+// reimplement this if it ever is needed
+// str8 get_typename(amuNode* n){
+// 	switch(n->type){
+// 		case NodeType_Variable:   return get_typename((Variable*)n);
+// 		case NodeType_Expression: return get_typename((Expression*)n);
+// 		case NodeType_Structure:  return get_typename((Struct*)n);
+// 		default: Assert(false,"Invalid node type given to get_typename()"); return {0};
+// 	}
+// 	return {0};
+// }
 
 u64 builtin_sizes(Type type){
 	switch(type){
@@ -2263,13 +2330,18 @@ b32 is_expression_type(amuNode* n, Type type){
 str8 show(Function* f, b32 display_var_names = 1){
 	Assert(!f->overloads.count, "gen_sig_func was passed an overload base");
 
+	// TODO(sushi) setup showing anonymous functions
+	if(!f->entity.label){
+		FixMe; 
+	}
+
 	str8b b; str8_builder_init(&b, STR8(""), deshi_temp_allocator);
-	str8_builder_append(&b, f->decl.identifier);
+	str8_builder_append(&b, f->entity.label->identifier);
 	str8_builder_append(&b, STR8("("));
 	forI(f->args.count){
 		Variable* arg = f->args[i];
 		if(display_var_names){
-			str8_builder_append(&b, arg->decl.identifier);
+			str8_builder_append(&b, arg->entity.label->identifier);
 			str8_builder_append(&b, STR8(":"));
 		}
 		str8_builder_append(&b, get_typename(arg));
@@ -2301,15 +2373,16 @@ struct{
 	amuChunkedArena<Expression> expressions;
 	amuChunkedArena<Statement>  statements;
 	amuChunkedArena<Module>     modules;
+	amuChunkedArena<Label>      labels;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
 	Function* make_function(str8 debugmsg = STR8("")){DPZoneScoped;
 		Function* function = functions.add(Function());
 		//compiler.logger.log(Verbosity_Debug, "Making a function with debug message ", debugmsg);
-		function->decl.node.lock = mutex_init();
-		function->decl.node.type = NodeType_Function;
-		function->decl.node.debug = debugmsg;
+		function->entity.node.lock = mutex_init();
+		function->entity.node.type = NodeType_Function;
+		function->entity.node.debug = debugmsg;
 		return function;
 	}
 
@@ -2317,9 +2390,9 @@ struct{
 	Variable* make_variable(str8 debugmsg = STR8("")){DPZoneScoped;
 		Variable* variable = variables.add(Variable());
 		//compiler.logger.log(Verbosity_Debug, "Making a variable with debug message ", debugmsg);
-		variable->decl.node.lock = mutex_init();
-		variable->decl.node.type = NodeType_Variable;
-		variable->decl.node.debug = debugmsg;
+		variable->entity.node.lock = mutex_init();
+		variable->entity.node.type = NodeType_Variable;
+		variable->entity.node.debug = debugmsg;
 		return variable;
 	}
 
@@ -2327,9 +2400,11 @@ struct{
 	Struct* make_struct(str8 debugmsg = STR8("")){DPZoneScoped;
 		Struct* structure = structs.add(Struct());
 		//compiler.logger.log(Verbosity_Debug, "Making a structure with debug message ", debugmsg);
-		structure->decl.node.lock = mutex_init();
-		structure->decl.node.type = NodeType_Structure;
-		structure->decl.node.debug = debugmsg;
+		structure->entity.node.lock = mutex_init();
+		structure->entity.node.type = NodeType_Structure;
+		structure->entity.node.debug = debugmsg;
+		structure->members.init();
+		structure->conversions.init();
 		return structure;
 	}
 
@@ -2367,10 +2442,20 @@ struct{
 	Module* make_module(str8 debugmsg = STR8("")){DPZoneScoped;
 		Module* module = modules.add(Module());
 		//compiler.logger.log(Verbosity_Debug, "Making a ns with debug message ", debugmsg);
-		module->decl.node.lock = mutex_init();
-		module->decl.node.type = NodeType_Module;
-		module->decl.node.debug = debugmsg;
+		module->entity.node.lock = mutex_init();
+		module->entity.node.type = NodeType_Module;
+		module->entity.node.debug = debugmsg;
 		return module;
+	}
+
+	FORCE_INLINE
+	Label* make_label(str8 debugmsg = STR8("")){DPZoneScoped;
+		Label* label = labels.add(Label());
+		//compiler.logger.log(Verbosity_Debug, "Making a ns with debug message ", debugmsg);
+		label->node.lock = mutex_init();
+		label->node.type = NodeType_Label;
+		label->node.debug = debugmsg;
+		return label;
 	}
 
 	FORCE_INLINE
@@ -2382,6 +2467,7 @@ struct{
 		expressions.init(256); 
 		statements.init(256);
 		modules.init(256);
+		labels.init(256);
 	}
 
 }arena;

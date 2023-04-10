@@ -1,25 +1,28 @@
-            file = { decl | directive ";" }
+            file = { label | multi-label | directive ";" }
+
+           scope = "{" { ( statement | decl ) } "}"
+
+           label = id ":" 
+                 ( decl
+                 | import
+                 )
+       var-label = id ":" var-decl
+     multi-label = id { "," id } ":" var-decl
+
+     struct-decl = "struct" "(" arg { "," arg } ")" "{" { label } "}"
+     module-decl = "module" "(" arg { "," arg } ")" "{" decl "}"
+        var-decl = type { [ "*" ] | "[" [ int | ".." ] "]" } [ "=" exp ] ";"
+       func-decl = label function
 
             decl = struct-decl
                  | module-decl
                  | func-decl
                  | var-decl
 
-           scope = "{" { ( statement | decl ) } "}"
-
-           label = id ":"
-     multi-label = id { "," id } ":"
-
-     struct-decl = [ label ] "struct" "(" arg { "," arg } ")" "{" { struct-decl | var-decl } "}"
-     module-decl = [ label ] "module" "(" arg { "," arg } ")" "{" decl "}"
-        var-decl = label type { [ "*" ] | "[" [ int ] "]" } [ "=" exp ] ";"
-                 | multi-label "=" call ";"
-                 | multi-label type { [ "*" ] | "[" [ int ] "]" }  ";"
-                 | multi-label ( "=" | ":" ) ( literal | struct-label initializer ) ";"
-       func-decl = label function
-
-
        statement = scope 
+                 | decl
+                 | label
+                 | multi-label
                  | directive ";"
                  | exp ";"
                  | [ label ] "using" module-label ";" 
@@ -48,6 +51,7 @@
             term = access { ( "*" | "/" | "%" ) } access
           access = factor { "." access } 
           factor = unary factor
+                 | factor "$"
                  | literal
                  | access
                  | call
@@ -59,15 +63,18 @@
            unary = "!" | "-" | "~"
             call = func-label "(" [ arg { "," arg } ] ")"
                  | var-label "." func-label "(" [ arg { "," arg } ] ")"
-             arg = exp | id "=" exp
      initializer = "{" [ exp { "," exp } [ "," ] }
             cast = "<" type ">" exp
      reinterpret = "<" "!" type ">" exp
         function = "(" arg { "," arg } ")" "->" type { "," type } scope
+             arg = exp | id "=" exp | "?" id
+       parameter = var-label | "?" id 
 
             type = scalar-type | struct-id | ( module-id | struct-id ) { "." subtype }
          subtype = struct-id | ( module-id | struct-id ) { "." subtype }
      scalar-type = "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64"
+
+          import = "#" "import" ( id | string ) // TODO(sushi)
 
       decl-label = ( module-label | struct-label | func-label | var-label )
     module-label = ? a label referencing a module ? 

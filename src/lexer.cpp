@@ -69,10 +69,10 @@ stream_next;                  \
 }break;
 
 #define lex_error(token, ...)\
-LogE("lexer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
+LogE("lexical_analyzer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
 
 #define lex_warn(token, ...)\
-LogW("lexer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
+LogW("lexical_analyzer", token.file, "(",token.l0,",",token.c0,"): ", __VA_ARGS__)
 
 #define str8case(str) str8_static_hash64(str8_static_t(str))
 
@@ -89,7 +89,7 @@ token_is_keyword_or_identifier(str8 raw){DPZoneScoped;
 		case str8case("continue"):  return Token_Continue;
 		case str8case("defer"):     return Token_Defer;
 		case str8case("struct"):    return Token_StructDecl;
-		case str8case("namespace"): return Token_NamespaceDecl;
+		case str8case("module"):    return Token_ModuleDecl;
 		case str8case("this"):      return Token_This;
 		case str8case("void"):      return Token_Void;
 		case str8case("s8"):        return Token_Signed8;
@@ -162,7 +162,7 @@ b32 is_identifier_char(u32 codepoint){
 
 #define stream_next { str8_advance(&stream); line_col++; } 
 
-void Lexer::lex(){DPZoneScoped;
+void LexicalAnalyzer::lex(){DPZoneScoped;
 	amuLogger& logger = amufile->logger; 
 	logger.log(Verbosity_Stages, "Lexing...");
 
@@ -197,7 +197,7 @@ void Lexer::lex(){DPZoneScoped;
 		token.c0 = line_col;
 		token.line_start = line_start;
 		token.scope_depth = scope_depth;
-		token.idx = amufile->lexer.tokens.count;
+		token.idx = amufile->lexical_analyzer.tokens.count;
 		token.raw.str = stream.str;
 		//TODO(sushi) this method of inferring global or local scope is prone to error 
 		//            either get rid of it or find a better way 
@@ -241,7 +241,7 @@ void Lexer::lex(){DPZoneScoped;
 
 				token.l1 = line_num;
 	 			token.c1 = line_col;
-	 			amufile->lexer.tokens.add(token);
+	 			amufile->lexical_analyzer.tokens.add(token);
 			}continue;
 
 			case '\'':{
@@ -253,14 +253,14 @@ void Lexer::lex(){DPZoneScoped;
 					stream_next; 
 					if(*stream.str == 0){
 						logger.error(&token, "Unexpected EOF when lexing single quotes");
-						amufile->lexer.failed = 1;
+						amufile->lexical_analyzer.failed = 1;
 					}
 				}
 				
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				amufile->lexer.tokens.add(token);
+				amufile->lexical_analyzer.tokens.add(token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 
@@ -274,7 +274,7 @@ void Lexer::lex(){DPZoneScoped;
 					stream_next; //skip until closing double quotes
 					if(!stream){
 						logger.error("unexpected end of file. expected closing double quotes for double quotes starting on line ", token.l0, " column ", token.c0);
-						amufile->lexer.failed = 1;
+						amufile->lexical_analyzer.failed = 1;
 						break;
 					}	
 				} 
@@ -282,7 +282,7 @@ void Lexer::lex(){DPZoneScoped;
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				amufile->lexer.tokens.add(token);
+				amufile->lexical_analyzer.tokens.add(token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 			
@@ -290,14 +290,14 @@ void Lexer::lex(){DPZoneScoped;
 			case '(':{ 
 				token.type = Token_OpenParen;
 				paren_depth++;
-				last_open_paren = amufile->lexer.tokens.count;
+				last_open_paren = amufile->lexical_analyzer.tokens.count;
 				stream_next;
 			}break;
 			case ')':{ 
 				token.type = Token_CloseParen; 
 				if(!paren_depth){
 					logger.error(&token, "closing parenthesis ')' with no opening parenthesis '('.");
-					amufile->lexer.failed = 1;
+					amufile->lexical_analyzer.failed = 1;
 					return;
 				}
 				paren_depth--;
@@ -310,7 +310,38 @@ void Lexer::lex(){DPZoneScoped;
 			CASE1('?', Token_QuestionMark);
 			case ':':{ //NOTE special for declarations
 				token.type = Token_Colon; 
-				amufile->lexer.declarations.add(amufile->lexer.tokens.count);
+				// we want to adjust the position of the label to be the actual identifier for it,
+				// so we will move the index back to the earliest identifier
+				// we can also check very early that this colon is being used properly
+				// TODO(sushi) this is extermely ugly though clean it up later
+				Token* curr = amufile->lexical_analyzer.tokens.readptr(amufile->lexical_analyzer.tokens.count-1);
+				if(curr->type != Token_Identifier){
+					logger.error(curr, "a colon must be preceeded by an identifer or list of identifiers. found a ", token_type_str(curr->type), " instead.");
+					amufile->lexical_analyzer.failed = 1;
+					stream_next;
+					break;
+				}
+				u32 realidx = amufile->lexical_analyzer.tokens.count;
+				Token* view = curr;
+				while(1){
+					if((view-1)->type != Token_Comma) break;
+					view -= 2;
+					realidx -= 2;
+					if(!realidx || realidx > amufile->lexical_analyzer.tokens.count){
+						logger.error(curr, "while parsing label list, reached beginning of file.");
+						amufile->lexical_analyzer.failed = 1;
+						realidx = -1;
+						break;
+					}
+					if(curr->type != Token_Identifier){
+						logger.error(view, "while parsing label list, found a ", token_type_str(view->type), " instead of an identifier.");
+						amufile->lexical_analyzer.failed = 1;
+						realidx = -1;
+						break;
+					}
+				}
+				if(realidx != -1)
+					amufile->lexical_analyzer.labels.add(realidx-1);
 				stream_next; 
 			}break;
 			CASE1('.', Token_Dot);
@@ -321,12 +352,12 @@ void Lexer::lex(){DPZoneScoped;
 			case '{':{ //NOTE special for scope tracking and internals 
 				token.type = Token_OpenBrace;
 				//NOTE(sushi) internal directive scopes do affect scope level
-				if(amufile->lexer.tokens.count && amufile->lexer.tokens[amufile->lexer.tokens.count-1].type == Token_Directive_Internal){
+				if(amufile->lexical_analyzer.tokens.count && amufile->lexical_analyzer.tokens[amufile->lexical_analyzer.tokens.count-1].type == Token_Directive_Internal){
 					internal_scope_depth = scope_depth;
 				}else{
 					scope_depth++;
 				}
-				last_open_brace = amufile->lexer.tokens.count;
+				last_open_brace = amufile->lexical_analyzer.tokens.count;
 				stream_next;
 			}break;
 			
@@ -334,7 +365,7 @@ void Lexer::lex(){DPZoneScoped;
 				token.type = Token_CloseBrace;
 				if(!scope_depth){
 					logger.error(&token, "closing brace '}' with no opening brace '{'.");
-					amufile->lexer.failed = 1;
+					amufile->lexical_analyzer.failed = 1;
 				}
 				if(scope_depth == internal_scope_depth){
 					internal_scope_depth = -1;
@@ -346,7 +377,6 @@ void Lexer::lex(){DPZoneScoped;
 			
 			//// @operators ////
 			CASE3('+', Token_Plus,            '=', Token_PlusAssignment,      '+', Token_Increment);
-			CASE3('-', Token_Negation,        '=', Token_NegationAssignment,  '-', Token_Decrement);
 			CASE2('*', Token_Multiplication,  '=', Token_MultiplicationAssignment);
 			CASE2('%', Token_Modulo,          '=', Token_ModuloAssignment);
 			CASE2('~', Token_BitNOT,          '=', Token_BitNOTAssignment);
@@ -355,6 +385,15 @@ void Lexer::lex(){DPZoneScoped;
 			CASE2('^', Token_BitXOR,          '=', Token_BitXORAssignment);
 			CASE2('=', Token_Assignment,      '=', Token_Equal);
 			CASE2('!', Token_LogicalNOT,      '=', Token_NotEqual);
+			
+			case '-':{ // NOTE special because of ->
+				token.type = Token_Negation;
+				stream_next;
+				if(*stream.str == '>'){
+					token.type = Token_FunctionArrow;
+					stream_next;
+				}
+			}break;
 
 			case '/':{ //NOTE special because of comments
 				token.type = Token_Division;
@@ -369,7 +408,7 @@ void Lexer::lex(){DPZoneScoped;
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
 						logger.error(&token, "multi-line comment has no ending */ token.");
-						amufile->lexer.failed = 1;
+						amufile->lexical_analyzer.failed = 1;
 						return;
 					}
 					stream_next; stream_next;
@@ -410,34 +449,39 @@ void Lexer::lex(){DPZoneScoped;
 			}break;
 			
 			default:{
-				if(is_identifier_char(decoded_codepoint_from_utf8(stream.str, 4).codepoint)){
-				  	while(is_identifier_char(decoded_codepoint_from_utf8(stream.str, 4).codepoint)) 
+				if(is_identifier_char(utf8codepoint(stream.str))){
+				  	while(is_identifier_char(utf8codepoint(stream.str))) 
 						stream_next; //skip until we find a non-identifier char
 
                 	token.raw.count = stream.str - token.raw.str;
                 	token.type = token_is_keyword_or_identifier(token.raw);
+					// NOTE(sushi) this is probably, in some way, a HUGE security concern
+					//             especially when we use it to compare identifier names.
+					//             in normal use, this should have a very low probability of 
+					//             ever causing an issue.
+					token.raw_hash = str8_hash64(token.raw);
 
-					if(amufile->lexer.tokens.count && amufile->lexer.tokens[amufile->lexer.tokens.count-1].type == Token_Pound){
+					if(amufile->lexical_analyzer.tokens.count && amufile->lexical_analyzer.tokens[amufile->lexical_analyzer.tokens.count-1].type == Token_Pound){
 						Type type = token_is_directive_or_identifier(token.raw);
 						if(type == Token_Identifier){
 							logger.error(&token, "invalid directive following #. Directive was '", token.raw, "'");
-							amufile->lexer.failed = 1;
+							amufile->lexical_analyzer.failed = 1;
 							type = Token_ERROR;
 						}else{
 							switch(type){
 								case Token_Directive_Import:{
-									amufile->lexer.imports.add(amufile->lexer.tokens.count);
+									amufile->lexical_analyzer.imports.add(amufile->lexical_analyzer.tokens.count);
 								}break;
 								case Token_Directive_Internal:{
 									if(scope_depth){
 										logger.error(&token, "attempt to use #internal inside of a scope. #internal only applies to top-level definitions.");
-										amufile->lexer.failed = 1;
+										amufile->lexical_analyzer.failed = 1;
 									}else{
-										amufile->lexer.internals.add(amufile->lexer.tokens.count);
+										amufile->lexical_analyzer.internals.add(amufile->lexical_analyzer.tokens.count);
 									}
 								}break;
 								case Token_Directive_Run:{
-									amufile->lexer.runs.add(amufile->lexer.tokens.count);
+									amufile->lexical_analyzer.runs.add(amufile->lexical_analyzer.tokens.count);
 								}break;
 							}
 							token.type = type; 
@@ -446,7 +490,7 @@ void Lexer::lex(){DPZoneScoped;
 				}else{
 					logger.error(&token, "invalid token '",str8{stream.str, decoded_codepoint_from_utf8(stream.str, 4).advance},"'.");
 					token.type = Token_ERROR;
-					amufile->lexer.failed = 1;
+					amufile->lexical_analyzer.failed = 1;
 					stream_next;
 				}
 			}break;
@@ -474,25 +518,25 @@ void Lexer::lex(){DPZoneScoped;
 			token.l1 = line_num;
 			token.c1 = line_col;
 			token.raw.count = stream.str - token.raw.str;
-			amufile->lexer.tokens.add(token);
+			amufile->lexical_analyzer.tokens.add(token);
 		}
 	}
 
 	if(scope_depth){
-		Token* lob = &amufile->lexer.tokens[last_open_brace];
+		Token* lob = &amufile->lexical_analyzer.tokens[last_open_brace];
 		logger.error("a brace was never closed");
 		logger.note(lob, "see last opened brace");
-		amufile->lexer.failed = 1;
+		amufile->lexical_analyzer.failed = 1;
 	}
 
 	if(paren_depth){
-		Token* lop = &amufile->lexer.tokens[last_open_paren];
+		Token* lop = &amufile->lexical_analyzer.tokens[last_open_paren];
 		logger.error("a parenthesis was never closed.");
 		logger.note(lop, "see last opened parentheis.");
-		amufile->lexer.failed = 1;
+		amufile->lexical_analyzer.failed = 1;
 	}
 
-	amufile->lexer.tokens.add(Token{Token_EOF, Token_EOF});	
+	amufile->lexical_analyzer.tokens.add(Token{Token_EOF, Token_EOF});	
 	logger.log(Verbosity_Stages, "Finished lexing in ", peek_stopwatch(lex_time), " ms", VTS_Default);
 }
 

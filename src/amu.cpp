@@ -91,7 +91,7 @@
 
 	amu is split into various stages. This is a list of them and their tasks
 
-	Lexer
+	LexicalAnalyzer
 	-----
 	Turn an input file into a series of tokens
 	Mark places of interest
@@ -123,23 +123,23 @@
       irrelevant.
 	-------------
 
-	Parser
+	SyntaxAnalyzer
 	------
 	Converts tokens into an Abstract Syntax Tree
-	The parser only checks syntax and builds the AST from it. It doesn't do anything like type checking
+	The syntax_analyzer only checks syntax and builds the AST from it. It doesn't do anything like type checking
 	or if identifiers exist.
 	Mark token start and token end ranges for each node
 	------
 
-	Validator
+	SemanticAnalyzer
 	---------
 	Join every files AST together
 	Identifier validating
 	Type checking
 	---------
 
-	All files are independent of each other up until validator. Meaning we can have a thread per file
-	running freely through the stages until it reaches validator, since validator is the stage in which 
+	All files are independent of each other up until semantic_analyzer. Meaning we can have a thread per file
+	running freely through the stages until it reaches semantic_analyzer, since semantic_analyzer is the stage in which 
 	we join all the files information together. 
 
 	amu organizes information by file using amuFile. When a file is loaded a amuFile is made for it
@@ -149,7 +149,7 @@
 	Something I would like to try and follow is that all data from previous stages is static. 
 	This rule is nice for multithreading since it guarantees atomic access to stages that a 
 	file has completed. This rule stops being followed once we reach validation because it needs 
-	to take nodes from each parser and join them together, as well as modify the AST where it needs to.
+	to take nodes from each syntax_analyzer and join them together, as well as modify the AST where it needs to.
 	This will probably also apply to optimization stage, if its done using the AST.
 
 	Some notes on syntax
@@ -175,7 +175,7 @@
 	try and keep it so that bugs come below features in each section, so that there is a clear separation
 	if this doesnt look good or work well, we can just have a features and bugs section in each section 
 
-	Lexer
+	LexicalAnalyzer
 	----- TODOs that should mainly involve working in the lexer
 	[!, ***, 2022/07/05] determine if there are other things lexer can do during its stage
 	    since lexer will always parse an entire file there are probably other things we can get it to look for
@@ -196,8 +196,8 @@
 	[!, **, 2022/07/05, feature] implement #message
 	    used for outputting simple messages at compile time
 
-	Parser
-	------ TODOs that should mainly involve working in the parser
+	SyntaxAnalyzer
+	------ TODOs that should mainly involve working in the syntax_analyzer
 	[!!!, **, 2022/07/25, feature] statements
       	for 
 	  	while 
@@ -211,8 +211,8 @@
 		initializer lists
 	  	inc/dec
 
-	Validator
-	--------- TODOs that should mainly involve working in the validator
+	SemanticAnalyzer
+	--------- TODOs that should mainly involve working in the semantic_analyzer
 	  type checking
 	  identifier validation
 
@@ -415,15 +415,15 @@ int main(){DPZoneScoped;
 		forI(compiler.files.count){
 			amuFile* file = compiler.files.data[i];
 			compiler.logger.log(Verbosity_Always, CyanFormatComma(file->file->name), ":");
-			compiler.logger.log(Verbosity_Always, "         lexer: ", (file->lexer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+			compiler.logger.log(Verbosity_Always, "         lexer: ", (file->lexical_analyzer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
 			compiler.logger.log(Verbosity_Always, "  preprocessor: ", (file->preprocessor.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
-			compiler.logger.log(Verbosity_Always, "        parser: ", (file->parser.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
-			compiler.logger.log(Verbosity_Always, "     validator: ", (file->validator.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+			compiler.logger.log(Verbosity_Always, "        syntax_analyzer: ", (file->syntax_analyzer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
+			compiler.logger.log(Verbosity_Always, "     semantic_analyzer: ", (file->semantic_analyzer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
 		}
 	}
 
-	//print_tree(&compiler.files.atIdxPtrVal(0)->parser.base);
-	generate_ast_graph_svg("ast.svg", &compiler.files.atIdxPtrVal(0)->parser.base);
+	//print_tree(&compiler.files.atIdxPtrVal(0)->syntax_analyzer.base);
+	generate_ast_graph_svg("ast.svg", (amuNode*)compiler.files.atIdxPtrVal(0)->module);
   
 	return 1;
 }
