@@ -1,0 +1,23 @@
+operator + (a:?T[], b:T[]) -> T[] {
+    // #const(thing) is a function that checks if 'thing' is something the compiler can determine the value of at compile time
+    #if(const(a) && const(b)) {
+        #if(a.count != b.count){
+            #error(f"the operation '+' is not defined between arrays of differing sizes. left operand has size {a.count}, while the second has {b.count}.");
+        }
+    }#else{
+        // TODO(sushi) how to prevent writing this string twice?
+        compiler.assert(a.count == b.count, f"the operation '+' is not defined between arrays of differing sizes. left operand has size {a.count}, while the second has {b.count}.")
+    }
+    
+    c : T[a.count];
+    
+    for(i in 0..a.count){
+        c[i] = a[i] + b[i]
+    }
+
+    return c;
+}
+
+dot: (a:?T[], b:T[]) -> T {
+    
+}

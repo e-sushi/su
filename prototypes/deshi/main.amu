@@ -1,5 +1,12 @@
 #import deshi(Vulkan) as deshi
 
+#import deshi.renderer.{
+    draw.{
+        rectangle : rect,
+        my_circle : circle,
+    }
+}
+
 main() : s32 {
     deshi.render.init();
     deshi.ui.init();
@@ -17,9 +24,7 @@ main() : s32 {
         };
 
         // gonna do a bunch of ui stuff
-        {
-            using deshi.ui;
-
+        {using deshi.ui;
             window := item_begin("my_window");
                 window.style = {
                     positioning = pos.fixed,
@@ -33,6 +38,9 @@ main() : s32 {
                 };
             item_end();
         }
-
     }
+}
+
+hello() : void {
+
 }

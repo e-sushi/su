@@ -1,0 +1,68 @@
+#import std.print
+
+Node : struct(?T) {
+    next : T*;
+    prev : T*;
+}
+
+Fruit : struct{
+    using Node(Fruit);
+    name : str;
+}
+
+iterator : struct(?T) {
+    current : T;
+    idx : u32 = 0;
+}
+
+// the logic for incrementing an iterator for a Node
+next: (using iterator(Node(?T))*) -> Node(T)*, u32 {
+    save_idx := idx;
+    idx += 1;
+    out := current;
+    current = current.next;
+    return out, idx;
+}
+
+operator in (n : Node(?T)*) -> iterator(Node(T)*) {
+    return iterator(Node(T)*){n};
+}
+
+main : () -> s32{
+    apple : Fruit;
+    banana : Fruit;
+    orange : Fruit;
+
+    apple = {
+        next = &banana,
+        name = "apple",
+    }
+    banana = {
+        prev = &apple,
+        next = &orange,
+        name = "banana",
+    }
+    orange = {
+        prev = &banana,
+        name = "orange",
+    }
+
+    
+    // uses the special in operator to make the iterator and calls next()
+    // on the iterator, returning its values to druit,i
+    for(fruit,i in apple){
+        print(f"{i} {fruit.name}");
+    }
+
+    // outputs
+    // 0 apple
+    // 1 banana
+    // 2 orange
+
+    // without a for loop
+
+    iter := iterator(Node(T)*){&apple};
+    print(iter.next().name) // apple
+    print(iter.next().name) // banana
+    print(iter.next().name) // orange
+}

@@ -1,0 +1,25 @@
+/*
+    prototype standard dynamic array library
+
+    this is to explore how contexts could be used 
+
+    there is no definition of the array structure, it is built in. we just don't include operations on 
+    dynamic arrays in the global scope
+
+    however, its definition is equivalent to:
+
+    _ : struct(?T) {
+        arr : T*;
+        count : u64;
+    }
+
+
+*/
+
+compiler : #import compiler;
+
+add: (arr : ?T[], val : T) -> void {
+    if(!arr.ptr){
+        arr.ptr = compiler.context.memory.allocate()
+    }
+}

@@ -1,0 +1,28 @@
+/*
+    multidimentional array prototype
+
+    the arrays are homogeneous
+*/
+
+marray : struct(?T) {
+    arr: T[..];
+    shape: u32[..];
+}
+
+/*
+    usage:
+    myarr := marray(u32){{1,2,3,4},{2,2}}
+*/
+
+operator[] (ma: marry(?T), indexes: u32..){
+    if(indexes.count > ma.shape.count){
+
+    }
+}
+
+reduce: (ma: marry(?T), reduction:(T,T)->T) -> T{
+    track : T;
+
+}
+
+reduce: (ma: marry(?T)) <- code -> 

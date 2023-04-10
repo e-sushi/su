@@ -1,0 +1,11 @@
+/*
+    a prototype detailing what a build file for amu could look like 
+*/
+
+// this file is a script, and it imports the build module from the compiler module
+#script;
+compiler: #import compiler;
+
+using compiler.build;
+
+settings.optimizations
