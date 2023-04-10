@@ -1,80 +1,85 @@
-<file>          = { <decl> | <directive> }
-<directive>     = "#" ( "import" ( <import> | "{" <import> { "," <import> } "}" ) | "run" <run> | "internal" [ <scope> ] )
-<import>        = <string> [ "{" <subimport> { "," <subimport> } "}" ] [ "as" <id> ]
-<subimport>     = <decl-id>  [ "as" <id> ]
-<run>           = <statement>
-<scope>         = "{" { ( <statement> | <decl> ) } "}"
-<decl>          = <func-decl>
-                | <imp-decl>
-                | <var-decl>
-                | <struct-decl>
-                | <op-decl>
-                | <module-decl>
-<var-decl>      = <var-id> ":" <type> { ["*"] | [ "[" <int> "]" ] } [ "=" <exp> ] ";"
-                | <var-id> ":" "=" ( <scalar-type> | <string> | <struct-type> <initializer> )
-<func-decl>     = <func-id> "(" [ <decl> { "," <decl> } ] ")" ":" <type> <scope> 
-<imp-decl>      = "implicit" "(" <id> ":" <type> ")" ":" <type> <statement>
-<struct-decl>   = [ <struct-id> ] ":" "struct" "{" { <var-decl> | <struct-decl> } "}" [ <var-id> ]  ";"
-<module-decl>   = [ <module-id> ] ":" "module" "{" { <decl> } "}"
-<op-decl>       = "operator" [ <int> ] //TODO
-<statement>     = <scope>  
-                | <directive>
-                | <exp> ";" 
-                | "using" <var-id> as <id> ";" //alias variable
-                | "using" <func-id> "(" <decl> { "," <decl> } ")" as <call> //alias function signature
-                | "using" <func-id> "as" <id> //alias function name
-                | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
-                | "for" "(" [ <exp> | <decl> ] ";" [ <exp> ] ";" [ <exp> ] ")" <statement>
-                | "while" "(" <exp> ")" <statement>
-                | "defer" <statement> ";"
-                | "break" ";"
-                | "continue" ";"
-                | "return" <exp> ";"
-<exp>           = <assignment> | <conditional> 
-<assignment>    = <var-id> "=" <exp>
-<conditional>   = <logical or> | "if" "(" <exp> ")" <exp> "else" <exp>
-<logical or>    = <logical and> { "||" <logical and> } 
-<logical and>   = <bit or> { "&&" <bit or> } 
-<bit or>        = <bit xor> { "|" <bit xor> }
-<bit xor>       = <bit and> { "^" <bit and> }
-<bit and>       = <equality> { "&" <equality> }
-<equality>      = <relational> { ("!=" | "==") <relational> }
-<relational>    = <bit shift> { ("<" | ">" | "<=" | ">=") <bit shift> }
-<bit shift>     = <additive> { ("<<" | ">>" ) <additive> }
-<additive>      = <term> { ("+" | "-") <term> }
-<term>          = <access> { ("*" | "/" | "%") <access> }
-<access>        = <factor> { "." (<id>|<access>) }
-<factor>        = <unary> <factor> 
-                | <literal> 
-                | <access>
-                | <call> 
-                | "(" <exp> ")" 
-                | <incdec> <var-id> | <var-id> <incdec> 
-                | [ <struct-type> ] <initializer>
-                | <var-id> 
-                | <cast>
-                | <reinterpret>
-<unary>         = ("!"|"-"|"~")
-<call>          = <func-id> "(" [ <arg> { "," <arg> } ] ")" 
-                | <var-id ? of same type as first function argument ?> "." <func-id> "(" [ <arg> { "," <arg> } ] ")"
-<arg>           = <exp> | <id> "=" <expr>
-<initializer>   = "{" <exp> { "," <exp> } "}"
-<cast>          = "<" <type> ">" <exp>
-<reinterpret>   = "<" "!" <type> ">" <exp>
-<type>          = <scalar-type> | <struct-type> | <module-id> { "." <type> }
-<scalar-type>   = ("void"|"u8"|"u16"|"u32"|"u64"|"s8"|"s16"|"s32"|"s64"|"f32"|"f64")
-<struct-type>   = ("str"|"any"|<struct-id>)
-<struct-id>     = <id>  // an id pertaining to a structure (created in <decl>)
-<func-id>       = <id>  // an id pertaining to a function (created in <decl>)
-<var-id>        = <id>  // an id pertaining to a variable (l-value) (created in <decl>) 
-<module-id>  = <id>  // an id pertaining to a module
-<decl-id>       = <var-id> | <func-id> | <struct-id>
-<id>            = ? any alphanumeric character sequence, not starting with a number, and including all unicode
-                    characters outside of ascii's range ?
-<literal>       = <int> | <float> | <string>
-<int>           = ? any integer number sequence, which may be represented in decimal, binary, or hex ?
-<float>         = ? any floating point number sequence ?
-<string>        = """ { <char> } """
-<char>          = ? any unicode codepoint ? 
-  
-  
+            file = { decl | directive ";" }
+
+            decl = struct-decl
+                 | module-decl
+                 | func-decl
+                 | var-decl
+
+           scope = "{" { ( statement | decl ) } "}"
+
+           label = id ":"
+     multi-label = id { "," id } ":"
+
+     struct-decl = [ label ] "struct" "(" arg { "," arg } ")" "{" { struct-decl | var-decl } "}"
+     module-decl = [ label ] "module" "(" arg { "," arg } ")" "{" decl "}"
+        var-decl = label type { [ "*" ] | "[" [ int ] "]" } [ "=" exp ] ";"
+                 | multi-label "=" call ";"
+                 | multi-label type { [ "*" ] | "[" [ int ] "]" }  ";"
+                 | multi-label ( "=" | ":" ) ( literal | struct-label initializer ) ";"
+       func-decl = label function
+
+
+       statement = scope 
+                 | directive ";"
+                 | exp ";"
+                 | [ label ] "using" module-label ";" 
+                 | label "using struct-label ";"
+                 | [ normal-label ] "using" var-label ";" 
+                 | functional-label "using" func-label ";" // alias a function call, keeping all parameters the same
+                 | functional-label "using" func-label "(" decl, { "," decl } ")" ";" // alias a function call so that it uses different parameters
+                 | "if" "(" exp ")" statement [ "else" statement ]
+                 | [ normal-label ] "for" "(" [ exp | var-decl ] ";" [ exp ] ";" [ exp ] ")" statement
+                 | [ normal-label ] "while" "(" exp ")" statement
+                 | "defer" statement
+                 | "break" [ loop-label ] ";"
+                 | "continue" [ loop-label ] ";"
+                 | "return" exp ";"
+                 | "switch" "(" exp ")" "{" { "case" ( literal | exp ) ";" statement } "}"
+
+             exp = directive | assignment | conditional
+      assignment = var-label "=" exp
+     conditional = logical-or | "if" "(" exp ")" exp "else" exp
+      logical-or = logical-and { "||" logical-and }
+          bit-or = bit-xor { "|" bit-xor }
+         bit-and = equality { "&" equality }
+        equality = relational { ("!=" | "==" ) relational }
+      relational = bit-shift { ( "<" | ">" | "<=" | ">=" ) bit-shift }
+        additive = term { ( "+" | "-" ) term }
+            term = access { ( "*" | "/" | "%" ) } access
+          access = factor { "." access } 
+          factor = unary factor
+                 | literal
+                 | access
+                 | call
+                 | "(" exp ")"
+                 | [ struct-label ] initializer
+                 | var-label
+                 | cast
+                 | reinterpret
+           unary = "!" | "-" | "~"
+            call = func-label "(" [ arg { "," arg } ] ")"
+                 | var-label "." func-label "(" [ arg { "," arg } ] ")"
+             arg = exp | id "=" exp
+     initializer = "{" [ exp { "," exp } [ "," ] }
+            cast = "<" type ">" exp
+     reinterpret = "<" "!" type ">" exp
+        function = "(" arg { "," arg } ")" "->" type { "," type } scope
+
+            type = scalar-type | struct-id | ( module-id | struct-id ) { "." subtype }
+         subtype = struct-id | ( module-id | struct-id ) { "." subtype }
+     scalar-type = "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64"
+
+      decl-label = ( module-label | struct-label | func-label | var-label )
+    module-label = ? a label referencing a module ? 
+    struct-label = ? a label referencing a struct ? 
+      func-label = ? a label referencing a function ?
+       var-label = ? a label referencing a variable ? 
+      loop-label = ? a label referencing a loop ?
+
+              id = ? any alphanumeric number sequence, not starting with a number, and including all unicode characters outside od ascii's range ?
+         literal = int | float | string
+             int = ? any integer number sequence, which may be represented in decimal, binary, or hex ?
+           float = ? any floating point number sequence ? 
+          string = """ { char } """
+            char = ? any unicode codepoint ? 
+                 
