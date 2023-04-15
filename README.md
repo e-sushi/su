@@ -7,7 +7,3 @@ For more information about amu and how to use it, visit the wiki.
 
 TODO(sushi) installation info, small examples, etc.
 
-# Current State
-Currently no one is working on amu.
-
-

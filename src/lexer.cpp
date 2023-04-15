@@ -455,10 +455,6 @@ void LexicalAnalyzer::lex(){DPZoneScoped;
 
                 	token.raw.count = stream.str - token.raw.str;
                 	token.type = token_is_keyword_or_identifier(token.raw);
-					// NOTE(sushi) this is probably, in some way, a HUGE security concern
-					//             especially when we use it to compare identifier names.
-					//             in normal use, this should have a very low probability of 
-					//             ever causing an issue.
 					token.raw_hash = str8_hash64(token.raw);
 
 					if(amufile->lexical_analyzer.tokens.count && amufile->lexical_analyzer.tokens[amufile->lexical_analyzer.tokens.count-1].type == Token_Pound){

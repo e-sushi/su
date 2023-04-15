@@ -254,8 +254,6 @@ name : struct{}
 ```
 there are two entities: `name` and `struct{}`. The `name` entity has the metatype `label_structure`, indiciating that it is a label which refers to a structure definition. The `struct {}` entity has the metatype `structure`, which indicates that it's a declaration of a structure. 
 
-But what would you do with this information? Who cares that the syntax has types attached to it, I just want to write code!
-
 Building these concepts helps to form understandings of certain kinds of syntax, as well as developing new forms of syntax that may not have seemed viable without a proper interpretation of what is really going on when you write things. For example, amu supports the syntax:
 ```rust
 a : using struct {

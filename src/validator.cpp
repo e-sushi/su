@@ -94,32 +94,32 @@ b32 type_conversion(Type to, Type from){
 
 //checks the known stack to see if there are any name conflicts in the same scope
 b32 SemanticAnalyzer::check_shadowing(Declaration* d){DPZoneScoped;
-    amuLogger& logger = amufile->logger;
-    forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
-        Declaration* dk = stacks.known_declarations[stacks.known_declarations.count - 1 - i];
-        if(dk==d) continue;
-        if(str8_equal_lazy(d->identifier, dk->identifier)){
-            logger.error(d->token_start, 
-            "declaration of ", 
-            (d->type == Declaration_Variable ? "variable" : (d->type == Declaration_Function ? "function" : "structure")),
-            " '", d->identifier, "' overrides declaration of ",
-            (dk->type == Declaration_Variable ? "variable" : (dk->type == Declaration_Function ? "function" : "structure")),
-            " '", d->identifier, "'");
-            logger.note(dk->token_start, "see original declaration of '", dk->identifier, "'");
-            amufile->semantic_analyzer.failed = 1;
-            return 0;
-        }
-    }
+    // amuLogger& logger = amufile->logger;
+    // forI(stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets[stacks.known_declarations_scope_begin_offsets.count-1]){
+    //     Declaration* dk = stacks.known_declarations[stacks.known_declarations.count - 1 - i];
+    //     if(dk==d) continue;
+    //     if(str8_equal_lazy(d->identifier, dk->identifier)){
+    //         logger.error(d->token_start, 
+    //         "declaration of ", 
+    //         (d->type == Declaration_Variable ? "variable" : (d->type == Declaration_Function ? "function" : "structure")),
+    //         " '", d->identifier, "' overrides declaration of ",
+    //         (dk->type == Declaration_Variable ? "variable" : (dk->type == Declaration_Function ? "function" : "structure")),
+    //         " '", d->identifier, "'");
+    //         logger.note(dk->token_start, "see original declaration of '", dk->identifier, "'");
+    //         amufile->semantic_analyzer.failed = 1;
+    //         return 0;
+    //     }
+    // }
     return 1;
 }
 
 Declaration* SemanticAnalyzer::find_decl(str8 id){
-    forI(stacks.known_declarations.count){
-        Declaration* d = stacks.known_declarations[stacks.known_declarations.count-1-i];
-        if(str8_equal_lazy(d->identifier, id)){
-            return d;
-        }
-    }
+    // forI(stacks.known_declarations.count){
+    //     Declaration* d = stacks.known_declarations[stacks.known_declarations.count-1-i];
+    //     if(str8_equal_lazy(d->identifier, id)){
+    //         return d;
+    //     }
+    // }
     return 0;
 }
 
@@ -131,13 +131,13 @@ b32 SemanticAnalyzer::can_type_convert(TypedValue* from, TypedValue* to){
 //NOTE(sushi) this is special because locally defined functions that overload something in a lesser scope
 //            need to remove themselves from the overload tree that connects them
 void SemanticAnalyzer::pop_known_decls(){
-    u32 n = stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop();
-    forI(n){
-        Declaration* d = stacks.known_declarations.pop();
-        if(d->type == Declaration_Function){
-            Function* f = (Function*)d;
-        }
-    }
+    // u32 n = stacks.known_declarations.count - stacks.known_declarations_scope_begin_offsets.pop();
+    // forI(n){
+    //     Declaration* d = stacks.known_declarations.pop();
+    //     if(d->type == Declaration_Function){
+    //         Function* f = (Function*)d;
+    //     }
+    // }
 }
 
 amuNode* SemanticAnalyzer::validate(amuNode* node){DPZoneScoped;

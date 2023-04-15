@@ -965,6 +965,7 @@ amuNode* SyntaxAnalyzerThread::define(amuNode* parent, Type stage){
             Label* label =  arena.make_label(curt->raw);
             insert_last(parent, (amuNode*)label);
             label->identifier = curt->raw;
+            label->identifier_hash = curt->raw_hash;
 
             curt++;
             expect(Token_Comma){
@@ -1015,6 +1016,10 @@ amuNode* SyntaxAnalyzerThread::define(amuNode* parent, Type stage){
 
         case psDeclaration:{
             switch(curt->type){ 
+                case Token_Identifier: {
+                    // this must be a variable declaration
+                    
+                }break;
                 case Token_StructDecl:{
                     // the internal identifier for this struct
                     str8 structid = amuStr8("struct", curt->file, curt->l0, curt->c0);
@@ -1065,6 +1070,11 @@ amuNode* SyntaxAnalyzerThread::define(amuNode* parent, Type stage){
                                         // no erroring out here because the separation is enough that we may continue
                                     }
                                 }
+                            }else{
+                                // TODO(sushi) error recovery
+                                amufile->syntax_analyzer.failed = 1;
+                                logger.error(curt, "unexpected token in struct declaration.");
+                                return 0;
                             }
                         }
                     }
@@ -1097,6 +1107,7 @@ void SyntaxAnalyzer::analyze() { DPZoneScoped;
     amufile->module->entity.token_start = &amufile->lexical_analyzer.tokens[0];
     amufile->module->entity.token_end = &amufile->lexical_analyzer.tokens[amufile->lexical_analyzer.tokens.count-1];
     amufile->module->functions.init();
+    amufile->table_root = arena.make_label_table();
 
     logger.log(Verbosity_Detailed, "Spawning threads to parse labels.");
 
@@ -1110,6 +1121,8 @@ void SyntaxAnalyzer::analyze() { DPZoneScoped;
         pt->stage = psLabel;
         threader_add_job({&semantic_analyzer_threaded_stub, pt});
     }   
+
+    
 
     threader_wake_threads();
 

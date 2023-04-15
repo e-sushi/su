@@ -708,6 +708,14 @@ struct amuArena{
 };
 
 
+struct Label;
+struct LabelTable {
+	LabelTable* prev; // tables are nested 
+	amuArena<Label*> set; // labels already store their own hash on themselves
+	amuArena<Label*> ordered; // NOTE(sushi) I am not sure if this is necessary/useful yet
+};
+
+
 // sorted map
 //their mutex_deinit(&declarations); this map supports storing keys who have collided
 //by storing them as neighbors and storing the unhashed key with the value
@@ -1480,6 +1488,7 @@ enum {
 	Statement_Break,
 	Statement_Continue,
 	Statement_Struct,
+	Statement_Block,
 	Statement_Using,
 	Statement_Import,
 };
@@ -1490,6 +1499,8 @@ struct Statement {
 	Token* token_end;
 	
 	Type type;
+
+	LabelTable ltable;
 };
 
 struct Scope {
@@ -1507,19 +1518,11 @@ struct Function;
 struct SyntaxAnalyzerThread;
 struct Entity;
 
-enum{
-	Declaration_Unknown,
-	Declaration_Label,
-	Declaration_Function,
-	Declaration_Variable,
-	Declaration_Structure,
-	Declaration_Module,
-};
-
 // the handle of anything in amu
 struct Label {
 	amuNode node;
 	str8 identifier;
+	u64 identifier_hash;
 
 	Entity* entity; // entity this label belongs to 
 	Label* original; // if this label is an alias of another label, we point to it with this
@@ -1545,25 +1548,6 @@ struct Entity {
 
 	Token* token_start;
 	Token* token_end;
-};
-
-//represents information about an original declaration and is stored on 
-//Struct, Function, Variable, and Module
-struct Declaration{
-	amuNode node;
-	Token* token_start;
-	Token* token_end;
-
-	Token* colon_anchor;
-	
-	//name of declaration  
-	str8 identifier;
-	//name of declaration as it was when it was first declared
-	str8 declared_identifier;
-	Type type;
-
-	//set true when validator has validated this declaration and all of its child nodes 
-	b32 validated = 0;
 };
 
 struct Function {
@@ -1922,6 +1906,7 @@ struct amuFile{
 
 	// the module representing this file. this is where the AST of the file lives 
 	Module* module;
+	LabelTable* table_root;
 
 	void init(){
 		lexical_analyzer.tokens.init();
@@ -1977,6 +1962,8 @@ struct SyntaxAnalyzerThread{
 	// to give better error messages, we store a stack of labels so that we may refer back to them 
 	amuArena<Label*> label_stack;
 	Label* current_label;
+
+	LabelTable* current_table;
 
 	b32 is_internal;
 	b32 parsing_func_args = 0;
@@ -2072,6 +2059,8 @@ struct SemanticAnalyzer{
 			amuArena<Module*>     modules;
 		}nested;
 	}stacks;
+
+	LabelTable* current_table;
 
 	void init(){DPZoneScoped;
 		stacks.nested.scopes.init();
@@ -2374,6 +2363,7 @@ struct{
 	amuChunkedArena<Statement>  statements;
 	amuChunkedArena<Module>     modules;
 	amuChunkedArena<Label>      labels;
+	amuChunkedArena<LabelTable> label_tables;
 
 	//TODO(sushi) bypass debug message assignment in release build
 	FORCE_INLINE
@@ -2458,6 +2448,12 @@ struct{
 		return label;
 	}
 
+	LabelTable* make_label_table(){DPZoneScoped;
+		LabelTable* label_table = label_tables.add(LabelTable());
+		label_table->set.init();
+		return label_table;
+	}
+
 	FORCE_INLINE
 	void init(){DPZoneScoped;
 		functions.init(256);   
@@ -2524,6 +2520,65 @@ amuNode* copy_branch(amuNode* node){
 		insert_last(out, copy_branch(it));
 	}
 	return out;
+}
+
+
+LabelTable label_table_init(){DPZoneScoped;
+	LabelTable out;
+	out.set.init(256);
+	return out;
+}
+
+pair<spt,b32> label_table_find(LabelTable* table, u64 key){
+	spt index = -1;
+	spt middle = -1;
+	if(table->set.count){
+		spt left = 0;
+		spt right = table->set.count-1;
+		while(left <= right){
+			middle = left+((right-left)/2);
+			if(table->set[middle]->identifier_hash == key){
+				index = middle;
+				break;
+			}
+			if(table->set[middle]->identifier_hash < key){
+				left = middle+1;
+				middle = left+((right-left)/2);
+			}else{
+				right = middle-1;
+			}
+		}
+	}
+	return {middle, index == -1};
+}
+
+pair<spt,b32> label_table_find(LabelTable* table, str8 key){
+	return label_table_find(table, str8_hash64(key));
+}
+
+pair<spt,b32> label_table_find(LabelTable* table, Label* label){
+	return label_table_find(table, label->identifier_hash);
+}
+
+spt label_table_add(LabelTable* table, Label* label){
+	auto [index, found] = label_table_find(table, label->identifier_hash);
+	if(!found) table->set.insert(index, label);
+	return index;
+}
+
+b32 label_table_has(LabelTable* table, Label* label){
+	return label_table_find(table, label).second;
+}
+
+Label* label_table_at(LabelTable* table, str8 id){
+	auto [index, found] = label_table_find(table, id);
+	if(!found) return 0;
+	return table->set[index];
+}
+
+Label* label_table_at(LabelTable* table, u32 idx){
+	Assert(idx < table->set.count);
+	return table->set[idx];
 }
 
 #endif //AMU_TYPES_H

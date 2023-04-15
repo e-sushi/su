@@ -37,6 +37,9 @@ Right now this doc is added to only by me (sushi), but if someone else wants to 
 
 The compiler is split into two broad phases, the frontend and the backend. The front end deals with turning given source code into an intermediate representation, which is then used by the backend to produce executable code. 
 
+> **2023-04-10 12:32:04**: <br>
+The way we interpret labels now somewhat complicates internal naming of things, but I don't think that it's too big a deal. Now to get the name of anything, we need to first check if it has a label assigned to it, and if it doesn't use its internal name.
+
 > **2023-04-03 12:08:16**: <br>
 Currently work is focused primarily on the frontend. The first backend that is planned to be implemented is one that takes our intermediate representation and converts it to LLVM bytecode, which we pass to clang, or something, to make into an executable.
 
