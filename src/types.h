@@ -2,7 +2,7 @@
 #ifndef AMU_TYPES_H
 #define AMU_TYPES_H
 
-#include "kigu/array.h"
+#include "kigu/arrayT.h"
 #include "kigu/common.h"
 #include "kigu/string.h"
 #include "core/threading.h"
@@ -1662,7 +1662,7 @@ struct amuMessage{
 	f64 time_made;
 	str8 prefix;
 	amuFile* amufile;
-	array<str8> message_parts;
+	arrayT<str8> message_parts;
 };
 
 struct amuLogger{
@@ -1671,7 +1671,7 @@ struct amuLogger{
 	// actually printing anything during compiling, and so we can do much nicer formatting later on
 	// this behavoir is disabled by globals.log_immediatly
 	//TODO(sushi) implement an arena instead of array so that we know this will be thread safe
-	array<amuMessage> messages;
+	arrayT<amuMessage> messages;
 
 	amuFile* amufile = 0;
 	str8 owner_str_if_sufile_is_0 = {0,0};
@@ -2094,7 +2094,7 @@ struct SemanticAnalyzer{
 
 struct CompilerRequest{
 	Type stage;
-	array<str8> filepaths;
+	arrayT<str8> filepaths;
 };
 
 struct CompilerReport{

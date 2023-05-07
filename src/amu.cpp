@@ -299,7 +299,7 @@
 #define KIGU_STRING_ALLOCATOR deshi_temp_allocator
 #define KIGU_ARRAY_ALLOCATOR deshi_allocator
 #include "kigu/profiling.h"
-#include "kigu/array.h"
+#include "kigu/arrayT.h"
 #include "kigu/array_utils.h"
 #include "kigu/common.h"
 #include "kigu/cstring.h"
