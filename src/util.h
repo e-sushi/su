@@ -7,9 +7,34 @@
 
 #include "kigu/common.h"
 #include "kigu/unicode.h"
+#include "Compiler.h"
+
+namespace deshi {
+#   include "core/threading.h"
+}
 
 namespace amu {
+namespace util {
 
+void* allocate(upt size) {
+    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+    void* out = memalloc(size);
+    deshi::mutex_unlock(&compiler::instance.deshi_mem_lock);
+    return out;
+}
+
+void* reallocate(void* ptr, upt size) {
+    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+    void* out = memrealloc(ptr, size);
+    deshi::mutex_unlock(&compiler::instance.deshi_mem_lock);
+    return out;
+}
+
+void free(void* ptr) {
+    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+    memzfree(ptr);
+    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+}
 
 //this is temp allocated, so just clear temp mem or free the str yourself
 dstr8 format_time(f64 ms){
@@ -29,7 +54,7 @@ dstr8 format_time(f64 ms){
 	//}
 }
 
-
+}
 } // namespace amu
 
 #endif // AMU_UTIL_H

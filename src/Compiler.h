@@ -16,6 +16,7 @@ namespace deshi {
 
 #include "Messenger.h"
 #include "Pool.h"
+#include "Entity.h"
 
 namespace amu {
 

@@ -1,17 +1,18 @@
 /*
-    Thread safe nodes
 
-    These nodes ensure that multiple threads do not manipulate them at the same time
-    
-    I am not totally sure if this is how I should go about this, or if I should just 
-    design systems to prevent the same node structures from ever being accessed.
-    I'm not sure atm if this is possible, so to stay safe I will do it this way for now.
+    amu's Node implementation
 
-    Currently a mutex is stored per node, which means that every node must be initialized,
-    but we may want to experiment later with a Forest approach, such that a mutex is stored
-    for groups of nodes, but this prevents operations on the entire node structure, rather
-    than allowing different parts to be manipulated at the same time, but this feature may
-    also be bad.
+    This is functionally the exact same as kigu's nodes, but I have decided that I would like to
+    implement them locally in case there ever comes a case where we need them to be thread safe. If 
+    that ever happens, I would rather not replace all usages of node throughout amu with a new
+    interface, we can just change this one.
+
+    !!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!
+     if it comes to needing to make nodes thread safe, we have to rewrite everything that uses them 
+     to call deinit on all possible nodes they could have created!
+
+     for example Pool<T> cannot just memzfree all of its arenas, because they would contain 
+     Nodes with initialized mutexes!
 
 */
 
@@ -20,16 +21,16 @@
 #define AMU_NODE_H
 
 #include "kigu/common.h"
-namespace deshi {
-    #include "core/threading.h"
-}
+// namespace deshi {
+//     #include "core/threading.h"
+// }
 
 namespace amu{
 
 // a node for linked lists
 // this actually a circularly linked list, eg. next and prev begin by pointing at each other
 struct LNode {
-    deshi::mutex lock;
+    //deshi::mutex lock;
 
     LNode* next;
     LNode* prev;
@@ -37,7 +38,7 @@ struct LNode {
 
 // a Node for trees 
 struct TNode {
-    deshi::mutex lock;
+    //deshi::mutex lock;
 
     Type type;
     Flags flags;
@@ -57,6 +58,9 @@ init(LNode* node);
 
 global inline void
 init(TNode* node);
+
+global inline void
+deinit(TNode* node);
 
 global inline void
 insert_after(LNode* target, LNode* node);
@@ -98,7 +102,7 @@ global inline void
 remove(LNode* node);
 
 global inline void
-remove(LNode* node);
+remove(TNode* node);
 
 } // namespace node
 } // namespace amu

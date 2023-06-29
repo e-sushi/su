@@ -1,6 +1,8 @@
 
 namespace amu {
-    
-Compiler compiler::amu; // global compiler object, stored in 
+namespace compiler {
 
+Compiler instance;
+
+}
 }
