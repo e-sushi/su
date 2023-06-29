@@ -1,0 +1,4 @@
+/*
+    Basic error struct with 
+
+*/

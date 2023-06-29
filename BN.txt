@@ -90,3 +90,27 @@
           string = """ { char } """
             char = ? any unicode codepoint ? 
                  
+file = { label }
+
+label = id ":"
+
+rtime-exp = "=" exp
+ctime-exp = ":" exp
+
+type-literal = id codeblock
+
+type = scalar-type | struct-id | func-type | array-type | subtype
+subtype = (module-id | struct-id) { "." subtype } | struct-id
+
+scalar-type = "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64"
+
+func-type = "(" [ arg { "," arg } [ "," ] ] ")" "->" type { "," type } 
+func-arg = label ( ( type | "?" id ) [ rtime-exp ] | rtime-exp )
+
+
+
+stmt = exp ";"
+
+
+
+

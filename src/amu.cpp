@@ -308,12 +308,13 @@
 #include "kigu/string_utils.h"   
 #include "kigu/node.h"
 
-#define DESHI_DISABLE_IMGUI
-#include "core/logger.h"
-#include "core/platform.h"
-#include "core/file.h"
-#include "core/threading.h"
-#include "core/time.h"
+namespace deshi{
+#	include "core/logger.h"
+#	include "core/platform.h"
+#	include "core/file.h"
+#	include "core/threading.h"
+#	include "core/time.h"
+}
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -322,32 +323,20 @@
 #include "kigu/unicode.h"
 #include "kigu/hash.h"
 
-#include "types.h"
-
-#include "lexer.cpp"
-#include "preprocessor.cpp"
-#include "parser.cpp"
-#include "validator.cpp"
-#include "compiler.cpp"
-#include "astgraph.cpp"
+#include "Node.h"
+#include "Arena.h"
+#include "Pool.h"
+#include "Token.h"
+#include "Entity.h"
+#include "Compiler.h"
 
 
-//this is temp allocated, so just clear temp mem or free the str yourself
-str8 format_time(f64 ms){
-	if(floor(Minutes(ms))){
-		//hope it never gets this far :)
-		f64 fmin = floor(Minutes(ms));
-		f64 fsec = floor(Seconds(ms)) - fmin * 60;
-		f64 fms  = ms - fmin*60*1000 - fsec*1000;
-		return to_str8_amu(fmin, "m ", fsec, "s ", fms, " ms");
-	}else if(floor(Seconds(ms))){
-		f64 fsec = floor(Seconds(ms));
-		f64 fms  = ms - fsec*SecondsToMS(1);
-		return to_str8_amu(fsec, "s ", fms, "ms");
-	}else{
-		return to_str8_amu(ms, " ms");
-	}
-}
+#include "Node.cpp"
+#include "Arena.cpp"
+#include "Pool.cpp"
+#include "Token.cpp"
+#include "Entity.cpp"
+#include "Compiler.cpp"
 
 void speed_test(const u64 samples, str8 filepath){
 	f64 sum = 0;
