@@ -311,7 +311,7 @@ parts = {
 
         "clang++":{
             "always": ( # flags always applied if this compiler is chosen
-                "-std=c++17 "         # use the c++17 standard
+                "-std=c++20 "         # use the c++17 standard
                 "-fexceptions "       # enable exception handling
                 "-fcxx-exceptions "   # enable c++ exceptions
                 "-finline-functions " # inlines suitable functions
