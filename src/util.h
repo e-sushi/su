@@ -7,7 +7,6 @@
 
 #include "kigu/common.h"
 #include "kigu/unicode.h"
-#include "Compiler.h"
 
 namespace deshi {
 #   include "core/threading.h"
@@ -15,31 +14,6 @@ namespace deshi {
 
 namespace amu {
 namespace util {
-
-// it's probably better to just use stdlib's allocation at this point, but I will keep it around for now
-// incase I ever fix up deshi's interface to be a little nicer
-void* 
-allocate(upt size) {
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-    void* out = memalloc(size);
-    mutex_unlock(&compiler::instance.deshi_mem_lock);
-    return out;
-}
-
-void* 
-reallocate(void* ptr, upt size) {
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-    void* out = memrealloc(ptr, size);
-    mutex_unlock(&compiler::instance.deshi_mem_lock);
-    return out;
-}
-
-void 
-free(void* ptr) {
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-    memzfree(ptr);
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-}
 
 // debug print functions
 void 
@@ -50,6 +24,15 @@ print(str8 s) {
 void 
 println(str8 s) {
     printf("%s\n", s.str);
+}
+
+constexpr s64 
+constexpr_strlen(const char* s) {
+    s64 i = 0;
+    while(s[i]) {
+        i++;
+    }
+    return i;
 }
 
 //this is temp allocated, so just clear temp mem or free the str yourself

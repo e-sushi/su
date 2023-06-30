@@ -7,7 +7,12 @@
 
     This uses shared_mutex, which allows an arbitrary amount of reading threads, but only allows
     one thread to access any data when writing is occuring.
+
+    These arrays do NOT implicitly copy, to make a copy of an Array you must call array::copy
 */
+
+#ifndef AMU_ARRAY_H
+#define AMU_ARRAY_H
 
 #include "kigu/common.h"
 
@@ -85,6 +90,13 @@ read(Array<T>& arr, spt idx);
 template<typename T> T*
 readptr(Array<T>& arr, spt idx);
 
+// returns a reference to the item at 'idx' in the array
+// supports negative indexing
+// the item can move with the entire array, so this can become invalid
+// at any time!
+template<typename T> T&
+readref(Array<T>& arr, spt idx);
+
 // lock the entire array such that only the calling thread
 // may manipulate it until unlock is called
 template<typename T> void
@@ -94,6 +106,12 @@ lock(Array<T>& arr);
 template<typename T> void
 unlock(Array<T>& arr);
 
-}
+// makes a copy of the given Array's contents 
+// and returns a new Array with those contents
+template<typename T> Array<T>
+copy(Array<T>& arr);
 
-}
+} // namespace array
+} // namespace amu
+
+#endif // AMU_ARRAY_H

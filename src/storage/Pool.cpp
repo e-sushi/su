@@ -10,7 +10,7 @@ new_chunk(Pool<T>& pool) {
 
     // allocate and insert the new chunk
     node::insert_before(&pool->chunk_root, 
-        (LNode*)util::allocate(sizeof(LNode)+pool->items_per_chunk*blocksize));
+        (LNode*)memory::allocate(sizeof(LNode)+pool->items_per_chunk*blocksize));
 
     // append the first free block to our free blocks list
     // node::insert_before(&pool->free_blocks, pool->chunk_root.prev + sizeof(LNode));
@@ -44,7 +44,7 @@ deinit(Pool<T>& pool) {
     shared_mutex_deinit(&pool->lock);
     
     for(LNode* n = pool->chunk_root->next; n != &pool->chunk_root; n = n->next) {
-        util::free(n);
+        memory::free(n);
     }
 }
 
