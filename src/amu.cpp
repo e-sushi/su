@@ -292,47 +292,30 @@
 		it doesnt exist. this can be really confusing and so should be fixed.
 */
 
-
-
-#include "core/memory.h"
-
-#define KIGU_STRING_ALLOCATOR deshi_temp_allocator
-#define KIGU_ARRAY_ALLOCATOR deshi_allocator
-#include "kigu/profiling.h"
-#include "kigu/arrayT.h"
-#include "kigu/array_utils.h"
-#include "kigu/common.h"
-#include "kigu/cstring.h"
-#include "kigu/map.h"
-#include "kigu/string.h"
-#include "kigu/string_utils.h"   
-#include "kigu/node.h"
-
-namespace deshi{
-#	include "core/logger.h"
-#	include "core/platform.h"
-#	include "core/file.h"
-#	include "core/threading.h"
-#	include "core/time.h"
-}
-
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "kigu/common.h"
 #include "kigu/unicode.h"
+#include "kigu/string_utils.h"
 #include "kigu/hash.h"
 
+#include "core/memory.h" 
+#include "core/file.h"
+#include "core/logger.h"
+#include "core/platform.h"
+#include "core/threading.h"
+#include "core/time.h"
+
 #include "util.h"
-#include "Node.h"
-#include "Pool.h"
+#include "basic/Node.h"
+#include "storage/Pool.h"
+#include "storage/Array.h"
 #include "Token.h"
+#include "Source.h"
 #include "Entity.h"
 #include "Compiler.h"
 
-
-#include "Node.cpp"
-#include "Pool.cpp"
+#include "basic/Node.cpp"
+#include "storage/Pool.cpp"
+#include "storage/Array.cpp"
 #include "Compiler.cpp"
 
 void speed_test(const u64 samples, str8 filepath){
@@ -371,10 +354,20 @@ void speed_test(const u64 samples, str8 filepath){
 // 	// logger_pop_indent(-1);
 // }
 
+mutex jobm;
+void job(void* in) {
+	mutex_lock(&jobm);
+	printf("%s\n", ((str8*)in)->str);
+	mutex_unlock(&jobm);
+}
+
 int main(){DPZoneScoped;
-   	// memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
-   	// platform_init();
-   	// logger_init();
+   	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
+   	platform_init();
+   	logger_init();
+	threader_init(4, 4, 10);
+
+	amu::compiler::init();
 
 	// threader_init(255);
 	// threader_spawn_thread(10);

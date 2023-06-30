@@ -15,21 +15,20 @@ namespace deshi {
 }
 
 #include "Messenger.h"
-#include "Pool.h"
+#include "storage/Pool.h"
 #include "Entity.h"
 
 namespace amu {
 
 struct Compiler {
-    deshi::Stopwatch compiler_time;
+    Stopwatch compiler_time;
 
     // when we use deshi's memory system, we have to lock it 
     // because it is not yet internally thread safe
     // this should primarily be used by amu::Arena
-    deshi::mutex deshi_mem_lock;
+    mutex deshi_mem_lock;
 
     Messenger messenger;
-
 
     // in order to make cleaning up the compiler easy, storage of all things in amu 
     // have their handle inside the compiler struct

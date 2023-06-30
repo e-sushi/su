@@ -89,7 +89,7 @@
                 "DESHI_IMPLEMENTATION",
                 "DESHI_IMPLEMENTATION_UI2",
                 "DESHI_DISABLE_IMGUI",
-                "DESHI_VULKAN=1",
+                "DESHI_OPENGL=1",
                 "SUUGU_USE_GRAPHVIZ",
                 "DESHI_RELOADABLE_UI"
             ],

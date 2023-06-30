@@ -6,11 +6,9 @@
 #ifndef AMU_ENTITY_H
 #define AMU_ENTITY_H
 
-#include "Node.h"
-#include "Pool.h"
+#include "basic/Node.h"
+#include "storage/Pool.h"
 #include "Label.h"
-
-
 
 namespace amu{
 
@@ -24,8 +22,23 @@ struct Entity {
 
     };
 
+    struct Structure {
+
+    };
+
     struct Function {
 
+    };
+
+    struct Module {
+
+    };  
+
+    union {
+        Variable variable;
+        Structure structure;
+        Function function;
+        Module module;
     };
 
     Label* label; 
