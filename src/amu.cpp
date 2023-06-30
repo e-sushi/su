@@ -292,6 +292,8 @@
 		it doesnt exist. this can be really confusing and so should be fixed.
 */
 
+#include "time.h"
+
 #include "kigu/common.h"
 #include "kigu/unicode.h"
 #include "kigu/string_utils.h"
@@ -304,18 +306,25 @@
 #include "core/threading.h"
 #include "core/time.h"
 
-#include "util.h"
 #include "basic/Node.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
+#include "storage/String.h"
+#include "storage/DString.h"
+#include "Memory.h"
 #include "Token.h"
 #include "Source.h"
 #include "Entity.h"
+#include "Messenger.h"
 #include "Compiler.h"
 
+#include "Memory.cpp"
 #include "basic/Node.cpp"
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
+#include "storage/String.cpp"
+#include "storage/DString.cpp"
+#include "Messenger.cpp"
 #include "Compiler.cpp"
 
 void speed_test(const u64 samples, str8 filepath){
@@ -361,7 +370,7 @@ void job(void* in) {
 	mutex_unlock(&jobm);
 }
 
-int main(){DPZoneScoped;
+int main(int argc, char* argv[]){DPZoneScoped;
    	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
    	logger_init();

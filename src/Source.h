@@ -5,6 +5,9 @@
     All files are compiled into modules, this just holds information relating directly to the file
 */
 
+#ifndef AMU_SOURCE_H
+#define AMU_SOURCE_H
+
 #include "Entity.h"
 #include "core/file.h"
 
@@ -13,7 +16,10 @@ namespace amu {
 struct Source {
     File* file;
 
+    // the module representing this Source
     Entity::Module* module;
 };
 
-}
+} // namespace amu
+
+#endif // AMU_SOURCE_H

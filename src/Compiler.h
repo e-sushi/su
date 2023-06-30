@@ -38,10 +38,9 @@ struct Compiler {
     // this is experimental and depending on how much state needs cleaned up in other 
     // components of the compiler, I may just go back to storing this locally  
     struct {
-
+        Pool<Source> sources;
         Pool<Entity> entities;
         Pool<Label> labels;
-
     }storage;
 };
 
@@ -53,6 +52,18 @@ init();
 
 global void
 deinit();
+
+// loads a file as an amu::Source and stores it internally
+// returns a handle to the Source
+global Source*
+load_source(str8 path);
+
+// attempts to locate a given source name
+// returns 0 if it doesn't exist
+global Source*
+lookup_source(str8 name);
+
+
 
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler
