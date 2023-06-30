@@ -7,7 +7,7 @@ namespace internal {
 template<typename T> void 
 grow_if_needed(Array<T>& arr) {
     if(arr.count >= arr.space) {
-        arr.data = (T*)util::reallocate(arr.data, sizeof(T) * arr.space * 2);
+        arr.data = (T*)memory::reallocate(arr.data, sizeof(T) * arr.space * 2);
     }
 }
 
@@ -17,7 +17,7 @@ template<typename T> Array<T>
 init(u32 initial_space) {
     Array<T> out;
     out.lock = shared_mutex_init();
-    out.data = (T*)util::allocate(sizeof(T)*initial_space);
+    out.data = (T*)memory::allocate(sizeof(T)*initial_space);
     out.count = 0;
     out.space = initial_space;
     return out;
@@ -26,7 +26,7 @@ init(u32 initial_space) {
 template<typename T> Array<T>
 deinit(Array<T>& arr) {
     shared_mutex_lock(&arr.lock);
-    util::free(arr.data);
+    memory::free(arr.data);
     shared_mutex_unlock(&arr.lock);
     shared_mutex_deinit(&arr.lock);
     arr = {};
@@ -97,7 +97,7 @@ resize(Array<T>& arr, u32 count) {
 
     if(count > arr.count) {
         if(count > arr.space) {
-            arr.data = util::reallocate(arr.data, count*sizeof(T));
+            arr.data = memory::reallocate(arr.data, count*sizeof(T));
         }
 
         forI(count - arr.count) {
@@ -116,7 +116,7 @@ reserve(Array<T>& arr, u32 count) {
     defer{shared_mutex_unlock(&arr.lock);};
 
     if(count > arr.space) {
-        arr.data = util::reallocate(arr.data, count*sizeof(T));
+        arr.data = memory::reallocate(arr.data, count*sizeof(T));
         arr.space = count;
     }
 }
@@ -139,6 +139,15 @@ readptr(Array<T>& arr, spt idx) {
     return arr.data + idx;
 }
 
+template<typename T> T&
+readref(Array<T>& arr, spt idx) {
+    shared_mutex_lock_shared(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    Assert(idx < arr.count);
+
+    return arr.data[idx];
+}
+
 template<typename T> void
 lock(Array<T>& arr) {
     shared_mutex_lock(&arr.lock);
@@ -147,6 +156,17 @@ lock(Array<T>& arr) {
 template<typename T> void
 unlock(Array<T>& arr) {
     shared_mutex_unlock(&arr.lock);
+}
+
+template<typename T> Array<T>
+copy(Array<T>& arr) {
+    shared_mutex_lock_shared(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
+    Array<T> out = init(arr.count);
+    CopyMemory(out.data, arr.data, sizeof(T)*arr.count);
+
+    return out;
 }
 
 } // namespace array
