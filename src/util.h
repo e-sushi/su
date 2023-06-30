@@ -16,24 +16,40 @@ namespace deshi {
 namespace amu {
 namespace util {
 
-void* allocate(upt size) {
-    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+// it's probably better to just use stdlib's allocation at this point, but I will keep it around for now
+// incase I ever fix up deshi's interface to be a little nicer
+void* 
+allocate(upt size) {
+    mutex_lock(&compiler::instance.deshi_mem_lock);
     void* out = memalloc(size);
-    deshi::mutex_unlock(&compiler::instance.deshi_mem_lock);
+    mutex_unlock(&compiler::instance.deshi_mem_lock);
     return out;
 }
 
-void* reallocate(void* ptr, upt size) {
-    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+void* 
+reallocate(void* ptr, upt size) {
+    mutex_lock(&compiler::instance.deshi_mem_lock);
     void* out = memrealloc(ptr, size);
-    deshi::mutex_unlock(&compiler::instance.deshi_mem_lock);
+    mutex_unlock(&compiler::instance.deshi_mem_lock);
     return out;
 }
 
-void free(void* ptr) {
-    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+void 
+free(void* ptr) {
+    mutex_lock(&compiler::instance.deshi_mem_lock);
     memzfree(ptr);
-    deshi::mutex_lock(&compiler::instance.deshi_mem_lock);
+    mutex_lock(&compiler::instance.deshi_mem_lock);
+}
+
+// debug print functions
+void 
+print(str8 s) {
+    printf("%s", s.str);
+}
+
+void 
+println(str8 s) {
+    printf("%s\n", s.str);
 }
 
 //this is temp allocated, so just clear temp mem or free the str yourself
@@ -52,6 +68,7 @@ dstr8 format_time(f64 ms){
 	//}else{
 	//	return to_str8_amu(ms, " ms");
 	//}
+    return {};
 }
 
 }
