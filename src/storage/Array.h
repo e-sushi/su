@@ -9,6 +9,10 @@
     one thread to access any data when writing is occuring.
 
     These arrays do NOT implicitly copy, to make a copy of an Array you must call array::copy
+
+    !!!!!!! IMPORTANT !!!!!!!!
+    if you plan to add functionality to this structure, you CANNOT allow recursive locks to happen
+    since shared_mutex does not support it.
 */
 
 #ifndef AMU_ARRAY_H
@@ -45,12 +49,20 @@ push(Array<T>& arr);
 // pushes an item to the end of the array and
 // sets its value to 'val', growing if needed
 template<typename T> void
-push(Array<T>& arr, T& val);
+push(Array<T>& arr, const T& val);
 
 // pops 'count' items from the end of the array
 // and returns the last item popped's value
 template<typename T> T
 pop(Array<T>& arr, u32 count = 1);
+
+// inserts a new item at 'idx' and returns a pointer to it
+template<typename T> T*
+insert(Array<T>& arr, spt idx);
+
+// inserts a new item at 'idx' and sets its value to 'val'
+template<typename T> void
+insert(Array<T>& arr, spt idx, T& val);
 
 // removes the item at idx
 // if the array is 'unordered', the item at
@@ -75,6 +87,7 @@ template<typename T> void
 reserve(Array<T>& arr, u32 count);
 
 // sets the item at 'idx' to 'val'
+// the thread safe alternative to trying to set directly
 template<typename T> void
 set(Array<T>& arr, spt idx, T val);
 

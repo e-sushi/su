@@ -38,20 +38,22 @@ push(Array<T>& arr) {
     defer{shared_mutex_unlock(&arr.lock);};
     
     internal::grow_if_needed(arr);
-
     T* out = arr.data + arr.count;
     arr.count += 1;
+
     return out;
 }
 
 template<typename T> void
-push(Array<T>& arr, T& val) {
+push(Array<T>& arr, const T& val) {
     shared_mutex_lock(&arr.lock);
     defer{shared_mutex_unlock(&arr.lock);};
 
-    T* place = push(arr);
-    *place = val;
+    internal::grow_if_needed(arr);
+    *(arr.data + arr.count) = val;
+    arr.count += 1;
 }
+
 
 template<typename T> T
 pop(Array<T>& arr, u32 count) {
@@ -64,6 +66,32 @@ pop(Array<T>& arr, u32 count) {
 
     T out = *(arr.data + arr.count - 1);
     return out;
+}
+
+template<typename T> T*
+insert(Array<T>& arr, spt idx) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    Assert(idx < arr.count);
+
+    internal::grow_if_needed(arr);
+
+    MoveMemory(arr.data + idx + 1, arr.data + idx + 2, sizeof(T) * (arr.count - idx));
+    arr.count += 1;
+    return arr.data + idx;
+}
+
+template<typename T> void
+insert(Array<T>& arr, spt idx, T& val) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    Assert(idx < arr.count);
+
+    internal::grow_if_needed(arr);
+
+    MoveMemory(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
+    arr.count += 1;
+    *(arr.data + idx) = val;
 }
 
 template<typename T> void
