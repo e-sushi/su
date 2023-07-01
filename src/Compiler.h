@@ -17,6 +17,7 @@ namespace deshi {
 #include "Messenger.h"
 #include "storage/Pool.h"
 #include "Entity.h"
+#include "Result.h"
 
 namespace amu {
 
@@ -28,7 +29,7 @@ struct Compiler {
     // this should primarily be used by amu::Arena
     mutex deshi_mem_lock;
 
-    Messenger messenger;
+    File* log_file;
 
     // in order to make cleaning up the compiler easy, storage of all things in amu 
     // have their handle inside the compiler struct
@@ -53,15 +54,18 @@ init();
 global void
 deinit();
 
+global void
+begin(Array<String> args);
+
 // loads a file as an amu::Source and stores it internally
 // returns a handle to the Source
-global Source*
-load_source(str8 path);
+global Result<Source*, Message>
+load_source(String path);
 
 // attempts to locate a given source name
 // returns 0 if it doesn't exist
 global Source*
-lookup_source(str8 name);
+lookup_source(String name);
 
 
 

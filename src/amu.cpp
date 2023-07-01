@@ -292,12 +292,11 @@
 		it doesnt exist. this can be really confusing and so should be fixed.
 */
 
+
 #include "time.h"
 
 #include "kigu/common.h"
 #include "kigu/unicode.h"
-#include "kigu/string_utils.h"
-#include "kigu/hash.h"
 
 #include "core/memory.h" 
 #include "core/file.h"
@@ -317,15 +316,18 @@
 #include "Entity.h"
 #include "Messenger.h"
 #include "Compiler.h"
+#include "Result.h"
 
 #include "Memory.cpp"
 #include "basic/Node.cpp"
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
-#include "storage/String.cpp"
 #include "storage/DString.cpp"
 #include "Messenger.cpp"
 #include "Compiler.cpp"
+
+
+
 
 void speed_test(const u64 samples, str8 filepath){
 	// f64 sum = 0;
@@ -376,7 +378,22 @@ int main(int argc, char* argv[]){DPZoneScoped;
    	logger_init();
 	threader_init(4, 4, 10);
 
-	amu::compiler::init();
+	{using namespace amu;
+
+		compiler::init();
+		
+		auto args = array::init<String>(argc);
+		forI(argc) {
+			array::push(args, string::init(argv[i]));
+		}
+
+		compiler::begin(args);
+
+	}
+
+	
+
+
 
 	// threader_init(255);
 	// threader_spawn_thread(10);
