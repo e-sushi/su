@@ -20,7 +20,6 @@
 #define AMU_DSTRING_H
 
 #include "kigu/unicode.h"
-#include "kigu/string_utils.h"
 #include "util.h"
 #include "storage/String.h"
 
@@ -34,7 +33,7 @@ namespace dstring {
 
 // initializes a String with an optional initial string
 FORCE_INLINE DString
-init(String s = {}); 
+init(String s = ""); 
 
 // deinitializes a string, freeing its memory
 FORCE_INLINE void

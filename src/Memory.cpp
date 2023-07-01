@@ -5,7 +5,7 @@ Allocator _amu_allocator{
     memory::free,
     memory::reallocate,
 };
-Allocator* amu_allocator;
+Allocator* amu_allocator = &_amu_allocator;
 
 namespace memory {
 

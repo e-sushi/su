@@ -32,6 +32,18 @@ struct String {
 
 namespace string {
 
+// run time creation of String from a cstring
+global String
+init(const char* s) {
+    String out;
+    out.s.str = (u8*)s;
+    out.s.count = (s64)strlen(s);
+    return out;
+}
+
+
+
+
 
 } // namespace string
 } // namespace amu
