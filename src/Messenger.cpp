@@ -2,39 +2,66 @@ namespace amu {
 namespace messenger { // ---------------------------------------------------- messenger
 
 namespace internal {
-    
-DString
-process_part(Message::Part& part) {
-    dstr8 out; dstr8_init(&out, str8l(""), deshi_allocator);
+
+MessageFormatting* current_formatting;
+
+void
+process_part(DString& current, MessagePart& part) {
     switch(part.type) {
-        case Message::Part::Plain: {
-            return part.plain;
+        case MessagePart::Plain: {
+            dstring::append(current, part.plain);
         } break;
-        case Message::Part::Entity: {
+        case MessagePart::Variable: {
             NotImplemented;
         } break;
-        case Message::Part::Label: {
+        case MessagePart::Structure: {
             NotImplemented;
         } break;
-        case Message::Part::Code: {
+        case MessagePart::Function: {
+            NotImplemented;
+        } break;
+        case MessagePart::Module: {
+            NotImplemented;
+        } break;
+        case MessagePart::Label: {
+            NotImplemented;
+        } break;
+        case MessagePart::Code: {
             NotImplemented;
         } break;
     }
-    return {};
 }
 
 // processes a given Message into a str8
-dstr8 
-process_message(Message& m) {
+void
+process_message(DString& current, Message& m) {
     forI(m.parts.count) {
-        process_part(array::readref(m.parts, i));
+        process_part(current, array::readref(m.parts, i));
     }
-    return {};
+    dstring::append(current, "\n");
 }
 
 } // namespace internal
 
 Messenger instance;
+
+void 
+init() {
+    instance.messages = array::init<Message>();
+    instance.delivering = mutex_init();
+
+    MessageFormatting def = {
+        .allow_color = true,
+        .warning = {
+            .default_color = Color_Yellow,
+            .prefix = "warning:"
+        }
+        .error = {
+            
+        }
+    }
+
+}
 
 void
 dispatch(Message message) {
@@ -43,26 +70,46 @@ dispatch(Message message) {
 
 // dispatch a plain str8
 void
-dispatch(str8 message, Source* source) {
+dispatch(String message, Source* source) {
     Message m = message::init(source);
-    Message::Part part; 
-    part.type = Message::Part::Plain;
+    MessagePart part; 
+    part.type = MessagePart::Plain;
     //part.plain = message;
     message::push(m, part);
     dispatch(message);
 }
 
 void 
-deliver() {
+deliver(Destination destination, b32 clear_messages) {
     array::lock(instance.messages);
     mutex_lock(&instance.delivering);
 
-    //dstr8 processed;
+    DString out = dstring::init();
 
-    //forI(instance.messages.count) {
-    //    array::push(processed,
-    //        internal::process_message(instance.messages.data[i]));
-    //}
+    forI(instance.messages.count) {
+        internal::process_message(out, 
+            array::readref(instance.messages, i));
+    }
+
+    switch(destination.type) {
+        case Destination::STLFILE: {
+            size_t bytes_written = fwrite(out.s.str, 1, out.s.count, destination.stl_file);
+            printf("%zu\n", bytes_written);
+        } break;
+        case Destination::DESHFILE: {
+            file_append(destination.desh_file, out.s.str, out.s.count);
+        } break;
+    }
+}
+
+void
+push_formatting(MessageFormatting formatting) {
+    array::push(instance.formatting_stack);
+}
+
+void 
+pop_formatting() {
+    array::pop(instance.formatting_stack);
 }
 
 } // namespace messenger
@@ -74,14 +121,14 @@ init(Source* source) {
     Message out;
     out.time = time(0);
     out.source = source;
-    out.parts = array::init<Message::Part>();
+    out.parts = array::init<MessagePart>();
     return out;
 }
 
 template<typename... T> Message
 init(Source* source, T... args) {
     Message out = init(source);
-    Message::Part arr[sizeof...(T)] = {args...};
+    MessagePart arr[sizeof...(T)] = {args...};
     forI(sizeof...(T)) {
         push(out, arr[i]);
     }
@@ -89,8 +136,40 @@ init(Source* source, T... args) {
 }
 
 void
-push(Message& m, Message::Part part) {
+push(Message& m, MessagePart part) {
     array::push(m.parts, part);
+}
+
+void
+prefix(Message& m, MessagePart part) {
+    array::insert(m.parts, 0, part);
+}
+
+template<typename... T>
+void
+prefix(Message& m, T... args) {
+    MessagePart arr[sizeof...(T)] = {args...};
+    forI_reverse(sizeof...(T)) {
+        prefix(m, arr[i]);
+    }
+}
+
+MessagePart
+plain(String s, color c) {
+    MessagePart out;
+    out.type = MessagePart::Plain;
+    out.col = c;
+    out.plain = s;
+    return out;
+}
+
+MessagePart
+path(String s, color c) {
+    MessagePart out;
+    out.type = MessagePart::Path;
+    out.col = c;
+    out.plain = s;
+    return out;
 }
 
 } // namespace message
