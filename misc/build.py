@@ -311,7 +311,7 @@ parts = {
 
         "clang++":{
             "always": ( # flags always applied if this compiler is chosen
-                "-std=c++20 "         # use the c++17 standard
+                "-std=c++20 "         # use the c++20 standard
                 "-fexceptions "       # enable exception handling
                 "-fcxx-exceptions "   # enable c++ exceptions
                 "-finline-functions " # inlines suitable functions
@@ -442,6 +442,8 @@ full_deshi = (
     f'{sources["deshi"]} ' + shared + 
     f'-o {folders["build"]}/deshi.o'
 ) 
+
+full_deshi = full_deshi.replace("c++20", "c++17")
 
 # dream on it 
 
