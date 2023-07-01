@@ -4,29 +4,24 @@
     This is just an idea and may not be used, as it may be more trouble than it's worth
 */
 
+#ifndef AMU_RESULT_H
+#define AMU_RESULT_H
+
 #include "kigu/common.h"
 
 namespace amu {
 
 template<typename R, typename E>
 struct Result {
-    enum {
-        Ok,
-        Error,
-    };
-
-    Type type;
+    b32 is_ok;
     union{
         R result;
         E error;
     };
 
-    b32 is_ok() { return type == Ok; }
-    b32 is_error() { return type == Error; } 
-    
     // returns the result if it is valid, stops the program otherwise
     R& unwrap() {
-        if(type == Ok) {
+        if(is_ok) {
             return result;
         } else {
             Assert(0);
@@ -37,9 +32,12 @@ struct Result {
     // useful when we are returning this, eg. if the return type is Result<b32, u32>
     // saying return (b32)1; will automatically construct an Ok Result
     // and saying return (u32)1; will do the opposite
-    Result(R result) : type(Ok) { this.result = result; }
-    Result(E error) : type(Error) { this.error = error; }
+    Result(R result) : is_ok(true) { this->result = result; }
+    Result(E error) : is_ok(false) { this->error = error; }
 
-    operator bool() const { return type == Ok; }
+    operator bool() const { return is_ok; }
 };
-}
+
+} // namespace amu
+
+#endif // AMU_RESULT_H
