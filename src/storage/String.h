@@ -26,7 +26,9 @@ struct String {
 
 
     String(){}
-    String(DString& dstr);
+    String(DString& dstr); 
+    String(str8 in) : s(in) {}
+    String(const char* s, s64 count) : s({(u8*)s, count}) {}
     consteval String(char* in) : __cplusplus_sucks({in, util::constexpr_strlen(in)}) {}
 };
 
@@ -41,11 +43,53 @@ init(const char* s) {
     return out;
 }
 
+void
+advance(String& s, u32 n = 1) {
+    str8_nadvance(&s.s, n);
+}
 
+String
+eat(String s, u64 n = 1) {
+    s.s = str8_eat_count(s.s, n);
+    return s;
+}
 
+String 
+eat_until(String s, u32 c) {
+    s.s = str8_eat_until(s.s, c);
+    return s;
+}
 
+String
+eat_until_last(String s, u32 c) {
+    s.s = str8_eat_until_last(s.s, c);
+    return s;
+}
+
+String
+eat_until_str(String s, String c) {
+    s.s = str8_eat_until_str(s.s, c.s);
+    return s;
+}
+
+String
+skip(String s, u64 n = 1) {
+    s.s = str8_skip_count(s.s, n);
+    return s;
+}
+
+String 
+skip_until(String s, u32 c) {
+    s.s = str8_skip_until(s.s, c);
+    return s;
+}
+
+String
+skip_until_last(String s, u32 c) {
+    s.s = str8_skip_until_last(s.s, c);
+    return s;
+}
 
 } // namespace string
 } // namespace amu
-
 #endif // AMU_STRING_H
