@@ -11,6 +11,8 @@
         figure out a nice way to store diagnostic codes so that we can collect them and output 
         a machine-readable diagnotics result for testing 
 
+        maybe convert this to not be functional
+
         verify any Japanese that I write, mostly doing it to learn some vocabulary and it is 
         going to be very far from correct.
 
@@ -131,23 +133,25 @@ unknown_directive(String inv) {
         case Chinese: NotImplemented; break;
         case Russian: NotImplemented; break;
     }
+    out.type = Message::Error;
     return out;
 }
 
 global Message
-invalid_token(String inv) { // this should probably never happen
+invalid_token() { // this should probably never happen
     Message out;
     switch(lang) {
         case English: {
-            out = message::init(String("invalid token "), message::identifier(inv));
+            out = message::init(String("invalid token"));
         } break;
         case Japanese: {
-            out = message::init(String("無効のトークン"), message::identifier(inv));
+            out = message::init(String("無効のトークン"));
         } break;
         case Spanish: NotImplemented; break;
         case Chinese: NotImplemented; break;
         case Russian: NotImplemented; break;
     }
+    out.type = Message::Error;
     return out;
 }
 
@@ -155,7 +159,23 @@ invalid_token(String inv) { // this should probably never happen
 
 namespace internal { // @internal
 
-
+Message
+valid_path_but_internal_err(String path, String err) {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(
+                    String("valid path was given, "),
+                    message::path(path),
+                    String(", but couldn't be opened to due to an internal error: "),
+                    err);
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break;
+    }
+}
 
 } // namespace internal
 

@@ -31,9 +31,9 @@ begin(Array<String> args) {
     {
         auto load = load_source(path);
         if(!load) {
-            load.error.sender = MessageSender::Compiler;  
-            messenger::dispatch(load.error);
-            messenger::deliver(stdout); // deliver immediately because we can't start anyways 
+            messenger::dispatch(
+                message::attach_sender(MessageSender::Compiler, load.error));
+            messenger::deliver(stdout); // deliver immediately because we can't start
             messenger::deliver(instance.log_file);
             return;
         }
@@ -44,6 +44,7 @@ begin(Array<String> args) {
     lex::analyze(lexer);
     messenger::deliver(stdout);
     messenger::deliver(instance.log_file);
+    lex::output(lexer, "lexout");
 
 }
 
@@ -59,10 +60,7 @@ load_source(String path) {
 
     if(!out->file) {
         pool::remove(instance.storage.sources, out);
-        return message::init(
-            message::plain("valid path, but unable to open file due to internal error: "),
-            message::plain(string::init((char*)result.message.str))
-        );
+        return diagnostic::internal::valid_path_but_internal_err(path, String(result.message));
     }
 
     // load the source's contents into memory
