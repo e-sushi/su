@@ -56,11 +56,11 @@ enum : u32 {
 // settings or where it is delivering the message to
 struct MessagePart {
     enum Type : u32 {
-        Plain, Token, Sender, Path, Source, Variable, Structure, Function, Module, Label, Code, COUNT
+        Plain, Token, Identifier, Path, Source, Variable, Structure, Function, Module, Label, Code, COUNT
     };
     Type type;
     union {
-        String plain; // a plain String or path
+        String plain; // a plain String, path, or identifier
         amu::Token token; // a token, likely representing a source location
         Entity::Variable variable;
         Entity::Structure structure;
@@ -75,6 +75,7 @@ struct MessagePart {
     u32 col;
 
     MessagePart() {}
+    constexpr MessagePart(String s) : plain(s) {type = Plain;}
     MessagePart(Entity::Variable v) : variable(v) {type = Variable;}
     MessagePart(Entity::Structure s) : structure(s) {type = Structure;}
     MessagePart(Entity::Function f) : function(f) {type = Function;}
@@ -155,8 +156,6 @@ struct MessageFormatting {
     } path;
 
 };
-
-
 
 struct Messenger {
     SharedArray<Message> messages; 
@@ -260,6 +259,15 @@ sender(String s, u32 c = message::color_none);
 // constructs a path part
 MessagePart
 path(String s, u32 c = message::color_none);
+
+// constructs an identifier part
+// for referring to some identifier of an unknown type
+MessagePart
+identifier(String s);
+
+// attaches a sender to the given message and returns it 
+Message
+attach_sender(MessageSender sender, Message m);
 
 // the following helpers are unecessary to call unless you want to override the
 // color used to format them, otherwise you can just pass the object directly

@@ -78,9 +78,15 @@ process_message(DString& current, Message& m) {
         case MessageSender::Source: {
             DString temp = dstring::init(String(m.sender.source->file->name));
             wrap_color(temp, message::color_cyan);
-            dstring::append(current, temp);
-            dstring::append(current, ": ");
+            dstring::append(current, temp, ": ");
             dstring::deinit(temp);
+        } break;
+        case MessageSender::SourceLoc: {
+            DString temp = dstring::init(String(m.sender.source->file->name));
+            wrap_color(temp, message::color_cyan);
+            dstring::append(current, temp, ":", m.sender.line, ":", m.sender.column, ": ");
+            dstring::deinit(temp);
+            
         } break;
     }
 
@@ -209,9 +215,38 @@ init() {
     return out;
 }
 
+Message
+init(String s) {
+    Message out = init();
+    push(out, s);
+    return out;
+}
+
+// TODO(sushi) there has just GOT to be a way for me to pass string literals to this function and them still
+//             be turned into Strings at compile time
 template<typename... T> Message
 init(T... args) {
     Message out = init();
+    MessagePart arr[sizeof...(T)] = {args...};
+    forI(sizeof...(T)) {
+        push(out, arr[i]);
+    }
+    return out;
+}
+
+// initialize a debug message
+Message
+debug(u32 verbosity) {
+    Message out = init();
+    out.type = Message::Debug;
+    out.verbosity = verbosity;
+    return out;
+}
+
+// initialize a debug message with variadic arguments
+template<typename... T> Message
+debug(u32 verbosity, T... args) {
+    Message out = debug(verbosity);
     MessagePart arr[sizeof...(T)] = {args...};
     forI(sizeof...(T)) {
         push(out, arr[i]);
@@ -254,6 +289,20 @@ path(String s, u32 c) {
     out.col = c;
     out.plain = s;
     return out;
+}
+
+MessagePart
+identifier(String s) {
+    MessagePart out;
+    out.type = MessagePart::Identifier;
+    out.plain = s;
+    return out;
+}
+
+Message
+attach_sender(MessageSender sender, Message m) {
+    m.sender = sender;
+    return m;
 }
 
 } // namespace message
