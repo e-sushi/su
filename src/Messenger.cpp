@@ -41,6 +41,16 @@ process_part(DString& current, MessagePart& part) {
             dstring::deinit(temp);
 
         } break;
+        case MessagePart::Identifier: {
+            DString temp = dstring::init(part.plain);
+            if(current_dest->allow_color) {
+                wrap_color(temp, formatting.identifier.col);
+            }
+            dstring::prepend(temp, formatting.identifier.prefix);
+            dstring::append(temp, formatting.identifier.suffix);
+            dstring::append(current, temp);
+            dstring::deinit(temp);
+        }break;
         case MessagePart::Variable: {
             NotImplemented;
         } break;
