@@ -19,6 +19,8 @@ namespace deshi {
 #include "Entity.h"
 #include "Result.h"
 
+
+
 namespace amu {
 
 struct Compiler {
@@ -43,6 +45,10 @@ struct Compiler {
         Pool<Entity> entities;
         Pool<Label> labels;
     }storage;
+
+    struct {
+        u32 verbosity;
+    } options;
 };
 
 namespace compiler {

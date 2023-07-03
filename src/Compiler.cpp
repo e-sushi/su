@@ -27,25 +27,27 @@ begin(Array<String> args) {
     String cwd = array::read(args, 0);
     String path = array::read(args, 1);
 
-    auto load = load_source(path);
-    if(!load) {
-        message::prefix(load.error, 
-            message::plain("compiler", Color_DarkYellow),
-            message::plain(": "));
-        messenger::dispatch(load.error);
-        messenger::deliver(stdout);
-        messenger::deliver(instance.log_file);
+    Source* initsource = 0;
+    {
+        auto load = load_source(path);
+        if(!load) {
+            load.error.sender = MessageSender::Compiler;  
+            messenger::dispatch(load.error);
+            messenger::deliver(stdout); // deliver immediately because we can't start anyways 
+            messenger::deliver(instance.log_file);
+            return;
+        }
+        initsource = load.result;
     }
+    
+
+
 }
 
 global Result<Source*, Message>
 load_source(String path) {
     if(!file_exists(path.s)) {
-        return message::init(0,
-            message::plain("unable to locate path '"),
-            message::path(path, Color_Cyan),
-            message::plain("'")
-        );
+        return diagnostic::path::not_found(path);
     }
 
     Source* out = pool::add(instance.storage.sources);
@@ -54,7 +56,7 @@ load_source(String path) {
 
     if(!out->file) {
         pool::remove(instance.storage.sources, out);
-        return message::init(0, 
+        return message::init(
             message::plain("valid path, but unable to open file due to internal error: "),
             message::plain(string::init((char*)result.message.str))
         );
