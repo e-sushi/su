@@ -89,7 +89,6 @@ void
 analyze(LexicalAnalyzer& lexer) {
 #define stream_next { string::advance(stream); line_col++; } 
 
-
 #define CASE1(c1,t1) \
 case c1:{ 	         \
 token.type = t1;     \
@@ -260,6 +259,7 @@ stream_next;                       \
 			CASE1('`', Token::Backtick);
             CASE1('{', Token::OpenBrace);
             CASE1('}', Token::CloseBrace);
+            CASE1('$', Token::Dollar);
 
 			// case '{':{ //NOTE special for scope tracking and internals 
 			// 	token.type = Token::OpenBrace;
@@ -373,14 +373,14 @@ stream_next;                       \
 					if(lexer.tokens.count && array::read(lexer.tokens, -1).type == Token::Pound){
 						Type type = internal::token_is_directive_or_identifier(token.raw);
 						if(type == Token::Identifier){
-                            messenger::dispatch(message::attach_sender(lexer.source, 
+                            messenger::dispatch(message::attach_sender({lexer.source, token}, 
                                 diagnostic::lexer::unknown_directive(token.raw)));
                             lexer.status.failed = true;
 						}
 					}
 				}else{
-                    messenger::dispatch(message::attach_sender(lexer.source,
-                        diagnostic::lexer::invalid_token(token.raw)));
+                    messenger::dispatch(message::attach_sender({lexer.source, token},
+                        diagnostic::lexer::invalid_token()));
 					token.type = Token::ERROR;
                     lexer.status.failed = true;
 					stream_next;
@@ -397,6 +397,31 @@ stream_next;                       \
     }
 
     lexer.status.time = peek_stopwatch(lexer_time);
+} // lex::analyze
+
+// the lexer is serialized by outputting 
+// token-type "raw" line,column /
+void
+output(LexicalAnalyzer& lexer, String path) {
+    FileResult result = {};
+    File* out = file_init_result(path.s, FileAccess_WriteTruncateCreate, &result);
+    if(!out) {
+        messenger::dispatch(
+            diagnostic::internal::valid_path_but_internal_err(path, String(result.message)));
+        return;
+    }
+
+    DString buffer = dstring::init();
+
+
+    forI(lexer.tokens.count) {
+        Token& t = array::readref(lexer.tokens, i);
+        dstring::append(buffer, (u64)t.type, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
+    }
+
+    file_write(out, buffer.s.str, buffer.s.count);
+    file_deinit(out);
+    dstring::deinit(buffer);
 }
 
 } // namespace lex

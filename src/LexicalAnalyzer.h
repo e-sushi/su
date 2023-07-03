@@ -34,6 +34,10 @@ deinit(LexicalAnalyzer& lexer);
 void
 analyze(LexicalAnalyzer& lexer);
 
+// output the data emitted by the LexicalAnalyzer to the given path
+void
+output(LexicalAnalyzer& lexer, String path);
+
 } // namespace lexer
 
 } // namespace amu
