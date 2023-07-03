@@ -64,6 +64,25 @@ class Array_printer:
             print(f"error: {e}")
 pp.add_printer("Array", r"^amu::Array<.*>$", Array_printer)
 
+class SharedArray_printer:
+    def __init__(self, val): 
+        self.val = val
+    
+    def display_hint(self):
+        return 'array'
+
+    def to_string(self):
+        try:
+            val = self.val
+            if not val['count']:
+                return "{empty}"
+            type = str(val.type)
+            subtype = type[type.find("<")+1:type.rfind(">")]
+            return gdb.parse_and_eval(f"*(({subtype}*){val['data']})@{val['count']}")
+        except Exception as e:
+            print(f"error: {e}")
+pp.add_printer("SharedArray", r"^amu::SharedArray<.*>$", SharedArray_printer)
+
 class MessagePart_printer:
     def __init__(self, val): 
         self.val = val
