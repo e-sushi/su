@@ -95,6 +95,7 @@ struct Token {
         LessThanOrEqual,            // <=
         GreaterThan,                // >
         GreaterThanOrEqual,         // >=
+        Dollar,                     // $
         
         //// keywords ////
         Group_Keyword,
