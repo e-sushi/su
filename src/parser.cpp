@@ -954,8 +954,6 @@ amuNode* SyntaxAnalyzerThread::binop_parse(amuNode* node, amuNode* ret, Type nex
 //     amufile->logger.log(Verbosity_Stages, VTS_GreenFg, "Finished parsing in ", peek_stopwatch(time), " ms", VTS_Default);
 // }
 
-
-
 amuNode* SyntaxAnalyzerThread::define(amuNode* parent, Type stage){
     amuLogger& logger = amufile->logger;
     switch(stage){

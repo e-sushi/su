@@ -44,10 +44,6 @@ init(T...args);
 FORCE_INLINE void
 deinit(DString& s);
 
-// grows the buffer by at least 'bytes'
-FORCE_INLINE void
-grow(DString& s, u64 bytes);
-
 // appends 'b' to 'a'
 FORCE_INLINE void
 append(DString& a, String b);

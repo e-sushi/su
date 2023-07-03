@@ -1,5 +1,8 @@
 /*
-    Various helpful utilities for use throughout amu
+    Various helpful utilities or definitions for use throughout amu and other various things
+	that don't really have a place anywhere else.
+
+	This file is likely to be included in most places, so be careful about editing it.
 */
 
 #ifndef AMU_UTIL_H
@@ -55,6 +58,9 @@ dstr8 format_time(f64 ms){
 }
 
 }
+
+
+
 } // namespace amu
 
 #endif // AMU_UTIL_H
