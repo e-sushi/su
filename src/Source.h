@@ -15,6 +15,7 @@ namespace amu {
 
 struct Source {
     File* file;
+    DString buffer; // the loaded file
 
     // the module representing this Source
     Entity::Module* module;

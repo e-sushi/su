@@ -39,8 +39,11 @@ begin(Array<String> args) {
         }
         initsource = load.result;
     }
-    
 
+    LexicalAnalyzer lexer = lex::init(initsource);
+    lex::analyze(lexer);
+    messenger::deliver(stdout);
+    messenger::deliver(instance.log_file);
 
 }
 
@@ -61,6 +64,13 @@ load_source(String path) {
             message::plain(string::init((char*)result.message.str))
         );
     }
+
+    // load the source's contents into memory
+    u8* buffer = (u8*)memory::allocate(out->file->bytes + 1);
+    file_read(out->file, buffer, out->file->bytes);
+    out->buffer.s.str = buffer;
+    out->buffer.s.count = out->file->bytes;
+    out->buffer.s.space = out->file->bytes + 1;
 
     return out;
 }
