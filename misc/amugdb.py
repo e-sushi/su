@@ -103,6 +103,19 @@ class MessagePart_printer:
             print(f"error: {e}")
 pp.add_printer("MessagePart", r"^amu::MessagePart$", MessagePart_printer)
 
+class Token_printer:
+    def __init__(self, val):
+        self.val = val
+    
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            return f"{str(val['type'])[5:]} {val['raw']}"
+        except Exception as e:
+            print(f"error: {e}")
+pp.add_printer("Token", r"^amu::Token$", Token_printer)
+
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
 
