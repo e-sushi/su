@@ -177,39 +177,15 @@
 
 	LexicalAnalyzer
 	----- TODOs that should mainly involve working in the lexer
-	[!, ***, 2022/07/05] determine if there are other things lexer can do during its stage
-	    since lexer will always parse an entire file there are probably other things we can get it to look for
-		to ease work in later stages, ideally without putting too much work on the lexer.
-		any work added to lexer should not be too demanding and ideally shouldnt have to look ahead or look backwards
-		by moving the stream or some other cursor.
+	
 
 	Preprocessor
 	------------ TODOs that should mainly involve working in the preprocessor
-	[!, **, 2022/07/05, feature] implement #include
-	    works the same as C's include, just pastes whatever file into the buffer
-		as an alternative to using import or even for directly pasting data into code
-	[!, **, 2022/07/05] implement #external
-	    just does the opposite of #internal, used to undo it
-	[!!!, **, 2022/07/25, feature]  import/include searching
-	  	search relative to importing/including file
-		search PATH
-	[!, **, 2022/07/05, feature] implement #message
-	    used for outputting simple messages at compile time
+	
 
 	SyntaxAnalyzer
 	------ TODOs that should mainly involve working in the syntax_analyzer
-	[!!!, **, 2022/07/25, feature] statements
-      	for 
-	  	while 
-	  	switch 
-	[!!,  **, 2022/07/25, feature] using
-	  	variations of using such as 
-	  	aliasing a function's name
-		aliasing a function's name and signature
-		using using for inheriting inside of a struct
-	[!,   **, 2022/07/25, feature] misc
-		initializer lists
-	  	inc/dec
+	
 
 	SemanticAnalyzer
 	--------- TODOs that should mainly involve working in the semantic_analyzer
@@ -241,55 +217,10 @@
 
 	Formatter/Logger
 	---------------- TODOs relating to the process of formatting and outputting messages, including its interface
-	[!!!, ***, 2022/08/06] implement the post-logger
-		this logs messages sent after the compiling process is done. the purpose of this is to help prevent threaded logging 
-		from overlapping without the constant use of mutexes. this will also allow us to do much nicer formatting, such as alignment.
-	[!!!, **, 2022/08/06] implement the custom printf style functions for logger
-		these are the functions called throughout the project such as logger.log and logger.error
-		currently these use the classic comma style formatting, like python or deshi, however it will be better for future systems 
-		if we use a custom printf style. we want to be able to tell the formatter what a passed element is, such as a function name or variable
-		name so it can format them accordingly, this is much easier in a printf style.
-	[!!!, *, 2022/08/06] implement the formatter
-		this needs to be done for both the immediate logging and post logging, ideally in a centralized place!
-
-
+	
 	Other
 	----- other TODOs that may involve working on several parts of the project or just dont fit in any of the other categories
-	[!!!, *, 2022/07/27, tests] tests need rewritten to be in amu's new syntax
-	[!!, ***, 2022/08/02] add a system for outputting each stage's data for external use
-		NOTE its probably best to put this off until the compiler is stable
-		this means setting up a way for the compiler to stop at any stage and output all of that stage's data.
-		some difficulties of this are
-			* only getting output of select files
-			* getting the data for multiple stages
-			* after validation we combine all data into one amuFile, so per file information is only accessible through tokens
-			* how is the output formatted? can we use this output to continue compilation later?
-			* a file's data is not contiguous internally, it would need to be stitched together
-	[!!, ***, 2022/07/25, threading, memory, bug] 
-		due to the randomness of these issues, i cannot provide examples,
-		but you can probably make them more likely to occur by using many large files that import each other
-		there are many random instances where memory asserts, most likely because we still arent handling
-		thread safety completely. 
-		there are still instances where deadlocks and missed wakeups occur
-	[!!!!, **, 2022/07/31, bug] error on code in global space that is not a directive or declaration
-		currently we don't check if code in global space is meant to be there or not because we 
-		skip over anything that is not a decl or directive. preprocessor will need to do some kind of pass
-		that errors in cases like these.
-		example:
-			#import "math.su"
-
-			return; //this is not caught by anything
-
-			main():s32{
-
-			}
-		a critical example where it's failing may be confusing is
-			f(){ //forgot the return type
-				//blah
-			}
-			main(){}
-		in this case the compiler will never error on f, unless the user tries to call it in which it will just tell them
-		it doesnt exist. this can be really confusing and so should be fixed.
+	
 */
 
 
@@ -297,6 +228,7 @@
 
 #include "kigu/common.h"
 #include "kigu/unicode.h"
+#include "kigu/string_utils.h"
 
 #include "core/memory.h" 
 #include "core/file.h"
@@ -308,6 +240,7 @@
 #include "basic/Node.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
+#include "storage/SharedArray.h"
 #include "storage/String.h"
 #include "storage/DString.h"
 #include "Memory.h"
@@ -317,17 +250,18 @@
 #include "Messenger.h"
 #include "Compiler.h"
 #include "Result.h"
+#include "LexicalAnalyzer.h"
 
 #include "Memory.cpp"
 #include "basic/Node.cpp"
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
+#include "storage/SharedArray.cpp"
 #include "storage/DString.cpp"
 #include "Messenger.cpp"
+#include "Diagnostics.cpp"
 #include "Compiler.cpp"
-
-
-
+#include "LexicalAnalyzer.cpp"
 
 void speed_test(const u64 samples, str8 filepath){
 	// f64 sum = 0;
@@ -381,7 +315,7 @@ int main(int argc, char* argv[]){DPZoneScoped;
 	{using namespace amu;
 
 		compiler::init();
-		
+
 		auto args = array::init<String>(argc);
 		forI(argc) {
 			array::push(args, string::init(argv[i]));
@@ -390,10 +324,6 @@ int main(int argc, char* argv[]){DPZoneScoped;
 		compiler::begin(args);
 
 	}
-
-	
-
-
 
 	// threader_init(255);
 	// threader_spawn_thread(10);
