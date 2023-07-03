@@ -31,7 +31,7 @@ void
 free(void* ptr) {
     mutex_lock(&compiler::instance.deshi_mem_lock);
     memzfree(ptr);
-    mutex_lock(&compiler::instance.deshi_mem_lock);
+    mutex_unlock(&compiler::instance.deshi_mem_lock);
 }
 
 } // namespace memory
