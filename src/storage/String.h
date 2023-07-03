@@ -22,14 +22,19 @@ struct String {
     union {
         str8 s;
         struct { char* ptr; s64 count; }__cplusplus_sucks;
+        struct {
+            u8* str;
+            s64 count;
+        };
     };
 
 
     String(){}
-    String(DString& dstr); 
+    String(DString& dstr);
     String(str8 in) : s(in) {}
     String(const char* s, s64 count) : s({(u8*)s, count}) {}
-    consteval String(char* in) : __cplusplus_sucks({in, util::constexpr_strlen(in)}) {}
+    consteval String(const char* in) : __cplusplus_sucks({(char*)in, util::constexpr_strlen(in)}) {}
+    operator bool() { return str && count; }
 };
 
 namespace string {
@@ -46,6 +51,21 @@ init(const char* s) {
 void
 advance(String& s, u32 n = 1) {
     str8_nadvance(&s.s, n);
+}
+
+u64 
+hash(String& s) {
+    return str8_hash64(s.s);
+}
+
+consteval u64
+static_hash(String s, u64 seed = 14695981039346656037) {
+    while(s.__cplusplus_sucks.count-- != 0){
+		seed ^= (u8)*s.__cplusplus_sucks.ptr;
+		seed *= 1099511628211; //64bit FNV_prime
+		s.__cplusplus_sucks.ptr++;
+	}
+	return seed;
 }
 
 String
@@ -88,6 +108,18 @@ String
 skip_until_last(String s, u32 c) {
     s.s = str8_skip_until_last(s.s, c);
     return s;
+}
+
+f64 
+to_f64(String& s) {
+    return strtod((char*)s.str, 0);
+}
+
+s64
+to_s64(String& s) {
+    s64 x;
+    (void)sscanf((char*)s.str, "%lli", &x);
+    return x;
 }
 
 } // namespace string
