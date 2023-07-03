@@ -1,18 +1,8 @@
 /*
-    Contiguous thread safe array.
-
-    In order to keep this array thread safe, reading must also be done through the interface.
-    Well, it doesn't HAVE to be (because we do not use private variables) but you need to 
-    to guarantee thread safety.
-
-    This uses shared_mutex, which allows an arbitrary amount of reading threads, but only allows
-    one thread to access any data when writing is occuring.
+    Contiguous array.
 
     These arrays do NOT implicitly copy, to make a copy of an Array you must call array::copy
 
-    !!!!!!! IMPORTANT !!!!!!!!
-    if you plan to add functionality to this structure, you CANNOT allow recursive locks to happen
-    since shared_mutex does not support it.
 */
 
 #ifndef AMU_ARRAY_H
@@ -27,8 +17,6 @@ struct Array {
     T* data;
     spt count;
     spt space;
-
-    shared_mutex lock;
 };
 
 namespace array {
@@ -38,7 +26,7 @@ template<typename T> Array<T>
 init(u32 initial_space = 4);
 
 // deinitializes an array
-template<typename T> Array<T>
+template<typename T> void
 deinit(Array<T>& arr);
 
 // pushes an item to the end of the array and 
@@ -109,15 +97,6 @@ readptr(Array<T>& arr, spt idx);
 // at any time!
 template<typename T> T&
 readref(Array<T>& arr, spt idx);
-
-// lock the entire array such that only the calling thread
-// may manipulate it until unlock is called
-template<typename T> void
-lock(Array<T>& arr);
-
-// release a previous lock on the array
-template<typename T> void
-unlock(Array<T>& arr);
 
 // makes a copy of the given Array's contents 
 // and returns a new Array with those contents

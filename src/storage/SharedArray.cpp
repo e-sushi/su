@@ -1,10 +1,11 @@
 namespace amu {
-namespace array{
+namespace shared_array{
 
 namespace internal {
 
+// make sure that you write lock the arr before giving it to this function
 template<typename T> void 
-grow_if_needed(Array<T>& arr) {
+grow_if_needed(SharedArray<T>& arr) {
     if(arr.count >= arr.space) {
         arr.data = (T*)memory::reallocate(arr.data, sizeof(T) * arr.space * 2);
     }
@@ -12,23 +13,30 @@ grow_if_needed(Array<T>& arr) {
 
 } // namespace internal
 
-template<typename T> Array<T>
+template<typename T> SharedArray<T>
 init(u32 initial_space) {
-    Array<T> out;
+    SharedArray<T> out;
+    out.lock = shared_mutex_init();
     out.data = (T*)memory::allocate(sizeof(T)*initial_space);
     out.count = 0;
     out.space = initial_space;
     return out;
 }
 
-template<typename T> void
-deinit(Array<T>& arr) {
+template<typename T> SharedArray<T>
+deinit(SharedArray<T>& arr) {
+    shared_mutex_lock(&arr.lock);
     memory::free(arr.data);
+    shared_mutex_unlock(&arr.lock);
+    shared_mutex_deinit(&arr.lock);
     arr = {};
 }
 
 template<typename T> T* 
-push(Array<T>& arr) {
+push(SharedArray<T>& arr) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
     internal::grow_if_needed(arr);
     T* out = arr.data + arr.count;
     arr.count += 1;
@@ -37,7 +45,10 @@ push(Array<T>& arr) {
 }
 
 template<typename T> void
-push(Array<T>& arr, const T& val) {
+push(SharedArray<T>& arr, const T& val) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+
     internal::grow_if_needed(arr);
     *(arr.data + arr.count) = val;
     arr.count += 1;
@@ -45,7 +56,10 @@ push(Array<T>& arr, const T& val) {
 
 
 template<typename T> T
-pop(Array<T>& arr, u32 count) {
+pop(SharedArray<T>& arr, u32 count) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
     forI(count-1) {
         arr.count -= 1;
     }
@@ -55,7 +69,9 @@ pop(Array<T>& arr, u32 count) {
 }
 
 template<typename T> T*
-insert(Array<T>& arr, spt idx) {
+insert(SharedArray<T>& arr, spt idx) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
     Assert(idx < arr.count);
 
     internal::grow_if_needed(arr);
@@ -66,7 +82,9 @@ insert(Array<T>& arr, spt idx) {
 }
 
 template<typename T> void
-insert(Array<T>& arr, spt idx, T& val) {
+insert(SharedArray<T>& arr, spt idx, T& val) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
     Assert(idx < arr.count);
 
     internal::grow_if_needed(arr);
@@ -77,7 +95,9 @@ insert(Array<T>& arr, spt idx, T& val) {
 }
 
 template<typename T> void
-remove(Array<T>& arr, u32 idx, b32 unordered) {
+remove(SharedArray<T>& arr, u32 idx, b32 unordered) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
     Assert(idx < arr.count);
 
     arr.count -= 1;
@@ -89,14 +109,20 @@ remove(Array<T>& arr, u32 idx, b32 unordered) {
 }
 
 template<typename T> void
-clear(Array<T>& arr) {
+clear(SharedArray<T>& arr) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+
     forI(arr.count) {
         arr.data[i] = {};
     }
 }
 
 template<typename T> void
-resize(Array<T>& arr, u32 count) {
+resize(SharedArray<T>& arr, u32 count) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+
     if(count > arr.count) {
         if(count > arr.space) {
             arr.data = memory::reallocate(arr.data, count*sizeof(T));
@@ -113,7 +139,10 @@ resize(Array<T>& arr, u32 count) {
 }
 
 template<typename T> void
-reserve(Array<T>& arr, u32 count) {
+reserve(SharedArray<T>& arr, u32 count) {
+    shared_mutex_lock(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+
     if(count > arr.space) {
         arr.data = memory::reallocate(arr.data, count*sizeof(T));
         arr.space = count;
@@ -121,7 +150,10 @@ reserve(Array<T>& arr, u32 count) {
 }
 
 template<typename T> T
-read(Array<T>& arr, spt idx) {
+read(SharedArray<T>& arr, spt idx) {
+    shared_mutex_lock_shared(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
     if(idx < 0) {
         Assert(arr.count + idx >= 0);
         return *(arr.data + arr.count + idx);
@@ -132,7 +164,10 @@ read(Array<T>& arr, spt idx) {
 }
 
 template<typename T> T*
-readptr(Array<T>& arr, spt idx) {
+readptr(SharedArray<T>& arr, spt idx) {
+    shared_mutex_lock_shared(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
     if(idx < 0) {
         Assert(arr.count + idx >= 0);
         return arr.data + arr.count + idx;
@@ -143,7 +178,10 @@ readptr(Array<T>& arr, spt idx) {
 }
 
 template<typename T> T&
-readref(Array<T>& arr, spt idx) {
+readref(SharedArray<T>& arr, spt idx) {
+    shared_mutex_lock_shared(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
     if(idx < 0) {
         Assert(arr.count + idx >= 0);
         return arr.data[arr.count + idx];
@@ -154,12 +192,33 @@ readref(Array<T>& arr, spt idx) {
 }
 
 template<typename T> Array<T>
-copy(Array<T>& arr) {
-    Array<T> out = init(arr.count);
+lock(SharedArray<T>& arr) {
+    shared_mutex_lock(&arr.lock);
+    Array<T> out;
+    out.data = arr.data;
+    out.count = arr.count;
+    out.space = arr.space;
+    return out;
+}
+
+template<typename T> void
+unlock(SharedArray<T>& arr, Array<T>& sync) {
+    arr.data = sync.data;
+    arr.count = sync.count;
+    arr.space = sync.space;
+    shared_mutex_unlock(&arr.lock);
+}
+
+template<typename T> SharedArray<T>
+copy(SharedArray<T>& arr) {
+    shared_mutex_lock_shared(&arr.lock);
+    defer{shared_mutex_unlock(&arr.lock);};
+    
+    SharedArray<T> out = init(arr.count);
     CopyMemory(out.data, arr.data, sizeof(T)*arr.count);
 
     return out;
 }
 
-} // namespace array
+} // namespace shared_array
 } // namespace amu
