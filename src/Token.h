@@ -6,17 +6,15 @@
 #define AMU_TOKEN_H
 
 #include "kigu/common.h"
+#include "Source.h"
 
 namespace amu{
 
 struct Token {
-    Type type;
-    Type group;
-
-    str8 raw;
+    String raw;
     u64 hash;
 
-    str8 file;
+    Source* source; 
     u64 l0, l1;
     u64 c0, c1;
 
@@ -28,7 +26,7 @@ struct Token {
         u64 u64_val;
     };
 
-    enum {
+    enum Type {
         Null = 0,
         ERROR = 0,                // when something doesnt make sense during lexing
         EndOfFile,                // end of file
@@ -157,6 +155,7 @@ struct Token {
         Directive_Internal,
         Directive_Run,
     };
+    Type type;
 };
 
 } // namespace amu
