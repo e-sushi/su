@@ -30,8 +30,6 @@ struct DString {
     dstr8 s;
 };
 
-
-
 namespace dstring {
 
 // initializes a String with an optional initial string
@@ -46,6 +44,10 @@ init(T...args);
 FORCE_INLINE void
 deinit(DString& s);
 
+// grows the buffer by at least 'bytes'
+FORCE_INLINE void
+grow(DString& s, u64 bytes);
+
 // appends 'b' to 'a'
 FORCE_INLINE void
 append(DString& a, String b);
@@ -53,6 +55,9 @@ append(DString& a, String b);
 // appends 'b' to 'a'
 FORCE_INLINE void
 append(DString& a, DString b);
+
+template<typename... T> void
+append(DString& a, T... args);
 
 // prepends 'b' to 'a'
 FORCE_INLINE void
@@ -74,10 +79,15 @@ concat(DString& a, String b);
 FORCE_INLINE DString
 concat(String a, DString b);
 
-} // namespace string
+} // namespace dstring
 
 DString to_string(const String& s) {
     return dstring::init(s);
+}
+
+String::String(DString& dstr) {
+	str = dstr.s.str;
+	count = dstr.s.count;
 }
 
 // https://stackoverflow.com/questions/301330/determine-if-type-is-a-pointer-in-a-template-function
@@ -223,6 +233,8 @@ to_string(DString& start, T x) {
 		snprintf((char*)start.s.str+start.s.count, count+1, "%p", (void*)x);
         start.s.count += count;
 		start.s.space = start.s.count+1;
+	}else if constexpr(std::is_same_v<DString, T>) {
+		dstring::append(start, x);
 	}
 }
 

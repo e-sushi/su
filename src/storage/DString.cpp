@@ -8,7 +8,6 @@ init(String s) {
     return out;
 }
 
-
 template<typename... T> FORCE_INLINE DString
 init(T...args) {
     DString out = dstring::init();
@@ -31,6 +30,11 @@ append(DString& a, String b) {
 void
 append(DString& a, DString b) {
     dstr8_append(&a.s, b.s.fin);
+}
+
+template<typename... T> void
+append(DString& a, T... args) {
+    (to_string(a, args), ...);
 }
 
 void
