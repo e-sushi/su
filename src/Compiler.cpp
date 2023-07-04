@@ -13,6 +13,10 @@ init() {
     instance.log_file = file_init(str8l("temp/log"), FileAccess_WriteCreate);
 
     instance.storage.sources = pool::init<Source>(32);
+    instance.storage.lexers = pool::init<Lexer>(32);
+    instance.storage.parsers = pool::init<Parser>(32);
+    instance.storage.labels = pool::init<Label>(32);
+    instance.storage.entities = pool::init<Entity>(32);
 
     messenger::init();
 }
@@ -27,6 +31,8 @@ begin(Array<String> args) {
     String cwd = array::read(args, 0);
     String path = array::read(args, 1);
 
+    instance.options.verbosity = message::verbosity::debug;
+
     Source* initsource = 0;
     {
         auto load = load_source(path);
@@ -40,11 +46,20 @@ begin(Array<String> args) {
         initsource = load.result;
     }
 
-    LexicalAnalyzer lexer = lex::init(initsource);
-    lex::analyze(lexer);
+    Lexer* lexer = pool::add(instance.storage.lexers, 
+            lex::init(initsource));
+    initsource->lexer = lexer;
+    lex::execute(*lexer);
     messenger::deliver(stdout);
     messenger::deliver(instance.log_file);
-    lex::output(lexer, "lexout");
+    lex::output(*lexer, "temp/lexout");
+
+    Parser* parser = pool::add(instance.storage.parsers,
+            parser::init(initsource));
+
+    parser::execute(*parser);
+    messenger::deliver(stdout);
+    messenger::deliver(instance.log_file);
 
 }
 
@@ -73,10 +88,15 @@ load_source(String path) {
     return out;
 }
 
-// attempts to locate a given source name
-// returns 0 if it doesn't exist
 global Source*
 lookup_source(String name);
+
+global Label*
+create_label() {
+    Label* out = pool::add(instance.storage.labels);
+    out->node.type = node::type::label;
+    return out;
+}
 
 
 } // namespace compiler
