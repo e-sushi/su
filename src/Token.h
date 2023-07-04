@@ -20,6 +20,8 @@ struct Token {
 
     u8* line_start;
 
+    b32 is_global; // if this token is wrapped in anything starting a scope, such as {, (, [, etc.
+
     union{
         f64 f64_val;
         s64 s64_val;
@@ -157,6 +159,7 @@ struct Token {
         Directive_Run,
     };
     Type type;
+    Type group;
 };
 
 } // namespace amu

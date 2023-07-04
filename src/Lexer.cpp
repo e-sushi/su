@@ -61,7 +61,7 @@ is_identifier_char(u32 codepoint) {
 }
 
 FORCE_INLINE void
-advance(LexicalAnalyzer& lexer, String& stream) {
+advance(Lexer& lexer, String& stream) {
 
 }
 
@@ -69,9 +69,9 @@ advance(LexicalAnalyzer& lexer, String& stream) {
 
 } // namespace internal
 
-LexicalAnalyzer
+Lexer
 init(Source* source) {
-    LexicalAnalyzer out;
+    Lexer out;
     out.source = source;
     out.tokens = array::init<Token>();
     out.colons = array::init<spt>();
@@ -80,15 +80,16 @@ init(Source* source) {
 }
 
 void 
-deinit(LexicalAnalyzer& lexer) {
+deinit(Lexer& lexer) {
     array::deinit(lexer.tokens);
     lexer.source = 0;
 }
 
 void
-analyze(LexicalAnalyzer& lexer) {
+execute(Lexer& lexer) {
 #define stream_next { string::advance(stream); line_col++; } 
 
+//!ref: https://github.com/pervognsen/bitwise/blob/master/ion/lex.c
 #define CASE1(c1,t1) \
 case c1:{ 	         \
 token.type = t1;     \
@@ -122,12 +123,14 @@ stream_next;                       \
     
     messenger::dispatch(message::attach_sender(lexer.source,
         message::debug(message::verbosity::stages, 
-            String("Beginning lexical analysis."))));
+            String("beginning lexical analysis."))));
 
     String stream = lexer.source->buffer;
 
     u32 line_num = 1, line_col = 1;
     u8* line_start = stream.str;
+
+	u32 scope_level = 0;
 
     while(stream) {
         Token token = {};
@@ -197,6 +200,7 @@ stream_next;                       \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
+				token.is_global = !scope_level;
 				array::push(lexer.tokens, token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
@@ -220,29 +224,24 @@ stream_next;                       \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
+				token.is_global = !scope_level;
 				array::push(lexer.tokens, token);
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 			
 			CASE1(';', Token::Semicolon);
-            CASE1('(', Token::OpenParen);
-            CASE1(')', Token::CloseParen);
-			// case '(':{ 
-			// 	token.type = Token::OpenParen;
-			// 	paren_depth++;
-			// 	last_open_paren = amufile->lexical_analyzer.tokens.count;
-			// 	stream_next;
-			// }break;
-			// case ')':{ 
-			// 	token.type = Token::CloseParen; 
-			// 	if(!paren_depth){
-			// 		logger.error(&token, "closing parenthesis ')' with no opening parenthesis '('.");
-			// 		amufile->lexical_analyzer.failed = 1;
-			// 		return;
-			// 	}
-			// 	paren_depth--;
-			// 	stream_next;
-			// }break;
+            // CASE1('(', Token::OpenParen);
+            // CASE1(')', Token::CloseParen);
+			case '(':{ 
+				token.type = Token::OpenParen;
+				scope_level++;
+				stream_next;
+			}break;
+			case ')':{ 
+				token.type = Token::CloseParen; 
+				scope_level--;
+				stream_next;
+			}break;
 
 			CASE1('[', Token::OpenSquare);
 			CASE1(']', Token::CloseSquare);
@@ -257,35 +256,19 @@ stream_next;                       \
 			CASE1('@', Token::At);
 			CASE1('#', Token::Pound);
 			CASE1('`', Token::Backtick);
-            CASE1('{', Token::OpenBrace);
-            CASE1('}', Token::CloseBrace);
             CASE1('$', Token::Dollar);
 
-			// case '{':{ //NOTE special for scope tracking and internals 
-			// 	token.type = Token::OpenBrace;
-			// 	//NOTE(sushi) internal directive scopes do affect scope level
-			// 	if(amufile->lexical_analyzer.tokens.count && amufile->lexical_analyzer.tokens[amufile->lexical_analyzer.tokens.count-1].type == Token::Directive_Internal){
-			// 		internal_scope_depth = scope_depth;
-			// 	}else{
-			// 		scope_depth++;
-			// 	}
-			// 	last_open_brace = amufile->lexical_analyzer.tokens.count;
-			// 	stream_next;
-			// }break;
+			case '{':{ //NOTE special for scope tracking and internals 
+				token.type = Token::OpenBrace;
+				scope_level++;
+				stream_next;
+			}break;
 			
-			// case '}':{ //NOTE special for scope tracking and internals
-			// 	token.type = Token::CloseBrace;
-			// 	if(!scope_depth){
-			// 		logger.error(&token, "closing brace '}' with no opening brace '{'.");
-			// 		amufile->lexical_analyzer.failed = 1;
-			// 	}
-			// 	if(scope_depth == internal_scope_depth){
-			// 		internal_scope_depth = -1;
-			// 	}else{
-			// 		scope_depth--;
-			// 	}
-			// 	stream_next;
-			// }break;
+			case '}':{ //NOTE special for scope tracking and internals
+				token.type = Token::CloseBrace;
+				scope_level--;
+				stream_next;
+			}break;
 			
 			//// @operators ////
 			CASE3('+', Token::Plus,            '=', Token::PlusAssignment,      '+', Token::Increment);
@@ -388,6 +371,22 @@ stream_next;                       \
 			}break;
 		}
 
+		if(token.type == Token::Identifier){
+			token.group = Token::Group_Identifier;
+		}else if(token.type >= Token::LiteralFloat && token.type <= Token::LiteralString){
+			token.group = Token::Group_Literal;
+		}else if(token.type >= Token::Semicolon && token.type <= Token::Backtick){
+			token.group = Token::Group_Control;
+		}else if(token.type >= Token::Plus && token.type <= Token::GreaterThanOrEqual){
+			token.group = Token::Group_Operator;
+		}else if(token.type >= Token::Return && token.type <= Token::StructDecl){
+			token.group = Token::Group_Keyword;
+		}else if(token.type >= Token::Void && token.type <= Token::Struct){
+			token.group = Token::Group_Type;
+		}else if(token.type >= Token::Directive_Import && token.type <= Token::Directive_Run){
+			token.group = Token::Group_Directive;
+		}
+
         if(token.type != Token::ERROR) {
             token.l1 = line_num;
             token.c1 = line_col;
@@ -396,13 +395,20 @@ stream_next;                       \
         }
     }
 
+	Token eof;
+	eof.type = Token::EndOfFile;
+	eof.l0 = line_num;
+	eof.c0 = line_col;
+	eof.raw = String("");
+	array::push(lexer.tokens, eof);
+
     lexer.status.time = peek_stopwatch(lexer_time);
-} // lex::analyze
+} // lex::execute
 
 // the lexer is serialized by outputting 
 // token-type "raw" line,column /
 void
-output(LexicalAnalyzer& lexer, String path) {
+output(Lexer& lexer, String path) {
     FileResult result = {};
     File* out = file_init_result(path.s, FileAccess_WriteTruncateCreate, &result);
     if(!out) {
