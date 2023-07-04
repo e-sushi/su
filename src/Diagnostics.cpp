@@ -157,6 +157,64 @@ invalid_token() { // this should probably never happen
 
 } // namespace lexer
 
+namespace parser {
+
+global Message
+expected_type() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a type"));
+        } break;
+        case Japanese: {
+            out = message::init(String("タイプが期待した"));
+        } break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_label_or_import() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a label or import"));
+        } break;
+        case Japanese: {
+            out = message::init(String("名札か輸入が期待した"));
+        } break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_identifier() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected an identifier"));
+        } break;
+        case Japanese: {
+            out = message::init(String("識別名が期待した"));
+        } break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+} // namespace parser
+
 namespace internal { // @internal
 
 Message
@@ -175,6 +233,8 @@ valid_path_but_internal_err(String path, String err) {
         case Chinese: NotImplemented; break;
         case Russian: NotImplemented; break;
     }
+    out.type = Message::Error;
+    return out;
 }
 
 } // namespace internal
