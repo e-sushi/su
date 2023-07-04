@@ -75,7 +75,8 @@ struct MessagePart {
     u32 col;
 
     MessagePart() {}
-    constexpr MessagePart(String s) : plain(s) {type = Plain;}
+    MessagePart(String s) : plain(s) {type = Plain;}
+    MessagePart(amu::Token t) : token(t) {type = Token;}
     MessagePart(Entity::Variable v) : variable(v) {type = Variable;}
     MessagePart(Entity::Structure s) : structure(s) {type = Structure;}
     MessagePart(Entity::Function f) : function(f) {type = Function;}
@@ -154,6 +155,17 @@ struct MessageFormatting {
         b32 always_forward_slash = true;
         String prefix = "'", suffix = "'";
     } path;
+
+    struct {
+        u32 col = message::color_white;
+        b32 show_code_loc = false; // appends the Token's code location in the form (line,col)
+        String prefix = "'", suffix = "'";
+    } token;
+
+    struct {
+        u32 col = message::color_bright_white;
+        String prefix = "'", suffix = "'";
+    } identifier;
 
 };
 

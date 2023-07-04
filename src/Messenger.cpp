@@ -41,6 +41,19 @@ process_part(DString& current, MessagePart& part) {
             dstring::deinit(temp);
 
         } break;
+        case MessagePart::Token: {
+            DString temp = dstring::init(part.token.raw);
+            if(current_dest->allow_color) {
+                wrap_color(temp, formatting.token.col);
+            }
+            dstring::prepend(temp, formatting.token.prefix);
+            if(formatting.token.show_code_loc) {
+                dstring::append(temp, "(", part.token.l0, ",", part.token.c0, ")");
+            }
+            dstring::append(temp, formatting.token.suffix);
+            dstring::append(current, temp);
+            dstring::deinit(temp);
+        } break;
         case MessagePart::Identifier: {
             DString temp = dstring::init(part.plain);
             if(current_dest->allow_color) {
