@@ -272,7 +272,7 @@ amuFile* Compiler::start_lexer(amuFile* amufile){DPZoneScoped;
 	}
 
     mutex_lock(&global_mem_lock);
-    LexicalAnalyzer* lexical_analyzer = (LexicalAnalyzer*)memalloc(sizeof(LexicalAnalyzer));
+    Lexer* lexical_analyzer = (Lexer*)memalloc(sizeof(Lexer));
     mutex_unlock(&global_mem_lock);
 	
     logger.log(Verbosity_StageParts, "Reading file contents of ", CyanFormatComma(amufile->file->name), " into a buffer");

@@ -95,6 +95,8 @@ class MessagePart_printer:
                     return f"plain: {val['plain']}"
                 case "amu::MessagePart::Path": 
                     return f"path: {val['plain']}"
+                case "amu::MessagePart::Token": 
+                    return f"token: {val['token']}"
                 case "amu::MessagePart::Source": print("source")
                 case "amu::MessagePart::Entity": print("entity")
                 case "amu::MessagePart::Label": print("label")

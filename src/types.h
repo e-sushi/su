@@ -939,7 +939,7 @@ global str8 registers_x64[] = {
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
-//// LexicalAnalyzer
+//// Lexer
 enum{
 	Token_Null = 0,
 	Token_ERROR = 0,                // when something doesnt make sense during lexing
@@ -1841,9 +1841,9 @@ struct amuFile{
 };
 
 //~////////////////////////////////////////////////////////////////////////////////////////////////
-//// LexicalAnalyzer
+//// Lexer
 
-struct LexicalAnalyzer {
+struct Lexer {
 	amuFile* amufile;
 	void lex();
 };

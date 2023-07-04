@@ -74,6 +74,10 @@
         "limits": "cpp",
         "new": "cpp",
         "unordered_set": "cpp",
-        "xstddef": "cpp"
+        "xstddef": "cpp",
+        "*.tcc": "cpp",
+        "string_view": "cpp",
+        "*.def": "cpp",
+        "*.inc": "cpp"
     }
 }

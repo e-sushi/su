@@ -53,6 +53,13 @@ struct TNode {
 
 namespace node {
 
+namespace type {
+enum {
+    label,
+    entity,
+};
+} // namespace type
+
 global inline void
 init(LNode* node);
 

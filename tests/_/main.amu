@@ -1,4 +1,9 @@
 
 main :: () -> s32 {
+    a :: 2;
+    b := 2;
+}
+
+do_something: (a:u32, b: u32) -> hey : {
     
 }

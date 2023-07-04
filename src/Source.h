@@ -13,12 +13,17 @@
 
 namespace amu {
 
+struct Lexer;
+struct Parser;
 struct Source {
     File* file;
     DString buffer; // the loaded file
 
     // the module representing this Source
-    Entity::Module* module;
+    Entity* module;
+
+    Lexer* lexer;
+    Parser* parser;
 };
 
 } // namespace amu

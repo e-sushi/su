@@ -89,74 +89,7 @@
 
 /* NOTES
 
-	amu is split into various stages. This is a list of them and their tasks
-
-	LexicalAnalyzer
-	-----
-	Turn an input file into a series of tokens
-	Mark places of interest
-	  Mark where possible declarations are (colons)
-	  Mark where directives are (pounds)
-	Mark tokens with their scope depth
-	Mark tokens with their line and column numbers, both start and end
-	Set the raw string that the token represets
-	Set the file string that the token resides in
-	-----
-
-	Preprocesser
-	-------------
-    Iterate where lexer marked import directives and run lexer and preprocessor on files that are imported
-      Error on invalid filenames and syntax. Note that this does not parse specific imports, as in it 
-      does not care about importing only 'sin' from "math.su", all it does is start compiling files.
-    Resolve ':' tokens as possible declarations
-      This checks that the colons marked by lexer are actually declarations. Following amu's rule of
-      <identifier> [<funcargs>] ":" <typeid> we parse around the colon to see if it is a valid declaration
-      and if it is mark the <identifier> token as a declaration. This is useful so that in parsing we dont 
-      have to look for a : when we come across every identifier.
-    Parse marked internal directives and organize tokens
-      Before this is started, preprocessor's exported decls array takes in all global decls. Then we parse
-      internal directives and as needed pull indexes from the exported decls array into the internal
-      decls array.
-    Parse run directives
-      This is possibly going to be removed from this stage as I'm not sure if #run will be allowed to be
-      used in a global space to indicate some code to run immediately, so if not this part would be 
-      irrelevant.
-	-------------
-
-	SyntaxAnalyzer
-	------
-	Converts tokens into an Abstract Syntax Tree
-	The syntax_analyzer only checks syntax and builds the AST from it. It doesn't do anything like type checking
-	or if identifiers exist.
-	Mark token start and token end ranges for each node
-	------
-
-	SemanticAnalyzer
-	---------
-	Join every files AST together
-	Identifier validating
-	Type checking
-	---------
-
-	All files are independent of each other up until semantic_analyzer. Meaning we can have a thread per file
-	running freely through the stages until it reaches semantic_analyzer, since semantic_analyzer is the stage in which 
-	we join all the files information together. 
-
-	amu organizes information by file using amuFile. When a file is loaded a amuFile is made for it
-	and represents any instance of it. amuFile stores information for all stages and is how stages
-	communicate information between each other. 
-
-	Something I would like to try and follow is that all data from previous stages is static. 
-	This rule is nice for multithreading since it guarantees atomic access to stages that a 
-	file has completed. This rule stops being followed once we reach validation because it needs 
-	to take nodes from each syntax_analyzer and join them together, as well as modify the AST where it needs to.
-	This will probably also apply to optimization stage, if its done using the AST.
-
-	Some notes on syntax
-	  Declarations always follow the pattern <identifier> ":" <type-specifier> with the small exception
-	  of functions that have parameter declarations after its identifier. There should be nothing in between
-	  the colon and the type-specifier. This makes the colon act as an anchor to allow easy access to the type
-	  specifier.
+	
 */
 
 /*	TODOs
@@ -175,7 +108,7 @@
 	try and keep it so that bugs come below features in each section, so that there is a clear separation
 	if this doesnt look good or work well, we can just have a features and bugs section in each section 
 
-	LexicalAnalyzer
+	Lexer
 	----- TODOs that should mainly involve working in the lexer
 	
 
@@ -183,9 +116,9 @@
 	------------ TODOs that should mainly involve working in the preprocessor
 	
 
-	SyntaxAnalyzer
-	------ TODOs that should mainly involve working in the syntax_analyzer
-	
+	Parser
+	------ TODOs that should mainly involve working in the parser
+	[!!,***, 2023/07/03, system] rewrite to be multithreaded on global label declarations 
 
 	SemanticAnalyzer
 	--------- TODOs that should mainly involve working in the semantic_analyzer
@@ -243,6 +176,7 @@
 #include "storage/SharedArray.h"
 #include "storage/String.h"
 #include "storage/DString.h"
+#include "storage/Map.h"
 #include "Memory.h"
 #include "Token.h"
 #include "Source.h"
@@ -250,7 +184,8 @@
 #include "Messenger.h"
 #include "Compiler.h"
 #include "Result.h"
-#include "LexicalAnalyzer.h"
+#include "Lexer.h"
+#include "Parser.h"
 
 #include "Memory.cpp"
 #include "basic/Node.cpp"
@@ -258,10 +193,12 @@
 #include "storage/Array.cpp"
 #include "storage/SharedArray.cpp"
 #include "storage/DString.cpp"
+#include "storage/Map.cpp"
 #include "Messenger.cpp"
 #include "Diagnostics.cpp"
 #include "Compiler.cpp"
-#include "LexicalAnalyzer.cpp"
+#include "Lexer.cpp"
+#include "Parser.cpp"
 
 void speed_test(const u64 samples, str8 filepath){
 	// f64 sum = 0;

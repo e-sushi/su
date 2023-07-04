@@ -8,10 +8,19 @@
 #ifndef AMU_LABEL_H
 #define AMU_LABEL_H
 
-namespace amu{
+#include "basic/Node.h"
+#include "storage/String.h"
 
-struct Label {
+namespace amu{
     
+struct Token;
+struct Entity;
+struct Label {
+    TNode node;
+    Token* token; // token representing this Label
+
+    Entity* entity; // the entity this label points to 
+    Label* original; // if this label is an alias of another label, this is the original
 };
 
 } //namespace amu

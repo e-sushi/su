@@ -90,9 +90,9 @@
           string = """ { char } """
             char = ? any unicode codepoint ? 
                  
-file = { label }
+file = { label | import }
 
-label = id ":"
+label = id { "," id } ":" ( rtime-exp | ctime-exp )
 
 rtime-exp = "=" exp
 ctime-exp = ":" exp
