@@ -18,7 +18,8 @@ namespace deshi {
 #include "storage/Pool.h"
 #include "Entity.h"
 #include "Result.h"
-
+#include "Lexer.h"
+#include "Parser.h"
 
 
 namespace amu {
@@ -44,6 +45,8 @@ struct Compiler {
         Pool<Source> sources;
         Pool<Entity> entities;
         Pool<Label> labels;
+        Pool<Lexer> lexers;
+        Pool<Parser> parsers;
     }storage;
 
     struct {
@@ -73,7 +76,9 @@ load_source(String path);
 global Source*
 lookup_source(String name);
 
-
+// creates a Label and passes a handle to it
+global Label*
+create_label();
 
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler
