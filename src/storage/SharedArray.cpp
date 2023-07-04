@@ -24,7 +24,7 @@ init(u32 initial_space) {
     return out;
 }
 
-template<typename T> SharedArray<T>
+template<typename T> void
 deinit(SharedArray<T>& arr) {
     shared_mutex_lock(&arr.lock);
     memory::free(arr.data);

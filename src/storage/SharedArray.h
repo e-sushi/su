@@ -39,7 +39,7 @@ template<typename T> SharedArray<T>
 init(u32 initial_space = 4);
 
 // deinitializes an array
-template<typename T> SharedArray<T>
+template<typename T> void
 deinit(SharedArray<T>& arr);
 
 // pushes an item to the end of the array and 
