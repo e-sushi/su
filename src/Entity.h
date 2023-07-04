@@ -13,7 +13,7 @@
 namespace amu{
 
 struct Entity {
-    Node node;
+    TNode node;
     Type type;
 
     struct Variable {
@@ -42,7 +42,6 @@ struct Entity {
     };
 
     Label* label; 
-
 };
 
 
@@ -56,13 +55,6 @@ enum EntityType : u32 {
     Module,
     Loop,
 };
-
-// initialize an Entity of some given type, returning a pointer to it
-global Entity* 
-init(EntityType type);
-
-global void
-deinit(Entity* entity);
 
 
 } // namespace entity
