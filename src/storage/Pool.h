@@ -61,8 +61,8 @@ deinit(Pool<T>& pool);
 template<typename T> T*
 add(Pool<T>& pool);
 
-template<typename T> void
-add(Pool<T>& pool, T& val);
+template<typename T> T*
+add(Pool<T>& pool, const T& val);
 
 template<typename T> void
 remove(Pool<T>& pool, T* ptr);

@@ -65,13 +65,14 @@ add(Pool<T>& pool) {
     return out;
 }
 
-template<typename T> void
-add(Pool<T>& pool, T& val) {
+template<typename T> T*
+add(Pool<T>& pool, const T& val) {
     mutex_lock(&pool.lock);
     defer{mutex_unlock(&pool.lock);};
 
     T* place = add(pool);
     *place = val;
+    return place;
 }
 
 template<typename T> void
