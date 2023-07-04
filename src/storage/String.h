@@ -123,5 +123,11 @@ to_s64(String& s) {
 }
 
 } // namespace string
+
+namespace util {
+template<typename T> FORCE_INLINE u64 f(const String& s) {return string::hash((String&)s);}
+template<typename T> FORCE_INLINE u64 f(String* s) {return string::hash(*s);}
+} // namespace util::hash
+
 } // namespace amu
 #endif // AMU_STRING_H

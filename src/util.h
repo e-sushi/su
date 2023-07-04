@@ -57,6 +57,31 @@ dstr8 format_time(f64 ms){
     return {};
 }
 
+// specializable generic hash functions
+template<typename T> u64
+hash(const T& x) {
+	u32 seed = 2166136261;
+	size_t data_size = sizeof(T);
+	const u8* data = (const u8*)&x;
+	while (data_size-- != 0) {
+		seed ^= *data++;
+		seed *= 16777619;
+	}
+	return seed;
+}
+
+template<typename T> u64
+hash(T* x) {
+	u32 seed = 2166136261;
+	size_t data_size = sizeof(T);
+	const u8* data = (const u8*)x;
+	while (data_size-- != 0) {
+		seed ^= *data++;
+		seed *= 16777619;
+	}
+	return seed;
+}
+
 }
 
 
