@@ -213,11 +213,29 @@ expected_identifier() {
     return out;
 }
 
+global Message
+expected_import_directive() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected an import directive"));
+        } break;
+        case Japanese: {
+            out = message::init(String("輸入命令が期待した"));
+        } break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
 } // namespace parser
 
 namespace internal { // @internal
 
-Message
+global Message
 valid_path_but_internal_err(String path, String err) {
     Message out;
     switch(lang) {
@@ -236,6 +254,8 @@ valid_path_but_internal_err(String path, String err) {
     out.type = Message::Error;
     return out;
 }
+
+
 
 } // namespace internal
 
