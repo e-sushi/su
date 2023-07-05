@@ -67,14 +67,18 @@ insert(Array<T>& arr, spt idx) {
 }
 
 template<typename T> void
-insert(Array<T>& arr, spt idx, T& val) {
-    Assert(idx < arr.count);
+insert(Array<T>& arr, spt idx, const T& val) {
+    Assert(idx <= arr.count);
 
     internal::grow_if_needed(arr);
 
-    MoveMemory(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
-    arr.count += 1;
-    *(arr.data + idx) = val;
+    if(!arr.count) {
+        array::push(arr, val);
+    } else {
+        MoveMemory(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
+        arr.count += 1;
+        *(arr.data + idx) = val;
+    }
 }
 
 template<typename T> void

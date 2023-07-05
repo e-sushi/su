@@ -50,7 +50,7 @@ insert(Array<T>& arr, spt idx);
 
 // inserts a new item at 'idx' and sets its value to 'val'
 template<typename T> void
-insert(Array<T>& arr, spt idx, T& val);
+insert(Array<T>& arr, spt idx, const T& val);
 
 // removes the item at idx
 // if the array is 'unordered', the item at

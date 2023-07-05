@@ -4,7 +4,7 @@ namespace map {
 template<typename K, typename V> Map<K,V>
 init() {
     Map<K,V> out;
-    out.keys = array::init<Map<K,V>::Key>();
+    out.keys = array::init<typename Map<K,V>::Key>();
     out.values = array::init<V>();
     return out;
 }
@@ -20,7 +20,9 @@ add(Map<K,V>& m, const K& key) {
     u64 hash = util::hash(key);
     auto [idx, found] = find(m, hash);
     if(found) return idx;
+    if(idx == -1) idx = 0;
     array::insert(m.keys, idx, {key, hash, 0});
+    array::insert(m.values, idx, {});
     return idx;
 }
 
@@ -28,6 +30,7 @@ template<typename K, typename V> u32
 add(Map<K,V>& m, const K& key, const V& value) {
     u32 idx = add(m, key);
     array::readref(m.values, idx) = value;
+    return idx;
 }
 
 template<typename K, typename V> void 
@@ -69,7 +72,7 @@ find(Map<K,V>& m, u64 hash) {
             }
         }
     }
-    return {middle, index == -1};
+    return {middle, index != -1};
 }
 
 } // namespace map

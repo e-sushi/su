@@ -57,6 +57,9 @@ namespace type {
 enum {
     label,
     entity,
+    statement,
+    expression,
+    tuple,
 };
 } // namespace type
 
