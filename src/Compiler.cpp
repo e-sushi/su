@@ -17,6 +17,10 @@ init() {
     instance.storage.parsers = pool::init<Parser>(32);
     instance.storage.labels = pool::init<Label>(32);
     instance.storage.entities = pool::init<Entity>(32);
+    instance.storage.statements = pool::init<Statement>(32);
+    instance.storage.tuples = pool::init<Tuple>(32);
+
+    instance.options.deliver_debug_immediately = true;
 
     messenger::init();
 }
@@ -98,6 +102,33 @@ create_label() {
     return out;
 }
 
+global Entity*
+create_entity() {
+    Entity* out = pool::add(instance.storage.entities);
+    out->node.type = node::type::entity;
+    return out;
+}
+
+global Statement*
+create_statement() {
+    Statement* out = pool::add(instance.storage.statements);
+    out->node.type = node::type::statement;
+    return out;
+}
+
+global Tuple*
+create_tuple() {
+    Tuple* out = pool::add(instance.storage.tuples);
+    out->node.type = node::type::tuple;
+    return out;
+}
+
+global Expression*
+create_expression() {
+    Expression* out = pool::add(instance.storage.expressions);
+    out->node.type = node::type::expression;
+    return out;
+}
 
 } // namespace compiler
 } // namespace amu

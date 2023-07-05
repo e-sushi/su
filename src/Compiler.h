@@ -47,10 +47,15 @@ struct Compiler {
         Pool<Label> labels;
         Pool<Lexer> lexers;
         Pool<Parser> parsers;
+        Pool<Statement> statements;
+        Pool<Tuple> tuples;
+        Pool<Expression> expressions;
     }storage;
+    
 
     struct {
         u32 verbosity;
+        b32 deliver_debug_immediately;
     } options;
 };
 
@@ -79,6 +84,18 @@ lookup_source(String name);
 // creates a Label and passes a handle to it
 global Label*
 create_label();
+
+global Entity*
+create_entity();
+
+global Statement*
+create_statement();
+
+global Tuple*
+create_tuple();
+
+global Expression*
+create_expression();
 
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler
