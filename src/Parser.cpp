@@ -2,12 +2,14 @@ namespace amu {
 namespace parser{
 
 Parser
-init(Source* source) {\
+init(Source* source) {
     Parser out;
     out.source = source;
     out.labels.exported = shared_array::init<Label*>();
     out.labels.imported = shared_array::init<Label*>();
     out.labels.internal = shared_array::init<Label*>();
+    out.label.stack = array::init<Label*>();
+    out.label.table = map::init<String, Label*>();
     return out;
 }
 
@@ -24,18 +26,47 @@ namespace internal {
 Parser* parser;
 Token* curt;
 
+FORCE_INLINE void
+debug_announce_stage(String stage) {
+    if(compiler::instance.options.verbosity < message::verbosity::debug) return;
+    messenger::dispatch(message::attach_sender({parser->source, *curt},
+        message::debug(String("parse level: "), stage)));
+}
+
+// parses a subtype, which is of the form
+// id { "." id }
+TNode* subtype(TNode* parent) {
+    Assert(curt->type == Token::Identifier);
+    debug_announce_stage("subtype");
+
+
+    return 0;
+}
+
 TNode* label(TNode* parent) {
     Assert(curt->type == Token::Identifier);
+    debug_announce_stage("label");
+
+
+    Statement* stmt = compiler::create_statement();
+    stmt->type = statement::Label;
+
 
     Label* label = compiler::create_label();
     label->token = curt;
-    node::insert_last(parent, &label->node);
+    map::add(parser->label.table, curt->raw, label);
+    node::insert_last(&stmt->node, &label->node);
 
     curt++;
 
     switch(curt->type) {
         case Token::Comma: {
             // we are making multiple labels
+            Tuple* t = compiler::create_tuple();
+            t->type = tuple::label_group;
+            node::change_parent(&t->node, &label->node);
+            node::insert_last(parent, &t->node);
+
             while(1) {
                 curt++;
                 if(curt->type != Token::Identifier) {
@@ -45,16 +76,45 @@ TNode* label(TNode* parent) {
 
                 Label* label = compiler::create_label();
                 label->token = curt;
+                node::insert_last(&t->node, &label->node);
+
+                curt++;
+                if(curt->type != Token::Comma) break;
             }
         } break;
     }
+
+    return 0;
 }
 
+// parses an import
+// "#" "import" ( id | string )
 TNode* import(TNode* parent) {
+    Assert(curt->type == Token::Pound);
+    debug_announce_stage("import");
 
+    curt++;
+    if(curt->type != Token::Directive_Import) {
+        messenger::dispatch(message::attach_sender({parser->source, *curt},
+            diagnostic::parser::expected_import_directive()));
+        return 0;
+    }
+    curt++;
+    switch(curt->type) {
+        case Token::Identifier: {
+
+        } break;
+        case Token::String: {
+
+        } break;
+    }
+
+    return 0;
 }
 
 TNode* file(TNode* parent) {
+    debug_announce_stage("file");
+
     switch(curt->type) {
         case Token::Pound: import(parent); break;
         case Token::Identifier: label(parent); break;
@@ -65,6 +125,8 @@ TNode* file(TNode* parent) {
             return 0;
         } break;
     }
+
+    return 0;
 }
 
 } // namespace internal
