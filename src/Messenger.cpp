@@ -172,7 +172,12 @@ init() {
 
 void
 dispatch(Message message) {
-    shared_array::push(instance.messages, message);
+    if(message.type == Message::Debug && compiler::instance.options.deliver_debug_immediately) {
+        Array<Message> temp = array::init<Message>(1); // this is weird, change it so that we can just deliver one message immediately
+        array::push(temp, message);
+        deliver(stdout, temp);
+        array::deinit(temp);
+    } else shared_array::push(instance.messages, message);
 }
 
 // dispatch a plain str8
@@ -189,19 +194,23 @@ dispatch(String message, Source* source) {
 void 
 deliver(Destination destination, b32 clear_messages) {
     Array<Message> temp = shared_array::lock(instance.messages);
+    defer{ shared_array::unlock(instance.messages, temp); };
+    deliver(destination, temp);
+}
+
+
+void
+deliver(Destination destination, Array<Message> messages) {
     mutex_lock(&instance.delivering);
-    defer{
-        mutex_unlock(&instance.delivering);
-        shared_array::unlock(instance.messages, temp);
-    };
+    defer{ mutex_unlock(&instance.delivering); };
 
     DString out = dstring::init();
 
     internal::current_dest = &destination;
 
-    forI(temp.count) {
+    forI(messages.count) {
         internal::process_message(out, 
-            array::readref(temp, i));
+            array::readref(messages, i));
     }
 
     switch(destination.type) {
@@ -212,8 +221,6 @@ deliver(Destination destination, b32 clear_messages) {
             file_append(destination.desh_file, out.s.str, out.s.count);
         } break;
     }
-
-
 }
 
 void

@@ -222,6 +222,9 @@ void
 deliver(Destination dest, b32 clear_messages = false);
 
 void
+deliver(Destination dest, Array<Message> messages);
+
+void
 push_formatting(MessageFormatting formatting);
 
 void
