@@ -11,12 +11,12 @@ class print_lnode_chain(gdb.Command):
             if val is None:
                 print(f"invalid expression")
                 return
-            out = f"{val.address} -> "
+            out = f"{val} -> "
             iter = val['next'].dereference()
-            while iter.address != val.address:
+            while iter.address != val:
                 out += f"{iter.address} -> "
                 iter = iter['next'].dereference()
-            print(out)
+            gdb.write(out)
         except Exception as e:
             print(f"{self.__class__.__name__} error: ", e)
 print_lnode_chain()
@@ -140,7 +140,7 @@ class Entity_printer:
         try:
             val:gdb.Value = self.val
             match str(val['type']):
-                case "amu::entity::type::module":
+                case "amu::entity::module":
                     return "module"
                 case _:
                     print(f"unhandled entity type {str(val['type'])}")
@@ -157,13 +157,13 @@ class Statement_printer:
             val:gdb.Value = self.val
             type = str(val['type'])
             match type:
-                case "amu::statement::type::label":
+                case "amu::statement::label":
                     return "label statement"
-                case "amu::statement::type::assignment":
+                case "amu::statement::assignment":
                     return "assignment statement"
-                case "amu::statement::type::defer_":
+                case "amu::statement::defer_":
                     return "defer statement"
-                case "amu::statement::type::expression":
+                case "amu::statement::expression":
                     return "expression statement"
                 case _:
                     print(f"unmatched statement type: {type}")
@@ -171,7 +171,38 @@ class Statement_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Statement", r"^amu::Statement$", Statement_printer)
 
+class Pool_printer:
+    def __init__(self,val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            out = ""
+            out += f"n per chunk: {val['items_per_chunk']}\n"
+            out += f"chunks: {val['chunk_root']}\n"
+            out += f"free blocks: {val['free_blocks']}\n"
+            out += f"items: {val['items']}"
+            return out
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Pool", r"^amu::Pool<.*>$", Pool_printer)
+
+class Tuple_printer:
+    def __init__(self,val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            type = str(val['type'])
+            match type:
+                case "amu::tuple::label_group":
+                    return "label group tuple"
+                case _:
+                    gdb.write(f"unhandled tuple type: {type}")            
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Tuple", r"^amu::Tuple$", Tuple_printer)
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
+
 
 
 
@@ -190,6 +221,7 @@ class graph_ast(gdb.Command):
         super(graph_ast, self).__init__("gast", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
     
     def build_tree(self, node:gdb.Value):
+        print(f"building {node}")
         match str(node['type']):
             case "amu::node::type::label":
                 self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Label")[0].type.pointer()).dereference()))
