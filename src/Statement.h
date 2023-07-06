@@ -14,21 +14,19 @@
 
 namespace amu {
 
+namespace statement::type{
+enum Type {
+    label,
+    assignment,
+    defer_,
+    expression
+};
+} // namespace statement::type
+
 struct Statement {
     TNode node;
-    Type type;
+    statement::type::Type type;
 };
-
-namespace statement {
-
-enum StatementType : u32 {
-    Label,
-    Assignment,
-    Defer,
-    Expression
-};
-
-} // namespace statement
 
 } // namespace amu
 

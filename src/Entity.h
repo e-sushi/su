@@ -12,9 +12,20 @@
 
 namespace amu{
 
+namespace entity::type{
+enum Type : u32 {
+    unknown,
+    variable,
+    function,
+    structure,
+    module,
+    loop,
+};
+} // namespace entity::type
+
 struct Entity {
     TNode node;
-    Type type;
+    entity::type::Type type;
 
     struct Variable {
         b32 initialized;
@@ -47,14 +58,6 @@ struct Entity {
 
 namespace entity{
 
-enum EntityType : u32 {
-    Unknown,
-    Variable,
-    Function,
-    Structure,
-    Module,
-    Loop,
-};
 
 
 } // namespace entity

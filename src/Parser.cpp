@@ -10,6 +10,12 @@ init(Source* source) {
     out.labels.internal = shared_array::init<Label*>();
     out.label.stack = array::init<Label*>();
     out.label.table = map::init<String, Label*>();
+
+    out.source->module = compiler::create_entity();
+    out.source->module->type = entity::type::module;
+    node::init(&out.source->module->node);
+    out.source->module->node.type = node::type::entity;
+
     return out;
 }
 
@@ -30,7 +36,8 @@ FORCE_INLINE void
 debug_announce_stage(String stage) {
     if(compiler::instance.options.verbosity < message::verbosity::debug) return;
     messenger::dispatch(message::attach_sender({parser->source, *curt},
-        message::debug(String("parse level: "), stage)));
+        message::debug(message::verbosity::debug, 
+            String("parse level: "), stage)));
 }
 
 // parses a subtype, which is of the form
@@ -49,7 +56,8 @@ TNode* label(TNode* parent) {
 
 
     Statement* stmt = compiler::create_statement();
-    stmt->type = statement::Label;
+    stmt->type = statement::type::label;
+    node::insert_last(parent, &stmt->node);
 
 
     Label* label = compiler::create_label();
@@ -140,11 +148,6 @@ execute(Parser& parser) {
             String("beginning syntactic analysis"))));
 
     Lexer& lexer = *parser.source->lexer;
-
-    messenger::dispatch(message::attach_sender(parser.source,
-        message::debug(message::verbosity::stageparts,
-            String("performing initial scan"))));
-
     internal::parser = &parser;
     internal::curt = array::readptr(lexer.tokens, 0);
     internal::file(&parser.source->module->node);

@@ -36,11 +36,22 @@ struct LNode {
     LNode* prev;
 };
 
+namespace node::type {
+enum Type {
+    label,
+    entity,
+
+    statement,
+    expression,
+    tuple,
+};
+} // namespace node::type
+
 // a Node for trees 
 struct TNode {
     //deshi::mutex lock;
 
-    Type type;
+    node::type::Type type;
     Flags flags;
 
     TNode* next;
@@ -53,15 +64,7 @@ struct TNode {
 
 namespace node {
 
-namespace type {
-enum {
-    label,
-    entity,
-    statement,
-    expression,
-    tuple,
-};
-} // namespace type
+
 
 global inline void
 init(LNode* node);

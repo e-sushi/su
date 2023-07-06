@@ -38,7 +38,7 @@ remove(Map<K,V>& m, const K& key) {
     auto [idx, found] = find(m, key);
     if(!found) return;
     array::remove(m.keys, idx);
-    array::remove(m.valuesm, idx);
+    array::remove(m.values, idx);
 }
 
 template<typename K, typename V> b32 
