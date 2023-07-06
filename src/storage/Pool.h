@@ -36,13 +36,13 @@ struct Pool {
     // how many of 'T' we store per chunk
     u32 items_per_chunk; 
     // root of free blocks
-    LNode free_blocks;
+    LNode* free_blocks;
     // root of chunks
-    LNode chunk_root;
+    LNode* chunk_root;
     // root of allocated items
     // this isn't guaranteed to be in any order
     // the order likely depends on the sequence of additions and removals of items
-    LNode items; 
+    LNode* items; 
 };
 
 namespace pool {
