@@ -12,7 +12,7 @@ init(Source* source) {
     out.label.table = map::init<String, Label*>();
 
     out.source->module = compiler::create_entity();
-    out.source->module->type = entity::type::module;
+    out.source->module->type = entity::module;
     node::init(&out.source->module->node);
     out.source->module->node.type = node::type::entity;
 
@@ -56,9 +56,8 @@ TNode* label(TNode* parent) {
 
 
     Statement* stmt = compiler::create_statement();
-    stmt->type = statement::type::label;
+    stmt->type = statement::label;
     node::insert_last(parent, &stmt->node);
-
 
     Label* label = compiler::create_label();
     label->token = curt;
@@ -66,14 +65,13 @@ TNode* label(TNode* parent) {
     node::insert_last(&stmt->node, &label->node);
 
     curt++;
-
     switch(curt->type) {
         case Token::Comma: {
             // we are making multiple labels
             Tuple* t = compiler::create_tuple();
             t->type = tuple::label_group;
             node::change_parent(&t->node, &label->node);
-            node::insert_last(parent, &t->node);
+            node::insert_last(&stmt->node, &t->node);
 
             while(1) {
                 curt++;

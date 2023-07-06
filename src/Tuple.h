@@ -31,21 +31,19 @@
 
 namespace amu {
 
-struct Tuple {
-    TNode node;
-    Type type;
-};
-
-namespace tuple {
-
-enum TupleType : u32 {
+namespace tuple{
+enum Type : u32 {
     label_group,
     parameters,
     arguments,
     multireturn,
     builtin,
 };
-
 } // namespace tuple
+
+struct Tuple {
+    TNode node;
+    tuple::Type type;
+};
 
 } // namespace amu

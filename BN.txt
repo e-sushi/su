@@ -97,17 +97,50 @@ label = id { "," id } ":" ( rtime-exp | ctime-exp )
 rtime-exp = "=" exp
 ctime-exp = ":" exp
 
-type-literal = id codeblock
+stmt = ( label | assignment | defer | expr ) ";"
+assignment = id "=" exp
+defer = "defer" ( assignment | expr )
+expr = block | loop | switch | conditional | ctime-exp
+block = "{" { stmt } "}"
+loop = "loop" expr
+switch = "switch" "(" expr ")" "{" { expr "=>" expr } "}" 
+conditional = logical-or | "if" "(" expr ")" expr [ "else" expr ]
+logical-or = logical-and { "||" logical-and }                    
+bit-or = bit-xor { "|" bit-xor }                                 
+bit-and = equality { "&" equality }                              
+equality = relational { ("!=" | "==" ) relational }              
+relational = bit-shift { ( "<" | ">" | "<=" | ">=" ) bit-shift } 
+additive = term { ( "+" | "-" ) term }                           
+term = access { ( "*" | "/" | "%" ) } access                     
+access = factor { "." access }                                   
+factor = unary factor                                            
+      | factor "$"                                               
+      | literal                                                  
+      | access                                                   
+      | call                                                     
+      | "(" expr ")"                                              
+      | type-literal                         
+      | var-label                                                
+      | cast                                                     
+      | reinterpret                                              
+unary = "!" | "-" | "~"       
+call = func-label "(" [ arg { "," arg } ] ")"
+     | var-label "." func-label "(" [ arg { "," arg } ] ")"
+initializer = "{" [ exp { "," exp } [ "," ] }
+cast = "(" type ")" exp
+reinterpret = "(" "!" type ")" exp
+parameter = var-label | "?" id                                    
 
+type-literal = type block
 type = scalar-type | struct-id | func-type | array-type | subtype
-subtype = (module-id | struct-id) { "." subtype } | struct-id
+subtype = (module-id | struct-id) { "." subtype } 
 
 scalar-type = "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64"
 
 func-type = "(" [ arg { "," arg } [ "," ] ] ")" "->" type { "," type } 
 func-arg = label ( ( type | "?" id ) [ rtime-exp ] | rtime-exp )
 
-
+import = "#" "import" ( string | subtype )
 
 stmt = exp ";"
 
