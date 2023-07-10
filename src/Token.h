@@ -10,9 +10,129 @@
 
 namespace amu{
 
+namespace token {
+enum kind : u32 {
+    null = 0,
+    error = 0,                // when something doesnt make sense during lexing
+    end_of_file,                // end of file
+    
+    group_identifier,
+    identifier = group_identifier,  // function, variable and struct names                 
+    
+    //// literal ////
+    group_literal,
+    literal_float = group_literal,
+    literal_integer,
+    literal_character,
+    literal_string,
+    
+    //// control ////
+    group_control,
+    semicolon = group_control, // ;
+    open_brace,                // {
+    close_brace,               // }
+    open_paren,                // (
+    close_paren,               // )
+    open_square,               // [
+    close_square,              // ]
+    comma,                     // ,
+    question_mark,             // ?
+    colon,                     // :
+    dot,                       // .
+    range,                     // ..
+    ellipsis,                  // ...
+    at,                        // @
+    pound,                     // #
+    backtick,                  // `
+    function_arrow,            // ->
+    match_arrow,               // =>
+    
+    //// operators ////
+    group_operator,
+    plus = group_operator,      // +
+    increment,                  // ++
+    plus_assignment,            // +=
+    negation,                   // -
+    negation_assignment,        // -=
+    multiplication,             // *
+    multiplication_assignment,  // *=
+    division,                   // /
+    division_assignment,        // /=
+    bit_not,                    // ~
+    bit_not_assignment,         // ~=
+    bit_and,                    // &
+    bit_and_assignment,         // &=
+    logi_and,                   // &&
+    bit_or,                     // |
+    bit_or_assignment,          // |=
+    logi_or,                    // ||
+    bit_xor,                    // ^
+    bit_xor_assignment,         // ^=
+    bit_shift_left,             // <<
+    bit_shift_left_assignment,  // <<=
+    bit_shift_right,            // >>
+    bit_shift_right_assignment, // >>=
+    modulo,                     // %
+    modulo_assignment,          // %=
+    assignment,                 // =
+    equal,                      // ==
+    logical_not,                // !
+    not_equal,                  // !=
+    less_than,                  // <
+    less_than_or_equal,         // <=
+    greater_than,               // >
+    greater_than_or_equal,      // >=
+    dollar,                     // $
+    
+    //// keywords ////
+    group_keyword,
+    return_ = group_keyword, // return
+    if_,                     // if
+    else_,                   // else
+    for_,                    // for
+    while_,                  // while 
+    break_,                  // break
+    continue_,               // continue
+    defer_,                  // defer
+    structdecl,              // struct
+    moduledecl,              // module
+    using_,                   // using
+    switch_,                 // switch
+    loop,                    // loop
+    
+    //// types  ////
+    group_type,
+    void_ = group_type, // void
+    //NOTE(sushi) the order of these entries matter, primarily for type conversion reasons. see SemanticAnalyzer::init
+    unsigned8,              // u8
+    unsigned16,             // u16
+    unsigned32,             // u32 
+    unsigned64,             // u64 
+    signed8,                // s8
+    signed16,               // s16 
+    signed32,               // s32 
+    signed64,               // s64
+    float32,                // f32 
+    float64,                // f64 
+    string,                 // str
+    any,                    // any
+    struct_,                // user defined type
+
+    //// directives ////
+    group_directive,
+    directive_import = group_directive,
+    directive_include,
+    directive_internal,
+    directive_run,
+};
+} // namespace token
+
 struct Token {
     String raw;
     u64 hash;
+
+    token::kind kind;
+    token::kind group;
 
     Source* source; 
     u64 l0, l1;
@@ -27,139 +147,6 @@ struct Token {
         s64 s64_val;
         u64 u64_val;
     };
-
-    enum Type {
-        Null = 0,
-        ERROR = 0,                // when something doesnt make sense during lexing
-        EndOfFile,                // end of file
-        
-        Group_Identifier,
-        Identifier = Group_Identifier,  // function, variable and struct names                 
-        
-        //// literal ////
-        Group_Literal,
-        LiteralFloat = Group_Literal,
-        LiteralInteger,
-        LiteralCharacter,
-        LiteralString,
-        
-        //// control ////
-        Group_Control,
-        Semicolon = Group_Control, // ;
-        OpenBrace,                      // {
-        CloseBrace,                     // }
-        OpenParen,                      // (
-        CloseParen,                     // )
-        OpenSquare,                     // [
-        CloseSquare,                    // ]
-        Comma,                          // ,
-        QuestionMark,                   // ?
-        Colon,                          // :
-        Dot,                            // .
-        At,                             // @
-        Pound,                          // #
-        Backtick,                       // `
-        FunctionArrow,                  // ->
-        
-        //// operators ////
-        Group_Operator,
-        Plus = Group_Operator, // +
-        Increment,                  // ++
-        PlusAssignment,             // +=
-        Negation,                   // -
-        Decrement,                  // --
-        NegationAssignment,         // -=
-        Multiplication,             // *
-        MultiplicationAssignment,   // *=
-        Division,                   // /
-        DivisionAssignment,         // /=
-        BitNOT,                     // ~
-        BitNOTAssignment,           // ~=
-        BitAND,                     // &
-        BitANDAssignment,           // &=
-        AND,                        // &&
-        BitOR,                      // |
-        BitORAssignment,            // |=
-        OR,                         // ||
-        BitXOR,                     // ^
-        BitXORAssignment,           // ^=
-        BitShiftLeft,               // <<
-        BitShiftLeftAssignment,     // <<=
-        BitShiftRight,              // >>
-        BitShiftRightAssignment,    // >>=
-        Modulo,                     // %
-        ModuloAssignment,           // %=
-        Assignment,                 // =
-        Equal,                      // ==
-        LogicalNOT,                 // !
-        NotEqual,                   // !=
-        LessThan,                   // <
-        LessThanOrEqual,            // <=
-        GreaterThan,                // >
-        GreaterThanOrEqual,         // >=
-        Dollar,                     // $
-        
-        //// keywords ////
-        Group_Keyword,
-        Return = Group_Keyword, // return
-        If,                          // if
-        Else,                        // else
-        For,                         // for
-        While,                       // while 
-        Break,                       // break
-        Continue,                    // continue
-        Defer,                       // defer
-        StructDecl,                  // struct
-        ModuleDecl,                  // module
-        This,                        // this
-        Using,                       // using
-        As,                          // as
-        Operator,                    // operator
-        
-        //// types  ////
-        Group_Type,
-        Void = Group_Type, // void
-        //NOTE(sushi) the order of these entries matter, primarily for type conversion reasons. see SemanticAnalyzer::init
-        Unsigned8,              // u8
-        Unsigned16,             // u16
-        Unsigned32,             // u32 
-        Unsigned64,             // u64 
-        Signed8,                // s8
-        Signed16,               // s16 
-        Signed32,               // s32 
-        Signed64,               // s64
-        Float32,                // f32 
-        Float64,                // f64 
-        String,                 // str
-        Any,                    // any
-        Struct,                 // user defined type
-
-        //aliases, plus one extra for indicating pointers
-        DataType_Void       = Void,
-        DataType_Unsigned8  = Unsigned8,
-        DataType_Unsigned16 = Unsigned16,
-        DataType_Unsigned32 = Unsigned32,
-        DataType_Unsigned64 = Unsigned64,
-        DataType_Signed8    = Signed8,
-        DataType_Signed16   = Signed16,
-        DataType_Signed32   = Signed32,
-        DataType_Signed64   = Signed64,
-        DataType_Float32    = Float32,
-        DataType_Float64    = Float64,
-        DataType_String     = String,
-        DataType_Any        = Any,
-        DataType_Struct     = Struct,
-        DataType_Ptr,
-
-        //// directives ////
-        Group_Directive,
-        Directive_Import = Group_Directive,
-        Directive_Include,
-        Directive_Internal,
-        Directive_Run,
-    };
-    Type type;
-    Type group;
 };
 
 } // namespace amu

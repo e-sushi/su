@@ -15,7 +15,7 @@
 namespace amu {
 
 namespace statement{
-enum Type {
+enum kind {
     label,
     assignment,
     defer_,
@@ -25,7 +25,7 @@ enum Type {
 
 struct Statement {
     TNode node;
-    statement::Type type;
+    statement::kind kind;
 };
 
 } // namespace amu

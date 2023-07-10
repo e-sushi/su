@@ -32,7 +32,8 @@
 namespace amu {
 
 namespace tuple{
-enum Type : u32 {
+enum kind : u32 {
+    unknown,
     label_group,
     parameters,
     arguments,
@@ -43,7 +44,10 @@ enum Type : u32 {
 
 struct Tuple {
     TNode node;
-    tuple::Type type;
+    tuple::kind kind;
+
+    Token* start;
+    Token* end;
 };
 
 } // namespace amu
