@@ -90,7 +90,7 @@ class MessagePart_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            match str(val['type']):
+            match str(val['kind']):
                 case "amu::MessagePart::Plain": 
                     return f"plain: {val['plain']}"
                 case "amu::MessagePart::Path": 
@@ -112,7 +112,7 @@ class Token_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            return f"{str(val['type'])[5:]} {val['raw']}"
+            return f"{str(val['kind'])[5:]} {val['raw']}"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Token", r"^amu::Token$", Token_printer)
@@ -139,11 +139,11 @@ class Entity_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            match str(val['type']):
+            match str(val['kind']):
                 case "amu::entity::module":
                     return "module"
                 case _:
-                    print(f"unhandled entity type {str(val['type'])}")
+                    print(f"unhandled entity type {str(val['kind'])}")
                     return "err"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -155,7 +155,7 @@ class Statement_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            type = str(val['type'])
+            type = str(val['kind'])
             match type:
                 case "amu::statement::label":
                     return "label statement"
@@ -191,21 +191,48 @@ class Tuple_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            type = str(val['type'])
+            type = str(val['kind'])
             match type:
                 case "amu::tuple::label_group":
                     return "label group tuple"
                 case _:
-                    gdb.write(f"unhandled tuple type: {type}")            
+                    return f"unhandled tuple type: {type}"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Tuple", r"^amu::Tuple$", Tuple_printer)
 
+class TNode_printer:
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            kind = str(val['kind'])
+            match kind:
+                case "amu::node::label":
+                    return gdb.parse_and_eval(f"*(amu::Label*){val.address}")
+                case "amu::node::tuple":
+                    return gdb.parse_and_eval(f"*(amu::Tuple*){val.address}")
+                case "amu::node::expression":
+                    return gdb.parse_and_eval(f"*(amu::Expression*){val.address}")
+                case _:
+                    return f"unhandled node kind: {kind}"
+                
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("TNode", r"^amu::TNode", TNode_printer)
+
+class Expression_printer:
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            return f"Expression {val['kind']} {val['start']} -> {val['end']}"
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Expression", r"^amu::Expression", Expression_printer)
+
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
-
-
-
-
 
 
 # commands
@@ -222,19 +249,19 @@ class graph_ast(gdb.Command):
     
     def build_tree(self, node:gdb.Value):
         print(f"building {node}")
-        match str(node['type']):
-            case "amu::node::type::label":
+        match str(node['kind']):
+            case "amu::node::label":
                 self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Label")[0].type.pointer()).dereference()))
-            case "amu::node::type::entity":
+            case "amu::node::entity":
                 self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Entity")[0].type.pointer()).dereference()))
-            case "amu::node::type::statement":
+            case "amu::node::statement":
                 self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Statement")[0].type.pointer()).dereference()))
-            case "amu::node::type::expression":
+            case "amu::node::expression":
                 self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Expression")[0].type.pointer()).dereference()))
-            case "amu::node::type::tuple":
+            case "amu::node::tuple":
                 self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Tuple")[0].type.pointer()).dereference()))
             case _:
-                print(f"unmatched type: {str(node['type'])}")
+                print(f"unmatched type: {str(node['kind'])}")
         
         current = node['first_child']
         while int(current):
@@ -258,6 +285,22 @@ class graph_ast(gdb.Command):
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 graph_ast()
+
+
+class parser_print_stack(gdb.Command):
+    def __init__(self):
+        super(parser_print_stack, self).__init__("pstack", gdb.COMMAND_USER)
+    
+    def invoke(self, args, tty):
+        try:
+            val = gdb.parse_and_eval("amu::parser::internal::stack")
+
+            for i in range(val['count']):
+                elem = gdb.parse_and_eval(f"amu::parser::internal::stack.data[{i}]")
+                print(elem.dereference())
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+parser_print_stack()
 
 
         
