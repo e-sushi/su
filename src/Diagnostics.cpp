@@ -231,6 +231,289 @@ expected_import_directive() {
     return out;
 }
 
+global Message
+expected_colon_for_label() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a ':' after label(s)"));
+        } break;
+        case Japanese: {
+            out = message::init(String("ラベルの後にコロンが必要"));
+        } break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_comma_or_closing_paren_tuple() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a ',' or ')' for tuple"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+unexpected_token(Token* t = 0) {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("unexpected token "));
+            if(t) message::push(out, *t);
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_open_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a '('"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_close_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a ')'"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_open_brace() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a '{'"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+expected_close_brace() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a '}'"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+empty_switch() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("empty switch"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Warning;
+    return out;
+}
+
+
+// labelgroup: ID ( "," ID )+
+//                      ^ is missing
+global Message
+label_group_missing_id() { 
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("trailing comma not allowed in multi-label declaration"));
+        } break;
+        case Japanese: NotImplemented; break;
+        case Spanish: NotImplemented; break;
+        case Chinese: NotImplemented; break;
+        case Russian: NotImplemented; break; 
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+label_missing_colon() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing a ':' after label identifier(s)"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+switch_missing_open_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing a '(' after 'switch'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+switch_missing_close_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing a ')' after switch's expression"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+switch_missing_open_brace() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing a '{' to start switch expression"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+
+global Message
+switch_empty_body() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("empty switch body"));
+        } break;
+    }
+    out.type = Message::Warning;
+    return out;
+}
+
+global Message
+switch_missing_match_arrow_after_expr() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a '=>' after expression in switch expression"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+switch_missing_comma_after_match_arm() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a ',' after switch arm that does not end with a '}'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+tuple_expected_comma_or_close_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a ',' or ')' for tuple"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+if_missing_open_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing '(' after 'if'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+if_missing_close_paren() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing ')' after if expression's condition"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+missing_semicolon() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing ';'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
 } // namespace parser
 
 namespace internal { // @internal
@@ -254,7 +537,6 @@ valid_path_but_internal_err(String path, String err) {
     out.type = Message::Error;
     return out;
 }
-
 
 
 } // namespace internal
