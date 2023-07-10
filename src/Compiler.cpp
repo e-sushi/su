@@ -54,6 +54,9 @@ init() {
     map::add(compiler::builtins.array->members, String("data"), compiler::builtins.void_);
     map::add(compiler::builtins.array->members, String("count"), compiler::builtins.signed64);
 
+    compiler::builtins.functype = compiler::create_structure();
+    compiler::builtins.functype->size = compiler::builtins.unsigned64->size;
+
     messenger::init();
 }
 

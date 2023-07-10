@@ -77,6 +77,7 @@ global struct{
     Structure* float32;
     Structure* float64;
     Structure* array;
+    Structure* functype; // the internal rep for a function 'type', which is just a function pointer 
 }builtins;
 
 // initializes the compiler, storing all information in the global amu::compiler::amu

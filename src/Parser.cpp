@@ -30,12 +30,34 @@ Token* curt;
 Array<TNode*> stack;
 
 FORCE_INLINE void
+__stack_push(TNode* n, String caller) {
+    array::push(stack, n);
+    messenger::dispatch(message::attach_sender({parser->source, *curt},
+        message::debug(message::verbosity::debug,
+            String("pushed: "), caller)));
+}
+
+#define stack_push(n) __stack_push(n, __func__)
+
+FORCE_INLINE TNode*
+__stack_pop(String caller) {
+    messenger::dispatch(message::attach_sender({parser->source, *curt},
+        message::debug(message::verbosity::debug,
+            String("popped: "), caller)));
+    return array::pop(stack);
+}
+
+#define stack_pop() __stack_pop(__func__)
+
+FORCE_INLINE void
 debug_announce_stage(String stage) {
     if(compiler::instance.options.verbosity < message::verbosity::debug) return;
     messenger::dispatch(message::attach_sender({parser->source, *curt},
         message::debug(message::verbosity::debug, 
             String("parse level: "), stage)));
 }
+
+#define announce_stage debug_announce_stage(__func__)
 
 template<typename... T> b32
 next_match(T... args) {
@@ -101,22 +123,22 @@ void before_factor();
 // state8:
 // factor: ID *
 // reduce ID -> expr:id
-void reduce_identifier_to_identifier_expression() {
+void reduce_identifier_to_identifier_expression() { announce_stage;
     Expression* e = compiler::create_expression();
     e->kind = expression::identifier;
     e->start = e->end = curt;
-    array::push(stack, (TNode*)e);
+    stack_push((TNode*)e);
 }
 
 /* there doesn't need to do anything special for reducing a literal, because they all become the same sort of expression
    which just stores the token
     literal: int | float | string | char
 */
-void reduce_literal_to_literal_expression() {
+void reduce_literal_to_literal_expression() { announce_stage;
     Expression* e = compiler::create_expression();
     e->kind = expression::literal;
     e->start = e->end = curt;
-    array::push(stack, (TNode*)e);
+    stack_push((TNode*)e);
 }
 
 
@@ -126,7 +148,7 @@ void reduce_literal_to_literal_expression() {
            | "s8" *  | "s16" *  | "s32" *  | "s64" * 
            | "f32" * | "f64" *
 */
-void reduce_builtin_type_to_typeref_expression() {
+void reduce_builtin_type_to_typeref_expression() { announce_stage;
     Expression* e = compiler::create_expression();
     e->kind = expression::typeref;
     Type type = {};
@@ -144,7 +166,7 @@ void reduce_builtin_type_to_typeref_expression() {
         case token::float64:    type.structure = compiler::builtins.float64; break;
     }
     e->type = type;
-    array::push(stack, (TNode*)e);
+    stack_push((TNode*)e);
 }   
 
 
@@ -161,7 +183,7 @@ void reduce_builtin_type_to_typeref_expression() {
 //     | * func_type
 //     | * ID
 //     | * type decorators 
-// void after_plus() {
+// void after_plus() { announce_stage;
 //     switch(curt->kind) {
 //         case token::literal_integer: curt++; reduce_num_to_factor(); break;
 //         case token::identifier:      curt++; reduce_identifier_to_type(); break;
@@ -174,7 +196,7 @@ void reduce_builtin_type_to_typeref_expression() {
 // additive: additive * '+' term
 //         | additive * '-' term
 // reduce additive -> expr
-// void after_additive() {
+// void after_additive() { announce_stage;
 //     switch(curt->type) {
 //         case token::plus: 
 //     }
@@ -183,14 +205,41 @@ void reduce_builtin_type_to_typeref_expression() {
 
 //state14:
 // expr: ctime *
-void reduce_comptime_to_expr() {
+void reduce_comptime_to_expr() { announce_stage;
 
 }
 
 // state13:
 // expr: assignment *
-void reduce_assignment_to_expr() {
+void reduce_assignment_to_expr() { announce_stage;
 
+}
+
+/*
+        tuple: '(' ... ')' *
+    func_type: tuple * "->" factor { "," factor } 
+
+*/
+void tuple_after_close_paren() { announce_stage;
+    if(curt->kind == token::function_arrow) {
+        curt++;
+        u32 count = 0;
+        while(1) {
+            before_factor();
+            count++;
+            if(curt->kind != token::comma) break;
+            curt++;
+        }
+
+        Expression* e = compiler::create_expression();
+        e->kind = expression::typeref;
+        e->type.structure = compiler::builtins.functype;
+
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
+
+        stack_push((TNode*)e);
+    }
 }
 
 
@@ -199,7 +248,7 @@ void reduce_assignment_to_expr() {
     label: * ID ':' ...
      expr: ...
 */
-void tuple_after_open_paren() {
+void tuple_after_open_paren() { announce_stage; announce_stage;
     Token* save = curt-1;
     
     u32 count = 0;
@@ -217,6 +266,9 @@ void tuple_after_open_paren() {
                 }
 
             } break;
+            default: {
+                before_expr();
+            }break;
         }
         count += 1;
         if(curt->kind == token::comma) curt++;
@@ -227,26 +279,33 @@ void tuple_after_open_paren() {
         }
     }
 
-    
+
+    Tuple* tuple = compiler::create_tuple();
+    tuple->kind = tuple::unknown;
+
+    forI(count) {
+        node::insert_first((TNode*)tuple, stack_pop());
+    }
+
+    stack_push((TNode*)tuple);
+
+    curt++;
+
+    tuple_after_close_paren();
 }
 
 // state10:
 // assignment: '=' * expr
-void assignment_after_equal() {
-    // just pass to before_expr
-    
-
+void assignment_after_equal() { announce_stage;
+    // just pass to before_expr 
 }
-
-
-
 
 /*
     comptime: * typeref ':' expr
             | typeref ':' * expr
             | * ':' expr
-*/
-void comptime_after_colon() {
+*/ 
+void comptime_after_colon() { announce_stage;
     switch(curt->kind) {
         case token::identifier:      reduce_identifier_to_identifier_expression(); curt++; break;
         case token::colon:           curt++; comptime_after_colon(); break;
@@ -282,7 +341,7 @@ void comptime_after_colon() {
          ctime: typeref * ':' expr
         factor: typeref *  
 34*/ 
-void after_typeref() {
+void after_typeref() { announce_stage;
     Token* save = curt;
     switch(curt->kind) {
         case token::colon: curt++; comptime_after_colon(); break;
@@ -294,12 +353,10 @@ void after_typeref() {
             e->kind = expression::binary_assignment;
             e->start = save;
             e->end = curt;
-            forI(2) {
-                node::insert_first((TNode*)e, array::read(stack, -i));
-            }
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
 
-            array::pop(stack, 2);
-            array::push(stack, (TNode*)e);
+            stack_push((TNode*)e);
         } break;
     }
 }
@@ -307,15 +364,15 @@ void after_typeref() {
 /*
     loop: switch | "loop" expr
 */
-void after_switch() {
+void loop() { announce_stage;
     if(curt->kind == token::loop) {
         curt++;
         before_expr();
 
         Expression* loop = compiler::create_expression();
         loop->kind = expression::loop;
-        node::insert_last((TNode*)loop, array::pop(stack));
-        array::push(stack, (TNode*)loop);
+        node::insert_last((TNode*)loop, stack_pop());
+        stack_push((TNode*)loop);
         loop->start = ((Expression*)loop->node.first_child)->start;
         loop->end = ((Expression*)loop->node.last_child)->end;
     }
@@ -324,7 +381,7 @@ void after_switch() {
 /*
     switch: conditional | "switch" '(' expr ')' '{' { expr "=>" expr } '}'
 */ 
-void after_conditional() {
+void switch_() { announce_stage;
     if(curt->kind == token::switch_) {
         Token* save = curt;
         curt++;
@@ -404,16 +461,18 @@ void after_conditional() {
         }
 
         array::pop(stack, count+1);
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
         curt++;
     }
+
+    loop();
 }
 
 /*
     conditional: logi-or | "if" '(' expr ')' expr [ "else" expr ]
 */
-void after_logi_or() {
+void conditional() { announce_stage;
     if(curt->kind == token::if_) {
         curt++;
 
@@ -423,9 +482,9 @@ void after_logi_or() {
             return;
         }
 
-        before_expr();
-
         curt++;
+
+        before_expr();
 
         if(curt->kind != token::close_paren) {
             messenger::dispatch(message::attach_sender({parser->source, *curt},
@@ -439,17 +498,19 @@ void after_logi_or() {
         Expression* e = compiler::create_expression();
         e->kind = expression::conditional;
 
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
-        if((curt+1)->kind == token::else_) {
-            curt += 2;
+        if(curt->kind == token::else_) {
+            curt++;
             before_expr();
-            node::insert_last((TNode*)e, array::pop(stack));
+            node::insert_last((TNode*)e, stack_pop());
         }
     }
+
+    // switch_();
 }
 
 // TODO(sushi) this long chain of binary op handlers can probably all be combined into one function
@@ -457,111 +518,113 @@ void after_logi_or() {
 /*
     logi-or: logi-and { "||" logi-and }
 */
-void after_logi_and() {
+void logi_or() { announce_stage;
     if(curt->kind == token::logi_or) {
         curt++;
         before_factor();
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_or;
 
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
-        after_logi_and();
+        logi_or();
     }
+
+    conditional();
 }
 
 /*
     logi-and: bit-or { "&&" bit-or }
 */
-void after_bit_or() {
+void logi_and() { announce_stage;
     if(curt->kind == token::logi_and) {
         curt++;
         before_factor();
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_and;
 
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
-        after_bit_or();
+        logi_and();
     }
 
-    after_logi_and();
+    logi_or();
 }
 
 /*
     bit-or: bit-xor { "|" bit-xor }
 */
-void after_bit_xor() {
+void bit_or() { announce_stage;
     if(curt->kind == token::bit_or) {
         curt++;
         before_factor();
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_bit_or;
 
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
-        after_bit_xor();
+        bit_or();
     }
 
-    after_bit_or();
+    logi_and();
 }
 
 /*
     bit-xor: bit-and { "^" bit-and }
 */
-void after_bit_and() {
+void bit_xor() { announce_stage;
     if(curt->kind == token::bit_xor) {
         curt++;
         before_factor();
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_bit_xor;
 
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
-        after_bit_and();
+        bit_xor();
     }
 
-    after_bit_xor();
+    bit_or();
 }
 
 
 /*
     bit-and: equality { "&" equality } 
 */
-void after_equality() {
+void bit_and() { announce_stage;
     if(curt->kind == token::bit_and) {
         curt++;
         before_factor();
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_bit_and;
 
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
-        array::push(stack, (TNode*)e);
+        stack_push((TNode*)e);
 
-        after_equality();
+        bit_and();
     }
 
-    after_bit_and();
+    bit_xor();
 }
 
 /*
     equality: relational { ( "!=" | "==" ) relational }
 */
-void after_relational() {
+void equality() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::equal:
@@ -571,22 +634,22 @@ void after_relational() {
             Expression* e = compiler::create_expression();
             e->kind = kind == token::equal ? expression::binary_equal : expression::binary_not_equal;
 
-            node::insert_first((TNode*)e, array::pop(stack));
-            node::insert_first((TNode*)e, array::pop(stack));
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
 
-            array::push(stack, (TNode*)e);
+            stack_push((TNode*)e);
 
-            after_relational();
+            equality();
         } break;
     }
 
-    after_equality();
+    bit_and();
 }
 
 /*
     relational: bit-shift { ( ">" | "<" | "<=" | ">=" ) bit-shift }
 */
-void after_bit_shift() {
+void relational() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::less_than:
@@ -604,22 +667,22 @@ void after_bit_shift() {
                       expression::binary_greater_than :
                       expression::binary_greater_than_or_equal;
 
-            node::insert_first((TNode*)e, array::pop(stack));
-            node::insert_first((TNode*)e, array::pop(stack));
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
 
-            array::push(stack, (TNode*)e);
+            stack_push((TNode*)e);
 
-            after_bit_shift();
+            relational();
         } break;
     }
 
-    after_relational();
+    equality();
 }
 
 /*
     bit-shift: additive { "<<" | ">>" additive }
 */
-void after_additive() {
+void bit_shift() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::bit_shift_left: 
@@ -631,22 +694,22 @@ void after_additive() {
                       expression::binary_bit_shift_left :
                       expression::binary_bit_shift_right;
             
-            node::insert_first((TNode*)e, array::pop(stack));
-            node::insert_first((TNode*)e, array::pop(stack));
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
 
-            array::push(stack, (TNode*)e);
+            stack_push((TNode*)e);
 
-            after_additive();
+            bit_shift();
         } break;
     }
 
-    after_bit_shift();
+    relational();
 }
 
 /*
     additive: term * { ("+" | "-" ) term }
 */
-void after_term() {
+void additive() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::plus:
@@ -655,22 +718,22 @@ void after_term() {
             before_factor();
             Expression* e = compiler::create_expression();
             e->kind = kind == token::plus ? expression::binary_plus : expression::binary_minus;
-            node::insert_first((TNode*)e, array::pop(stack));
-            node::insert_first((TNode*)e, array::pop(stack));
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
 
-            array::push(stack, (TNode*)e);
+            stack_push((TNode*)e);
 
-            after_term();
+            additive();
         } break;
     }
 
-    after_additive();
+    bit_shift();
 }
 
 /*
     term: access * { ( "*" | "/" | "%" ) access }
 */
-void after_access() {
+void term() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::modulo: 
@@ -684,35 +747,37 @@ void after_access() {
                     : kind == token::division ? expression::binary_division
                     : expression::binary_multiply;
             
-            node::insert_first((TNode*)e, array::pop(stack));
-            node::insert_first((TNode*)e, array::pop(stack));
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
 
-            after_access();
+            stack_push((TNode*)e);
+
+            term();
         } break;
     }
 
-    after_term();
+    additive();
 }
 
 /*
     access: factor * { "." factor }
 */
-void after_factor() {
+void access() { announce_stage;
     if(curt->kind == token::dot) {
         curt++;
         before_factor();
         // access: factor { "." factor * }
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_access;
-        node::insert_first((TNode*)e, array::pop(stack));
-        node::insert_first((TNode*)e, array::pop(stack));
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
         e->start = ((Expression*)e->node.first_child)->start;
         e->end = ((Expression*)e->node.last_child)->end;
-        array::push(stack, (TNode*)e);
-        after_factor();
+        stack_push((TNode*)e);
+        access();
     }
 
-    after_access();
+    term();
 
     // NOTE(sushi) we can do this this way if we want to reduce the amount of nodes in the tree
     //             for example, apple.banana.orange right now is 
@@ -733,7 +798,7 @@ void after_factor() {
     //     e->end = ((Expression*)e->node.last_child)->end;
 
     //     array::pop(stack, count+1);
-    //     array::push(stack, (TNode*)e);
+    //     stack_push((TNode*)e);
     // } // otherwise do nothing
 }
 
@@ -742,45 +807,23 @@ void after_factor() {
           | factor { "." * factor }
     factor: * (literal | id | tuple | type )
 */
-void before_factor() {
+void before_factor() { announce_stage;
     switch(curt->kind) {
         case token::identifier: reduce_identifier_to_identifier_expression(); curt++; break;
         case token::open_paren: curt++; tuple_after_open_paren(); break;
+        case token::if_: conditional(); break;
         default: {
             if(curt->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
+                curt++;
             } else if(curt->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
+                curt++;
             }
-            curt++;
         } break;
     }
 
-    after_factor();
-}
-
-/* general post expr handler
-           expr: * ( loop | switch | assignment | ctime | conditional ) .
-           loop: "loop" expr *
-         switch: * "switch" '(' expr ')' '{' { expr } '}'
-     assignment: expr * '=' expr
-          ctime: * [ typeref ] ':' expr
-    conditional: * ( logical-or | "if" '(' expr ')' expr [ "else" expr ] 
-     logical-or: * logical-and { "||" logical-and }
-    logical-and: * bit-or { "&&" bit-or }            
-         bit-or: * bit-xor { "|" bit-xor }                                 
-        bit-and: * equality { "&" equality }                              
-       equality: * relational { ("!=" | "==" ) relational }              
-      elational: * bit-shift { ( "<" | ">" | "<=" | ">=" ) bit-shift } 
-           term: * factor { ( '*' | '/' | '%' ) factor }
-         factor: * ( literal | ID | tuple | type )
-          tuple: * '(' tupleargs ')'
-        typeref: * ( func_type | factor decorators | "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64" )
-        literal: * ( string | float | int | char )
-*/
-
-void after_expr() {
-
+    access();
 }
 
 /* general expr handler, since we will come across this alot
@@ -802,7 +845,7 @@ void after_expr() {
         typeref: * ( func_type | factor decorators | "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64" )
         literal: * ( string | float | int | char )
 */
-void before_expr() {
+void before_expr() { announce_stage;
     switch(curt->kind) {
         case token::identifier: reduce_identifier_to_identifier_expression(); curt++; break;
         case token::open_paren: curt++; tuple_after_open_paren(); break;
@@ -822,7 +865,7 @@ void before_expr() {
             Expression* expr = (Expression*)last;
             switch(expr->kind) {
                 case expression::literal: {
-                    after_factor();
+                    access();
                 } break;
 
                 case expression::identifier: {
@@ -848,7 +891,7 @@ void before_expr() {
           tuple: * '(' tupleargs ')'
         typeref: * ( func_type | factor decorators | "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64" )
 */ 
-void label_after_colon() {
+void label_after_colon() { announce_stage;
   
     switch(curt->kind) {
         case token::identifier:      reduce_identifier_to_identifier_expression(); curt++; break;
@@ -894,20 +937,20 @@ void label_after_colon() {
 }
 
 // state3: module: label * EOF
-void before_eof() {
+void before_eof() { announce_stage;
     // switch(curt->kind) {
     //     case token::end_of_file: curt++; after_eof(); break;
     // }
 }
 
 // state2: accept: module * end
-void before_end() {
+void before_end() { announce_stage;
     // this is the end, just dont do anything
 }
 
 // // state1: 
 // // label: ID * { "," ID } ':' expr ( ';' | ']' | '}' )
-// void label_before_colon_or_list() {
+// void label_before_colon_or_list() { announce_stage;
 //     switch(curt->kind) {
 //         case token::colon: curt++; label_after_colon(); break;
 //         case token::comma: 
@@ -922,7 +965,7 @@ void before_end() {
     with the identifiers as its children
 
 */
-void label_group_after_comma() {
+void label_group_after_comma() { announce_stage;
     while(1) {
         if(curt->kind != token::identifier) break; 
         Expression* expr = compiler::create_expression();
@@ -937,10 +980,9 @@ void label_group_after_comma() {
             // make the label group tuple
             Tuple* group = compiler::create_tuple();
             group->kind = tuple::label_group;
-            node::change_parent((TNode*)group, 
-                array::pop(stack));
+            node::change_parent((TNode*)group, stack_pop());
             node::insert_last((TNode*)group, (TNode*)expr);
-            array::push(stack, (TNode*)group);
+            stack_push((TNode*)group);
         }
         curt++;
         if(curt->kind == token::comma) curt++;
@@ -966,7 +1008,7 @@ void label_group_after_comma() {
          label: ( ID * | idgroup ) ':' expr ( ';' | ']' | '}' )
     labelgroup: ID * ( "," ID )+
 */
-void label_after_id() {
+void label_after_id() { announce_stage;
     switch(curt->kind) {
         case token::comma: curt++; label_group_after_comma(); break;
         case token::colon: curt++; label_after_colon(); break;
@@ -978,12 +1020,12 @@ void label_after_id() {
          label: * ( ID | labelgroup ) ':' expr ( ';' | ']' | '}' )  
     labelgroup: ID ( "," ID )+ 
 */
-void start() {
+void start() { announce_stage;
     while(1) {
         if(curt->kind != token::identifier) break;
         Expression* expr = compiler::create_expression();
         expr->kind = expression::identifier;
-        array::push(stack, (TNode*)expr);
+        stack_push((TNode*)expr);
 
         curt++;
         label_after_id();
@@ -999,12 +1041,16 @@ void start() {
                     return;
                 }
 
+                curt++;
+
                 // reduce to a label 
                 Label* label = compiler::create_label();
-                node::insert_first((TNode*)label, array::pop(stack));
-                node::insert_first((TNode*)label, array::pop(stack));
+                node::insert_first((TNode*)label, stack_pop());
+                node::insert_first((TNode*)label, stack_pop());
 
-                array::push(stack, (TNode*)label);
+                label->token = ((Expression*)label->node.first_child)->start;
+
+                stack_push((TNode*)label);
 
             } break;
         }
