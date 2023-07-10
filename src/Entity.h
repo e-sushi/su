@@ -13,7 +13,7 @@
 namespace amu{
 
 namespace entity{
-enum Type : u32 {
+enum kind : u32 {
     unknown,
     variable,
     function,
@@ -23,44 +23,43 @@ enum Type : u32 {
 };
 } // namespace entity
 
+// representation of something that is a place in memory, name borrowed from rust
+struct Place {
+    TNode node;
+
+    b32 initialized;
+    u32 pointer_depth;
+
+    // type information for this place in memory
+    Type type;
+};
+
+struct Structure {
+    TNode node;
+    u64 size; // size of this structure in bytes
+    Map<String, Structure*> members;
+};
+
+struct Function {
+    TNode node;
+};
+
+struct Module {
+    TNode node;
+};
+
 struct Entity {
     TNode node;
-    entity::Type type;
-
-    struct Variable {
-        b32 initialized;
-        u32 pointer_depth;
-
-    };
-
-    struct Structure {
-
-    };
-
-    struct Function {
-
-    };
-
-    struct Module {
-
-    };  
+    entity::kind kind;
 
     union {
-        Variable variable;
+        Place place;
         Structure structure;
         Function function;
         Module module;
     };
-
-    Label* label; 
 };
 
-
-namespace entity{
-
-
-
-} // namespace entity
 } // namespace amu
 
 #endif // AMU_ENTITY_H

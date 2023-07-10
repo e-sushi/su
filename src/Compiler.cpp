@@ -12,15 +12,47 @@ init() {
 
     instance.log_file = file_init(str8l("temp/log"), FileAccess_WriteCreate);
 
-    instance.storage.sources = pool::init<Source>(32);
-    instance.storage.lexers = pool::init<Lexer>(32);
-    instance.storage.parsers = pool::init<Parser>(32);
-    instance.storage.labels = pool::init<Label>(32);
-    instance.storage.entities = pool::init<Entity>(32);
-    instance.storage.statements = pool::init<Statement>(32);
-    instance.storage.tuples = pool::init<Tuple>(32);
+    instance.storage.sources     = pool::init<Source>(32);
+    instance.storage.lexers      = pool::init<Lexer>(32);
+    instance.storage.parsers     = pool::init<Parser>(32);
+    instance.storage.modules     = pool::init<Module>(32);
+    instance.storage.labels      = pool::init<Label>(32);
+    instance.storage.structures  = pool::init<Structure>(32);
+    instance.storage.functions   = pool::init<Function>(32);
+    instance.storage.statements  = pool::init<Statement>(32);
+    instance.storage.expressions = pool::init<Expression>(32);
+    instance.storage.places      = pool::init<Place>(32);
+    instance.storage.tuples      = pool::init<Tuple>(32);
+    instance.storage.types       = pool::init<Type>(32);
 
     instance.options.deliver_debug_immediately = true;
+
+    compiler::builtins.void_ = compiler::create_structure();
+    compiler::builtins.void_->size = 0;
+    compiler::builtins.unsigned8 = compiler::create_structure();
+    compiler::builtins.unsigned8->size = 1;
+    compiler::builtins.unsigned16 = compiler::create_structure();
+    compiler::builtins.unsigned16->size = 2;
+    compiler::builtins.unsigned32 = compiler::create_structure();
+    compiler::builtins.unsigned32->size = 4;
+    compiler::builtins.unsigned64 = compiler::create_structure();
+    compiler::builtins.unsigned64->size = 8;
+    compiler::builtins.signed8 = compiler::create_structure();
+    compiler::builtins.signed8->size = 1;
+    compiler::builtins.signed16 = compiler::create_structure();
+    compiler::builtins.signed16->size = 2;
+    compiler::builtins.signed32 = compiler::create_structure();
+    compiler::builtins.signed32->size = 4;
+    compiler::builtins.signed64 = compiler::create_structure();
+    compiler::builtins.signed64->size = 8;
+    compiler::builtins.float32 = compiler::create_structure();
+    compiler::builtins.float32->size = 4;
+    compiler::builtins.float64 = compiler::create_structure();
+    compiler::builtins.float64->size = 8;
+    compiler::builtins.array = compiler::create_structure();
+    compiler::builtins.array->size = sizeof(s64) + sizeof(void*);
+    map::add(compiler::builtins.array->members, String("data"), compiler::builtins.void_);
+    map::add(compiler::builtins.array->members, String("count"), compiler::builtins.signed64);
 
     messenger::init();
 }
@@ -98,35 +130,61 @@ lookup_source(String name);
 global Label*
 create_label() {
     Label* out = pool::add(instance.storage.labels);
-    out->node.type = node::type::label;
+    out->node.kind = node::label;
     return out;
 }
 
-global Entity*
-create_entity() {
-    Entity* out = pool::add(instance.storage.entities);
-    out->node.type = node::type::entity;
+global Place*
+create_place(){
+    Place* out = pool::add(instance.storage.places);
+    out->node.kind = node::place;
+    return out;
+}
+
+global Structure*
+create_structure(){
+    Structure* out = pool::add(instance.storage.structures);
+    out->members = map::init<String, Structure*>();
+    out->node.kind = node::structure;
+    return out;
+}
+
+global Function*
+create_function(){
+    Function* out = pool::add(instance.storage.functions);
+    out->node.kind = node::function;
+    return out;
+}
+
+global Module*
+create_module(){
+    Module* out = pool::add(instance.storage.modules);
+    node::init(&out->node);
+    out->node.kind = node::module;
     return out;
 }
 
 global Statement*
 create_statement() {
     Statement* out = pool::add(instance.storage.statements);
-    out->node.type = node::type::statement;
+    node::init(&out->node);
+    out->node.kind = node::statement;
     return out;
 }
 
 global Tuple*
 create_tuple() {
     Tuple* out = pool::add(instance.storage.tuples);
-    out->node.type = node::type::tuple;
+    node::init(&out->node);
+    out->node.kind = node::tuple;
     return out;
 }
 
 global Expression*
 create_expression() {
     Expression* out = pool::add(instance.storage.expressions);
-    out->node.type = node::type::expression;
+    node::init(&out->node);
+    out->node.kind = node::expression;
     return out;
 }
 

@@ -42,17 +42,20 @@ struct Compiler {
     // this is experimental and depending on how much state needs cleaned up in other 
     // components of the compiler, I may just go back to storing this locally  
     struct {
-        Pool<Source> sources;
-        Pool<Entity> entities;
-        Pool<Label> labels;
-        Pool<Lexer> lexers;
-        Pool<Parser> parsers;
-        Pool<Statement> statements;
-        Pool<Tuple> tuples;
+        Pool<Source>     sources;
+        Pool<Lexer>      lexers;
+        Pool<Parser>     parsers;
+        Pool<Module>     modules;
+        Pool<Label>      labels;
+        Pool<Structure>  structures;
+        Pool<Function>   functions;
+        Pool<Statement>  statements;
         Pool<Expression> expressions;
+        Pool<Place>      places;
+        Pool<Tuple>      tuples;
+        Pool<Type>       types;
     }storage;
     
-
     struct {
         u32 verbosity;
         b32 deliver_debug_immediately;
@@ -60,6 +63,21 @@ struct Compiler {
 };
 
 namespace compiler {
+
+global struct{
+    Structure* void_;
+    Structure* unsigned8;
+    Structure* unsigned16;
+    Structure* unsigned32;
+    Structure* unsigned64;
+    Structure* signed8;
+    Structure* signed16;
+    Structure* signed32;
+    Structure* signed64;
+    Structure* float32;
+    Structure* float64;
+    Structure* array;
+}builtins;
 
 // initializes the compiler, storing all information in the global amu::compiler::amu
 global void
@@ -85,8 +103,17 @@ lookup_source(String name);
 global Label*
 create_label();
 
-global Entity*
-create_entity();
+global Place*
+create_place();
+
+global Structure*
+create_structure();
+
+global Function*
+create_function();
+
+global Module*
+create_module();
 
 global Statement*
 create_statement();
