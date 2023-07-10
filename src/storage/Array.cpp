@@ -51,7 +51,7 @@ pop(Array<T>& arr, u32 count) {
         arr.count -= 1;
     }
 
-    T out = *(arr.data + arr.count - 1);
+    T out = *(arr.data + arr.count-- - 1);
     return out;
 }
 
