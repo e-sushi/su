@@ -20,7 +20,7 @@ struct Source {
     DString buffer; // the loaded file
 
     // the module representing this Source
-    Entity* module;
+    Module* module;
 
     Lexer* lexer;
     Parser* parser;

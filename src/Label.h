@@ -14,12 +14,10 @@
 namespace amu{
     
 struct Token;
-struct Entity;
 struct Label {
     TNode node;
     Token* token; // token representing this Label
 
-    Entity* entity; // the entity this label points to 
     Label* original; // if this label is an alias of another label, this is the original
 };
 

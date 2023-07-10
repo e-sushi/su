@@ -36,14 +36,17 @@ struct LNode {
     LNode* prev;
 };
 
-namespace node::type {
-enum Type {
+namespace node {
+enum kind {
     label,
-    entity,
-
+    place,
+    structure,
+    function,
+    module,
     statement,
     expression,
     tuple,
+    type,
 };
 } // namespace node::type
 
@@ -51,7 +54,7 @@ enum Type {
 struct TNode {
     //deshi::mutex lock;
 
-    node::type::Type type;
+    node::kind kind;
     Flags flags;
 
     TNode* next;

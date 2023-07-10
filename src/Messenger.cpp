@@ -18,8 +18,8 @@ wrap_color(DString& current, u32 color) {
 void
 process_part(DString& current, MessagePart& part) {
     MessageFormatting& formatting = shared_array::readref(instance.formatting_stack, -1);
-    switch(part.type) {
-        case MessagePart::Plain: {
+    switch(part.kind) {
+        case messagepart::plain: {
             DString temp = dstring::init(part.plain);
             if(current_dest->allow_color && formatting.plain.col) {
                 wrap_color(temp, (part.col? part.col : formatting.plain.col));
@@ -29,7 +29,7 @@ process_part(DString& current, MessagePart& part) {
             dstring::append(current, temp);
             dstring::deinit(temp);
         } break;
-        case MessagePart::Path: {
+        case messagepart::path: {
             DString temp = dstring::init(part.plain);
             // TODO(sushi) implement fancy path formatting
             if(current_dest->allow_color) {
@@ -41,7 +41,7 @@ process_part(DString& current, MessagePart& part) {
             dstring::deinit(temp);
 
         } break;
-        case MessagePart::Token: {
+        case messagepart::token: {
             DString temp = dstring::init(part.token.raw);
             if(current_dest->allow_color) {
                 wrap_color(temp, formatting.token.col);
@@ -54,7 +54,7 @@ process_part(DString& current, MessagePart& part) {
             dstring::append(current, temp);
             dstring::deinit(temp);
         } break;
-        case MessagePart::Identifier: {
+        case messagepart::identifier: {
             DString temp = dstring::init(part.plain);
             if(current_dest->allow_color) {
                 wrap_color(temp, formatting.identifier.col);
@@ -64,22 +64,22 @@ process_part(DString& current, MessagePart& part) {
             dstring::append(current, temp);
             dstring::deinit(temp);
         }break;
-        case MessagePart::Variable: {
+        case messagepart::place: {
             NotImplemented;
         } break;
-        case MessagePart::Structure: {
+        case messagepart::structure: {
             NotImplemented;
         } break;
-        case MessagePart::Function: {
+        case messagepart::function: {
             NotImplemented;
         } break;
-        case MessagePart::Module: {
+        case messagepart::module: {
             NotImplemented;
         } break;
-        case MessagePart::Label: {
+        case messagepart::label: {
             NotImplemented;
         } break;
-        case MessagePart::Code: {
+        case messagepart::code: {
             NotImplemented;
         } break;
     }
@@ -185,7 +185,7 @@ void
 dispatch(String message, Source* source) {
     Message m = message::init(source);
     MessagePart part; 
-    part.type = MessagePart::Plain;
+    part.kind = messagepart::plain;
     //part.plain = message;
     message::push(m, part);
     dispatch(message);
@@ -213,7 +213,7 @@ deliver(Destination destination, Array<Message> messages) {
             array::readref(messages, i));
     }
 
-    switch(destination.type) {
+    switch(destination.kind) {
         case Destination::STLFILE: {
             size_t bytes_written = fwrite(out.s.str, 1, out.s.count, destination.stl_file);
         } break;
@@ -306,7 +306,7 @@ prefix(Message& m, T... args) {
 MessagePart
 plain(String s, u32 c) {
     MessagePart out;
-    out.type = MessagePart::Plain;
+    out.kind = messagepart::plain;
     out.col = c;
     out.plain = s;
     return out;
@@ -315,7 +315,7 @@ plain(String s, u32 c) {
 MessagePart
 path(String s, u32 c) {
     MessagePart out;
-    out.type = MessagePart::Path;
+    out.kind = messagepart::path;
     out.col = c;
     out.plain = s;
     return out;
@@ -324,7 +324,7 @@ path(String s, u32 c) {
 MessagePart
 identifier(String s) {
     MessagePart out;
-    out.type = MessagePart::Identifier;
+    out.kind = messagepart::identifier;
     out.plain = s;
     return out;
 }

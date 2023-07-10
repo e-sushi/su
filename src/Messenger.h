@@ -16,6 +16,7 @@
 
 namespace amu {
 
+// standard terminal colors, numbers correspond to the escape code that activates them
 namespace message{
 enum : u32{
     color_none =     0,
@@ -51,39 +52,42 @@ enum : u32 {
 }
 } // namespace message
 
+namespace messagepart {
+enum kind{
+    plain, token, identifier, path, source, place, structure, function, module, label, code
+};
+} // namespace messagepart
+
 // a Message stores an SharedArray of Parts, which allows the Messenger to
 // process a Message and format it according to current formatting 
 // settings or where it is delivering the message to
 struct MessagePart {
-    enum Type : u32 {
-        Plain, Token, Identifier, Path, Source, Variable, Structure, Function, Module, Label, Code, COUNT
-    };
-    Type type;
+    messagepart::kind kind;
     union {
         String plain; // a plain String, path, or identifier
-        amu::Token token; // a token, likely representing a source location
-        Entity::Variable variable;
-        Entity::Structure structure;
-        Entity::Function function;
-        Entity::Module module;
-        amu::Label* label; // a label whose name we will print
-        amu::Code code; // code region to print
-        amu::Source* source; // a source file whose name we will likely print
+        Token token; // a token, likely representing a source location
+        Place place;
+        Structure structure;
+        Function function;
+        Module module;
+        Label* label; // a label whose name we will print
+        Code code; // code region to print
+        Source* source; // a source file whose name we will likely print
     };
     // if this is 0, default colors will be applied in processing
     // this is set to a number from message::color_
     u32 col;
 
     MessagePart() {}
-    MessagePart(String s) : plain(s) {type = Plain;}
-    MessagePart(amu::Token t) : token(t) {type = Token;}
-    MessagePart(Entity::Variable v) : variable(v) {type = Variable;}
-    MessagePart(Entity::Structure s) : structure(s) {type = Structure;}
-    MessagePart(Entity::Function f) : function(f) {type = Function;}
-    MessagePart(Entity::Module m) : module(m) {type = Module;}
-    MessagePart(amu::Label* l) : label(l) {type = Label;}
-    MessagePart(amu::Code c) : code(c) {type = Code;} 
-    MessagePart(amu::Source* s) : source(s) {type = Source;}
+    MessagePart(String s) : plain(s) {kind = messagepart::plain;}
+    MessagePart(Token t) : token(t) {kind = messagepart::token;}
+    MessagePart(Place p) : place(p) {kind = messagepart::place;}
+    MessagePart(Structure s) : structure(s) {kind = messagepart::structure;}
+    MessagePart(Function f) : function(f) {kind = messagepart::function;}
+    MessagePart(Module m) : module(m) {kind = messagepart::module;}
+    MessagePart(Label* l) : label(l) {kind = messagepart::label;}
+    MessagePart(Code c) : code(c) {kind = messagepart::code;} 
+    MessagePart(Source* s) : source(s) {kind = messagepart::source;}
 };
 
 // indicates who sent the message
@@ -107,7 +111,7 @@ struct MessageSender {
 // consists of MessageParts that the Messenger formats before delivering
 struct Message {
     // the time this message was created
-    f32 time;
+    u64 time;
 
     MessageSender sender;
 
@@ -177,11 +181,11 @@ struct Messenger {
 };
 
 struct Destination {
-    Type type;
-    enum {
+    enum Kind{
         DESHFILE,
         STLFILE,
     };
+    Kind kind;
 
     union {
         File* desh_file;
@@ -190,10 +194,10 @@ struct Destination {
 
     b32 allow_color;
 
-    Destination(File* file, b32 allow_color = false) : desh_file(file), type(DESHFILE) {}
+    Destination(File* file, b32 allow_color = false) : desh_file(file), kind(DESHFILE) {}
     // allow color is default true here, because it is most likely that this is chosen
     // when passing stdout or stderr as a destination
-    Destination(FILE* file, b32 allow_color = true) : stl_file(file), type(STLFILE) {}
+    Destination(FILE* file, b32 allow_color = true) : stl_file(file), kind(STLFILE) {}
 };
 
 namespace messenger {

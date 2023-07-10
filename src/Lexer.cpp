@@ -5,50 +5,49 @@ namespace internal {
 
 #define strcase(s) case string::static_hash(s)
 
-local Token::Type
+local token::kind
 token_is_keyword_or_identifier(String raw) {
     switch(string::hash(raw)) {
-        strcase("return"):    return Token::Return;
-		strcase("if"):        return Token::If;
-		strcase("else"):      return Token::Else;
-		strcase("for"):       return Token::For;
-		strcase("while"):     return Token::While;
-		strcase("break"):     return Token::Break;
-		strcase("continue"):  return Token::Continue;
-		strcase("defer"):     return Token::Defer;
-		strcase("struct"):    return Token::StructDecl;
-		strcase("module"):    return Token::ModuleDecl;
-		strcase("this"):      return Token::This;
-		strcase("void"):      return Token::Void;
-		strcase("s8"):        return Token::Signed8;
-		strcase("s16"):       return Token::Signed16;
-		strcase("s32"):       return Token::Signed32;
-		strcase("s64"):       return Token::Signed64;
-		strcase("u8"):        return Token::Unsigned8;
-		strcase("u16"):       return Token::Unsigned16;
-		strcase("u32"):       return Token::Unsigned32;
-		strcase("u64"):       return Token::Unsigned64;
-		strcase("f32"):       return Token::Float32;
-		strcase("f64"):       return Token::Float64;
-		strcase("str"):       return Token::String;
-		strcase("any"):       return Token::Any;
-		strcase("as"):        return Token::As;
-		strcase("using"):     return Token::Using;
-		strcase("operator"):  return Token::Operator;
+        strcase("return"):    return token::return_;
+		strcase("if"):        return token::if_;
+		strcase("else"):      return token::else_;
+		strcase("for"):       return token::for_;
+		strcase("while"):     return token::while_;
+		strcase("break"):     return token::break_;
+		strcase("continue"):  return token::continue_;
+		strcase("defer"):     return token::defer_;
+		strcase("switch"):    return token::switch_;
+		strcase("loop"):      return token::loop;
+		strcase("struct"):    return token::structdecl;
+		strcase("module"):    return token::moduledecl;
+		strcase("void"):      return token::void_;
+		strcase("s8"):        return token::signed8;
+		strcase("s16"):       return token::signed16;
+		strcase("s32"):       return token::signed32;
+		strcase("s64"):       return token::signed64;
+		strcase("u8"):        return token::unsigned8;
+		strcase("u16"):       return token::unsigned16;
+		strcase("u32"):       return token::unsigned32;
+		strcase("u64"):       return token::unsigned64;
+		strcase("f32"):       return token::float32;
+		strcase("f64"):       return token::float64;
+		strcase("str"):       return token::string;
+		strcase("any"):       return token::any;
+		strcase("using"):     return token::using_;
     }
-    return Token::Identifier;
+    return token::identifier;
 }
 
 
-local Token::Type
+local token::kind
 token_is_directive_or_identifier(String raw) {
     switch(string::hash(raw)) {
-        strcase("import"):   return Token::Directive_Import;
-		strcase("internal"): return Token::Directive_Internal;
-		strcase("run"):      return Token::Directive_Run;
+        strcase("import"):   return token::directive_import;
+		strcase("internal"): return token::directive_internal;
+		strcase("run"):      return token::directive_run;
     }
 
-    return Token::Identifier;
+    return token::identifier;
 }
 
 FORCE_INLINE b32 
@@ -92,29 +91,29 @@ execute(Lexer& lexer) {
 //!ref: https://github.com/pervognsen/bitwise/blob/master/ion/lex.c
 #define CASE1(c1,t1) \
 case c1:{ 	         \
-token.type = t1;     \
+token.kind = t1;     \
 stream_next;         \
 }break;
 
 #define CASE2(c1,t1, c2,t2) \
 case c1:{                   \
-token.type = t1;            \
+token.kind = t1;            \
 stream_next;                \
 if(*stream.str == c2){      \
-token.type = t2;            \
+token.kind = t2;            \
 stream_next;                \
 }                           \
 }break;
 
 #define CASE3(c1,t1, c2,t2, c3,t3) \
 case c1:{                          \
-token.type = t1;                   \
+token.kind = t1;                   \
 stream_next;                       \
 if      (*stream.str == c3){       \
-token.type = t3;                   \
+token.kind = t3;                   \
 stream_next;                       \
 }else if(*stream.str == c2){       \
-token.type = t2;                   \
+token.kind = t2;                   \
 stream_next;                       \
 }                                  \
 }break;
@@ -163,28 +162,29 @@ stream_next;                       \
 					stream_next;
 					while(isdigit(*stream.str)){ stream_next; } //skip to non-digit
 					token.raw.count = stream.str - token.raw.str;
-					token.type      = Token::LiteralFloat;
+					token.kind      = token::literal_float;
 					token.f64_val   = string::to_f64(token.raw); 
 				}else if(*stream.str == 'x' || *stream.str == 'X'){
 					stream_next;
 					while(isxdigit(*stream.str)){ stream_next; } //skip to non-hexdigit
 					token.raw.count = stream.str - token.raw.str;
-					token.type      = Token::LiteralInteger;
+					token.kind      = token::literal_integer;
 					token.s64_val   = string::to_s64(token.raw);
 				}else{
 					token.raw.count = stream.str - token.raw.str;
-					token.type      = Token::LiteralInteger;
+					token.kind      = token::literal_integer;
 					token.s64_val   = string::to_s64(token.raw); 
-				}
+				}	
 
 				token.l1 = line_num;
 	 			token.c1 = line_col;
+				token.group = token::group_literal;
 	 			array::push(lexer.tokens, token);
 			}continue;
 
 			case '\'':{
-				token.type  = Token::LiteralCharacter;
-				//token.group = TokenGroup_Literal;
+				token.kind  = token::literal_character;
+				token.group = token::group_literal;
 				stream_next;
 				
 				while(*stream.str != '\'') {//skip until closing single quotes
@@ -206,7 +206,7 @@ stream_next;                       \
 			}continue; //skip token creation b/c we did it manually
 
 			case '"':{
-				token.type  = Token::LiteralString;
+				token.kind  = token::literal_string;
 				// token.group = TokenGroup_Literal;
 				stream_next;
 				
@@ -229,72 +229,86 @@ stream_next;                       \
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 			
-			CASE1(';', Token::Semicolon);
+			CASE1(';', token::semicolon);
             // CASE1('(', Token::OpenParen);
             // CASE1(')', Token::CloseParen);
 			case '(':{ 
-				token.type = Token::OpenParen;
+				token.kind = token::open_paren;
 				scope_level++;
 				stream_next;
 			}break;
 			case ')':{ 
-				token.type = Token::CloseParen; 
+				token.kind = token::close_paren; 
 				scope_level--;
 				stream_next;
 			}break;
 
-			CASE1('[', Token::OpenSquare);
-			CASE1(']', Token::CloseSquare);
-			CASE1(',', Token::Comma);
-			CASE1('?', Token::QuestionMark);
+			CASE1('[', token::open_square);
+			CASE1(']', token::close_square);
+			CASE1(',', token::comma);
+			CASE1('?', token::question_mark);
 			case ':':{ //NOTE special for declarations and compile time expressions
-				token.type = Token::Colon; 
+				token.kind = token::colon; 
                 array::push(lexer.colons, lexer.tokens.count);
 				stream_next; 
 			}break;
-			CASE1('.', Token::Dot);
-			CASE1('@', Token::At);
-			CASE1('#', Token::Pound);
-			CASE1('`', Token::Backtick);
-            CASE1('$', Token::Dollar);
+			CASE3('.', token::dot, '.', token::range, '.', token::ellipsis);
+			CASE1('@', token::at);
+			CASE1('#', token::pound);
+			CASE1('`', token::backtick);
+            CASE1('$', token::dollar);
 
 			case '{':{ //NOTE special for scope tracking and internals 
-				token.type = Token::OpenBrace;
+				token.kind = token::open_brace;
 				scope_level++;
 				stream_next;
 			}break;
 			
 			case '}':{ //NOTE special for scope tracking and internals
-				token.type = Token::CloseBrace;
+				token.kind = token::close_brace;
 				scope_level--;
 				stream_next;
 			}break;
 			
 			//// @operators ////
-			CASE3('+', Token::Plus,            '=', Token::PlusAssignment,      '+', Token::Increment);
-			CASE2('*', Token::Multiplication,  '=', Token::MultiplicationAssignment);
-			CASE2('%', Token::Modulo,          '=', Token::ModuloAssignment);
-			CASE2('~', Token::BitNOT,          '=', Token::BitNOTAssignment);
-			CASE3('&', Token::BitAND,          '=', Token::BitANDAssignment,    '&', Token::AND);
-			CASE3('|', Token::BitOR,           '=', Token::BitORAssignment,     '|', Token::OR);
-			CASE2('^', Token::BitXOR,          '=', Token::BitXORAssignment);
-			CASE2('=', Token::Assignment,      '=', Token::Equal);
-			CASE2('!', Token::LogicalNOT,      '=', Token::NotEqual);
+			CASE2('+', token::plus,             '=', token::plus_assignment);
+			CASE2('*', token::multiplication,   '=', token::multiplication_assignment);
+			CASE2('%', token::modulo,           '=', token::modulo_assignment);
+			CASE2('~', token::bit_not,          '=', token::bit_not_assignment);
+			CASE3('&', token::bit_and,          '=', token::bit_and_assignment,    '&', token::logi_and);
+			CASE3('|', token::bit_or,           '=', token::bit_or_assignment,     '|', token::logi_or);
+			CASE2('^', token::bit_xor,          '=', token::bit_xor_assignment);
+
+			case '=': {
+				token.kind = token::assignment;
+				stream_next;
+				if(*stream.str == '=') {
+					token.kind = token::equal;
+					stream_next;
+				} else if(*stream.str == '>') {
+					token.kind = token::match_arrow;
+					stream_next;
+				}
+			} break;
+
+			CASE2('!', token::logical_not,      '=', token::not_equal);
 			
+		
+
 			case '-':{ // NOTE special because of ->
-				token.type = Token::Negation;
+				token.kind = token::negation;
 				stream_next;
 				if(*stream.str == '>'){
-					token.type = Token::FunctionArrow;
+					token.kind = token::function_arrow;
 					stream_next;
 				}
 			}break;
 
 			case '/':{ //NOTE special because of comments
-				token.type = Token::Division;
+				token.kind = token::division;
 				stream_next;
 				if(*stream.str == '='){
-					token.type = Token::DivisionAssignment;
+					token.kind = token::division_assignment;
 					stream_next;
 				}else if(*stream.str == '/'){
 					while(stream && *stream.str != '\n') stream_next; //skip single line comment
@@ -313,32 +327,32 @@ stream_next;                       \
 			}break;
 		
 			case '<':{ //NOTE special because of bitshift assignment
-				token.type = Token::LessThan;
+				token.kind = token::less_than;
 				stream_next;
 				if      (*stream.str == '='){
-					token.type = Token::LessThanOrEqual;
+					token.kind = token::less_than_or_equal;
 					stream_next;
 				}else if(*stream.str == '<'){
-					token.type = Token::BitShiftLeft;
+					token.kind = token::bit_shift_left;
 					stream_next;
 					if(*stream.str == '='){
-						token.type = Token::BitShiftLeftAssignment;
+						token.kind = token::bit_shift_left_assignment;
 						stream_next;
 					}
 				}
 			}break;
 			
 			case '>':{ //NOTE special because of bitshift assignment
-				token.type = Token::GreaterThan;
+				token.kind = token::greater_than;
 				stream_next;
 				if      (*stream.str == '='){
-					token.type = Token::GreaterThanOrEqual;
+					token.kind = token::greater_than_or_equal;
 					stream_next;
 				}else if(*stream.str == '>'){
-					token.type = Token::BitShiftRight;
+					token.kind = token::bit_shift_right;
 					stream_next;
 					if(*stream.str == '='){
-						token.type = Token::BitShiftRightAssignment;
+						token.kind = token::bit_shift_right_assignment;
 						stream_next;
 					}
 				}
@@ -350,12 +364,12 @@ stream_next;                       \
 						stream_next; //skip until we find a non-identifier char
 
                 	token.raw.count = stream.str - token.raw.str;
-                	token.type = internal::token_is_keyword_or_identifier(token.raw);
+                	token.kind = internal::token_is_keyword_or_identifier(token.raw);
 					token.hash = string::hash(token.raw);
 
-					if(lexer.tokens.count && array::read(lexer.tokens, -1).type == Token::Pound){
-						Type type = internal::token_is_directive_or_identifier(token.raw);
-						if(type == Token::Identifier){
+					if(lexer.tokens.count && array::read(lexer.tokens, -1).kind == token::pound){
+						token::kind type = internal::token_is_directive_or_identifier(token.raw);
+						if(type == token::identifier){
                             messenger::dispatch(message::attach_sender({lexer.source, token}, 
                                 diagnostic::lexer::unknown_directive(token.raw)));
                             lexer.status.failed = true;
@@ -364,30 +378,30 @@ stream_next;                       \
 				}else{
                     messenger::dispatch(message::attach_sender({lexer.source, token},
                         diagnostic::lexer::invalid_token()));
-					token.type = Token::ERROR;
+					token.kind = token::error;
                     lexer.status.failed = true;
 					stream_next;
 				}
 			}break;
 		}
 
-		if(token.type == Token::Identifier){
-			token.group = Token::Group_Identifier;
-		}else if(token.type >= Token::LiteralFloat && token.type <= Token::LiteralString){
-			token.group = Token::Group_Literal;
-		}else if(token.type >= Token::Semicolon && token.type <= Token::Backtick){
-			token.group = Token::Group_Control;
-		}else if(token.type >= Token::Plus && token.type <= Token::GreaterThanOrEqual){
-			token.group = Token::Group_Operator;
-		}else if(token.type >= Token::Return && token.type <= Token::StructDecl){
-			token.group = Token::Group_Keyword;
-		}else if(token.type >= Token::Void && token.type <= Token::Struct){
-			token.group = Token::Group_Type;
-		}else if(token.type >= Token::Directive_Import && token.type <= Token::Directive_Run){
-			token.group = Token::Group_Directive;
+		if(token.kind == token::identifier){
+			token.group = token::group_identifier;
+		}else if(token.kind >= token::literal_float && token.kind <= token::literal_string){
+			token.group = token::group_literal;
+		}else if(token.kind >= token::semicolon && token.kind <= token::backtick){
+			token.group = token::group_control;
+		}else if(token.kind >= token::plus && token.kind <= token::greater_than_or_equal){
+			token.group = token::group_operator;
+		}else if(token.kind >= token::return_ && token.kind <= token::structdecl){
+			token.group = token::group_keyword;
+		}else if(token.kind >= token::void_ && token.kind <= token::struct_){
+			token.group = token::group_type;
+		}else if(token.kind >= token::directive_import && token.kind <= token::directive_run){
+			token.group = token::group_directive;
 		}
 
-        if(token.type != Token::ERROR) {
+        if(token.kind != token::error) {
             token.l1 = line_num;
             token.c1 = line_col;
             token.raw.count = stream.str - token.raw.str;
@@ -396,7 +410,7 @@ stream_next;                       \
     }
 
 	Token eof;
-	eof.type = Token::EndOfFile;
+	eof.kind = token::end_of_file;
 	eof.l0 = line_num;
 	eof.c0 = line_col;
 	eof.raw = String("");
@@ -422,7 +436,7 @@ output(Lexer& lexer, String path) {
 
     forI(lexer.tokens.count) {
         Token& t = array::readref(lexer.tokens, i);
-        dstring::append(buffer, (u64)t.type, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
+        dstring::append(buffer, (u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
     }
 
     file_write(out, buffer.s.str, buffer.s.count);

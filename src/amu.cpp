@@ -185,6 +185,7 @@
 #include "Tuple.h"
 #include "Label.h"
 #include "Entity.h"
+#include "Type.h"
 #include "Messenger.h"
 #include "Compiler.h"
 #include "Result.h"
