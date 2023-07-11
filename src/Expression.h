@@ -71,9 +71,5 @@ struct Expression {
     Type type; // the semantic type of this expression
 
     b32 is_compiletime;
-
-    Token* start;
-    Token* end;
 };
-
 } // namespace amu

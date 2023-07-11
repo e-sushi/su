@@ -45,9 +45,6 @@ enum kind : u32 {
 struct Tuple {
     TNode node;
     tuple::kind kind;
-
-    Token* start;
-    Token* end;
 };
 
 } // namespace amu

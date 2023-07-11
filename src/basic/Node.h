@@ -26,6 +26,7 @@
 // }
 
 namespace amu{
+struct Token;
 
 // a node for linked lists
 // this actually a circularly linked list, eg. next and prev begin by pointing at each other
@@ -56,6 +57,9 @@ struct TNode {
 
     node::kind kind;
     Flags flags;
+
+    Token* start;
+    Token* end;
 
     TNode* next;
     TNode* prev;

@@ -15,9 +15,8 @@ enum kind : u32 {
     null = 0,
     error = 0,                // when something doesnt make sense during lexing
     end_of_file,                // end of file
-    
-    group_identifier,
-    identifier = group_identifier,  // function, variable and struct names                 
+
+    identifier,  // function, variable and struct names                 
     
     //// literal ////
     group_literal,
@@ -124,6 +123,7 @@ enum kind : u32 {
     directive_include,
     directive_internal,
     directive_run,
+    directive_compiler_break,
 };
 } // namespace token
 
@@ -148,7 +148,6 @@ struct Token {
         u64 u64_val;
     };
 };
-
 } // namespace amu
 
 #endif // AMU_TOKEN_H

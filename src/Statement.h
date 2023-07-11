@@ -16,6 +16,7 @@ namespace amu {
 
 namespace statement{
 enum kind {
+    unknown,
     label,
     assignment,
     defer_,
