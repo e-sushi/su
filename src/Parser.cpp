@@ -28,24 +28,36 @@ namespace internal {
 Parser* parser;
 Token* curt;
 Array<TNode*> stack;
-Array<void (*)()> precedence_stack;
 
-FORCE_INLINE void
+#define advance_curt() do {                            \
+    curt++;                                            \
+    if(curt->kind == token::directive_compiler_break){ \
+        DebugBreakpoint;                               \
+        curt++;                                        \
+    }                                                  \
+} while(0)
+
+void
 __stack_push(TNode* n, String caller) {
     array::push(stack, n);
     messenger::dispatch(message::attach_sender({parser->source, *curt},
         message::debug(message::verbosity::debug,
-            String("pushed: "), caller)));
+            String("pushed: "), caller, String(" // "), 
+                (n->start? n->start->raw : String("bad start")), String(" -> "), 
+                (n->end? n->end->raw : String("bad end")))));
 }
 
 #define stack_push(n) __stack_push(n, __func__)
 
-FORCE_INLINE TNode*
+TNode*
 __stack_pop(String caller) {
+    TNode* ret = array::pop(stack);
     messenger::dispatch(message::attach_sender({parser->source, *curt},
         message::debug(message::verbosity::debug,
-            String("popped: "), caller)));
-    return array::pop(stack);
+            String("popped: "), caller, String(" // "), 
+                (ret->start? ret->start->raw : String("bad start")), String(" -> "), 
+                (ret->end? ret->end->raw : String("bad end")))));
+    return ret;
 }
 
 #define stack_pop() __stack_pop(__func__)
@@ -75,7 +87,7 @@ template<TNode* (*next_layer)(TNode*), typename... T>
 TNode* binop_parse(TNode* parent, TNode* ret, T... tokchecks){
     TNode* out = ret;
     while(next_match(tokchecks...)){
-        curt++;
+        advance_curt();
         //make binary op expression
         Expression* op = compiler::create_expression();
         switch(curt->kind){
@@ -101,7 +113,6 @@ TNode* binop_parse(TNode* parent, TNode* ret, T... tokchecks){
             case token::logical_not:           op->kind = expression::unary_logi_not; break;
             default: Assert(0);
         }
-        op->start = curt-1;
 
         //readjust parents to make the binary op the new child of the parent node
         //and the ret node a child of the new binary op
@@ -109,7 +120,7 @@ TNode* binop_parse(TNode* parent, TNode* ret, T... tokchecks){
         node::change_parent((TNode*)op, out);
 
         //evaluate next expression
-        curt++;
+        advance_curt();
         TNode* rhs = next_layer((TNode*)op);
 
         out = (TNode*)op;
@@ -118,11 +129,30 @@ TNode* binop_parse(TNode* parent, TNode* ret, T... tokchecks){
 }
 
 #define check_error if(!array::read(stack, -1)) return;
-#define push_error() return (void)array::push(stack, (TNode*)0);
+#define push_error() do{                                                \
+    messenger::dispatch(message::attach_sender({parser->source, *curt}, \
+        message::debug(message::verbosity::debug,                       \
+            String(__func__), String(ErrorFormat(" pushed error")))));  \
+    return (void)array::push(stack, (TNode*)0);                         \
+}while(0)
+
+
+#define set_start_end_from_children(n)                  \
+do{                                                     \
+((TNode*)n)->start = (((TNode*)n)->first_child)->start; \
+((TNode*)n)->end = (((TNode*)n)->last_child)->end;      \
+}while(0)                                    
+
+
+
 
 void before_expr();
 void label_after_colon();
 void factor();
+void after_typeref(); 
+void label_after_id();
+void label();
+
 
 // state8:
 // factor: ID *
@@ -130,18 +160,22 @@ void factor();
 void reduce_identifier_to_identifier_expression() { announce_stage;
     Expression* e = compiler::create_expression();
     e->kind = expression::identifier;
-    e->start = e->end = curt;
+    TNode* n = (TNode*)e;
+    n->start = n->end = curt;
     stack_push((TNode*)e);
 }
 
 /* there doesn't need to do anything special for reducing a literal, because they all become the same sort of expression
    which just stores the token
     literal: int | float | string | char
+
+    TODO(sushi) this may only be used in one or two places so it can be removed if so 
 */
 void reduce_literal_to_literal_expression() { announce_stage;
     Expression* e = compiler::create_expression();
     e->kind = expression::literal;
-    e->start = e->end = curt;
+    TNode* n = (TNode*)e;
+    n->start = n->end = curt;
     stack_push((TNode*)e);
 }
 
@@ -170,12 +204,14 @@ void reduce_builtin_type_to_typeref_expression() { announce_stage;
         case token::float64:    type.structure = compiler::builtins.float64; break;
     }
     e->type = type;
+    e->node.start = curt;
+    e->node.end = curt;
     stack_push((TNode*)e);
 }
 
 
 // state28:
-// additive: additive '+' * term
+// additive: additive '+' * term@
 // term: * factor
 //     | * term '*' factor
 //     | * term '/' factor
@@ -189,8 +225,8 @@ void reduce_builtin_type_to_typeref_expression() { announce_stage;
 //     | * type decorators 
 // void after_plus() { announce_stage;
 //     switch(curt->kind) {
-//         case token::literal_integer: curt++; reduce_num_to_factor(); break;
-//         case token::identifier:      curt++; reduce_identifier_to_type(); break;
+//         case token::literal_integer: advance_curt(); reduce_num_to_factor(); break;
+//         case token::identifier:      advance_curt(); reduce_identifier_to_type(); break;
 //     }
 // }
 
@@ -226,23 +262,46 @@ void reduce_assignment_to_expr() { announce_stage;
 */
 void tuple_after_close_paren() { announce_stage;
     if(curt->kind == token::function_arrow) {
-        curt++;
+        advance_curt();
         u32 count = 0;
         while(1) {
             factor();
             count++;
             if(curt->kind != token::comma) break;
-            curt++;
+            advance_curt();
+        }
+
+        if(!count) {
+            messenger::dispatch(message::attach_sender({parser->source, *curt},
+                diagnostic::parser::missing_function_return()));
+            push_error();
         }
 
         Expression* e = compiler::create_expression();
         e->kind = expression::typeref;
         e->type.structure = compiler::builtins.functype;
 
-        node::insert_first((TNode*)e, stack_pop());
+        if(count > 1) {
+            Tuple* t = compiler::create_tuple();
+            t->kind = tuple::multireturn;
+            
+            forI(count) {
+                node::insert_first((TNode*)t, stack_pop());
+            }
+
+            node::insert_last((TNode*)e, (TNode*)t);
+
+            set_start_end_from_children(t);
+        } else {
+            node::insert_first((TNode*)e, stack_pop());
+        }
+
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
+
+        after_typeref(); 
     }
 }
 
@@ -262,10 +321,12 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
             case token::identifier: {
                 // need to figure out if this is an expression or label 
                 switch((curt+1)->kind) {
-                    case token::colon: curt+=2; label_after_colon(); break;
+                    case token::colon:{
+                        label(); check_error;
+                    } break;
                     default: {
                         // otherwise this is assumed to be an expression handled by before_expr
-                        before_expr();
+                        before_expr(); check_error;
                     } break;
                 }
 
@@ -275,7 +336,7 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
             }break;
         }
         count += 1;
-        if(curt->kind == token::comma) curt++;
+        if(curt->kind == token::comma) advance_curt();
         else if(curt->kind != token::close_paren) { // there was some error in consuming an expr/label
             messenger::dispatch(message::attach_sender({parser->source, *curt},
                 diagnostic::parser::tuple_expected_comma_or_close_paren()));
@@ -291,17 +352,69 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
         node::insert_first((TNode*)tuple, stack_pop());
     }
 
+    if(count) set_start_end_from_children(tuple);
+    else{
+        tuple->node.start = save;
+        tuple->node.end = curt;
+    }   
     stack_push((TNode*)tuple);
 
-    curt++;
+    advance_curt();
 
     tuple_after_close_paren();
 }
 
-// state10:
-// assignment: '=' * expr
-void assignment_after_equal() { announce_stage;
-    // just pass to before_expr 
+/*
+    block: '{' { stmt } '}'
+*/
+void block() {
+    u32 count = 0;
+    Token* start = curt-1;
+    while(1) {
+        statement::kind skind = statement::unknown;
+        if(curt->kind == token::close_brace) break;
+        switch(curt->kind) {
+            case token::identifier: {
+                if((curt+1)->kind == token::colon) {
+                    label(); check_error;
+                    skind = statement::label;
+                } else {
+                    before_expr(); check_error;
+                    skind = statement::expression;
+                }
+            } break;
+            default: {
+                before_expr(); check_error;
+                skind = statement::expression;
+            } break;
+        }
+        if(curt->kind != token::semicolon && curt->kind != token::close_brace) {
+            messenger::dispatch(message::attach_sender({parser->source, *curt},
+                diagnostic::parser::missing_semicolon()));
+        }
+
+        Statement* s = compiler::create_statement();
+        s->kind = skind;
+
+        node::insert_first((TNode*)s, stack_pop());
+        s->node.start = s->node.first_child->start;
+        s->node.end = curt;
+
+        stack_push((TNode*)s);
+
+        advance_curt();
+        count++;
+    }
+
+    Expression* e = compiler::create_expression();
+    e->kind = expression::block;
+
+    forI(count) {
+        node::insert_first((TNode*)e, stack_pop());
+    }
+    e->node.start = start;
+    e->node.end = curt;
+    stack_push((TNode*)e);
 }
 
 /*
@@ -311,17 +424,16 @@ void assignment_after_equal() { announce_stage;
 */ 
 void comptime_after_colon() { announce_stage;
     switch(curt->kind) {
-        case token::identifier:      reduce_identifier_to_identifier_expression(); curt++; break;
-        case token::colon:           curt++; comptime_after_colon(); break;
-        case token::assignment:      curt++; assignment_after_equal(); break;
-        case token::open_paren:      curt++; tuple_after_open_paren(); break;
+        case token::identifier:      reduce_identifier_to_identifier_expression(); advance_curt(); break;
+        case token::colon:           advance_curt(); comptime_after_colon(); check_error; break;
+        case token::open_paren:      advance_curt(); tuple_after_open_paren(); check_error; break;
         default: {
             if(curt->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
-                curt++;
+                advance_curt();
             }else if(curt->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
-                curt++;
+                advance_curt();
             }
         }break;
     }
@@ -343,24 +455,32 @@ void comptime_after_colon() { announce_stage;
 /*
     assignment: typeref * '=' expr
          ctime: typeref * ':' expr
-        factor: typeref *  
+        factor: typeref * [ block ]
 */ 
 void after_typeref() { announce_stage;
     Token* save = curt;
     switch(curt->kind) {
-        case token::colon: curt++; comptime_after_colon(); break;
+        case token::colon: advance_curt(); comptime_after_colon(); break;
         case token::assignment: {
-            curt++; // assignment: typeref '=' * expr
+            advance_curt(); // assignment: typeref '=' * expr
             before_expr(); check_error;
             // now we reduce to binary assignment
             Expression* e = compiler::create_expression();
             e->kind = expression::binary_assignment;
-            e->start = save;
-            e->end = curt;
+            e->node.start = save;
+            e->node.end = curt;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
 
+            set_start_end_from_children(e);
             stack_push((TNode*)e);
+        } break;
+        case token::open_brace: {
+            advance_curt();
+            block(); check_error;
+            node::insert_last(array::read(stack, -2), stack_pop());
+            TNode* typeref = array::read(stack, -1);
+            typeref->end = typeref->last_child->end;
         } break;
     }
 }
@@ -383,15 +503,14 @@ void access();
 void loop() { announce_stage;
     check_error;
     if(curt->kind == token::loop) {
-        curt++;
+        advance_curt();
         before_expr();
 
         Expression* loop = compiler::create_expression();
         loop->kind = expression::loop;
         node::insert_last((TNode*)loop, stack_pop());
+        set_start_end_from_children(loop);
         stack_push((TNode*)loop);
-        loop->start = ((Expression*)loop->node.first_child)->start;
-        loop->end = ((Expression*)loop->node.last_child)->end;
     }
 }
 
@@ -401,19 +520,16 @@ void loop() { announce_stage;
 void switch_() { announce_stage;
     check_error;
     if(curt->kind == token::switch_) {
-        Token* save = curt;
-        curt++;
+        advance_curt();
         if(curt->kind != token::open_paren) {
             messenger::dispatch(message::attach_sender({parser->source, *curt},
                 diagnostic::parser::switch_missing_open_paren()));
             return;
         }
 
-        curt++; // "switch" "(" * expr ")" ...
+        advance_curt(); // "switch" "(" * expr ")" ...
 
         before_expr(); // dont care what this returns cause any expression is good (for now)
-
-        curt++; // "switch "(" expr * ")" ...
 
         if(curt->kind != token::close_paren) {
             messenger::dispatch(message::attach_sender({parser->source, *curt},
@@ -421,7 +537,7 @@ void switch_() { announce_stage;
             push_error();
         }
 
-        curt++; // "switch" "(" expr ")" * "{" ...
+        advance_curt(); // "switch" "(" expr ")" * "{" ...
 
         if(curt->kind != token::open_brace) {
             messenger::dispatch(message::attach_sender({parser->source, *curt},
@@ -429,38 +545,40 @@ void switch_() { announce_stage;
             push_error();
         }
 
-        curt++; // "switch" "(" expr ")" "{" * { expr } "}"
+        advance_curt(); // "switch" "(" expr ")" "{" * { expr } "}"
 
         u32 count = 0;
         while(1) {
             if(curt->kind == token::close_brace) break;
             before_expr(); 
             
-            curt++;
             if(curt->kind != token::match_arrow) {
                 messenger::dispatch(message::attach_sender({parser->source, *curt},
                     diagnostic::parser::switch_missing_match_arrow_after_expr()));
                 push_error();
             }
 
-            curt++;
+            advance_curt();
             before_expr();
 
-            // if the last token is a close brace, we dont care about following up with a comma
-            if(curt->kind == token::close_brace) {
-                curt++;
-                count++;
-                continue;
-            }
-
-            curt++;
-            if(curt->kind != token::comma) {
+            if(curt->kind != token::comma && curt->kind != token::close_brace ) {
                 messenger::dispatch(message::attach_sender({parser->source, *curt},
                     diagnostic::parser::switch_missing_comma_after_match_arm()));
                 push_error();
             }
-            curt++;
+            advance_curt();
             count++;
+
+            Expression* e = compiler::create_expression();
+            e->kind = expression::switch_case;
+            
+            node::insert_first((TNode*)e, stack_pop());
+            node::insert_first((TNode*)e, stack_pop());
+
+            set_start_end_from_children(e);
+
+            stack_push((TNode*)e);
+
         }
 
         if(!count) {
@@ -470,18 +588,14 @@ void switch_() { announce_stage;
 
         Expression* e = compiler::create_expression();
         e->kind = expression::switch_expr;
-        e->start = save;
-        e->end = curt;
 
         // reduce to switch expression
         forI(count+1){
-            node::insert_first((TNode*)e, array::read(stack, -1));
+            node::insert_first((TNode*)e, stack_pop());
         }
 
-        array::pop(stack, count+1);
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
-
-        curt++;
     }
 
     loop();
@@ -493,7 +607,7 @@ void switch_() { announce_stage;
 void conditional() { announce_stage;
     check_error;
     if(curt->kind == token::if_) {
-        curt++;
+        advance_curt();
 
         if(curt->kind != token::open_paren) {
             messenger::dispatch(message::attach_sender({parser->source, *curt},
@@ -501,7 +615,7 @@ void conditional() { announce_stage;
             push_error();
         }
 
-        curt++;
+        advance_curt();
 
         before_expr();
 
@@ -511,7 +625,7 @@ void conditional() { announce_stage;
             push_error();
         }
 
-        curt++;
+        advance_curt();
 
         before_expr();
 
@@ -521,10 +635,11 @@ void conditional() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
 
         if(curt->kind == token::else_) {
-            curt++;
+            advance_curt();
             before_expr();
             node::insert_last((TNode*)e, stack_pop());
         }
@@ -539,7 +654,7 @@ void conditional() { announce_stage;
 void logi_or() { announce_stage;
     check_error;
     if(curt->kind == token::logi_or) {
-        curt++;
+        advance_curt();
         factor(); check_error;
         access(); check_error;
         term(); check_error;
@@ -557,6 +672,7 @@ void logi_or() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
 
         logi_or();
@@ -569,7 +685,7 @@ void logi_or() { announce_stage;
 void logi_and() { announce_stage;
     check_error;
     if(curt->kind == token::logi_and) {
-        curt++;
+        advance_curt();
         factor(); check_error;
         access(); check_error;
         term(); check_error;
@@ -586,6 +702,7 @@ void logi_and() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
 
         logi_and();
@@ -598,7 +715,7 @@ void logi_and() { announce_stage;
 void bit_or() { announce_stage;
     check_error;
     if(curt->kind == token::bit_or) {
-        curt++;
+        advance_curt();
         factor(); check_error;
         access(); check_error;
         term(); check_error;
@@ -614,6 +731,7 @@ void bit_or() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
 
         bit_or();
@@ -626,7 +744,7 @@ void bit_or() { announce_stage;
 void bit_xor() { announce_stage;
     check_error;
     if(curt->kind == token::bit_xor) {
-        curt++;
+        advance_curt();
         factor(); check_error;
         access(); check_error;
         term(); check_error;
@@ -641,6 +759,7 @@ void bit_xor() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
 
         bit_xor();
@@ -654,7 +773,7 @@ void bit_xor() { announce_stage;
 void bit_and() { announce_stage;
     check_error;
     if(curt->kind == token::bit_and) {
-        curt++;
+        advance_curt();
         factor(); check_error;
         access(); check_error;
         term(); check_error;
@@ -668,6 +787,7 @@ void bit_and() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
 
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
 
         bit_and();
@@ -683,7 +803,7 @@ void equality() { announce_stage;
     switch(kind) {
         case token::equal:
         case token::not_equal: {
-            curt++;
+            advance_curt();
             factor(); check_error;
             access(); check_error;
             term(); check_error;
@@ -696,6 +816,7 @@ void equality() { announce_stage;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
 
+            set_start_end_from_children(e);
             stack_push((TNode*)e);
 
             equality();
@@ -714,7 +835,7 @@ void relational() { announce_stage;
         case token::less_than_or_equal:
         case token::greater_than:
         case token::greater_than_or_equal: {
-            curt++;
+            advance_curt();
             factor(); check_error;
             access(); check_error;
             term(); check_error;
@@ -732,6 +853,7 @@ void relational() { announce_stage;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
 
+            set_start_end_from_children(e);
             stack_push((TNode*)e);
 
             relational();
@@ -748,7 +870,7 @@ void bit_shift() { announce_stage;
     switch(kind) {
         case token::bit_shift_left: 
         case token::bit_shift_right: {
-            curt++; 
+            advance_curt(); 
             factor(); check_error;
             access(); check_error;
             term(); check_error;
@@ -761,6 +883,7 @@ void bit_shift() { announce_stage;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
 
+            set_start_end_from_children(e);
             stack_push((TNode*)e);
 
             bit_shift();
@@ -777,7 +900,7 @@ void additive() { announce_stage;
     switch(kind) {
         case token::plus:
         case token::negation: {
-            curt++;
+            advance_curt();
             factor(); check_error;
             access(); check_error;
             term(); check_error;
@@ -786,6 +909,7 @@ void additive() { announce_stage;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
 
+            set_start_end_from_children(e);
             stack_push((TNode*)e);
 
             additive();
@@ -803,7 +927,7 @@ void term() { announce_stage;
         case token::modulo: 
         case token::division: 
         case token::multiplication: {
-            curt++;
+            advance_curt();
             factor(); check_error; 
             access(); check_error;
             Expression* e = compiler::create_expression();
@@ -815,6 +939,7 @@ void term() { announce_stage;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
 
+            set_start_end_from_children(e);
             stack_push((TNode*)e);
 
             term();
@@ -828,15 +953,14 @@ void term() { announce_stage;
 void access() { announce_stage;
     check_error;
     if(curt->kind == token::dot) {
-        curt++;
+        advance_curt();
         factor(); check_error;
         // access: factor { "." factor * }
         Expression* e = compiler::create_expression();
         e->kind = expression::binary_access;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
-        e->start = ((Expression*)e->node.first_child)->start;
-        e->end = ((Expression*)e->node.last_child)->end;
+        set_start_end_from_children(e);
         stack_push((TNode*)e);
         access();
     }
@@ -852,21 +976,33 @@ void access() { announce_stage;
 void factor() { announce_stage;
     check_error;
     switch(curt->kind) {
-        case token::identifier: reduce_identifier_to_identifier_expression(); curt++; break;
-        case token::open_paren: curt++; tuple_after_open_paren(); break;
+        case token::identifier: reduce_identifier_to_identifier_expression(); advance_curt(); break;
+        case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
         case token::if_: conditional(); break;
+        case token::switch_: switch_(); break;
+        case token::open_brace: advance_curt(); block(); break;
+        case token::directive_compiler_break: DebugBreakpoint; advance_curt();break;
         default: {
             if(curt->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
-                curt++;
+                advance_curt();
             } else if(curt->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
-                curt++;
+                advance_curt();
             } else {
                 messenger::dispatch(message::attach_sender({parser->source, *curt},
                     diagnostic::parser::unexpected_token()));
                 push_error();
             }
+        } break;
+    }
+}
+
+void after_expr() {
+    switch(curt->kind) {
+        case token::assignment: {
+            advance_curt();
+            before_expr();
         } break;
     }
 }
@@ -891,8 +1027,25 @@ void factor() { announce_stage;
         literal: * ( string | float | int | char )
 */
 void before_expr() { announce_stage;
-    check_error;
-    factor();
+    switch(curt->kind) {
+        case token::assignment: {
+            Token* save = curt;
+            advance_curt();
+            before_expr();
+
+            Expression* e = compiler::create_expression();
+            e->kind = expression::unary_assignment;
+
+            node::insert_first((TNode*)e, stack_pop());
+            e->node.start = save;
+            e->node.end = e->node.last_child->end;
+
+            stack_push((TNode*)e);
+        } break;
+        default: factor();
+    }
+
+    
 
     // loop and see if any operators are being used, if so call their entry point
     b32 search = true;
@@ -914,17 +1067,21 @@ void before_expr() { announce_stage;
             case token::bit_or: bit_or(); check_error; break;
             case token::logi_and: logi_and(); check_error; break;
             case token::logi_or: logi_or(); check_error; break;
+            case token::directive_compiler_break: DebugBreakpoint; break;
+            //case token::open_brace: advance_curt(); block(); check_error; break;
             default: search = false;
         }
     }
 
+    after_expr();
+
     // switch(curt->kind) {
-    //     case token::identifier: reduce_identifier_to_identifier_expression(); curt++; break;
-    //     case token::open_paren: curt++; tuple_after_open_paren(); break;
+    //     case token::identifier: reduce_identifier_to_identifier_expression(); advance_curt(); break;
+    //     case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
     //     default: {
     //         if(curt->group == token::group_literal) {
     //             reduce_literal_to_literal_expression();
-    //             curt++;
+    //             advance_curt();
     //         }  
     //     }
 
@@ -967,17 +1124,17 @@ void label_after_colon() { announce_stage;
     check_error;
   
     switch(curt->kind) {
-        case token::identifier:      reduce_identifier_to_identifier_expression(); curt++; break;
-        case token::colon:           curt++; comptime_after_colon(); break;
-        case token::assignment:      curt++; assignment_after_equal(); break;
-        case token::open_paren:      curt++; tuple_after_open_paren(); break;
+        case token::identifier:      reduce_identifier_to_identifier_expression(); advance_curt(); break;
+        case token::colon:           advance_curt(); comptime_after_colon(); break;
+        case token::open_paren:      advance_curt(); tuple_after_open_paren(); break;
+        case token::assignment:      before_expr(); break;
         default: {
             if(curt->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
-                curt++;
+                advance_curt();
             }else if(curt->group == token::group_literal){
                 reduce_literal_to_literal_expression();
-                curt++;
+                advance_curt();
             }
         } break;
     }
@@ -1014,7 +1171,7 @@ void label_after_colon() { announce_stage;
 // state3: module: label * EOF
 void before_eof() { announce_stage;
     // switch(curt->kind) {
-    //     case token::end_of_file: curt++; after_eof(); break;
+    //     case token::end_of_file: advance_curt(); after_eof(); break;
     // }
 }
 
@@ -1027,7 +1184,7 @@ void before_end() { announce_stage;
 // // label: ID * { "," ID } ':' expr ( ';' | ']' | '}' )
 // void label_before_colon_or_list() { announce_stage;
 //     switch(curt->kind) {
-//         case token::colon: curt++; label_after_colon(); break;
+//         case token::colon: advance_curt(); label_after_colon(); break;
 //         case token::comma: 
 //     }
 // }
@@ -1059,10 +1216,11 @@ void label_group_after_comma() { announce_stage;
             group->kind = tuple::label_group;
             node::change_parent((TNode*)group, stack_pop());
             node::insert_last((TNode*)group, (TNode*)expr);
+            set_start_end_from_children(group);
             stack_push((TNode*)group);
         }
-        curt++;
-        if(curt->kind == token::comma) curt++;
+        advance_curt();
+        if(curt->kind == token::comma) advance_curt();
         else break;
     }
 
@@ -1089,9 +1247,30 @@ void label_after_id() { announce_stage;
     check_error;
 
     switch(curt->kind) {
-        case token::comma: curt++; label_group_after_comma(); break;
-        case token::colon: curt++; label_after_colon(); break;
+        case token::comma: advance_curt(); label_group_after_comma(); break;
+        case token::colon: advance_curt(); label_after_colon(); break;
     }
+}
+
+void label() {
+    Expression* expr = compiler::create_expression();
+    expr->kind = expression::identifier;
+    expr->node.start = curt;
+    expr->node.end = curt;
+    stack_push((TNode*)expr);
+
+    advance_curt();
+    label_after_id();
+    check_error;
+
+    // reduce to a label 
+    Label* label = compiler::create_label();
+    node::insert_first((TNode*)label, stack_pop());
+    node::insert_first((TNode*)label, stack_pop());
+
+    set_start_end_from_children(label);
+    stack_push((TNode*)label);
+
 }
 
 /* 
@@ -1102,38 +1281,15 @@ void label_after_id() { announce_stage;
 void start() { announce_stage;
     while(1) {
         if(curt->kind != token::identifier) break;
-        Expression* expr = compiler::create_expression();
-        expr->kind = expression::identifier;
-        stack_push((TNode*)expr);
+        label(); check_error;
 
-        curt++;
-        label_after_id();
-        check_error;
-
-        TNode* last = array::read(stack, -1); 
-
-        switch(last->kind) {
-            case node::expression: {
-                // we determine if a semicolon is required or not by checking the current token
-                if(curt->kind != token::close_brace && curt->kind != token::semicolon) {
-                    messenger::dispatch(message::attach_sender({parser->source, *curt},
-                        diagnostic::parser::missing_semicolon()));
-                    return;
-                }
-
-                curt++;
-
-                // reduce to a label 
-                Label* label = compiler::create_label();
-                node::insert_first((TNode*)label, stack_pop());
-                node::insert_first((TNode*)label, stack_pop());
-
-                label->token = ((Expression*)label->node.first_child)->start;
-
-                stack_push((TNode*)label);
-
-            } break;
+        if(curt->kind != token::close_brace && curt->kind != token::semicolon) {
+            messenger::dispatch(message::attach_sender({parser->source, *curt},
+                diagnostic::parser::missing_semicolon()));
+            return;
         }
+
+        advance_curt();
     }
 
     TNode* last = array::read(stack, -1);
