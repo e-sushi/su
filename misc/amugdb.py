@@ -112,7 +112,12 @@ class Token_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            return f"{str(val['kind'])[5:]} {val['raw']}"
+            kind = str(val['kind'])[12:]
+            file = str(val['source']['file']['name']).strip('"')
+            line = val['l0']
+            col = val['c0']
+            raw = val['raw']
+            return f"{file}:{line}:{col}:{kind} {raw}"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Token", r"^amu::Token$", Token_printer)
@@ -123,27 +128,22 @@ class Label_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            token = val['token'].dereference()
-            return f"label"
+            out = "label "
+            start = ""
+            end = ""
+            if val['node']['start']:
+                start = str(val['node']['start'].dereference())
+            else:
+                start = "<null start>"
+            if val['node']['end']:
+                end = str(val['node']['end'].dereference())
+            else:
+                end = "<null end>"
+            out += f"{start} -> {end}"
+            return out
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Label", r"^amu::Label$", Label_printer)
-
-class Entity_printer: 
-    def __init__(self, val): self.val = val
-
-    def to_string(self):
-        try:
-            val:gdb.Value = self.val
-            match str(val['kind']):
-                case "amu::entity::module":
-                    return "module"
-                case _:
-                    print(f"unhandled entity type {str(val['kind'])}")
-                    return "err"
-        except Exception as e:
-            print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("Entity", r"^amu::Entity$", Entity_printer)
 
 class Statement_printer:
     def __init__(self, val): self.val = val
@@ -151,18 +151,19 @@ class Statement_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            type = str(val['kind'])
-            match type:
-                case "amu::statement::label":
-                    return "label statement"
-                case "amu::statement::assignment":
-                    return "assignment statement"
-                case "amu::statement::defer_":
-                    return "defer statement"
-                case "amu::statement::expression":
-                    return "expression statement"
-                case _:
-                    print(f"unmatched statement type: {type}")
+            out = f"{str(val['kind'])[5:].replace('statement', 'stmt')} "
+            start = ""
+            end = ""
+            if val['node']['start']:
+                start = str(val['node']['start'].dereference())
+            else:
+                start = "<null start>"
+            if val['node']['end']:
+                end = str(val['node']['end'].dereference())
+            else:
+                end = "<null end>"
+            out += f"{start} -> {end}"
+            return out
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Statement", r"^amu::Statement$", Statement_printer)
@@ -187,14 +188,19 @@ class Tuple_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            type = str(val['kind'])
-            match type:
-                case "amu::tuple::unknown":
-                    return "tuple"
-                case "amu::tuple::label_group":
-                    return "label group tuple"
-                case _:
-                    return f"unhandled tuple type: {type}"
+            out = f"{str(val['kind'])[5:]} "
+            start = ""
+            end = ""
+            if val['node']['start']:
+                start = str(val['node']['start'].dereference())
+            else:
+                start = "<null start>"
+            if val['node']['end']:
+                end = str(val['node']['end'].dereference())
+            else:
+                end = "<null end>"
+            out += f"{start} -> {end}"
+            return out
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Tuple", r"^amu::Tuple$", Tuple_printer)
@@ -212,6 +218,8 @@ class TNode_printer:
                     return gdb.parse_and_eval(f"*(amu::Tuple*){val.address}")
                 case "amu::node::expression":
                     return gdb.parse_and_eval(f"*(amu::Expression*){val.address}")
+                case "amu::node::statement":
+                    return gdb.parse_and_eval(f"*(amu::Statement*){val.address}")
                 case _:
                     return f"unhandled node kind: {kind}"
                 
@@ -224,13 +232,26 @@ class Expression_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            return f"{str(val['kind']).lstrip('amu::')}"
+            out = f"{str(val['kind']).lstrip('amu::').replace('expression', 'expr')} "
+            start = ""
+            end = ""
+            if val['node']['start']:
+                start = str(val['node']['start'].dereference())
+            else:
+                start = "<null start>"
+            if val['node']['end']:
+                end = str(val['node']['end'].dereference())
+            else:
+                end = "<null end>"
+            out += f"{start} -> {end}"
+            return out
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Expression", r"^amu::Expression", Expression_printer)
 
-
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
+
+
 
 
 # commands
@@ -247,19 +268,23 @@ class graph_ast(gdb.Command):
     
     def build_tree(self, node:gdb.Value):
         print(f"building {node}")
+        label = ""
         match str(node['kind']):
             case "amu::node::label":
-                self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Label")[0].type.pointer()).dereference()))
+                label = str(node.cast(gdb.lookup_symbol("amu::Label")[0].type.pointer()).dereference())
             case "amu::node::entity":
-                self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Entity")[0].type.pointer()).dereference()))
+                label = str(node.cast(gdb.lookup_symbol("amu::Entity")[0].type.pointer()).dereference())
             case "amu::node::statement":
-                self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Statement")[0].type.pointer()).dereference()))
+                label = str(node.cast(gdb.lookup_symbol("amu::Statement")[0].type.pointer()).dereference())
             case "amu::node::expression":
-                self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Expression")[0].type.pointer()).dereference()))
+                label = str(node.cast(gdb.lookup_symbol("amu::Expression")[0].type.pointer()).dereference())
             case "amu::node::tuple":
-                self.dot.node(str(node), str(node.cast(gdb.lookup_symbol("amu::Tuple")[0].type.pointer()).dereference()))
+                label = str(node.cast(gdb.lookup_symbol("amu::Tuple")[0].type.pointer()).dereference())
             case _:
                 print(f"unmatched type: {str(node['kind'])}")
+        label = label.split(' ')[0]
+        label += f"\n{node['start'].dereference()}\n{node['end'].dereference()}"
+        self.dot.node(str(node), label)
         
         current = node['first_child']
         while int(current):
@@ -270,6 +295,9 @@ class graph_ast(gdb.Command):
     def invoke(self, arg, tty):
         try:
             self.dot = graphviz.Digraph()
+            self.dot.attr('graph', bgcolor='black', splines='true', concentrate='true')
+            self.dot.attr('edge', color='white', arrowhead="none", penwidth='0.5', constraint='true')
+            self.dot.attr('node', shape='box', fontcolor='white', color='white', margins='0.08', height='0', width='0', group='0')
             val = gdb.parse_and_eval(arg)
             if val == None:
                 print("err")
@@ -285,6 +313,19 @@ class graph_ast(gdb.Command):
             #try to output whatever we got anyways 
             self.dot.render('temp/ast')
 graph_ast()
+
+# class graph_ast_stack(gdb.Command):
+#     def __init__(self):
+#         super(graph_ast_stack, self).__init__("gasts", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
+    
+#     def invoke(self, args, tty):
+#         stack = gdb.parse_and_eval("amu::parser::internal::stack")
+#         if stack == None:
+#             print("unable to acquire parser stack")
+#             return
+#         for i in range(stack['count']):
+#             elem = gdb.parse_and_eval()
+# graph_ast_stack()
 
 class print_ast(gdb.Command):
     def __init__(self):
@@ -344,14 +385,86 @@ class parser_print_stack(gdb.Command):
     def invoke(self, args, tty):
         try:
             val = gdb.parse_and_eval("amu::parser::internal::stack")
-
+            out = ""
             for i in range(val['count']):
                 elem = gdb.parse_and_eval(f"amu::parser::internal::stack.data[{i}]")
-                print(elem.dereference())
+                to_write = None
+                if not elem:
+                    to_write = "stack err"
+                else:
+                    to_write = str(elem.dereference())
+                if not tty:
+                    out += to_write + '\n'
+                else:
+                    print(to_write)
+            return out
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 parser_print_stack()
 
+class parser_track_stack(gdb.Command):
+    def __init__(self):
+        super(parser_track_stack, self).__init__("tstack", gdb.COMMAND_USER)
+    
+    def invoke(self, args, tty):
+        gdb.rbreak(r'amu::parser::internal::__stack_pop')
+        gdb.rbreak(r'amu::parser::internal::__stack_push')
+        gdb.execute("r")
+        pps = parser_print_stack()
+        out = open("temp/track_stack", "w")
+        bufferptr = int(gdb.parse_and_eval("parser->source->buffer->s.str"))
 
-        
+        length = 0
+        while 1:
+            byte = int.from_bytes(gdb.selected_inferior().read_memory(bufferptr+length, 1)[0])
+            if not byte:
+                break
+            length += 1
+
+        buffer = gdb.selected_inferior().read_memory(bufferptr, length).tobytes().decode()
+        lastln = 0
+        lines = []
+        for i,c in enumerate(buffer):
+            if c == '\n':
+                lines.append(buffer[lastln:i])
+                lastln = i+1
+        lines.append(buffer[lastln:])
+
+        gdb.set_parameter("print repeats", 0)
+
+        while gdb.selected_inferior().connection_num != None:
+            try:
+                curfunc = gdb.selected_frame().function()
+                if curfunc == None:
+                    gdb.execute("c")
+                    continue
+                if "stack_push" in curfunc.name:
+                    out.write(f"push -------------------------------- {gdb.parse_and_eval('caller')} push\n")
+                    gdb.execute("finish")
+                if "stack_pop" in curfunc.name:
+                    out.write(f"pop -------------------------------- {gdb.parse_and_eval('caller')} pop\n")
+
+                out.write(pps.invoke(None, False))
+                curt = gdb.parse_and_eval('curt')
+                line = lines[int(curt['l0'])-1]
+                linenum = str(int(curt['l0']))
+                col = int(curt['c0'])-1 + len(linenum) + 1
+                second_line = None
+                if curt['l0'] != len(lines):
+                    second_line = lines[curt['l0']]
+                    second_linenum = str(curt['l0']+1)
+                    if len(second_linenum) > len(linenum):
+                        linenum = linenum.rjust(len(second_linenum))
+                out.write(" "*col+"v\n")
+                out.write(linenum + " " + line + '\n')
+                if second_line:
+                    out.write(second_linenum + " " + second_line + '\n')
+                out.write("\n\n")
+                gdb.execute("c")
+            except Exception as e:
+                print(f"{self.__class__.__name__} error: {e}")
+                return 
+        gdb.execute("del")
+        gdb.set_parameter("print repeats", 10)
+parser_track_stack()
     
