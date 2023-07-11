@@ -42,9 +42,10 @@ token_is_keyword_or_identifier(String raw) {
 local token::kind
 token_is_directive_or_identifier(String raw) {
     switch(string::hash(raw)) {
-        strcase("import"):   return token::directive_import;
-		strcase("internal"): return token::directive_internal;
-		strcase("run"):      return token::directive_run;
+        strcase("import"):         return token::directive_import;
+		strcase("internal"):       return token::directive_internal;
+		strcase("run"):            return token::directive_run;
+		strcase("compiler_break"): return token::directive_compiler_break;
     }
 
     return token::identifier;
@@ -147,7 +148,7 @@ stream_next;                       \
 			case 8232: case 8239: case 8287: case 12288:{
 				while(is_whitespace(utf8codepoint(stream.str))){
 					if(*stream.str == '\n'){
-						line_start = stream.str;
+						line_start = stream.str+1;
 						line_num++;
 						line_col = 0;
 					};
@@ -368,12 +369,14 @@ stream_next;                       \
 					token.hash = string::hash(token.raw);
 
 					if(lexer.tokens.count && array::read(lexer.tokens, -1).kind == token::pound){
-						token::kind type = internal::token_is_directive_or_identifier(token.raw);
-						if(type == token::identifier){
+						token::kind kind = internal::token_is_directive_or_identifier(token.raw);
+						if(kind == token::identifier){
                             messenger::dispatch(message::attach_sender({lexer.source, token}, 
                                 diagnostic::lexer::unknown_directive(token.raw)));
                             lexer.status.failed = true;
 						}
+						token.kind = kind;
+						array::pop(lexer.tokens);
 					}
 				}else{
                     messenger::dispatch(message::attach_sender({lexer.source, token},
@@ -386,7 +389,7 @@ stream_next;                       \
 		}
 
 		if(token.kind == token::identifier){
-			token.group = token::group_identifier;
+			token.group = token::identifier; // TODO(sushi) if this is never used just remove it 
 		}else if(token.kind >= token::literal_float && token.kind <= token::literal_string){
 			token.group = token::group_literal;
 		}else if(token.kind >= token::semicolon && token.kind <= token::backtick){
