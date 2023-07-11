@@ -514,6 +514,18 @@ missing_semicolon() {
     return out;
 }
 
+global Message
+missing_function_return() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing return type(s) for function"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
 } // namespace parser
 
 namespace internal { // @internal
