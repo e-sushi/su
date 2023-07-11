@@ -84,45 +84,50 @@
       loop-label = ? a label referencing a loop ?
 
               id = ? any alphanumeric number sequence, not starting with a number, and including all unicode characters outside od ascii's range ?
-         literal = int | float | string
+         literal = int | float | string | char
              int = ? any integer number sequence, which may be represented in decimal, binary, or hex ?
            float = ? any floating point number sequence ? 
           string = """ { char } """
             char = ? any unicode codepoint ? 
                  
-file = { label | import }
+module = { label | import }
+ 
 
-label = id { "," id } ":" ( rtime-exp | ctime-exp )
+label = id { "," id } ":" expr
 
-rtime-exp = "=" exp
-ctime-exp = ":" exp
-
-stmt = ( label | assignment | defer | expr ) ";"
-assignment = id "=" exp
-defer = "defer" ( assignment | expr )
-expr = block | loop | switch | conditional | ctime-exp
-block = "{" { stmt } "}"
-loop = "loop" expr
-switch = "switch" "(" expr ")" "{" { expr "=>" expr } "}" 
+stmt = ( label | defer | expr ) ";"
+defer = "defer" expr
+expr = assignment | ctime | loop
+assignment = [ id | type ] "=" exp
+ctime = [ type ] ":" exp
+loop = switch | "loop" expr
+switch = conditional | "switch" "(" expr ")" "{" { expr "=>" expr } "}" 
 conditional = logical-or | "if" "(" expr ")" expr [ "else" expr ]
-logical-or = logical-and { "||" logical-and }                    
-bit-or = bit-xor { "|" bit-xor }                                 
+logical-or = logical-and { "||" logical-and }
+logical-and = bit-or { "&&" bit-or }            
+bit-or = bit-xor { "|" bit-xor }            
+bit-xor = bit-and { "^" bit-and }                     
 bit-and = equality { "&" equality }                              
 equality = relational { ("!=" | "==" ) relational }              
 relational = bit-shift { ( "<" | ">" | "<=" | ">=" ) bit-shift } 
+bit-shift = additive { "<<" | ">>" additive }
 additive = term { ( "+" | "-" ) term }                           
-term = access { ( "*" | "/" | "%" ) } access                     
-access = factor { "." access }                                   
+term = access { ( "*" | "/" | "%" ) access }
+access = factor { "." factor }                                   
 factor = unary factor                                            
-      | factor "$"                                               
-      | literal                                                  
-      | access                                                   
-      | call                                                     
-      | "(" expr ")"                                              
-      | type-literal                         
-      | var-label                                                
-      | cast                                                     
-      | reinterpret                                              
+       | factor "$"                                               
+       | literal                                                  
+       | access                                                   
+       | call                                                     
+       | tuple [ ( "->" id { "," id } [ "," ] | block ) ] // arithmetic parenthesis, function type, or closure
+       | type [ block ] // type, or type literal                      
+       | var-label                                                
+       | cast                  
+       | block                                   
+       | reinterpret        
+       | conditional 
+conditional = "if" "(" expr ")" expr [ "else" expr ]
+block = "{" { stmt } "}"                                     
 unary = "!" | "-" | "~"       
 call = func-label "(" [ arg { "," arg } ] ")"
      | var-label "." func-label "(" [ arg { "," arg } ] ")"
@@ -130,6 +135,8 @@ initializer = "{" [ exp { "," exp } [ "," ] }
 cast = "(" type ")" exp
 reinterpret = "(" "!" type ")" exp
 parameter = var-label | "?" id                                    
+
+tuple = "(" ( label | expr ) { "," ( label | expr ) } [ "," ] ")"
 
 type-literal = type block
 type = scalar-type | struct-id | func-type | array-type | subtype
@@ -143,6 +150,12 @@ func-arg = label ( ( type | "?" id ) [ rtime-exp ] | rtime-exp )
 import = "#" "import" ( string | subtype )
 
 stmt = exp ";"
+
+literal = int | float | string | char
+int = ? any integer number sequence, which may be represented in decimal, binary, or hex ?
+float = ? any floating point number sequence ? 
+string = """ { char } """
+char = ? any unicode codepoint ? 
 
 
 
