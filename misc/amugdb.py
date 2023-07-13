@@ -168,6 +168,52 @@ class Statement_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Statement", r"^amu::Statement$", Statement_printer)
 
+class Function_printer:
+    def __init__(self, val): self.val = val
+
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            out = "function "
+            start = ""
+            end = ""
+            if val['node']['start']:
+                start = str(val['node']['start'].dereference())
+            else:
+                start = "<null start>"
+            if val['node']['end']:
+                end = str(val['node']['end'].dereference())
+            else:
+                end = "<null end>"
+            out += f"{start} -> {end}"
+            return out
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Function", r"^amu::Function$", Function_printer)
+
+class Module_printer:
+    def __init__(self, val): self.val = val
+
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            out = "module "
+            start = ""
+            end = ""
+            if val['node']['start']:
+                start = str(val['node']['start'].dereference())
+            else:
+                start = "<null start>"
+            if val['node']['end']:
+                end = str(val['node']['end'].dereference())
+            else:
+                end = "<null end>"
+            out += f"{start} -> {end}"
+            return out
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Module", r"^amu::Module$", Module_printer)
+
 class Pool_printer:
     def __init__(self,val): self.val = val
     def to_string(self):
@@ -220,6 +266,8 @@ class TNode_printer:
                     return gdb.parse_and_eval(f"*(amu::Expression*){val.address}")
                 case "amu::node::statement":
                     return gdb.parse_and_eval(f"*(amu::Statement*){val.address}")
+                case "amu::node::function":
+                    return gdb.parse_and_eval(f"*(amu::Function*){val.address}")
                 case _:
                     return f"unhandled node kind: {kind}"
                 
@@ -280,6 +328,10 @@ class graph_ast(gdb.Command):
                 label = str(node.cast(gdb.lookup_symbol("amu::Expression")[0].type.pointer()).dereference())
             case "amu::node::tuple":
                 label = str(node.cast(gdb.lookup_symbol("amu::Tuple")[0].type.pointer()).dereference())
+            case "amu::node::module":
+                label = str(node.cast(gdb.lookup_symbol("amu::Module")[0].type.pointer()).dereference())
+            case "amu::node::function":
+                label = str(node.cast(gdb.lookup_symbol("amu::Function")[0].type.pointer()).dereference())
             case _:
                 print(f"unmatched type: {str(node['kind'])}")
         label = label.split(' ')[0]
@@ -348,8 +400,10 @@ class print_ast(gdb.Command):
                 self.out += str(node.cast(gdb.lookup_symbol("amu::Expression")[0].type.pointer()).dereference())
             case "amu::node::tuple":
                 self.out += str(node.cast(gdb.lookup_symbol("amu::Tuple")[0].type.pointer()).dereference())
+            case "amu::node::module":
+                self.out += str(node.cast(gdb.lookup_symbol("amu::Module")[0].type.pointer()).dereference())
             case _:
-                print(f"unmatched type: {str(node['kind'])}")
+                print(f"unmatched kind: {str(node['kind'])}")
         
         current = node['first_child']
         if current:
@@ -384,10 +438,10 @@ class parser_print_stack(gdb.Command):
     
     def invoke(self, args, tty):
         try:
-            val = gdb.parse_and_eval("amu::parser::internal::stack")
+            val = gdb.parse_and_eval("thread.stack")
             out = ""
             for i in range(val['count']):
-                elem = gdb.parse_and_eval(f"amu::parser::internal::stack.data[{i}]")
+                elem = gdb.parse_and_eval(f"thread.stack.data[{i}]")
                 to_write = None
                 if not elem:
                     to_write = "stack err"
@@ -468,3 +522,64 @@ class parser_track_stack(gdb.Command):
         gdb.set_parameter("print repeats", 10)
 parser_track_stack()
     
+class track_locks(gdb.Command):
+    def __init__(self):
+        super(track_locks, self).__init__("tlocks", gdb.COMMAND_USER)
+    
+    def invoke(self, args, tty):
+        gdb.rbreak("mutex_lock")
+        gdb.rbreak("mutex_unlock")
+        gdb.rbreak("shared_mutex_lock")
+        gdb.rbreak("shared_mutex_unlock")
+        
+        out = open("temp/track_lock", "w")
+
+        gdb.execute("r")
+
+        while gdb.selected_inferior().connection_num != None:
+            try:
+                addr = str(gdb.parse_and_eval('m'))
+                addr = addr[addr.find("0x"):][:addr.find(" ")]
+                cmd = f"info symbol {addr}"
+                line = gdb.execute(cmd, to_string=True)[:-1]
+
+                curfunc = gdb.selected_frame().function()
+                if "unlock" in curfunc.name:
+                    line += " unlock " + str(gdb.selected_thread().global_num) + "\n"
+                else:
+                    line += " lock " + str(gdb.selected_thread().global_num) + "\n"
+
+                out.write(line)
+                
+                gdb.execute("c")
+            except Exception as e:
+                print(f"{self.__class__.__name__} error: {e}")
+                return 
+track_locks()
+
+import time
+
+class trace_parser(gdb.Command):
+    def __init__(self):
+        super(trace_parser, self).__init__("tparse", gdb.COMMAND_USER)
+    
+    def invoke(self, args, tty):
+        gdb.rbreak("parser::internal::*")
+
+        out = open("temp/trace_parser", "w")
+
+        gdb.execute("r")
+
+        while gdb.selected_inferior().connection_num != None:
+            try:
+                curtime = time.perf_counter()
+                threadnum = gdb.selected_thread().global_num
+                curfunc = gdb.selected_frame().function()
+
+                out.write(f"{curtime}:  {threadnum}  :{curfunc.name}\n")
+                gdb.execute("c")
+
+            except Exception as e:
+                print(f"{self.__class__.__name__} error: {e}")
+                return 
+trace_parser()
