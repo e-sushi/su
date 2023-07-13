@@ -998,8 +998,52 @@ void factor() { announce_stage;
     }
 }
 
-void after_expr() {
-    switch(curt->kind) {
+void struct_decl(ParserThread* thread) {
+    Token* save = thread->curt;
+    advance_curt(); // TODO(sushi) struct parameters
+    if(thread->curt->kind != token::open_brace) {
+        messenger::dispatch(message::attach_sender({thread->parser->source, *thread->curt},
+            diagnostic::parser::missing_open_brace_for_struct()));
+        push_error();
+    }
+
+    advance_curt();
+    
+    u32 count = 0;
+    while(1) {
+        if(thread->curt->kind == token::close_brace) break;
+        if(thread->curt->kind == token::identifier) {
+            label(thread); check_error;
+            if(thread->curt->kind != token::semicolon) {
+                messenger::dispatch(message::attach_sender({thread->parser->source, *thread->curt},
+                    diagnostic::parser::missing_semicolon()));
+            }
+            advance_curt();
+            count++;
+            TNode* last = array::read(thread->stack, -1);
+            if(last->last_child->kind == node::function) {
+                messenger::dispatch(message::attach_sender({thread->parser->source, *last->start},
+                    diagnostic::parser::struct_member_functions_not_allowed()));
+                push_error();
+            }
+        } else {
+            messenger::dispatch(message::attach_sender({thread->parser->source, *thread->curt},
+                diagnostic::parser::struct_only_labels_allowed()));
+            push_error();
+        }
+    }
+
+    Structure* s = parser::create_structure(thread);
+    s->node.start = save;
+    s->node.end = thread->curt;
+
+    forI(count) {
+        node::insert_first((TNode*)s, stack_pop());
+    }
+
+    stack_push((TNode*)s);
+}
+
         case token::assignment: {
             advance_curt();
             before_expr();
@@ -1042,10 +1086,38 @@ void before_expr() { announce_stage;
 
             stack_push((TNode*)e);
         } break;
-        default: factor();
-    }
+        case token::colon: {
+            Token* save = thread->curt;
+            advance_curt();
+            before_expr(thread); check_error;
 
-    
+            Expression* e = parser::create_expression(thread);
+            e->kind = expression::unary_comptime;
+
+            // if the candidate for this unary_comptime is an entity, we need to prioritize its node over 
+            // the one we're about to place
+            TNode* cand = stack_pop();
+            switch(cand->kind) {
+                case node::function:
+                case node::structure:
+                case node::module:
+                case node::place: {
+                    e->node.start = save;
+                    e->node.end = cand->last_child->end;
+                    for(TNode* n = cand->first_child;n;n=cand->first_child) {
+                        node::change_parent((TNode*)e, n);
+                    }
+                    node::insert_last(cand, (TNode*)e);
+                    stack_push(cand);
+                } break;
+                default: {
+                    node::insert_first((TNode*)e, cand);
+                    e->node.start = save;
+                    e->node.end = e->node.last_child->end;
+                    stack_push((TNode*)e);
+                } break;
+            }
+        } break;
 
     // loop and see if any operators are being used, if so call their entry point
     b32 search = true;
