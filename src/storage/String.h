@@ -30,7 +30,7 @@ struct String {
 
 
     String(){}
-    String(DString& dstr);
+    String(const DString& dstr);
     String(str8 in) : s(in) {}
     String(const char* s, s64 count) : s({(u8*)s, count}) {}
     consteval String(const char* in) : __cplusplus_sucks({(char*)in, util::constexpr_strlen(in)}) {}
@@ -54,7 +54,7 @@ advance(String& s, u32 n = 1) {
 }
 
 u64 
-hash(String& s) {
+hash(const String& s) {
     return str8_hash64(s.s);
 }
 
@@ -111,12 +111,12 @@ skip_until_last(String s, u32 c) {
 }
 
 f64 
-to_f64(String& s) {
+to_f64(const String& s) {
     return strtod((char*)s.str, 0);
 }
 
 s64
-to_s64(String& s) {
+to_s64(const String& s) {
     s64 x;
     (void)sscanf((char*)s.str, "%lli", &x);
     return x;

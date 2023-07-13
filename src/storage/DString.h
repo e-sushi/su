@@ -86,7 +86,7 @@ DString to_string(const String& s) {
     return dstring::init(s);
 }
 
-String::String(DString& dstr) {
+String::String(const DString& dstr) {
 	str = dstr.s.str;
 	count = dstr.s.count;
 }
@@ -237,6 +237,26 @@ to_string(DString& start, T x) {
         start.s.count += count;
 		start.s.space = start.s.count+1;
 	}
+}
+
+namespace util {
+DString format_time(f64 ms){
+	DString out = dstring::init();
+    if(floor(Minutes(ms))){
+		//hope it never gets this far :)
+		f64 fmin = floor(Minutes(ms));
+		f64 fsec = floor(Seconds(ms)) - fmin * 60;
+		f64 fms  = ms - fmin*60*1000 - fsec*1000;
+		dstring::append(out, fmin, "m ", fsec, "s ", fms, " ms");
+	}else if(floor(Seconds(ms))){
+		f64 fsec = floor(Seconds(ms));
+		f64 fms  = ms - fsec*SecondsToMS(1);
+		dstring::append(out, fsec, "s ", fms, "ms");
+	}else{
+		dstring::append(out, ms, " ms");
+	}
+    return out;
+}
 }
 
 } // namespace amu
