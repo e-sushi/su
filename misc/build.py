@@ -27,6 +27,7 @@
 #   -compiler <cl,gcc,clang,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
 #   -linker <link,ld,lld,lld-link>        Build using the specified linker (default: link on Windows, ld on Mac and Linux)
 #   -vulkan_path <path_to_vulkan>         Override the default $VULKAN_SDK path with this path
+#   -tracy_path <path_to_tracy_src>       Set the path to tracy sources
 
 # TODO(sushi) we need to regenerate pch stuff if the graphics api changes, not sure how to properly detect that though
 
@@ -95,7 +96,7 @@ while i < len(sys.argv):
         case "--nd":   config["build_deshi"] = False
         case "--ad":   config["auto_build_deshi"] = True
         case "--pch":  config["use_pch"] = True
-
+        
         case "-platform":
             if i != len(sys.argv) - 1:
                 i += 1
@@ -107,7 +108,7 @@ while i < len(sys.argv):
                 print("expected a platform (win32, linux, max) after switch '-platform'")
 
         case "-graphics":
-            if i != len(sys.argv[i]):
+            if i != len(sys.argv) - 1:
                 i += 1
                 config["graphics"] = sys.argv[i]
                 if config["graphics"] not in ("vulkan", "opengl", "directx"):
@@ -117,7 +118,7 @@ while i < len(sys.argv):
                 print("expected a graphics api (vulkan, opengl, directx) after switch '-graphics'")
 
         case "-compiler":
-            if i != len(sys.argv[i]):
+            if i != len(sys.argv) - 1:
                 i += 1
                 config["compiler"] = sys.argv[i]
                 if config["compiler"] not in ("cl", "gcc", "clang", "clang-cl"):
@@ -127,7 +128,7 @@ while i < len(sys.argv):
                 print("expected a compiler (cl, gcc, clang, clang-cl) after switch '-compiler'")
 
         case "-linker":
-            if i != len(sys.argv[i]):
+            if i != len(sys.argv) - 1:
                 i += 1
                 config["linker"] = sys.argv[i]
                 if config["linker"] not in ("link", "ld", "lld", "lld-link"):
@@ -135,6 +136,12 @@ while i < len(sys.argv):
                     quit()
             else:
                 print("expected a linker (cl, gcc, clang, clang-cl) after switch '-linker'")
+        case "-tracy_path":
+            if i != len(sys.argv) - 1:
+                i += 1
+                includes += "-I" + sys.argv[i]
+            else:
+                print("expected a path to tracy source")
         case _:
             if sys.argv[i].startswith("-"):
                 print(f"unknown switch: {sys.argv[i]}")
