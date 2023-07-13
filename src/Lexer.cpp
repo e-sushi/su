@@ -73,8 +73,8 @@ Lexer
 init(Source* source) {
     Lexer out;
     out.source = source;
-    out.tokens = array::init<Token>();
-    out.colons = array::init<spt>();
+    out.tokens = array::init<Token>(source->file->bytes); // it will surely not take this many, but we want to try and minimize the amount of reallocations we need to do
+	out.global_labels = array::init<spt>();
     out.status = {};
     return out;
 }
@@ -132,6 +132,9 @@ stream_next;                       \
 
 	u32 scope_level = 0;
 
+	Token last_token = {};
+	b32 label_latch = false; // true when a label has been found, set back to false when a label ending token is crossed (a semicolon or close brace)
+
     while(stream) {
         Token token = {};
         token.source = lexer.source;
@@ -181,6 +184,7 @@ stream_next;                       \
 	 			token.c1 = line_col;
 				token.group = token::group_literal;
 	 			array::push(lexer.tokens, token);
+				last_token = token;
 			}continue;
 
 			case '\'':{
@@ -203,6 +207,7 @@ stream_next;                       \
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
 				token.is_global = !scope_level;
 				array::push(lexer.tokens, token);
+				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 
@@ -227,10 +232,17 @@ stream_next;                       \
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
 				token.is_global = !scope_level;
 				array::push(lexer.tokens, token);
+				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
 			
-			CASE1(';', token::semicolon);
+			case ';': {
+				if(!scope_level) label_latch = false;
+				token.kind = token::semicolon;
+				stream_next;
+			} break;
+
+			//CASE1(';', token::semicolon);
             // CASE1('(', Token::OpenParen);
             // CASE1(')', Token::CloseParen);
 			case '(':{ 
@@ -250,7 +262,10 @@ stream_next;                       \
 			CASE1('?', token::question_mark);
 			case ':':{ //NOTE special for declarations and compile time expressions
 				token.kind = token::colon; 
-                array::push(lexer.colons, lexer.tokens.count);
+				if(!label_latch && last_token.kind == token::identifier) {
+					label_latch = true;
+					array::push(lexer.global_labels, lexer.tokens.count-1);
+				}
 				stream_next; 
 			}break;
 			CASE3('.', token::dot, '.', token::range, '.', token::ellipsis);
@@ -268,6 +283,8 @@ stream_next;                       \
 			case '}':{ //NOTE special for scope tracking and internals
 				token.kind = token::close_brace;
 				scope_level--;
+				if(!scope_level) label_latch = false;
+
 				stream_next;
 			}break;
 			
@@ -293,8 +310,6 @@ stream_next;                       \
 			} break;
 
 			CASE2('!', token::logical_not,      '=', token::not_equal);
-			
-		
 
 			case '-':{ // NOTE special because of ->
 				token.kind = token::negation;
@@ -410,6 +425,8 @@ stream_next;                       \
             token.raw.count = stream.str - token.raw.str;
             array::push(lexer.tokens, token);
         }
+
+		last_token = token;
     }
 
 	Token eof;
@@ -435,7 +452,6 @@ output(Lexer& lexer, String path) {
     }
 
     DString buffer = dstring::init();
-
 
     forI(lexer.tokens.count) {
         Token& t = array::readref(lexer.tokens, i);

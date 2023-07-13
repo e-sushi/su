@@ -15,11 +15,11 @@ struct Lexer {
     Source* source; // source file this Analyzer belongs to 
 
     Array<Token> tokens;
+    Array<spt> global_labels;
     Array<spt> colons; // list of colons as indexes into 'tokens'
     Array<spt> structs; // list of 'struct' keywords as indexes into 'tokens'
     Array<spt> modules;
     Array<spt> funcarrows;
-
 
     struct {
         b32 failed; // set when the lexer fails in any way 
