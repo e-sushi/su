@@ -2,6 +2,10 @@
     amu's generic memory interface
 */
 
+#ifndef AMU_MEMORY_H
+#define AMU_MEMORY_H
+
+
 #include "kigu/common.h"
 #include "core/memory.h"
 
@@ -25,5 +29,6 @@ free(void* ptr);
 
 
 } // namespace memory
-
 } // namespace amu
+
+#endif  // AMU_MEMORY_H

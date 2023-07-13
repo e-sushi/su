@@ -27,6 +27,9 @@
     
 */
 
+#ifndef AMU_TUPLE_H
+#define AMU_TUPLE_H
+
 #include "basic/Node.h"
 
 namespace amu {
@@ -48,3 +51,5 @@ struct Tuple {
 };
 
 } // namespace amu
+
+#endif // AMU_TUPLE_H

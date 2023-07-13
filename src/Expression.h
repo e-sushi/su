@@ -4,6 +4,9 @@
 
 */
 
+#ifndef AMu_EXPRESSION_H
+#define AMu_EXPRESSION_H
+
 #include "basic/Node.h"
 #include "Type.h"
 
@@ -73,3 +76,5 @@ struct Expression {
     b32 is_compiletime;
 };
 } // namespace amu
+
+#endif // AMu_EXPRESSION_H
