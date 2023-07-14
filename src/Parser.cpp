@@ -72,62 +72,6 @@ debug_announce_stage(String stage) {
 
 #define announce_stage debug_announce_stage(__func__)
 
-template<typename... T> b32
-next_match(T... args) {
-    return (((curt+1)->kind == args) || ...);
-}
-
-expression::kind 
-binop_token_to_expression(token::kind in){
-	
-	return expression::null;
-}
-
-template<TNode* (*next_layer)(TNode*), typename... T>
-TNode* binop_parse(TNode* parent, TNode* ret, T... tokchecks){
-    TNode* out = ret;
-    while(next_match(tokchecks...)){
-        advance_curt();
-        //make binary op expression
-        Expression* op = compiler::create_expression();
-        switch(curt->kind){
-            case token::multiplication:        op->kind = expression::binary_multiply; break;
-            case token::division:              op->kind = expression::binary_division; break;
-            case token::negation:              op->kind = expression::unary_negate; break;
-            case token::plus:                  op->kind = expression::binary_plus; break;
-            case token::logi_and:              op->kind = expression::binary_and; break;
-            case token::logi_or:               op->kind = expression::binary_or; break;
-            case token::less_than:             op->kind = expression::binary_less_than; break;
-            case token::greater_than:          op->kind = expression::binary_greater_than; break;
-            case token::less_than_or_equal:    op->kind = expression::binary_less_than_or_equal; break;
-            case token::greater_than_or_equal: op->kind = expression::binary_greater_than_or_equal; break;
-            case token::equal:                 op->kind = expression::binary_equal; break;
-            case token::not_equal:             op->kind = expression::binary_not_equal; break;
-            case token::bit_and:               op->kind = expression::binary_bit_and; break;
-            case token::bit_or:                op->kind = expression::binary_bit_or; break;
-            case token::bit_xor:               op->kind = expression::binary_bit_xor; break;
-            case token::bit_shift_left:        op->kind = expression::binary_bit_shift_left; break;
-            case token::bit_shift_right:       op->kind = expression::binary_bit_shift_right; break;
-            case token::modulo:                op->kind = expression::binary_modulo; break;
-            case token::bit_not:               op->kind = expression::unary_bit_comp; break;
-            case token::logical_not:           op->kind = expression::unary_logi_not; break;
-            default: Assert(0);
-        }
-
-        //readjust parents to make the binary op the new child of the parent node
-        //and the ret node a child of the new binary op
-        node::change_parent(parent, (TNode*)op);
-        node::change_parent((TNode*)op, out);
-
-        //evaluate next expression
-        advance_curt();
-        TNode* rhs = next_layer((TNode*)op);
-
-        out = (TNode*)op;
-    }
-    return out;
-}
-
 #define check_error if(!array::read(stack, -1)) return;
 #define push_error() do{                                                \
     messenger::dispatch(message::attach_sender({parser->source, *curt}, \
@@ -144,14 +88,23 @@ do{                                                     \
 }while(0)                                    
 
 
-
-
 void before_expr();
 void label_after_colon();
 void factor();
 void after_typeref(); 
 void label_after_id();
 void label();
+void logi_or();
+void logi_and();
+void bit_or();
+void bit_xor();
+void bit_and();
+void equality();
+void relational();
+void bit_shift();
+void additive();
+void term();
+void access();
 
 
 // state8:
@@ -209,52 +162,6 @@ void reduce_builtin_type_to_typeref_expression() { announce_stage;
     stack_push((TNode*)e);
 }
 
-
-// state28:
-// additive: additive '+' * term@
-// term: * factor
-//     | * term '*' factor
-//     | * term '/' factor
-// factor: * NUM
-//       | * type
-// tuple: * '(' tupleargs ')'
-// func_type: * tuple "->" expr
-// type: * tuple
-//     | * func_type
-//     | * ID
-//     | * type decorators 
-// void after_plus() { announce_stage;
-//     switch(curt->kind) {
-//         case token::literal_integer: advance_curt(); reduce_num_to_factor(); break;
-//         case token::identifier:      advance_curt(); reduce_identifier_to_type(); break;
-//     }
-// }
-
-
-// state15:
-// expr: additive *
-// additive: additive * '+' term
-//         | additive * '-' term
-// reduce additive -> expr
-// void after_additive() { announce_stage;
-//     switch(curt->type) {
-//         case token::plus: 
-//     }
-// }
-
-
-//state14:
-// expr: ctime *
-void reduce_comptime_to_expr() { announce_stage;
-
-}
-
-// state13:
-// expr: assignment *
-void reduce_assignment_to_expr() { announce_stage;
-
-}
-
 /*
         tuple: '(' ... ')' *
     func_type: tuple * "->" factor { "," factor } 
@@ -299,6 +206,10 @@ void tuple_after_close_paren() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
 
         set_start_end_from_children(e);
+        // since we've made an entity, we need to push it to the stack first so that whatever
+        // label is taking it can consume it 
+        Function* f = compiler::create_function();
+        stack_push((TNode*)f);
         stack_push((TNode*)e);
 
         after_typeref(); 
@@ -485,17 +396,7 @@ void after_typeref() { announce_stage;
     }
 }
 
-void logi_or();
-void logi_and();
-void bit_or();
-void bit_xor();
-void bit_and();
-void equality();
-void relational();
-void bit_shift();
-void additive();
-void term();
-void access();
+
 
 /*
     loop: switch | "loop" expr
@@ -981,7 +882,6 @@ void factor() { announce_stage;
         case token::if_: conditional(); break;
         case token::switch_: switch_(); break;
         case token::open_brace: advance_curt(); block(); break;
-        case token::directive_compiler_break: DebugBreakpoint; advance_curt();break;
         default: {
             if(curt->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
@@ -998,11 +898,11 @@ void factor() { announce_stage;
     }
 }
 
-void struct_decl(ParserThread* thread) {
-    Token* save = thread->curt;
+void struct_decl() {
+    Token* save = curt;
     advance_curt(); // TODO(sushi) struct parameters
-    if(thread->curt->kind != token::open_brace) {
-        messenger::dispatch(message::attach_sender({thread->parser->source, *thread->curt},
+    if(curt->kind != token::open_brace) {
+        messenger::dispatch(message::attach_sender({parser->source, *curt},
             diagnostic::parser::missing_open_brace_for_struct()));
         push_error();
     }
@@ -1011,45 +911,41 @@ void struct_decl(ParserThread* thread) {
     
     u32 count = 0;
     while(1) {
-        if(thread->curt->kind == token::close_brace) break;
-        if(thread->curt->kind == token::identifier) {
-            label(thread); check_error;
-            if(thread->curt->kind != token::semicolon) {
-                messenger::dispatch(message::attach_sender({thread->parser->source, *thread->curt},
+        if(curt->kind == token::close_brace) break;
+        if(curt->kind == token::identifier) {
+            label(); check_error;
+            if(curt->kind != token::semicolon) {
+                messenger::dispatch(message::attach_sender({parser->source, *curt},
                     diagnostic::parser::missing_semicolon()));
             }
             advance_curt();
             count++;
-            TNode* last = array::read(thread->stack, -1);
+            TNode* last = array::read(stack, -1);
             if(last->last_child->kind == node::function) {
-                messenger::dispatch(message::attach_sender({thread->parser->source, *last->start},
+                messenger::dispatch(message::attach_sender({parser->source, *last->start},
                     diagnostic::parser::struct_member_functions_not_allowed()));
                 push_error();
             }
         } else {
-            messenger::dispatch(message::attach_sender({thread->parser->source, *thread->curt},
+            messenger::dispatch(message::attach_sender({parser->source, *curt},
                 diagnostic::parser::struct_only_labels_allowed()));
             push_error();
         }
     }
 
-    Structure* s = parser::create_structure(thread);
+    Structure* s = compiler::create_structure();
     s->node.start = save;
-    s->node.end = thread->curt;
+    s->node.end = curt;
 
     forI(count) {
         node::insert_first((TNode*)s, stack_pop());
     }
 
     stack_push((TNode*)s);
+    stack_push((TNode*)s);
+
 }
 
-        case token::assignment: {
-            advance_curt();
-            before_expr();
-        } break;
-    }
-}
 
 /* general expr handler, since we will come across this alot
            expr: * ( loop | switch | assignment | ctime | conditional ) .
@@ -1087,37 +983,23 @@ void before_expr() { announce_stage;
             stack_push((TNode*)e);
         } break;
         case token::colon: {
-            Token* save = thread->curt;
+            Token* save = curt;
             advance_curt();
-            before_expr(thread); check_error;
+            before_expr(); check_error;
 
-            Expression* e = parser::create_expression(thread);
+            Expression* e = compiler::create_expression();
             e->kind = expression::unary_comptime;
 
-            // if the candidate for this unary_comptime is an entity, we need to prioritize its node over 
-            // the one we're about to place
-            TNode* cand = stack_pop();
-            switch(cand->kind) {
-                case node::function:
-                case node::structure:
-                case node::module:
-                case node::place: {
-                    e->node.start = save;
-                    e->node.end = cand->last_child->end;
-                    for(TNode* n = cand->first_child;n;n=cand->first_child) {
-                        node::change_parent((TNode*)e, n);
-                    }
-                    node::insert_last(cand, (TNode*)e);
-                    stack_push(cand);
-                } break;
-                default: {
-                    node::insert_first((TNode*)e, cand);
-                    e->node.start = save;
-                    e->node.end = e->node.last_child->end;
-                    stack_push((TNode*)e);
-                } break;
-            }
+            node::insert_first((TNode*)e, stack_pop());
+            e->node.start = save;
+            e->node.end = e->node.last_child->end;
+            stack_push((TNode*)e);
         } break;
+        case token::structdecl: {
+            struct_decl(); check_error;
+        } break;
+        default: factor(); check_error;
+    }
 
     // loop and see if any operators are being used, if so call their entry point
     b32 search = true;
@@ -1145,36 +1027,7 @@ void before_expr() { announce_stage;
         }
     }
 
-    after_expr();
-
-    // switch(curt->kind) {
-    //     case token::identifier: reduce_identifier_to_identifier_expression(); advance_curt(); break;
-    //     case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
-    //     default: {
-    //         if(curt->group == token::group_literal) {
-    //             reduce_literal_to_literal_expression();
-    //             advance_curt();
-    //         }  
-    //     }
-
-    // }
-
-    // TNode* last = array::read(stack, -1);
-
-    // switch(last->kind) {
-    //     case node::expression: {
-    //         Expression* expr = (Expression*)last;
-    //         switch(expr->kind) {
-    //             case expression::literal: {
-    //                 access();
-    //             } break;
-
-    //             case expression::identifier: {
-
-    //             } break;
-    //         }
-    //     }
-    // }
+    // after_expr(); TODO(sushi)
 }
 
 
@@ -1197,7 +1050,7 @@ void label_after_colon() { announce_stage;
   
     switch(curt->kind) {
         case token::identifier:      reduce_identifier_to_identifier_expression(); advance_curt(); break;
-        case token::colon:           advance_curt(); comptime_after_colon(); break;
+        case token::colon:           before_expr(); break;
         case token::open_paren:      advance_curt(); tuple_after_open_paren(); break;
         case token::assignment:      before_expr(); break;
         default: {
@@ -1332,13 +1185,23 @@ void label() {
     stack_push((TNode*)expr);
 
     advance_curt();
-    label_after_id();
-    check_error;
+    label_after_id(); check_error;
 
     // reduce to a label 
     Label* label = compiler::create_label();
     node::insert_first((TNode*)label, stack_pop());
-    node::insert_first((TNode*)label, stack_pop());
+
+    TNode* cand = stack_pop();
+    switch(cand->kind) {
+        case node::place:
+        case node::structure:
+        case node::function:
+        case node::module: {
+            label->entity = cand;
+            node::insert_first((TNode*)label, stack_pop());
+        } break;
+        default: node::insert_first((TNode*)label, cand);
+    }
 
     set_start_end_from_children(label);
     stack_push((TNode*)label);
@@ -1351,6 +1214,7 @@ void label() {
     labelgroup: ID ( "," ID )+ 
 */
 void start() { announce_stage;
+    u32 count = 0;
     while(1) {
         if(curt->kind != token::identifier) break;
         label(); check_error;
@@ -1361,17 +1225,18 @@ void start() { announce_stage;
             return;
         }
 
+        count++;
         advance_curt();
     }
 
-    TNode* last = array::read(stack, -1);
-
-    switch(last->kind) {
-        case node::module: before_end(); break;
-        case node::label:  before_eof(); break;
+    Module* m = compiler::create_module();
+    forI(count) {
+        node::insert_first((TNode*)m, stack_pop());
     }
-}
 
+    set_start_end_from_children(m);
+    stack_push((TNode*)m);
+}
 } // namespace internal
 
 void
@@ -1382,12 +1247,18 @@ execute(Parser& parser) {
         message::debug(message::verbosity::stages,
             String("beginning syntactic analysis"))));
 
-    Lexer& lexer = *parser.source->lexer;
+    Lexer lexer = *parser.source->lexer;
     internal::parser = &parser;
     internal::curt = array::readptr(lexer.tokens, 0);
     internal::stack = array::init<TNode*>(32);
     internal::start();
-    //internal::file(&parser.source->module->node);
+
+    DString time_taken = util::format_time(peek_stopwatch(parser_time));
+    messenger::dispatch(message::attach_sender(parser.source,
+        message::debug(message::verbosity::stages, 
+            String("syntactic analysis finished in "), String(time_taken))));
+    if(compiler::instance.options.deliver_debug_immediately)
+        dstring::deinit(time_taken);
 }
 
 } // namespace parser
