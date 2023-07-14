@@ -95,7 +95,7 @@ process_message(DString& current, Message& m) {
 
     switch(m.sender.type) {
         case MessageSender::Compiler: {
-            static constexpr String compiler_prefix = "\e[36mcompiler\e[0m: ";
+            static constexpr String compiler_prefix = "\e[36mamu\e[0m: ";
             dstring::append(current, compiler_prefix);
         } break;
         case MessageSender::Source: {

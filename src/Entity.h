@@ -23,12 +23,9 @@ enum kind : u32 {
 };
 } // namespace entity
 
-// representation of something that is a place in memory, name borrowed from rust
+// representation of something that has a place in memory, name borrowed from rust
 struct Place {
     TNode node;
-
-    b32 initialized;
-    u32 pointer_depth;
 
     // type information for this place in memory
     Type type;
@@ -46,18 +43,8 @@ struct Function {
 
 struct Module {
     TNode node;
-};
 
-struct Entity {
-    TNode node;
-    entity::kind kind;
-
-    union {
-        Place place;
-        Structure structure;
-        Function function;
-        Module module;
-    };
+    LabelTable table;    
 };
 
 } // namespace amu

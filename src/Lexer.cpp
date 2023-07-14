@@ -60,11 +60,6 @@ is_identifier_char(u32 codepoint) {
     return false;
 }
 
-FORCE_INLINE void
-advance(Lexer& lexer, String& stream) {
-
-}
-
 #undef strcase
 
 } // namespace internal
@@ -75,6 +70,9 @@ init(Source* source) {
     out.source = source;
     out.tokens = array::init<Token>(source->file->bytes); // it will surely not take this many, but we want to try and minimize the amount of reallocations we need to do
 	out.global_labels = array::init<spt>();
+	out.structs = array::init<spt>();
+	out.modules = array::init<spt>();
+	out.funcarrows = array::init<spt>();
     out.status = {};
     return out;
 }
@@ -205,7 +203,6 @@ stream_next;                       \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				token.is_global = !scope_level;
 				array::push(lexer.tokens, token);
 				last_token = token;
 				stream_next;
@@ -230,8 +227,6 @@ stream_next;                       \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				token.is_global = !scope_level;
-				array::push(lexer.tokens, token);
 				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
@@ -316,6 +311,7 @@ stream_next;                       \
 				stream_next;
 				if(*stream.str == '>'){
 					token.kind = token::function_arrow;
+					array::push(lexer.funcarrows, lexer.tokens.count);
 					stream_next;
 				}
 			}break;
@@ -392,6 +388,11 @@ stream_next;                       \
 						}
 						token.kind = kind;
 						array::pop(lexer.tokens);
+					} else {
+						switch(token.kind) {
+							case token::structdecl: array::push(lexer.structs, lexer.tokens.count); break;
+							case token::moduledecl: array::push(lexer.modules, lexer.tokens.count); break;
+						}
 					}
 				}else{
                     messenger::dispatch(message::attach_sender({lexer.source, token},
@@ -439,10 +440,8 @@ stream_next;                       \
     lexer.status.time = peek_stopwatch(lexer_time);
 } // lex::execute
 
-// the lexer is serialized by outputting 
-// token-type "raw" line,column /
 void
-output(Lexer& lexer, String path) {
+output(Lexer& lexer, b32 human, String path) {
     FileResult result = {};
     File* out = file_init_result(path.s, FileAccess_WriteTruncateCreate, &result);
     if(!out) {
@@ -451,16 +450,32 @@ output(Lexer& lexer, String path) {
         return;
     }
 
-    DString buffer = dstring::init();
+	if(human) {
+		DString buffer = dstring::init();
 
-    forI(lexer.tokens.count) {
-        Token& t = array::readref(lexer.tokens, i);
-        dstring::append(buffer, (u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
-    }
+		forI(lexer.tokens.count) {
+			Token& t = array::readref(lexer.tokens, i);
+			dstring::append(buffer, (u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
+		}
+		
+		file_write(out, buffer.s.str, buffer.s.count);
+		dstring::deinit(buffer);
+	} else {
+		Array<u32> data = array::init<u32>(4*lexer.tokens.count);
 
-    file_write(out, buffer.s.str, buffer.s.count);
+		Token* curt = array::readptr(lexer.tokens, 0);
+		forI(lexer.tokens.count) {
+			array::push(data, (u32)curt->kind);
+			array::push(data, (u32)curt->l0);
+			array::push(data, (u32)curt->c0);
+			array::push(data, (u32)curt->raw.count);
+		}
+
+		file_write(out, data.data, data.count*sizeof(u32));
+		array::deinit(data);
+	}
+
     file_deinit(out);
-    dstring::deinit(buffer);
 }
 
 } // namespace lex
