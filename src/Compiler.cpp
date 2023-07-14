@@ -67,10 +67,53 @@ deinit() {
 
 global void
 begin(Array<String> args) {
-    String cwd = array::read(args, 0);
-    String path = array::read(args, 1);
+    String path;
 
-    instance.options.verbosity = message::verbosity::debug;
+    for(s32 i = 1; i < args.count; i++) {
+        String arg = array::read(args, i);
+        u64 hash = string::hash(arg);
+        switch(hash) {
+
+            case string::static_hash("--dump-tokens"): {
+                while(i != args.count-1) {
+                    arg = array::read(args, ++i);
+                    if(string::equal(arg, "-human")) {
+                        instance.options.dump_tokens.human = true;
+                    }else if(string::equal(arg, "-exit")) {
+                        instance.options.dump_tokens.exit = true;
+                    } else break;
+                }
+                if(arg.str[0] == '-') {
+                    messenger::dispatch(message::attach_sender(MessageSender::Compiler,
+                        diagnostic::compiler::expected_a_path_for_arg("--dump-tokens")));
+                    messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                    return;
+                }
+                instance.options.dump_tokens.path = arg;
+            } break;
+
+            default: {
+                if(arg.str[0] == '-') {
+                    messenger::dispatch(message::attach_sender(MessageSender::Compiler,
+                        diagnostic::compiler::unknown_option(arg)));
+                    messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                    return;
+                }
+                // otherwise this is (hopefully) a path
+                path = arg;
+
+            } break;
+        }
+    }
+
+    if(!path.str){
+        messenger::dispatch(message::attach_sender(MessageSender::Compiler,
+            diagnostic::compiler::no_path_given()));
+        messenger::deliver(stdout); messenger::deliver(instance.log_file);
+        return;
+    }
+
+    instance.options.verbosity = message::verbosity::always;
 
     Source* initsource = 0;
     {
@@ -89,9 +132,17 @@ begin(Array<String> args) {
             lex::init(initsource));
     initsource->lexer = lexer;
     lex::execute(*lexer);
+    
+    if(instance.options.dump_tokens.path.str) {
+        lex::output(*lexer, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
+        if(instance.options.dump_tokens.exit) {
+            messenger::deliver(stdout); messenger::deliver(instance.log_file);
+            return;
+        }
+    }
+
     messenger::deliver(stdout);
     messenger::deliver(instance.log_file);
-    lex::output(*lexer, "temp/lexout");
 
     Parser* parser = pool::add(instance.storage.parsers,
             parser::init(initsource));

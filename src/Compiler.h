@@ -59,6 +59,12 @@ struct Compiler {
     struct {
         u32 verbosity;
         b32 deliver_debug_immediately;
+
+        struct{
+            String path;
+            b32 exit;
+            b32 human;
+        }dump_tokens;
     } options;
 };
 

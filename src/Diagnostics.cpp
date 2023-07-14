@@ -63,6 +63,46 @@ not_found(String path) {
 
 } // namespace path
 
+namespace compiler {
+
+global Message
+expected_a_path_for_arg(String arg) {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("expected a path for arg '"), arg, String("'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+unknown_option(String option) {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("unknown option '"), option, String("'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+no_path_given() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("no input file"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+} // namespace compiler
+
 namespace lexer { // @lexer
 
 global Message
@@ -525,6 +565,68 @@ missing_function_return() {
     out.type = Message::Error;
     return out;
 }
+
+global Message
+missing_open_brace_for_struct() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("missing '{' after 'struct'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+struct_only_labels_allowed() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("only labels are allowed in structures"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+struct_member_functions_not_allowed() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("member functions are not allowed"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+extraneous_close_brace() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("extraneous closing blace '}'"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+global Message
+unexpected_token_in_module() {
+    Message out;
+    switch(lang) {
+        case English: {
+            out = message::init(String("unexpected token in module, only labels and directives are allowed"));
+        } break;
+    }
+    out.type = Message::Error;
+    return out;
+}
+
+
 
 } // namespace parser
 
