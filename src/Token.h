@@ -11,7 +11,8 @@
 namespace amu{
 
 namespace token {
-enum kind : u32 {
+// @genstrings(src/data/token_strings.generated)
+enum kind : u32 { 
     null = 0,
     error = 0,                // when something doesnt make sense during lexing
     end_of_file,                // end of file
@@ -125,6 +126,9 @@ enum kind : u32 {
     directive_run,
     directive_compiler_break,
 };
+
+#include "data/token_strings.generated"
+
 } // namespace token
 
 struct Token {
@@ -140,7 +144,7 @@ struct Token {
 
     u8* line_start;
 
-    b32 is_global; // if this token is wrapped in anything starting a scope, such as {, (, [, etc.
+    TNode* prescan_symbol; 
 
     union{
         f64 f64_val;

@@ -16,8 +16,8 @@ struct Lexer {
 
     Array<Token> tokens;
     Array<spt> global_labels;
-    Array<spt> colons; // list of colons as indexes into 'tokens'
-    Array<spt> structs; // list of 'struct' keywords as indexes into 'tokens'
+    Array<spt> colons; 
+    Array<spt> structs; 
     Array<spt> modules;
     Array<spt> funcarrows;
 
@@ -40,8 +40,9 @@ void
 execute(Lexer& lexer);
 
 // output the data emitted by the Lexer to the given path
+// binary = false - outputs a human readable format
 void
-output(Lexer& lexer, String path);
+output(Lexer& lexer, b32 human, String path);
 
 } // namespace lexer
 

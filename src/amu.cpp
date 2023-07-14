@@ -205,49 +205,6 @@
 #include "Lexer.cpp"
 #include "Parser.cpp"
 
-void speed_test(const u64 samples, str8 filepath){
-	// f64 sum = 0;
-	
-	// compiler.logger.log(0, "performing speed_test() on ", CyanFormatComma(filepath), " with ", samples, " samples.");
-	// globals.supress_messages = 1;
-	// Stopwatch ttime = start_stopwatch();
-	// forI(samples){
-	// 	compiler.ctime = start_stopwatch();
-
-	// 	CompilerRequest cr; 
-	// 	cr.filepaths.add(filepath);
-	// 	cr.stage = FileStage_Parser;
-
-	// 	compiler.compile(&cr);
-	// 	sum += peek_stopwatch(compiler.ctime);
-
-	// 	compiler.reset();
-	// }
-	// globals.supress_messages = 0;
-	// compiler.logger.log(0, "speed_test() on ", CyanFormatComma(filepath), " with ", samples, " samples had an average time of ", format_time(sum / samples), " and speed_test() took a total of ", format_time(peek_stopwatch(ttime)));
-}
-
-// void print_tree(amuNode* node, u32 indent = 0){
-// 	// logger_pop_indent(-1);
-// 	// logger_push_indent(indent);
-// 	// Log("", node->debug);
-// 	// for_node(node->first_child){
-// 	// 	print_tree(it, indent + 1);
-// 	// }
-// 	// if(str8_equal_lazy(node->debug, STR8("{"))){
-// 	// 	logger_push_indent(indent);
-// 	// 	Log("", "}");
-// 	// }
-// 	// logger_pop_indent(-1);
-// }
-
-mutex jobm;
-void job(void* in) {
-	mutex_lock(&jobm);
-	printf("%s\n", ((str8*)in)->str);
-	mutex_unlock(&jobm);
-}
-
 int main(int argc, char* argv[]){DPZoneScoped;
    	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
    	platform_init();
@@ -266,41 +223,6 @@ int main(int argc, char* argv[]){DPZoneScoped;
 		compiler::begin(args);
 
 	}
-
-	// threader_init(255);
-	// threader_spawn_thread(10);
-	
-	// arena.init();
-
-	// compiler.init();
-	// compiler.ctime = start_stopwatch();
-
-	// CompilerRequest cr; 
-	// cr.filepaths.add(STR8("tests/_/main.amu"));
-
-	// cr.stage = FileStage_Validator;
-
-	// DPFrameMark;
-	// CompilerReport report = compiler.compile(&cr);
-	// DPFrameMark;
-	
-	// compiler.logger.log(0, "time: ", format_time(peek_stopwatch(compiler.ctime)));
-
-	// if(report.failed){
-	// 	compiler.logger.error("compilation failed.");
-	// 	compiler.logger.note("file status:");
-	// 	forI(compiler.files.count){
-	// 		amuFile* file = compiler.files.data[i];
-	// 		compiler.logger.log(Verbosity_Always, CyanFormatComma(file->file->name), ":");
-	// 		compiler.logger.log(Verbosity_Always, "         lexer: ", (file->lexical_analyzer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
-	// 		compiler.logger.log(Verbosity_Always, "  preprocessor: ", (file->preprocessor.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
-	// 		compiler.logger.log(Verbosity_Always, "        syntax_analyzer: ", (file->syntax_analyzer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
-	// 		compiler.logger.log(Verbosity_Always, "     semantic_analyzer: ", (file->semantic_analyzer.failed ? ErrorFormat("failed") : SuccessFormat("succeeded")));
-	// 	}
-	// }
-
-	// //print_tree(&compiler.files.atIdxPtrVal(0)->syntax_analyzer.base);
-	// generate_ast_graph_svg("ast.svg", (amuNode*)compiler.files.atIdxPtrVal(0)->module);
   
-	return 1;
+	return 0;
 }
