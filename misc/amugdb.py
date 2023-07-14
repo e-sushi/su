@@ -1,6 +1,12 @@
 import gdb
 pp = gdb.printing.RegexpCollectionPrettyPrinter("amu")
 
+import time
+
+def dbgmsg(s):
+    t = time.perf_counter()
+    gdb.write(f"dbg:{t}: {s}"); gdb.flush()
+
 class print_lnode_chain(gdb.Command):
     def __init__(self):
         super(print_lnode_chain, self).__init__("plnode", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
@@ -114,9 +120,9 @@ class Token_printer:
             val:gdb.Value = self.val
             kind = str(val['kind'])[12:]
             file = str(val['source']['file']['name']).strip('"')
-            line = val['l0']
-            col = val['c0']
-            raw = val['raw']
+            line = str(val['l0'])
+            col = str(val['c0'])
+            raw = str(val['raw'])
             return f"{file}:{line}:{col}:{kind} {raw}"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -268,6 +274,10 @@ class TNode_printer:
                     return gdb.parse_and_eval(f"*(amu::Statement*){val.address}")
                 case "amu::node::function":
                     return gdb.parse_and_eval(f"*(amu::Function*){val.address}")
+                case "amu::node::structure":
+                    return gdb.parse_and_eval(f"*(amu::Structure*){val.address}")
+                case "amu::node::module":
+                    return gdb.parse_and_eval(f"*(amu::Module*){val.address}")
                 case _:
                     return f"unhandled node kind: {kind}"
                 
@@ -283,12 +293,15 @@ class Expression_printer:
             out = f"{str(val['kind']).lstrip('amu::').replace('expression', 'expr')} "
             start = ""
             end = ""
-            if val['node']['start']:
-                start = str(val['node']['start'].dereference())
+            node = val['node']
+            s = node['start']
+            e = node['end']
+            if s:
+                start = str(s.dereference())
             else:
                 start = "<null start>"
-            if val['node']['end']:
-                end = str(val['node']['end'].dereference())
+            if e:
+                end = str(e.dereference())
             else:
                 end = "<null end>"
             out += f"{start} -> {end}"
@@ -438,10 +451,10 @@ class parser_print_stack(gdb.Command):
     
     def invoke(self, args, tty):
         try:
-            val = gdb.parse_and_eval("thread.stack")
+            val = gdb.parse_and_eval("stack")
             out = ""
             for i in range(val['count']):
-                elem = gdb.parse_and_eval(f"thread.stack.data[{i}]")
+                elem = gdb.parse_and_eval(f"*(stack.data + {i})")
                 to_write = None
                 if not elem:
                     to_write = "stack err"
@@ -466,6 +479,9 @@ class parser_track_stack(gdb.Command):
         gdb.execute("r")
         pps = parser_print_stack()
         out = open("temp/track_stack", "w")
+
+        # we need to load the source's buffer manually, because gdb with attempt to 
+        # fold repeating things in arrays, including strings!
         bufferptr = int(gdb.parse_and_eval("parser->source->buffer->s.str"))
 
         length = 0
@@ -483,8 +499,6 @@ class parser_track_stack(gdb.Command):
                 lines.append(buffer[lastln:i])
                 lastln = i+1
         lines.append(buffer[lastln:])
-
-        gdb.set_parameter("print repeats", 0)
 
         while gdb.selected_inferior().connection_num != None:
             try:
@@ -519,7 +533,6 @@ class parser_track_stack(gdb.Command):
                 print(f"{self.__class__.__name__} error: {e}")
                 return 
         gdb.execute("del")
-        gdb.set_parameter("print repeats", 10)
 parser_track_stack()
     
 class track_locks(gdb.Command):
