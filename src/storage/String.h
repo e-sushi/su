@@ -29,7 +29,7 @@ struct String {
     };
 
 
-    String(){}
+    String(){s={0};} // i wish i could avoid this
     String(const DString& dstr);
     String(str8 in) : s(in) {}
     String(const char* s, s64 count) : s({(u8*)s, count}) {}
@@ -56,6 +56,11 @@ advance(String& s, u32 n = 1) {
 u64 
 hash(const String& s) {
     return str8_hash64(s.s);
+}
+
+b32 
+equal(const String& a, const String& b) {
+    return str8_equal_lazy(a.s,b.s);
 }
 
 consteval u64
