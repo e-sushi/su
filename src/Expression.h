@@ -13,7 +13,7 @@
 namespace amu {
 
 namespace expression {
-
+// @genstrings(data/expression_strings.generated)
 enum kind : u32 {
     null,
 
@@ -63,6 +63,8 @@ enum kind : u32 {
     cast,
     reinterpret,
 };
+
+#include "data/expression_strings.generated"
 
 } // namespace expression
 

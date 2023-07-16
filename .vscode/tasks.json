@@ -9,6 +9,7 @@
                 "misc/build.py",
                 "-graphics",
                 "opengl",
+                //"--r",
                 //"--v",
                 "--ad",
                 //"--pch",

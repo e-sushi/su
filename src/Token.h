@@ -11,7 +11,7 @@
 namespace amu{
 
 namespace token {
-// @genstrings(src/data/token_strings.generated)
+// @genstrings(data/token_strings.generated, S/group_.*//, S/_$//)
 enum kind : u32 { 
     null = 0,
     error = 0,                // when something doesnt make sense during lexing

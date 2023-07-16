@@ -38,6 +38,7 @@ struct LNode {
 };
 
 namespace node {
+// @genstrings(data/node_strings.generated)
 enum kind {
     label,
     place,
@@ -68,6 +69,8 @@ struct TNode {
 	TNode* last_child;
 	u32   child_count;
 };
+
+#include "data/node_strings.generated"
 
 namespace node {
 

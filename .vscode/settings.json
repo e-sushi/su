@@ -78,6 +78,7 @@
         "*.tcc": "cpp",
         "string_view": "cpp",
         "*.def": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "*.generated": "cpp"
     }
 }
