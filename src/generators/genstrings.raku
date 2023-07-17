@@ -1,6 +1,7 @@
 use MONKEY-SEE-NO-EVAL;
+# use trace;
 
-chdir '../src';
+chdir '..';
 
 my regex Comment { '//'.* } 
 my regex NotAfterComment { <!after '//'.*> }
@@ -16,7 +17,6 @@ while @path_stack {
             when $line ~~ /\@genstrings\((.*)\)/ {
                 say "found in {$fh.path} on line $num:\n\t$line";
                 genstrings(($fh, $fh.path, $num), $0) 
-
             }
         }
     }
@@ -60,7 +60,7 @@ sub genstrings($fileinfo, $arglist) {
 
     my $time = DateTime.now(
         formatter=>{
-            sprintf "%04d/%02d/%02d %02d-%02d-%02d", .year, .month, .day, .hour, .minute, .second given $^self
+            sprintf "%04d/%02d/%02d %02d:%02d:%02d", .year, .month, .day, .hour, .minute, .second given $^self
         });
 
     # output header
