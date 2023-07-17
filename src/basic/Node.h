@@ -21,6 +21,7 @@
 #define AMU_NODE_H
 
 #include "kigu/common.h"
+#include "storage/String.h"
 // namespace deshi {
 //     #include "core/threading.h"
 // }

@@ -12,7 +12,7 @@
 #include "storage/DString.h"
 #include "Source.h"
 #include "Entity.h"
-#include "Code.h"
+#include "Token.h"
 
 namespace amu {
 
@@ -61,17 +61,18 @@ enum kind{
 // a Message stores an SharedArray of Parts, which allows the Messenger to
 // process a Message and format it according to current formatting 
 // settings or where it is delivering the message to
+struct Token;
+struct Source;
 struct MessagePart {
     messagepart::kind kind;
     union {
         String plain; // a plain String, path, or identifier
-        Token token; // a token, likely representing a source location
-        Place place;
-        Structure structure;
-        Function function;
-        Module module;
+        Token* token; // a token, likely representing a source location
+        Place* place;
+        Structure* structure;
+        Function* function;
+        Module* module;
         Label* label; // a label whose name we will print
-        Code code; // code region to print
         Source* source; // a source file whose name we will likely print
     };
     // if this is 0, default colors will be applied in processing
@@ -80,13 +81,12 @@ struct MessagePart {
 
     MessagePart() {}
     MessagePart(String s) : plain(s) {kind = messagepart::plain;}
-    MessagePart(Token t) : token(t) {kind = messagepart::token;}
-    MessagePart(Place p) : place(p) {kind = messagepart::place;}
-    MessagePart(Structure s) : structure(s) {kind = messagepart::structure;}
-    MessagePart(Function f) : function(f) {kind = messagepart::function;}
-    MessagePart(Module m) : module(m) {kind = messagepart::module;}
+    MessagePart(Token* t) : token(t) {kind = messagepart::token;}
+    MessagePart(Place* p) : place(p) {kind = messagepart::place;}
+    MessagePart(Structure* s) : structure(s) {kind = messagepart::structure;}
+    MessagePart(Function* f) : function(f) {kind = messagepart::function;}
+    MessagePart(Module* m) : module(m) {kind = messagepart::module;}
     MessagePart(Label* l) : label(l) {kind = messagepart::label;}
-    MessagePart(Code c) : code(c) {kind = messagepart::code;} 
     MessagePart(Source* s) : source(s) {kind = messagepart::source;}
 };
 
@@ -99,13 +99,23 @@ struct MessageSender {
     };
     Type type;
     amu::Source* source;
-    u32 line, column; // if the sender is Source, give us the line and column 
+    Token* token;
 
     MessageSender() : type(Compiler) {}
     MessageSender(Type type) : type(type) {}
     MessageSender(amu::Source* s) : type(Source), source(s) {}
-    MessageSender(amu::Source* s, Token& t) : type(SourceLoc), source(s) {line = t.l0; column = t.c0;}
+    MessageSender(amu::Source* s, Token* t) : type(SourceLoc), source(s), token(t) {}
 };
+
+namespace message {
+enum kind {
+    normal,
+    warning,
+    error,
+    note,
+    debug,
+};
+}
 
 // a representation of a single message to be delivered to some destination
 // consists of MessageParts that the Messenger formats before delivering
@@ -114,15 +124,7 @@ struct Message {
     u64 time;
 
     MessageSender sender;
-
-    enum Type {
-        Normal,
-        Warning,
-        Error,
-        Note,
-        Debug,
-    };
-    Type type;
+    message::kind kind;
 
     u32 verbosity; // set with message::verbosity
 
@@ -249,11 +251,11 @@ init(T... args);
 
 // initialize a debug message
 Message
-debug(u32 verbosity);
+make_debug(u32 verbosity);
 
 // initialize a debug message with variadic arguments
 template<typename... T> Message
-debug(u32 verbosity, T... args);
+make_debug(u32 verbosity, T... args);
 
 // pushes a Message::Part into the Message
 void
@@ -262,10 +264,6 @@ push(Message& m, MessagePart part);
 // prefixes the message with some part
 void
 prefix(Message& m, MessagePart part);
-
-// prefixes a Message with warning formatting
-void
-warning(Message& m);
 
 // constructs a plain part
 MessagePart

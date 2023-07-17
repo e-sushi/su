@@ -1,0 +1,292 @@
+group path {
+    diagnostic not_found {
+        type: error;
+        message: {
+            en: "the path %path% cound not be found";
+        }
+    }
+}
+
+group compiler {
+    diagnostic expected_a_path_for_arg {
+        type: error;
+        message: {
+            en: "expected a path for arg '%String%'";
+        }
+    }
+
+    diagnostic unknown_option {
+        type: error;
+        message: {
+            en: "unknown option '%String%'";
+        }
+    }
+
+    diagnostic no_path_given {
+        type: error;
+        message: {
+            en: "no input file";
+        }
+    }
+}
+
+group lexer {
+    diagnostic unexpected_eof_single_quotes {
+        type: error;
+        message: {
+            en: "unexpected EOF encountered while parsing single quotes";
+            jp: "一重引用符は解析すながら予期せぬファイルの終わり見つかり";
+        }
+    }
+
+    diagnostic unexpected_eof_double_quotes {
+        type: error;
+        message: {
+            en: "unexpected EOF encountered while parsing double quotes";
+            jp: "二重引用符は解析すながら予期せぬファイルの終わり見つかり";
+        }
+    }
+
+    diagnostic multiline_comment_missing_end {
+        type: error;
+        message: {
+            en: "multiline comment missing '*/'";
+            jp: "複数行コメントの'*/'がぬけています";
+        }
+    }
+
+    diagnostic unknown_directive {
+        type: error;
+        message: {
+            en: "unknown directive %identifier%";
+            jp: "不明の命令%identifier%";
+        }
+    }
+
+    diagnostic invalid_token {
+        type: error;
+        message: {
+            en: "invalid token";
+            jp: "無効のトークン";
+        }
+    }
+}
+
+group parser {
+    diagnostic expected_type {
+        type: error;
+        message: {
+            en: "expected a type";
+            jp: "タイプが期待した";
+        }
+    }
+
+    diagnostic expected_label_or_import {
+        type: error;
+        message: {
+            en: "expected a label or import";
+            jp: "名札か輸入が期待した";
+        }
+    }
+
+    diagnostic expected_identifier {
+        type: error;
+        message: {
+            en: "expected an identifier";
+            jp: "識別名が期待した";
+        }
+    }
+
+    diagnostic expected_import_directive {
+        type: error;
+        message: {
+            en: "expected an import directive";
+            jp: "輸入命令が期待した";
+        }
+    }
+
+    diagnostic expected_colon_for_label {
+        type: error;
+        message: {
+            en: "expected a ':' after label(s)";
+            jp: "ラベルの後にコロンが必要";
+        }
+    }
+
+    diagnostic expected_comma_or_closing_paren_tuple {
+        type: error;
+        message: {
+            en: "expected a ',' or ')' for tuple";
+        }
+    }
+
+    diagnostic unexpected_token {
+        type: error;
+        message: {
+            en: "unexpected token %token%";
+        }
+    }
+
+    diagnostic expected_open_paren {
+        type: error;
+        message: {
+            en: "expected a '('";
+        }
+    }
+
+    diagnostic expected_close_paren {
+        type: error;
+        message: {
+            en: "expected a ')'";
+        }
+    }
+
+    diagnostic expected_open_brace {
+        type: error;
+        message: {
+            en: "expected a '{'";
+        }
+    }
+
+    diagnostic expected_close_brace {
+        type: error;
+        message: {
+            en: "expected a '}'";
+        }
+    }
+
+    diagnostic label_group_missing_id {
+        type: error;
+        message: {
+            en: "trailing comma not allowed in multi-label declaration";
+        }
+    }
+
+    diagnostic label_missing_colon {
+        type: error;
+        message: {
+            en: "missing a ':' after label identifier(s)";
+        }
+    }
+
+    diagnostic switch_missing_open_paren {
+        type: error;
+        message: {
+            en: "missing a '(' after 'switch'";
+        }
+    }
+
+    diagnostic switch_missing_close_paren {
+        type: error;
+        message: {
+            en: "missing a ')' after switch's expression";
+        }
+    }
+
+    diagnostic switch_missing_open_brace {
+        type: error;
+        message: {
+            en: "missing a '{' to start switch expression";
+        }
+    }
+
+    diagnostic switch_empty_body {
+        type: warning;
+        message: {
+            en: "empty switch body";
+        }
+    }
+
+    diagnostic switch_missing_match_arrow_after_expr {
+        type: error;
+        message: {
+            en: "expected a '=>' after expression in switch expression";
+        }
+    }
+
+    diagnostic switch_missing_comma_after_match_arm {
+        type: error;
+        message: {
+            en: "expected a ',' after switch arm that does not end with a '}'";
+        }
+    }
+
+    diagnostic tuple_expected_comma_or_close_paren {
+        type: error;
+        message: {
+            en: "expected a ',' or ')' for tuple";
+        }
+    }
+
+    diagnostic if_missing_open_paren {
+        type: error;
+        message: {
+            en: "missing '(' after 'if'";
+        }
+    }
+
+    diagnostic if_missing_close_paren {
+        type: error;
+        message: {
+            en: "missing ')' after if expression's condition";
+        }
+    }
+
+    diagnostic missing_semicolon {
+        type: error;
+        message: {
+            en: "missing ';'";
+        }
+    }
+
+    diagnostic missing_function_return_type {
+        type: error;
+        message: {
+            en: "missing return type(s) for function";
+        }
+    }
+
+    diagnostic missing_open_brace_for_struct {
+        type: error;
+        message: {
+            en: "missing '{' after 'struct'";
+        }
+    }
+
+    diagnostic struct_only_labels_allowed {
+        type: error;
+        message: {
+            en: "only labels are allowed in structures";
+        }
+    }
+
+    diagnostic struct_member_functions_not_allowed {
+        type: error;
+        message: {
+            en: "member functions are not allowed";
+        }
+    }
+
+    diagnostic extraneous_close_brace {
+        type: error;
+        message: {
+            en: "extraneous closing blace '}'";
+        }
+    }
+
+    diagnostic unexpected_token_in_module {
+        type: error;
+        message: {
+            en: "unexpected token in module, only labels and directives are allowed";
+        }
+    }
+}
+
+group internal {
+    diagnostic valid_path_but_internal_err {
+        type: error;
+        message: {
+            en: "valid path, %path%, was given, but couldn't be opened due to an internal error: %String%";
+        }
+    }
+}

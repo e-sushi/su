@@ -55,6 +55,8 @@ struct Compiler {
         Pool<Tuple>      tuples;
         Pool<Type>       types;
     }storage;
+
+    Array<Diagnostic> diagnostics;
     
     struct {
         u32 verbosity;
@@ -98,7 +100,7 @@ begin(Array<String> args);
 
 // loads a file as an amu::Source and stores it internally
 // returns a handle to the Source
-global Result<Source*, Message>
+global Source*
 load_source(String path);
 
 // attempts to locate a given source name

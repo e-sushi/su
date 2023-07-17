@@ -120,7 +120,7 @@ stream_next;                       \
     Stopwatch lexer_time = start_stopwatch();
     
     messenger::dispatch(message::attach_sender(lexer.source,
-        message::debug(message::verbosity::stages, 
+        message::make_debug(message::verbosity::stages, 
             String("beginning lexical analysis."))));
 
     String stream = lexer.source->buffer;
@@ -193,8 +193,8 @@ stream_next;                       \
 				while(*stream.str != '\'') {//skip until closing single quotes
 					stream_next; 
 					if(*stream.str == 0){
-                        messenger::dispatch(message::attach_sender({lexer.source, token}, 
-                            diagnostic::lexer::unexpected_eof_single_quotes()));
+						diagnostic::lexer::
+							unexpected_eof_single_quotes({lexer.source, &token});
 						lexer.status.failed = true;
                         return;
 					}
@@ -217,8 +217,8 @@ stream_next;                       \
 				while(*stream.str != '"'){
 					stream_next; //skip until closing double quotes
 					if(*stream.str == 0){
-                        messenger::dispatch(message::attach_sender({lexer.source, token},
-                            diagnostic::lexer::unexpected_eof_double_quotes()));
+						diagnostic::lexer::
+							unexpected_eof_double_quotes({lexer.source, &token});
                         lexer.status.failed = true;
 						return;
 					}	
@@ -328,8 +328,8 @@ stream_next;                       \
 				}else if(*stream.str == '*'){
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
-						messenger::dispatch(message::attach_sender(lexer.source,
-                            diagnostic::lexer::multiline_comment_missing_end()));
+                        diagnostic::lexer::
+							multiline_comment_missing_end(lexer.source);
                         lexer.status.failed = 1;                        
 						return;
 					}
@@ -382,8 +382,8 @@ stream_next;                       \
 					if(lexer.tokens.count && array::read(lexer.tokens, -1).kind == token::pound){
 						token::kind kind = internal::token_is_directive_or_identifier(token.raw);
 						if(kind == token::identifier){
-                            messenger::dispatch(message::attach_sender({lexer.source, token}, 
-                                diagnostic::lexer::unknown_directive(token.raw)));
+                            diagnostic::lexer::
+								unknown_directive({lexer.source, &token}, token.raw);
                             lexer.status.failed = true;
 						}
 						token.kind = kind;
@@ -395,8 +395,7 @@ stream_next;                       \
 						}
 					}
 				}else{
-                    messenger::dispatch(message::attach_sender({lexer.source, token},
-                        diagnostic::lexer::invalid_token()));
+					diagnostic::lexer::invalid_token({lexer.source, &token});
 					token.kind = token::error;
                     lexer.status.failed = true;
 					stream_next;
@@ -445,8 +444,8 @@ output(Lexer& lexer, b32 human, String path) {
     FileResult result = {};
     File* out = file_init_result(path.s, FileAccess_WriteTruncateCreate, &result);
     if(!out) {
-        messenger::dispatch(
-            diagnostic::internal::valid_path_but_internal_err(path, String(result.message)));
+		diagnostic::internal::
+			valid_path_but_internal_err(lexer.source, path, String(result.message));
         return;
     }
 

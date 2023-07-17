@@ -10,6 +10,7 @@
 
 #include "Entity.h"
 #include "core/file.h"
+#include "Diagnostics.h"
 
 namespace amu {
 
@@ -18,6 +19,8 @@ struct Parser;
 struct Source {
     File* file;
     DString buffer; // the loaded file
+
+    Array<Diagnostic> diagnostics; // messages associated with this file
 
     // the module representing this Source
     Module* module;

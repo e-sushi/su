@@ -42,13 +42,13 @@ process_part(DString& current, MessagePart& part) {
 
         } break;
         case messagepart::token: {
-            DString temp = dstring::init(part.token.raw);
+            DString temp = dstring::init(part.token->raw);
             if(current_dest->allow_color) {
                 wrap_color(temp, formatting.token.col);
             }
             dstring::prepend(temp, formatting.token.prefix);
             if(formatting.token.show_code_loc) {
-                dstring::append(temp, "(", part.token.l0, ",", part.token.c0, ")");
+                dstring::append(temp, "(", part.token->l0, ",", part.token->c0, ")");
             }
             dstring::append(temp, formatting.token.suffix);
             dstring::append(current, temp);
@@ -91,7 +91,7 @@ process_part(DString& current, MessagePart& part) {
 void
 process_message(DString& current, Message& m) {
     // dont do anything if current verbosity is less than the message's
-    if(m.type == Message::Debug && m.verbosity > compiler::instance.options.verbosity) return; 
+    if(m.kind == message::debug && m.verbosity > compiler::instance.options.verbosity) return; 
 
     switch(m.sender.type) {
         case MessageSender::Compiler: {
@@ -107,17 +107,17 @@ process_message(DString& current, Message& m) {
         case MessageSender::SourceLoc: {
             DString temp = dstring::init(String(m.sender.source->file->name));
             wrap_color(temp, message::color_cyan);
-            dstring::append(current, temp, ":", m.sender.line, ":", m.sender.column, ": ");
+            dstring::append(current, temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");
             dstring::deinit(temp);
             
         } break;
     }
 
-    switch(m.type) {
-        case Message::Normal: { // dont need to do anything special
+    switch(m.kind) {
+        case message::normal: { // dont need to do anything special
         } break;
 
-        case Message::Debug: { 
+        case message::debug: { 
             DString temp = dstring::init("debug");
             wrap_color(temp, message::color_green);
             dstring::append(current, temp);
@@ -125,7 +125,7 @@ process_message(DString& current, Message& m) {
             dstring::deinit(temp);
         } break;
 
-        case Message::Warning: {
+        case message::warning: {
             DString temp = dstring::init("warning");
             wrap_color(temp, message::color_yellow);
             dstring::append(current, temp);
@@ -133,7 +133,7 @@ process_message(DString& current, Message& m) {
             dstring::deinit(temp);
         } break;
 
-        case Message::Error: {
+        case message::error: {
             DString temp = dstring::init("error");
             wrap_color(temp, message::color_red);
             dstring::append(current, temp);
@@ -141,7 +141,7 @@ process_message(DString& current, Message& m) {
             dstring::deinit(temp);
         } break;
 
-        case Message::Note: {
+        case message::note: {
             DString temp = dstring::init("note");
             wrap_color(temp, message::color_magenta);
             dstring::append(current, temp);
@@ -172,7 +172,7 @@ init() {
 
 void
 dispatch(Message message) {
-    if(message.type == Message::Debug && compiler::instance.options.deliver_debug_immediately) {
+    if(message.kind == message::debug && compiler::instance.options.deliver_debug_immediately) {
         Array<Message> temp = array::init<Message>(1); // this is weird, change it so that we can just deliver one message immediately
         array::push(temp, message);
         deliver(stdout, temp);
@@ -266,17 +266,17 @@ init(T... args) {
 
 // initialize a debug message
 Message
-debug(u32 verbosity) {
+make_debug(u32 verbosity) {
     Message out = init();
-    out.type = Message::Debug;
+    out.kind = message::debug;
     out.verbosity = verbosity;
     return out;
 }
 
 // initialize a debug message with variadic arguments
 template<typename... T> Message
-debug(u32 verbosity, T... args) {
-    Message out = debug(verbosity);
+make_debug(u32 verbosity, T... args) {
+    Message out = make_debug(verbosity);
     MessagePart arr[sizeof...(T)] = {args...};
     forI(sizeof...(T)) {
         push(out, arr[i]);

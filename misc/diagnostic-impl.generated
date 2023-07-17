@@ -1,0 +1,316 @@
+namespace amu {
+namespace diagnostic {
+namespace path {
+FORCE_INLINE global void
+not_found(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 0;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+} // namespace path
+namespace compiler {
+FORCE_INLINE global void
+expected_a_path_for_arg(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 1;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+unknown_option(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 2;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+no_path_given(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 3;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+} // namespace compiler
+namespace lexer {
+FORCE_INLINE global void
+unexpected_eof_single_quotes(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 4;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+unexpected_eof_double_quotes(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 5;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+multiline_comment_missing_end(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 6;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+unknown_directive(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 7;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+invalid_token(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 8;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+} // namespace lexer
+namespace parser {
+FORCE_INLINE global void
+expected_type(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 9;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_label_or_import(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 10;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_identifier(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 11;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_import_directive(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 12;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_colon_for_label(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 13;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_comma_or_closing_paren_tuple(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 14;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+unexpected_token(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 15;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_open_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 16;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_close_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 17;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_open_brace(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 18;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+expected_close_brace(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 19;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+label_group_missing_id(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 20;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+label_missing_colon(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 21;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+switch_missing_open_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 22;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+switch_missing_close_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 23;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+switch_missing_open_brace(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 24;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+switch_empty_body(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 25;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+switch_missing_match_arrow_after_expr(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 26;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+switch_missing_comma_after_match_arm(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 27;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+tuple_expected_comma_or_close_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 28;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+if_missing_open_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 29;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+if_missing_close_paren(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 30;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+missing_semicolon(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 31;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+missing_function_return_type(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 32;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+missing_open_brace_for_struct(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 33;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+struct_only_labels_allowed(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 34;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+struct_member_functions_not_allowed(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 35;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+extraneous_close_brace(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 36;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+FORCE_INLINE global void
+unexpected_token_in_module(MessageSender sender) {
+	Diagnostic diag = {0};
+	diag.code = 37;
+	diag.sender = sender;
+	array::push(sender.source->diagnostics, diag);
+}
+
+} // namespace parser
+} // namespace diagnostic
+} // namespace amu

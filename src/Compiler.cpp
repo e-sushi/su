@@ -84,8 +84,8 @@ begin(Array<String> args) {
                     } else break;
                 }
                 if(arg.str[0] == '-') {
-                    messenger::dispatch(message::attach_sender(MessageSender::Compiler,
-                        diagnostic::compiler::expected_a_path_for_arg("--dump-tokens")));
+                    diagnostic::compiler::
+                        expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens");
                     messenger::deliver(stdout); messenger::deliver(instance.log_file);
                     return;
                 }
@@ -94,8 +94,8 @@ begin(Array<String> args) {
 
             default: {
                 if(arg.str[0] == '-') {
-                    messenger::dispatch(message::attach_sender(MessageSender::Compiler,
-                        diagnostic::compiler::unknown_option(arg)));
+                    diagnostic::compiler::
+                        unknown_option(MessageSender::Compiler, arg);
                     messenger::deliver(stdout); messenger::deliver(instance.log_file);
                     return;
                 }
@@ -107,30 +107,26 @@ begin(Array<String> args) {
     }
 
     if(!path.str){
-        messenger::dispatch(message::attach_sender(MessageSender::Compiler,
-            diagnostic::compiler::no_path_given()));
+        diagnostic::compiler::
+            no_path_given(MessageSender::Compiler);
         messenger::deliver(stdout); messenger::deliver(instance.log_file);
         return;
     }
 
     instance.options.verbosity = message::verbosity::always;
 
-    Source* initsource = 0;
-    {
-        auto load = load_source(path);
-        if(!load) {
-            messenger::dispatch(
-                message::attach_sender(MessageSender::Compiler, load.error));
-            messenger::deliver(stdout); // deliver immediately because we can't start
-            messenger::deliver(instance.log_file);
-            return;
-        }
-        initsource = load.result;
+    Source* load = load_source(path);
+    if(!load) {
+        diagnostic::path::
+            not_found(MessageSender::Compiler, path);
+        messenger::deliver(stdout); // deliver immediately because we can't start
+        messenger::deliver(instance.log_file);
+        return;
     }
 
     Lexer* lexer = pool::add(instance.storage.lexers, 
-            lex::init(initsource));
-    initsource->lexer = lexer;
+            lex::init(load));
+    load->lexer = lexer;
     lex::execute(*lexer);
     
     if(instance.options.dump_tokens.path.str) {
@@ -145,28 +141,23 @@ begin(Array<String> args) {
     messenger::deliver(instance.log_file);
 
     Parser* parser = pool::add(instance.storage.parsers,
-            parser::init(initsource));
-
+            parser::init(load));
+    load->parser = parser;
     parser::execute(*parser);
     messenger::deliver(stdout);
     messenger::deliver(instance.log_file);
 
 }
 
-global Result<Source*, Message>
+global Source*
 load_source(String path) {
-    if(!file_exists(path.s)) {
-        return diagnostic::path::not_found(path);
-    }
+    if(!file_exists(path.s)) return 0;
 
     Source* out = pool::add(instance.storage.sources);
     FileResult result = {};
     out->file = file_init_result(path.s, FileAccess_Read, &result);
 
-    if(!out->file) {
-        pool::remove(instance.storage.sources, out);
-        return diagnostic::internal::valid_path_but_internal_err(path, String(result.message));
-    }
+    if(!out->file) return 0;
 
     // load the source's contents into memory
     u8* buffer = (u8*)memory::allocate(out->file->bytes + 1);
@@ -174,6 +165,8 @@ load_source(String path) {
     out->buffer.s.str = buffer;
     out->buffer.s.count = out->file->bytes;
     out->buffer.s.space = out->file->bytes + 1;
+
+    out->diagnostics = array::init<Diagnostic>();
 
     return out;
 }
