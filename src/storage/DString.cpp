@@ -4,7 +4,10 @@ namespace dstring {
 DString
 init(String s) {
     DString out;
-    dstr8_init(&out.s, s.s, amu_allocator);
+    out.count = s.count;
+    out.space = util::round_up_to(s.count, 8);
+    out.str = (u8*)memory::allocate(out.space); 
+    if(s.str) memcpy(out.str, s.str, s.count);
     return out;
 }
 
@@ -17,19 +20,28 @@ init(T...args) {
 
 void
 deinit(DString& s) {
-    dstr8_deinit(&s.s);
+    memory::free(s.str);
+    memory::zero(&s,sizeof(DString));
+}
+
+void
+grow(DString& s, u64 bytes) {
+    if(bytes) {
+        s.space = util::round_up_to(s.space + bytes, 8);
+        s.str = (u8*)memory::reallocate(s.str, s.space);
+    }
 }
 
 // appends 'b' to 'a'
 void
 append(DString& a, String b) {
-    dstr8_append(&a.s, b.s);
-}
-
-// appends 'b' to 'a'
-void
-append(DString& a, DString b) {
-    dstr8_append(&a.s, b.s.fin);
+    s64 offset = a.count;
+    a.count += b.count;
+    if(a.space < b.count+1) {
+        a.space = util::round_up_to(a.count+1, 8);
+        a.str = (u8*)memory::reallocate(a.str, a.space);
+    }
+    memory::copy(a.str+offset, b.str, b.count); 
 }
 
 template<typename... T> void
@@ -37,22 +49,20 @@ append(DString& a, T... args) {
     (to_string(a, args), ...);
 }
 
+global void
+insert(DString& a, u64 offset, String b) {
+    if(b && offset <= a.count) {
+        s64 required_space = a.count + b.count + 1;
+        if(required_space > a.space) grow(a, required_space - a.space);
+        memory::copy(a.str + offset + b.count, a.str + offset, ((a.count - offset)+1));
+        memory::copy(a.str + offset, b.str, b.count);
+        a.count += b.count;
+    }
+}
+
 void
 prepend(DString& a, String b) {
-    dstr8_insert_byteoffset(&a.s, 0, b.s);
-}
-
-void
-prepend(DString& a, DString b) {
-    dstr8_insert_byteoffset(&a.s, 0, b.s.fin);
-}
-
-// concatenates two Strings into a new String
-DString
-concat(DString& a, DString b) {
-    DString out = init(a);
-    append(out, b);
-    return out;
+    insert(a, 0, b);
 }
 
 // concatenates a String to a String and returns a new String
@@ -63,12 +73,15 @@ concat(DString& a, String b) {
     return out;
 }
 
-// concatenates a String to a String and returns a new String
-DString
-concat(String a, DString b) {
-    DString out = init(a);
-    append(out, b);
-    return out;
+global u64
+remove(DString& a, u64 offset) {
+    if((offset < a.count) && !string::internal::utf8_continuation_byte(*(a.str+offset))) {
+        DecodedCodepoint decoded = string::internal::decoded_codepoint_from_utf8(a.str+offset, 4);
+        memory::copy(a.str+offset, a.str+offset+decoded.advance, a.count - offset);
+        a.count -= decoded.advance;
+        return decoded.advance;
+    }
+    return 0;
 }
 
 } // namespace string

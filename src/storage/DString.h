@@ -32,13 +32,19 @@
 namespace amu {
 
 struct DString {
-    dstr8 s;
+    union {
+		struct {u8* str; s64 count;};
+		String fin;
+	};
+	s64 space;
+
+	DString(){str=0;count=0;space=0;}
 };
 
 namespace dstring {
 
 // initializes a String with an optional initial string
-FORCE_INLINE DString
+DString
 init(String s = ""); 
 
 // variadic version
@@ -46,39 +52,33 @@ template<typename... T> FORCE_INLINE DString
 init(T...args); 
 
 // deinitializes a string, freeing its memory
-FORCE_INLINE void
+void
 deinit(DString& s);
 
-// appends 'b' to 'a'
-FORCE_INLINE void
+void
 append(DString& a, String b);
-
-// appends 'b' to 'a'
-FORCE_INLINE void
-append(DString& a, DString b);
 
 template<typename... T> void
 append(DString& a, T... args);
 
+// offset is a byte offset, NOT a codepoint offset
+// no checks are done to ensure that the offset is not inside of a codepoint
+global void
+insert(DString& a, u64 offset, String b);
+
 // prepends 'b' to 'a'
-FORCE_INLINE void
+void
 prepend(DString& a, String b);
 
-// prepends 'b' to 'a'
-FORCE_INLINE void
-prepend(DString& a, DString b);
-
-// concatenates two Strings into a new String
-FORCE_INLINE DString
-concat(DString& a, DString b);
-
-// concatenates a str8 to a String and returns a new String
-FORCE_INLINE DString
+// concatenates a String to a DString and returns a new DString
+DString
 concat(DString& a, String b);
 
-// concatenates a String to a str8 and returns a new String
-FORCE_INLINE DString
-concat(String a, DString b);
+// removes a codepoint at BYTE 'offset' 
+// if the given offset is within a codepoint, or the offset is greater than 'a's length, returns 0
+// returns how many bytes were removed
+global u64
+remove(DString& a, u64 offset);
 
 } // namespace dstring
 
@@ -87,8 +87,8 @@ DString to_string(const String& s) {
 }
 
 String::String(const DString& dstr) {
-	str = dstr.s.str;
-	count = dstr.s.count;
+	str = dstr.str;
+	count = dstr.count;
 }
 
 // https://stackoverflow.com/questions/301330/determine-if-type-is-a-pointer-in-a-template-function
@@ -108,53 +108,53 @@ to_string(T x) {
 	}else if constexpr(std::is_same_v<T, char>){
         dstring::append(out, String(&x, 1));
 	}else if constexpr(std::is_same_v<T, s32>){
-		out.s.count = snprintf(nullptr, 0, "%d", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%d", x);
+		out.count = snprintf(nullptr, 0, "%d", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%d", x);
 	}else if constexpr(std::is_same_v<T, long>){
-		out.s.count = snprintf(nullptr, 0, "%ld", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%ld", x);
+		out.count = snprintf(nullptr, 0, "%ld", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%ld", x);
 	}else if constexpr(std::is_same_v<T, s64>){
-		out.s.count = snprintf(nullptr, 0, "%lld", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%lld", x);
+		out.count = snprintf(nullptr, 0, "%lld", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%lld", x);
 	}else if constexpr(std::is_same_v<T, u32>){
-		out.s.count = snprintf(nullptr, 0, "%u", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%u", x);
+		out.count = snprintf(nullptr, 0, "%u", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%u", x);
 	}else if constexpr(std::is_same_v<T, u64>){
-		out.s.count = snprintf(nullptr, 0, "%llu", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%llu", x);
+		out.count = snprintf(nullptr, 0, "%llu", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%llu", x);
 	}else if constexpr(std::is_same_v<T, f32> || std::is_same_v<T, f64>){
-		out.s.count = snprintf(nullptr, 0, "%g", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%g", x);
+		out.count = snprintf(nullptr, 0, "%g", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%g", x);
 	}else if constexpr(std::is_same_v<T, upt>){
-		out.s.count = snprintf(nullptr, 0, "%zu", x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%zu", x);
+		out.count = snprintf(nullptr, 0, "%zu", x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%zu", x);
 	}else if constexpr(is_ptr<T>::value){
-		out.s.count = snprintf(nullptr, 0, "%p", (void*)x);
-		out.s.space = out.s.count+1;
-		out.s.str   = (u8*)memory::allocate(out.s.count+1);
-		Assert(out.s.str, "Failed to allocate memory");
-		snprintf((char*)out.s.str, out.s.count+1, "%p", (void*)x);
+		out.count = snprintf(nullptr, 0, "%p", (void*)x);
+		out.space = out.count+1;
+		out.str   = (u8*)memory::allocate(out.count+1);
+		Assert(out.str, "Failed to allocate memory");
+		snprintf((char*)out.str, out.count+1, "%p", (void*)x);
 	}
 	return out;
 }
@@ -175,67 +175,67 @@ to_string(DString& start, T x) {
         dstring::append(start, String(&x, 1));
     }else if constexpr(std::is_same_v<T, u8>){
         u64 count = snprintf(nullptr, 0, "%d", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%d", x);
-		start.s.count += count;
-		start.s.space = start.s.count + 1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%d", x);
+		start.count += count;
+		start.space = start.count + 1;
 	}else if constexpr(std::is_same_v<T, s32>){
         u64 count = snprintf(nullptr, 0, "%d", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%d", x);
-		start.s.count += count;
-		start.s.space = start.s.count + 1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%d", x);
+		start.count += count;
+		start.space = start.count + 1;
 	}else if constexpr(std::is_same_v<T, long>){
 		u64 count = snprintf(nullptr, 0, "%ld", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%ld", x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%ld", x);
+        start.count += count;
+		start.space = start.count+1;
 	}else if constexpr(std::is_same_v<T, s64>){
         u64 count = snprintf(nullptr, 0, "%lld", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%lld", x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%lld", x);
+        start.count += count;
+		start.space = start.count+1;
 	}else if constexpr(std::is_same_v<T, u32>){
 		u64 count = snprintf(nullptr, 0, "%u", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%u", x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%u", x);
+        start.count += count;
+		start.space = start.count+1;
 	}else if constexpr(std::is_same_v<T, u64>){
 		u64 count = snprintf(nullptr, 0, "%llu", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%llu", x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%llu", x);
+        start.count += count;
+		start.space = start.count+1;
 	}else if constexpr(std::is_same_v<T, f32> || std::is_same_v<T, f64>){
 		u64 count = snprintf(nullptr, 0, "%g", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%g", x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%g", x);
+        start.count += count;
+		start.space = start.count+1;
 	}else if constexpr(std::is_same_v<T, upt>){
 		u64 count = snprintf(nullptr, 0, "%zu", x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%zu", x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%zu", x);
+        start.count += count;
+		start.space = start.count+1;
 	}else if constexpr(is_ptr<T>::value){
 		u64 count = snprintf(nullptr, 0, "%p", (void*)x);
-		start.s.str   = (u8*)memory::reallocate(start.s.str, start.s.count + count + 1);
-		Assert(start.s.str, "Failed to allocate memory");
-		snprintf((char*)start.s.str+start.s.count, count+1, "%p", (void*)x);
-        start.s.count += count;
-		start.s.space = start.s.count+1;
+		start.str   = (u8*)memory::reallocate(start.str, start.count + count + 1);
+		Assert(start.str, "Failed to allocate memory");
+		snprintf((char*)start.str+start.count, count+1, "%p", (void*)x);
+        start.count += count;
+		start.space = start.count+1;
 	}
 }
 
