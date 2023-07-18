@@ -79,6 +79,7 @@
         "string_view": "cpp",
         "*.def": "cpp",
         "*.inc": "cpp",
-        "*.generated": "cpp"
+        "*.generated": "cpp",
+        "span": "cpp"
     }
 }

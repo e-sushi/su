@@ -7,13 +7,10 @@
             "command": "python",
             "args": [
                 "misc/build.py",
-                "-graphics",
-                "opengl",
+                "--ba",
                 //"--r",
                 //"--v",
-                "--ad",
                 //"--pch",
-                //"--ba",
             ],
             "group":{
                 "kind": "build",

@@ -14,20 +14,13 @@
 #   --v    Echo build commands to the console
 #   --d    Build with    debug info and without optimization (default)
 #   --r    Build without debug info and with    optimization
-#   --p    Enable Tracy profiling
-#   --pw   Enable Tracy profiling and force the program to wait for a connection to start running
 #   --sa   Enable static analysis
 #   --ba   Enable build analysis (currently only works with clang with ClangBuildAnalyzer installed)
-#   --nd   Disable building deshi's sources
-#   --ad   Automatically decide to build deshi based on whether or not it has source files newer than the last time it was built. If --nd is used, this is ignored.
-#   --pch  Generate a precompiled header from a selection of headers in the 'precompiled'. If one of these files is found to be newer than its pch, it will be regenerated
+#   --pch  Generate a precompiled header from a selection of headers in the 'precompiled' array. If one of these files is found to be newer than its pch, it will be regenerated
 #
 #   -platform <win32,mac,linux>           Build for specified OS: win32, mac, linux (default: builder's OS)
-#   -graphics <vulkan,opengl,directx>     Build for specified Graphics API (default: vulkan)
 #   -compiler <cl,gcc,clang,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
 #   -linker <link,ld,lld,lld-link>        Build using the specified linker (default: link on Windows, ld on Mac and Linux)
-#   -vulkan_path <path_to_vulkan>         Override the default $VULKAN_SDK path with this path
-#   -tracy_path <path_to_tracy_src>       Set the path to tracy sources
 
 # TODO(sushi) we need to regenerate pch stuff if the graphics api changes, not sure how to properly detect that though
 
@@ -39,12 +32,9 @@ app_name = "amu"
 
 includes = (
     "-Isrc "
-    "-Ideshi/src "
-    "-Ideshi/src/external "
 )
 
 sources = {
-    "deshi": "deshi/src/deshi.cpp",
     "app": "src/amu.cpp"
 }
 
@@ -55,15 +45,15 @@ config = {
     "profiling": "off", # "off", "on", "on and wait"
     "static_analysis": False,
     "build_analysis": False,
-    "build_deshi": True,
-    "auto_build_deshi": False,
     "use_pch": False,
 
-    "platform": "unknown",
     "compiler": "unknown",
     "linker":   "unknown",
-    "graphics": "vulkan",
 }
+
+precompiled = [
+
+]
 
 match platform.system():
     case 'Windows': 
@@ -93,8 +83,6 @@ while i < len(sys.argv):
         case "--pw":   config["profiling"] = "on and wait"
         case "--sa":   config["static_analysis"] = True
         case "--ba":   config["build_analysis"] = True
-        case "--nd":   config["build_deshi"] = False
-        case "--ad":   config["auto_build_deshi"] = True
         case "--pch":  config["use_pch"] = True
         
         case "-platform":
@@ -106,16 +94,6 @@ while i < len(sys.argv):
                     quit()
             else:
                 print("expected a platform (win32, linux, max) after switch '-platform'")
-
-        case "-graphics":
-            if i != len(sys.argv) - 1:
-                i += 1
-                config["graphics"] = sys.argv[i]
-                if config["graphics"] not in ("vulkan", "opengl", "directx"):
-                    print(f"unknown api backend: {sys.argv[i]}, expected one of (vulkan, opengl, directx).")
-                    quit()
-            else:
-                print("expected a graphics api (vulkan, opengl, directx) after switch '-graphics'")
 
         case "-compiler":
             if i != len(sys.argv) - 1:
@@ -136,12 +114,6 @@ while i < len(sys.argv):
                     quit()
             else:
                 print("expected a linker (cl, gcc, clang, clang-cl) after switch '-linker'")
-        case "-tracy_path":
-            if i != len(sys.argv) - 1:
-                i += 1
-                includes += "-I" + sys.argv[i]
-            else:
-                print("expected a path to tracy source")
         case _:
             if sys.argv[i].startswith("-"):
                 print(f"unknown switch: {sys.argv[i]}")
@@ -168,30 +140,13 @@ folders = {}
 folders["misc"] = os.path.dirname(__file__)
 folders["root"] = os.path.abspath(f"{folders['misc']}/..")
 folders["build"] = f"{folders['root']}/build/{config['buildmode']}"
+folders["temp"] = f"{folders['root']}/temp"
 
 os.chdir(folders["root"])
-
-# check if deshi has any source files newer than the last time it was built
-def check_newer_files():
-    if os.path.exists(f"{folders['build']}/deshi.o"):
-        lasttime = os.path.getmtime(f"{folders['build']}/deshi.o")
-        for root, dirs, files in os.walk(f"{folders['root']}/deshi/src"):
-            for file in files:
-                if os.path.getmtime(f"{root}/{file}") > lasttime:
-                    return True
-    else:
-        return True # if deshi.o does not exist then I guess we have to build it..?
-    return False
-
-# if --ad is used and deshi is found to have newer sources that its object file, then we rebuild it
-if config["auto_build_deshi"] and config["build_deshi"] and not check_newer_files():
-    config["build_deshi"] = False
 
 #
 #  data
 #______________________________________________________________________________________________________________________
-
-
 
 parts = {
     "link":{ # various things handed to the linker
@@ -235,24 +190,7 @@ parts = {
             "release": "-DBUILD_INTERNAL=0 -DBUILD_SLOW=0 -DBUILD_RELEASE=1 ",
             "debug": "-DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_RELEASE=0 ",
         },
-        "platform":{
-            "win32": "-DDESHI_WINDOWS=1 -DDESHI_MAC=0 -DDESHI_LINUX=0 ",
-            "linux": "-DDESHI_WINDOWS=0 -DDESHI_MAC=0 -DDESHI_LINUX=1 ",
-            "mac":   "-DDESHI_WINDOWS=0 -DDESHI_MAC=1 -DDESHI_LINUX=0 ",
-        },
-        "graphics":{
-            "vulkan":  "-DDESHI_VULKAN=1 -DDESHI_OPENGL=0 -DDESHI_DIRECTX12=0 ",
-            "opengl":  "-DDESHI_VULKAN=0 -DDESHI_OPENGL=1 -DDESHI_DIRECTX12=0 ",
-            "directx": "-DDESHI_VULKAN=0 -DDESHI_OPENGL=0 -DDESHI_DIRECTX12=1 ",
-            "none":    "-DDESHI_VULKAN=0 -DDESHI_OPENGL=0 -DDESHI_DIRECTX12=0 ",
-        },
-        "profiling":{
-            "on":          "-DTRACY_ENABLE ",
-            "on and wait": "-DTRACY_ENABLE -DDESHI_WAIT_FOR_TRACY_CONNECTION ",
-            "off": "",
-        },
     },
-
 
     "compiler_flags":{
 
@@ -372,17 +310,9 @@ if config["build_analysis"]:
 #  construct compiler commands
 #______________________________________________________________________________________________________________________
 
-header = f'{datetime.now().strftime("%a, %h %d %Y, %H:%M:%S")} ({config["compiler"]}/{config["buildmode"]}/{config["graphics"]}) [{app_name}]'
+header = f'{datetime.now().strftime("%a, %h %d %Y, %H:%M:%S")} ({config["compiler"]}/{config["buildmode"]}) [{app_name}]'
 print(header)
 print('-'*len(header))
-
-# special vulkan case where we need to grab the sdk path
-if config["graphics"] == "vulkan":
-    vpath = os.getenv("VULKAN_SDK", None)
-    if vpath == None:
-        print("the chosen graphics API is Vulkan, but the environment variable VULKAN_SDK is not set")
-    parts["link"][config["platform"]]["paths"].append(f'{vpath}lib')
-    includes += f'-I{vpath}include '
 
 link = {
     "flags": "",
@@ -391,15 +321,11 @@ link = {
 }
 
 defines = (
-    parts["defines"]["buildmode"][config["buildmode"]] +
-    parts["defines"]["platform"][config["platform"]] +
-    parts["defines"]["graphics"][config["graphics"]] +
-    parts["defines"]["profiling"][config["profiling"]]
+    parts["defines"]["buildmode"][config["buildmode"]]
 )
 
 link_names = (
-    parts["link"][config["platform"]]["always"] +
-    parts["link"][config["platform"]][config["graphics"]]
+    parts["link"][config["platform"]]["always"]
 )
 
 nameprefix = parts['link']['prefix'][config['linker']]['file']
@@ -445,22 +371,6 @@ if config["use_pch"]:
 
     shared += f"-include-pch {folders['build']}/pch.h.pch "
 
-full_deshi = (
-    f'{config["compiler"]} -c '
-    f'{sources["deshi"]} ' + shared + 
-    f'-o {folders["build"]}/deshi.o'
-) 
-
-full_deshi = full_deshi.replace("c++20", "c++17")
-
-# dream on it 
-
-# f = open("deshi/src/external/stb/stb_image.h", "r")
-# buff = f.read()
-# startidx = buff.find("#ifdef STB_IMAGE_IMPLEMENTATION")
-# endidx = buff.find("#endif // STB_IMAGE_IMPLEMENTATION")
-# print(buff[idx:idx+128])
-
 full_app = (
     f'{config["compiler"]} -c '
     f'{sources["app"]} ' + shared +
@@ -497,21 +407,13 @@ def run_proc(name, cmd):
         print(f'  \033[31m{name} failed to build\033[0m - {taken}')
 
 start = time.time()
-dproc = Thread(target=run_proc, args=("deshi", full_deshi))
 aproc = Thread(target=run_proc, args=(app_name, full_app))
 
 baproc = None
 if config["build_analysis"]:
     subprocess.Popen(f"ClangBuildAnalyzer --start {folders['build']}/".split(' '), stdout=subprocess.PIPE).wait()
 
-if config["build_deshi"]: 
-    dproc.start()
-
 aproc.start()
-
-if config["build_deshi"]: 
-    dproc.join()
-
 aproc.join()
 
 if config["build_analysis"]:
@@ -521,7 +423,6 @@ if config["build_analysis"]:
     file = open(f"{folders['build']}/ctimeanalysis", "w")
     file.write(analysis)
     file.close()
-
 
 lproc = Thread(target=run_proc, args=("exe", full_link))
 lproc.start()
