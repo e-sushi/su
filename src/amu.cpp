@@ -1,95 +1,22 @@
 /* amu
-
-	NOTE(sushi) as of 2022/08/06, a lot of the stuff explained below is not implemented but should serve as an idea for what amu should be when it is mature.
-                some of the purpose is to just write this stuff out to see if it makes sense to explain to someone who has never heard of amu before.
-
-	Introduction
-	------------
-
-	This is the compiler for the programming language amu. The name of the language is subject to change, but the compiler's name is also amu.
-	
-	あむ (kanji: 編む, romanji: amu) literally means "to compile," or "to edit." It also means to knit, to plait, and to braid (source is Jisho). The name was chosen as an
-	alternative to our original name, su. su didn't work because it conflicted with the built in linux command su, and I personally didn't like it because 
-	it was originally chosen when I (sushi) first started working on su and couldnt think of anything else and it felt narcissitic to partially name it after myself. 
-	eventually. I like this name for the compiler because of its meaning, but would like to look into other names for the language itself.
-
-	amu is open to pull requests, issues, and new trusted contributors (as in people who can push whatever they want) if you work enough on it.
-
-	Currently the source code of the compiler, the various notes within, and messages in our discord server serve as the standard specification for amu. 
-	A formal standards document may never be typed up, but it certainly shouldnt be until the compiler and langauge have stabilized.
-
-	amu's syntax and features are rooted in C and C++ and the motivation for its creation is a dislike for the overly complex and strict features of C++
-	and a desire to have C with select features from C++, as well as some extra ideas we have gathered. A lot of the syntax mirrors C/C++, but there are some major differences.
-	For instance, names in amu are always first in syntax. So things like struct, function, and variable declarations start with their name followed by a colon, then
-	its type specifier. The colon has pretty much become the standard syntax for a declaration in amu. This is the main syntax difference, most other things are more
-	or less the same.
-
-	There are some features from C++ that we like, but a lot that we didn't. Features from C++ that we decided to keep include:
-	* function overloading
-	* operator overloading
-	* struct field defaults
-	* generics (templating)
-	and as we go, more may be added. Some features we intend not to include from C++ are things like constructors, deconstructors, and
-	member functions. I (sushi) am personally on the fence about member functions because I think they are useful in inheritance cases, but until
-	someone wants/needs them, they will not be implemented. The only other main reason for implementing them (to me, at least), syntax, is covered
-	by our choice to implement Uniform Function Call Syntax, which is explained somewhere else. TODO(sushi) point to where it is explained.
-	We decided against contructors and deconstructors because of our experience with them in C++. We think there are better solutions to this problem than
-	what C++ implemented. In C++, there are MANY rules to how you make a struct or class because of them and it adds overhead as well as makes some things
-	very frustrating to do, such as using unions. It is likely that amu will implement a way to define a function to call on construction and deconstruction
-	in the future, but it will simply be a function that is called in these cases and nothing more.
-
-	Some features we intend to implement that are not from C/C++ are things like reflection, advanced metaprogramming, running arbitrary code at compile
-	time, 
-
-	The compiler is meant to be as customizable and useful as possible. The text output formatting can be widely customized and any message and message group
-	can be disabled. Any warning can be turned off or treated as an error. You can set filters on output such as file or function names. The data from any stage
-	in amu can be output to be used externally, and (ideally) be fed back into the compiler to continue from.
-
-	The language itself is also meant to be highly customizable through powerful metaprogramming and compile time features, 
-	but this will be implemented and written about later.
-
-	Getting Started
-	---------------
-
-	All options for building a project are made in a build file. This file defines all options for the compiler and is meant
-	to be the only thing passed to the compiler. This file is not restricted to acting as a build script and can be the code itself in one file,
-	amu just expects the passed file to contain the options for compiling rather than on the command line.
-
-	To generate a basic build file template you can use 
-		amu -i
-	This will make a build file in the current directory, to place it somewhere else, or to give the file a custom name, just pass a path
-	after the init command. For example this will initialize a build file in the else folder with the name "build.amu":
-		amu init /path/to/somewhere/else/
-	This will initialize a build file in the current directory with the name "myprog.amu":
-		amu init myprog.amu
-
-	The default build template only contains the most common options for compiling. If you would like a build file that contains all possible options 
-	for the compiler use
-		amu -init-full
-	This will create a build file that contains every single option you can change in the compiler, set to its default value.
-
-	This file is intended to be the only thing passed to amu from now on. Think of it like JUMBO or Unity builds from C/C++, all used files
-	will be imported by or included into this file. 
-	
-	The build file can either contain an entry point function titled "main" of any integer return type with no arguments, or the compiler's entry point option can be 
-	set to the name of the function you would like to start from in included files. Of course this function cannot have overloads and must return an integer 
-	(signed, unsigned, doesnt matter) or void. 
-
-	If you dont want amu to output anything to stdout, regardless of the build file's settings, start with the command 'quiet', for example
-		amu -q build.amu
-	will not output anything to the console.
-	
-	TODO(sushi) determine how arguments to this function should be handled especially in the case of cli args.
-			    its possible that we could allow an overloaded entry point, deducing type from command line arguments, but this may be too complicated.
-
-
-	
-
+	TODO(sushi) rewrite description of amu
 */
 
-/* NOTES
 
+/* NOTES
+	Following are some notes about designing the compiler
+
+	No type will ever have a constructor that initializes memory nor a deconstructor that deinitializes memory. This functionality is to be 
+	implemented through explicit 'init' and 'deinit' functions. Really, no dynamic memory manipulation may ever be done through either of these.
+	Constructors should primarily be used for conversions or simple initialization of a struct with arguments, for example, String heavily uses
+	constructors for compile time creation from string literals and implicit conversion from DString to String.
 	
+	The C++ std library should only be used in cases where platform specific functionality is required. Otherwise, amu prioritizes implementing 
+	things on its own.
+
+	Member functions should be almost always be avoided in favor of putting this functionality behind a namespace
+	populated with equivalent functions taking a reference to the thing to be called on as the first argument.
+
 */
 
 /*	TODOs
@@ -157,18 +84,11 @@
 */
 
 
-#include "time.h"
+#include "Common.h"
+#include "util.h"
 
-#include "kigu/common.h"
-#include "kigu/unicode.h"
-#include "kigu/string_utils.h"
-
-#include "core/memory.h" 
-#include "core/file.h"
-#include "core/logger.h"
-#include "core/platform.h"
-#include "core/threading.h"
-#include "core/time.h"
+#include <iostream>
+#include <filesystem>
 
 #include "basic/Node.h"
 #include "storage/Pool.h"
@@ -208,18 +128,13 @@
 #include "Parser.cpp"
 
 int main(int argc, char* argv[]){DPZoneScoped;
-   	memory_init(Megabytes(1024), Megabytes(1024));//this much memory should not be needed, will trim later
-   	platform_init();
-   	logger_init();
-	threader_init(4, 4, 10);
-
 	{using namespace amu;
 
 		compiler::init();
 
 		auto args = array::init<String>(argc);
 		forI(argc) {
-			array::push(args, string::init(argv[i]));
+			array::push(args, string::init(argv[i]));q
 		}
 
 		compiler::begin(args);

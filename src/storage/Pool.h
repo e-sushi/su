@@ -22,17 +22,12 @@
 #ifndef AMU_POOL_H
 #define AMU_POOL_H
 
-#include "kigu/common.h"
-#include "kigu/node.h"
-#include "kigu/array.h"
 #include "basic/Node.h"
 
 namespace amu {
 
 template<typename T>
 struct Pool {
-    mutex lock;
-
     // how many of 'T' we store per chunk
     u32 items_per_chunk; 
     // root of free blocks
@@ -81,13 +76,13 @@ iterator(Pool<T>& pool);
 // and then increments it
 // if we are at the end of the iteration, 0 is returned
 template<typename T>  T*
-next(Iterator<T>* iter);
+next(Iterator<T>& iter);
 
 // returns the current item of the Iterator
 // and the decrements it
 // if we are at the beginning of the iteration, 0 is returned
 template<typename T> T*
-prev(Iterator<T>* iter);
+prev(Iterator<T>& iter);
 
 } // namespace pool
 } // namespace amu

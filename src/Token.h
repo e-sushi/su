@@ -5,7 +5,6 @@
 #ifndef AMU_TOKEN_H
 #define AMU_TOKEN_H
 
-#include "kigu/common.h"
 #include "Source.h"
 
 namespace amu{

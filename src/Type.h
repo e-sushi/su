@@ -7,10 +7,11 @@
 #ifndef AMU_TYPE_H
 #define AMU_TYPE_H
 
-#include "Entity.h"
+#include "Token.h"
 
 namespace amu {
 
+struct Structure;
 struct Type {
     // if this is 0, then the type is a pointer 
     Structure* structure; // the base struct of this type

@@ -28,6 +28,13 @@ group compiler {
             en: "no input file";
         }
     }
+
+    diagnostic expected_path_or_paths_for_arg_option {
+        type: error;
+        message: {
+            en: "expected a path or paths for argument option '%String%'";
+        }
+    }
 }
 
 group lexer {

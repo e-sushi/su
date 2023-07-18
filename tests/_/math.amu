@@ -1,18 +1,18 @@
-cos(x : f32) : f32 {
+cos :: (x : f32) -> f32 {
     // do cos
     return 0.0;
 }
 
-cos(x:f32, y:f32) : f32{
+cos :: (x:f32, y:f32) -> f32 {
     return 0.0;
 }
 
-sin(x : f32) : f32 {
+sin :: (x : f32) -> f32 {
     // do cos
     return 0.0;
 }
 
-log(x: f32) : f32 {
+log :: (x: f32) -> f32 {
     // do cos
     return 0.0;
 }

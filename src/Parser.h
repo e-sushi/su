@@ -14,9 +14,9 @@ struct Parser {
     Source* source;
 
     struct {
-        SharedArray<Label*> exported;
-        SharedArray<Label*> imported;
-        SharedArray<Label*> internal;
+        Array<Label*> exported; // !Threading: these will need to be SharedArrays or locked with some mutex
+        Array<Label*> imported;
+        Array<Label*> internal;
     } labels;
 
      struct{
@@ -28,14 +28,6 @@ struct Parser {
     struct{ 
         b32 failed;
     }status;    
-};
-
-// data used by individual threads
-struct ParserThread {
-    Parser* parser;
-
-   
-
 };
 
 namespace parser {

@@ -61,7 +61,7 @@ insert(Array<T>& arr, spt idx) {
 
     internal::grow_if_needed(arr);
 
-    MoveMemory(arr.data + idx + 1, arr.data + idx + 2, sizeof(T) * (arr.count - idx));
+    memory::move(arr.data + idx + 1, arr.data + idx + 2, sizeof(T) * (arr.count - idx));
     arr.count += 1;
     return arr.data + idx;
 }
@@ -75,7 +75,7 @@ insert(Array<T>& arr, spt idx, const T& val) {
     if(!arr.count) {
         array::push(arr, val);
     } else {
-        MoveMemory(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
+        memory::move(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
         arr.count += 1;
         *(arr.data + idx) = val;
     }
@@ -89,7 +89,7 @@ remove(Array<T>& arr, u32 idx, b32 unordered) {
     if(unordered) {
         arr.data[idx] = arr.data[arr.count];
     } else {
-        MoveMemory(arr.data+idx, arr.data+idx+1, sizeof(T)*(arr.count - idx));
+        memory::move(arr.data+idx, arr.data+idx+1, sizeof(T)*(arr.count - idx));
     }
 }
 

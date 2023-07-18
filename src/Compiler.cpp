@@ -7,10 +7,9 @@ Compiler instance;
 
 void
 init() {
-    instance.deshi_mem_lock = mutex_init();
-    instance.compiler_time = start_stopwatch();
+    instance.compiler_time = util::stopwatch::start();
 
-    instance.log_file = file_init(str8l("temp/log"), FileAccess_WriteCreate);
+    instance.log_file = fopen("temp/log", "w");
 
     instance.storage.sources     = pool::init<Source>(32);
     instance.storage.lexers      = pool::init<Lexer>(32);
@@ -56,23 +55,24 @@ init() {
 
     compiler::builtins.functype = compiler::create_structure();
     compiler::builtins.functype->size = compiler::builtins.unsigned64->size;
-
+    
     messenger::init();
 }
 
 global void
-deinit() {
-    mutex_deinit(&instance.deshi_mem_lock);
-}
+deinit() {}
 
-global void
-begin(Array<String> args) {
-    String path;
+namespace internal {
 
+b32 parse_arguments(Array<String> args) {
     for(s32 i = 1; i < args.count; i++) {
         String arg = array::read(args, i);
         u64 hash = string::hash(arg);
         switch(hash) {
+
+            case string::static_hash("-q"): {
+                instance.options.quiet = true;
+            } break;
 
             case string::static_hash("--dump-tokens"): {
                 while(i != args.count-1) {
@@ -87,9 +87,42 @@ begin(Array<String> args) {
                     diagnostic::compiler::
                         expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens");
                     messenger::deliver(stdout); messenger::deliver(instance.log_file);
-                    return;
+                    return false;
                 }
                 instance.options.dump_tokens.path = arg;
+            } break;
+
+            case string::static_hash("--dump-diagnostics"): {
+                arg = array::read(args, ++i);
+                if(string::equal(arg, "-source")) {
+                    instance.options.dump_diagnostics.sources = array::init<String>();
+                    arg = array::read(args, ++i);
+                    if(arg.str[0] == '-') {
+                        diagnostic::compiler::
+                            expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source");
+                        messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                        return false;
+                    }
+                    String curt = arg;
+                    curt.count = 0;
+                    forI(arg.count) {
+                        curt.count++;
+                        if(i == arg.count-1 || arg.str[i] == ' ' || arg.str[i+1] == ',') {
+                            array::push(instance.options.dump_diagnostics.sources, curt);
+                            curt.str = arg.str + i + 1;
+                            if(arg.str[i+1] == ',') curt.str++;
+                            curt.count = 0;
+                        }
+                    }
+                    arg = array::read(args, ++i);
+                }
+                if(arg.str[0] == '-') {
+                    diagnostic::compiler::
+                        expected_a_path_for_arg(MessageSender::Compiler, "--dump-diagnostics");
+                    messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                    return false;
+                }
+                instance.options.dump_diagnostics.path = arg;
             } break;
 
             default: {
@@ -97,16 +130,66 @@ begin(Array<String> args) {
                     diagnostic::compiler::
                         unknown_option(MessageSender::Compiler, arg);
                     messenger::deliver(stdout); messenger::deliver(instance.log_file);
-                    return;
+                    return false;
                 }
                 // otherwise this is (hopefully) a path
-                path = arg;
-
+                instance.options.entry_path = arg;
             } break;
         }
     }
 
-    if(!path.str){
+    return true;
+} 
+
+b32 dump_diagnostics(String path, Array<String> sources) {
+    FILE* out = fopen((char*)path.str, "w");
+    if(sources.count) {
+        NotImplemented; // TODO(sushi) selective diag dump
+        // forI(sources.count){
+        //     Source* s = lookup_source(array::read(sources, i));
+        //     if(!s) return false;
+            
+        // }
+    }
+
+    struct DiagnosticEntry {
+        u64 source_offset;
+        Diagnostic diag;
+    };
+    
+    auto source_table = array::init<Source*>();
+    auto diagnostics = array::init<DiagnosticEntry>();;
+
+    pool::Iterator<Source> iter = pool::iterator(instance.storage.sources);
+    
+    DString source_strings = dstring::init();
+
+    Source* current = 0;
+    while((current = pool::next(iter))) {
+        if(!current->diagnostics.count) continue;
+        array::push(source_table, current);
+        u64 source_offset = sizeof(u64)+source_strings.count;
+        forI(current->diagnostics.count) {
+            array::push(diagnostics, 
+                {source_offset, array::read(current->diagnostics, i)});
+        }
+        dstring::append(source_strings, '"', std::filesystem::absolute(current->path), '"');
+    }
+
+    fwrite(&source_strings.count, sizeof(u64), 1, out);
+    fwrite(source_strings.str, source_strings.count, 1, out);
+    fwrite(diagnostics.data, diagnostics.count*sizeof(DiagnosticEntry), 1, out);
+
+    return true;
+}
+
+} // namespace internal
+
+global void
+begin(Array<String> args) {
+    internal::parse_arguments(args);
+
+    if(!instance.options.entry_path.str){
         diagnostic::compiler::
             no_path_given(MessageSender::Compiler);
         messenger::deliver(stdout); messenger::deliver(instance.log_file);
@@ -115,18 +198,16 @@ begin(Array<String> args) {
 
     instance.options.verbosity = message::verbosity::always;
 
-    Source* load = load_source(path);
-    if(!load) {
+    Source* entry_source = load_source(instance.options.entry_path);
+    if(!entry_source) {
         diagnostic::path::
-            not_found(MessageSender::Compiler, path);
-        messenger::deliver(stdout); // deliver immediately because we can't start
-        messenger::deliver(instance.log_file);
+            not_found(MessageSender::Compiler, instance.options.entry_path);
+        messenger::deliver(stdout); messenger::deliver(instance.log_file);
         return;
     }
 
-    Lexer* lexer = pool::add(instance.storage.lexers, 
-            lex::init(load));
-    load->lexer = lexer;
+    Lexer* lexer = pool::add(instance.storage.lexers, lex::init(entry_source));
+    entry_source->lexer = lexer;
     lex::execute(*lexer);
     
     if(instance.options.dump_tokens.path.str) {
@@ -140,39 +221,53 @@ begin(Array<String> args) {
     messenger::deliver(stdout);
     messenger::deliver(instance.log_file);
 
-    Parser* parser = pool::add(instance.storage.parsers,
-            parser::init(load));
-    load->parser = parser;
+    Parser* parser = pool::add(instance.storage.parsers, parser::init(entry_source));
+    entry_source->parser = parser;
     parser::execute(*parser);
+
     messenger::deliver(stdout);
     messenger::deliver(instance.log_file);
 
+    if(instance.options.dump_diagnostics.path.str) {
+        if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
+    }
 }
 
 global Source*
-load_source(String path) {
-    if(!file_exists(path.s)) return 0;
+load_source(String pathstr) {
+    std::filesystem::path path = (char*)pathstr.str;  
+    
+    if(!std::filesystem::exists(path)) return 0;
 
     Source* out = pool::add(instance.storage.sources);
-    FileResult result = {};
-    out->file = file_init_result(path.s, FileAccess_Read, &result);
+    out->file = fopen(path.c_str(), "r");
 
     if(!out->file) return 0;
 
     // load the source's contents into memory
-    u8* buffer = (u8*)memory::allocate(out->file->bytes + 1);
-    file_read(out->file, buffer, out->file->bytes);
-    out->buffer.s.str = buffer;
-    out->buffer.s.count = out->file->bytes;
-    out->buffer.s.space = out->file->bytes + 1;
+    upt file_size = std::filesystem::file_size(out->path);
+    u8* buffer = (u8*)memory::allocate(file_size + 1);
+    fread(buffer, file_size, 1, out->file);
+    out->buffer.str = buffer;
+    out->buffer.count = file_size;
+    out->buffer.space = file_size + 1;
 
     out->diagnostics = array::init<Diagnostic>();
-
     return out;
 }
 
+// TODO(sushi) we can store a map String -> Source* and do this more efficiently
 global Source*
-lookup_source(String name);
+lookup_source(String name) {
+    auto iter = pool::iterator(instance.storage.sources);
+    Source* current = pool::next(iter);
+    std::filesystem::path path = (char*)name.str;
+    while(current) {
+        if(std::filesystem::equivalent(path, current->path)) return current;
+        pool::next(iter);        
+    }
+    return 0;
+}
 
 global Label*
 create_label() {

@@ -5,9 +5,9 @@ Parser
 init(Source* source) {
     Parser out;
     out.source = source;
-    out.labels.exported = shared_array::init<Label*>();
-    out.labels.imported = shared_array::init<Label*>();
-    out.labels.internal = shared_array::init<Label*>();
+    out.labels.exported = array::init<Label*>();
+    out.labels.imported = array::init<Label*>();
+    out.labels.internal = array::init<Label*>();
     out.label.stack = array::init<Label*>();
     out.label.table = map::init<String, Label*>();
 
@@ -17,9 +17,9 @@ init(Source* source) {
 
 void
 deinit(Parser& parser) {
-    shared_array::deinit(parser.labels.exported);
-    shared_array::deinit(parser.labels.imported);
-    shared_array::deinit(parser.labels.internal);
+    array::deinit(parser.labels.exported);
+    array::deinit(parser.labels.imported);
+    array::deinit(parser.labels.internal);
     parser.source = 0;
 }
 
@@ -1239,7 +1239,7 @@ void start() { announce_stage;
 
 void
 execute(Parser& parser) {
-    Stopwatch parser_time = start_stopwatch();
+    util::Stopwatch parser_time = util::stopwatch::start();
 
     messenger::dispatch(message::attach_sender(parser.source,
         message::make_debug(message::verbosity::stages,
@@ -1251,7 +1251,7 @@ execute(Parser& parser) {
     internal::stack = array::init<TNode*>(32);
     internal::start();
 
-    DString time_taken = util::format_time(peek_stopwatch(parser_time));
+    DString time_taken = util::format_time(util::stopwatch::peek(parser_time));
     messenger::dispatch(message::attach_sender(parser.source,
         message::make_debug(message::verbosity::stages, 
             String("syntactic analysis finished in "), String(time_taken))));

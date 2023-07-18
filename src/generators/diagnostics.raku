@@ -214,9 +214,9 @@ sub construct-diag(@diag) {
     "FORCE_INLINE global void\n{@diag[0]}(MessageSender sender$sig) \{\n" ~
     "\tDiagnostic diag = \{0\};\n" ~
     "\tdiag.code = $count;\n" ~
-    "\tdiag.sender = sender;\n" ~
     "\tdiag.severity = diagnostic::$type;\n" ~
-    "\tarray::push(sender.source->diagnostics, diag);\n" ~
+    "\tif(!sender.type) array::push(::amu::compiler::instance.diagnostics, diag);\n" ~
+    "\telse array::push(sender.source->diagnostics, diag);\n" ~
     "\tMessage out = message::init();\n" ~
     "\tout.kind = message::$type;\n" ~
     "\tswitch(lang) \{\n";

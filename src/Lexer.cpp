@@ -55,7 +55,7 @@ FORCE_INLINE b32
 is_identifier_char(u32 codepoint) {
     if(isalnum(codepoint) || codepoint == '_' || codepoint > 127) 
         return true;
-    if(is_whitespace(codepoint)) 
+    if(string::isspace(codepoint)) 
         return false;
     return false;
 }
@@ -68,7 +68,7 @@ Lexer
 init(Source* source) {
     Lexer out;
     out.source = source;
-    out.tokens = array::init<Token>(source->file->bytes); // it will surely not take this many, but we want to try and minimize the amount of reallocations we need to do
+    out.tokens = array::init<Token>(source->buffer.count); // it will surely not take this many, but we want to try and minimize the amount of reallocations we need to do
 	out.global_labels = array::init<spt>();
 	out.structs = array::init<spt>();
 	out.modules = array::init<spt>();
@@ -117,7 +117,7 @@ stream_next;                       \
 }                                  \
 }break;
 
-    Stopwatch lexer_time = start_stopwatch();
+    util::Stopwatch lexer_time = util::stopwatch::start();
     
     messenger::dispatch(message::attach_sender(lexer.source,
         message::make_debug(message::verbosity::stages, 
@@ -141,13 +141,13 @@ stream_next;                       \
         token.line_start = line_start;
         token.raw.str = stream.str;
 
-        switch(utf8codepoint(stream.str)) {
+        switch(string::codepoint(stream)) {
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
 			case ' ': case 133: case 160: case 5760: case 8192:
 			case 8193: case 8194: case 8195: case 8196: case 8197:
 			case 8198: case 8199: case 8200: case 8201: case 8202:
 			case 8232: case 8239: case 8287: case 12288:{
-				while(is_whitespace(utf8codepoint(stream.str))){
+				while(isspace(string::codepoint(stream))){
 					if(*stream.str == '\n'){
 						line_start = stream.str+1;
 						line_num++;
@@ -371,8 +371,8 @@ stream_next;                       \
 			}break;
 			
 			default:{
-				if(internal::is_identifier_char(utf8codepoint(stream.str))){
-				  	while(internal::is_identifier_char(utf8codepoint(stream.str))) 
+				if(internal::is_identifier_char(string::codepoint(stream))){
+				  	while(internal::is_identifier_char(string::codepoint(stream))) 
 						stream_next; //skip until we find a non-identifier char
 
                 	token.raw.count = stream.str - token.raw.str;
@@ -436,16 +436,15 @@ stream_next;                       \
 	eof.raw = String("");
 	array::push(lexer.tokens, eof);
 
-    lexer.status.time = peek_stopwatch(lexer_time);
+    lexer.status.time = util::stopwatch::peek(lexer_time);
 } // lex::execute
 
 void
 output(Lexer& lexer, b32 human, String path) {
-    FileResult result = {};
-    File* out = file_init_result(path.s, FileAccess_WriteTruncateCreate, &result);
+    FILE* out = fopen((char*)path.str, "w");
     if(!out) {
 		diagnostic::internal::
-			valid_path_but_internal_err(lexer.source, path, String(result.message));
+			valid_path_but_internal_err(lexer.source, path, "TODO(sushi) get error info for failing to open lexer::output");
         return;
     }
 
@@ -457,7 +456,7 @@ output(Lexer& lexer, b32 human, String path) {
 			dstring::append(buffer, (u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
 		}
 		
-		file_write(out, buffer.s.str, buffer.s.count);
+		fwrite(buffer.str, buffer.count, 1, out);
 		dstring::deinit(buffer);
 	} else {
 		Array<u32> data = array::init<u32>(4*lexer.tokens.count);
@@ -470,11 +469,11 @@ output(Lexer& lexer, b32 human, String path) {
 			array::push(data, (u32)curt->raw.count);
 		}
 
-		file_write(out, data.data, data.count*sizeof(u32));
+		fwrite(data.data, data.count*sizeof(u32), 1, out);
 		array::deinit(data);
 	}
 
-    file_deinit(out);
+    fclose(out);
 }
 
 } // namespace lex

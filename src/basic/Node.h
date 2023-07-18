@@ -20,11 +20,7 @@
 #ifndef AMU_NODE_H
 #define AMU_NODE_H
 
-#include "kigu/common.h"
 #include "storage/String.h"
-// namespace deshi {
-//     #include "core/threading.h"
-// }
 
 namespace amu{
 struct Token;
@@ -58,7 +54,6 @@ struct TNode {
     //deshi::mutex lock;
 
     node::kind kind;
-    Flags flags;
 
     Token* start;
     Token* end;

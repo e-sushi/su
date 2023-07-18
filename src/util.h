@@ -8,26 +8,33 @@
 #ifndef AMU_UTIL_H
 #define AMU_UTIL_H
 
-#include "kigu/common.h"
-#include "kigu/unicode.h"
-
-namespace deshi {
-#   include "core/threading.h"
-}
+#undef global
+#include <chrono>
+#define global static
 
 namespace amu {
 namespace util {
 
-// debug print functions
-void 
-print(str8 s) {
-    printf("%s", s.str);
+typedef std::chrono::time_point<std::chrono::high_resolution_clock> Stopwatch;
+
+namespace stopwatch {
+
+Stopwatch 
+start() {
+	return std::chrono::high_resolution_clock::now();
 }
 
-void 
-println(str8 s) {
-    printf("%s\n", s.str);
+f64
+peek(Stopwatch watch) {
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - watch).count(); 
 }
+
+void
+reset(Stopwatch& watch) {
+	watch =  std::chrono::high_resolution_clock::now();
+}
+
+} // namespace stopwatch
 
 constexpr s64 
 constexpr_strlen(const char* s) {
@@ -38,7 +45,10 @@ constexpr_strlen(const char* s) {
     return i;
 }
 
-
+constexpr upt
+round_up_to(s64 value, s64 multiple) {
+	return  (((upt)((value) + (((upt)(multiple))-1)) / (upt)(multiple)) * (upt)(multiple));
+}
 
 // specializable generic hash functions
 template<typename T> u64

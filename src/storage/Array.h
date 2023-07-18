@@ -8,8 +8,6 @@
 #ifndef AMU_ARRAY_H
 #define AMU_ARRAY_H
 
-#include "kigu/common.h"
-
 namespace amu {
 
 template<typename T>

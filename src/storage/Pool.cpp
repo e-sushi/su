@@ -27,7 +27,6 @@ new_chunk(Pool<T>& pool) {
 template<typename T> Pool<T>
 init(spt n_per_chunk) {
     Pool<T> out;
-    out.lock = mutex_init();
     out.items_per_chunk = n_per_chunk;
 
     const upt blocksize = sizeof(LNode) + sizeof(T);
@@ -59,8 +58,6 @@ init(spt n_per_chunk) {
 
 template<typename T> void
 deinit(Pool<T>& pool) {
-    shared_mutex_deinit(&pool.lock);
-    
     for(LNode* n = pool.chunk_root->next; n != &pool.chunk_root; n = n->next) {
         memory::free(n);
     }
@@ -68,9 +65,6 @@ deinit(Pool<T>& pool) {
 
 template<typename T> T*
 add(Pool<T>& pool) {
-    mutex_lock(&pool.lock);
-    defer{mutex_unlock(&pool.lock);};
-
     if(pool.free_blocks->next == pool.free_blocks) {
         internal::new_chunk(pool);
     }
@@ -85,9 +79,6 @@ add(Pool<T>& pool) {
 
 template<typename T> T*
 add(Pool<T>& pool, const T& val) {
-    mutex_lock(&pool.lock);
-    defer{mutex_unlock(&pool.lock);};
-
     T* place = add(pool);
     *place = val;
     return place;
@@ -95,9 +86,6 @@ add(Pool<T>& pool, const T& val) {
 
 template<typename T> void
 remove(Pool<T>& pool, T* ptr) {
-    mutex_lock(&pool.lock);
-    defer{mutex_unlock(&pool.lock);};
-
     LNode* header = (LNode*)((u8*)ptr - sizeof(LNode));
     node::remove(header);
     node::insert_before(pool.free_blocks, header);
@@ -107,27 +95,23 @@ template<typename T> Iterator<T>
 iterator(Pool<T>& pool) {
     Iterator<T> out;
     out.pool = &pool;
-    out.current = pool.items.next;
+    out.current = pool.items->next;
     return out;
 }
 
 template<typename T> T*
-next(Iterator<T>* iter) {
-    mutex_lock(&iter->pool->lock);
-    if(iter->current == &iter->pool->items) return 0;
-    T* out = (T*)(iter->current + 1);
-    iter->current = iter->current->next;
-    mutex_unlock(&iter->pool->lock);
+next(Iterator<T>& iter) {
+    if(iter.current == iter.pool->items) return 0;
+    T* out = (T*)(iter.current + 1);
+    iter.current = iter.current->next;
     return out;
 }
 
 template<typename T> T*
-prev(Iterator<T>* iter) {
-    mutex_lock(&iter->pool->lock);
-    if(iter->current == &iter->pool->items) return 0;
-    T* out = (T*)(iter->current + 1);
-    iter->current = iter->current->prev;
-    mutex_unlock(&iter->pool->lock);
+prev(Iterator<T>& iter) {
+    if(iter.current == iter.pool->items) return 0;
+    T* out = (T*)(iter.current + 1);
+    iter.current = iter.current->prev;
     return out;
 }
 

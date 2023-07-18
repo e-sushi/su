@@ -6,27 +6,26 @@
 #define AMU_MEMORY_H
 
 
-#include "kigu/common.h"
-#include "core/memory.h"
-
 namespace amu {
-
-extern Allocator _amu_allocator;
-extern Allocator* amu_allocator;
-
 namespace memory {
 
-extern mutex global_lock;
-
-void* 
+FORCE_INLINE void* 
 allocate(upt size);
 
-void* 
+FORCE_INLINE void* 
 reallocate(void* ptr, upt size);
 
-void 
+FORCE_INLINE void 
 free(void* ptr);
 
+FORCE_INLINE void
+copy(void* destination, void* source, upt bytes);
+
+FORCE_INLINE void
+move(void* destination, void* source, upt bytes);
+
+FORCE_INLINE void
+zero(void* ptr, upt bytes);
 
 } // namespace memory
 } // namespace amu

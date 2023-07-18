@@ -25,14 +25,9 @@ namespace deshi {
 namespace amu {
 
 struct Compiler {
-    Stopwatch compiler_time;
+    util::Stopwatch compiler_time;
 
-    // when we use deshi's memory system, we have to lock it 
-    // because it is not yet internally thread safe
-    // this should primarily be used by amu::Arena
-    mutex deshi_mem_lock;
-
-    File* log_file;
+    FILE* log_file;
 
     // in order to make cleaning up the compiler easy, storage of all things in amu 
     // have their handle inside the compiler struct
@@ -58,15 +53,26 @@ struct Compiler {
 
     Array<Diagnostic> diagnostics;
     
+    // anything that is specified on the command line
     struct {
+        String entry_path;
+
         u32 verbosity;
         b32 deliver_debug_immediately;
+
+        b32 quiet;
 
         struct{
             String path;
             b32 exit;
             b32 human;
         }dump_tokens;
+
+        struct{
+            String path;
+            Array<String> sources;
+        }dump_diagnostics; 
+
     } options;
 };
 
@@ -88,7 +94,7 @@ global struct{
     Structure* functype; // the internal rep for a function 'type', which is just a function pointer 
 }builtins;
 
-// initializes the compiler, storing all information in the global amu::compiler::amu
+// initializes the compiler, storing all information in the global amu::compiler::instance
 global void
 init();
 

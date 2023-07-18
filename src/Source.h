@@ -8,16 +8,18 @@
 #ifndef AMU_SOURCE_H
 #define AMU_SOURCE_H
 
-#include "Entity.h"
-#include "core/file.h"
 #include "Diagnostics.h"
+
 
 namespace amu {
 
 struct Lexer;
 struct Parser;
+struct Module;
 struct Source {
-    File* file;
+    FILE* file;
+    std::filesystem::path path;
+
     DString buffer; // the loaded file
 
     Array<Diagnostic> diagnostics; // messages associated with this file

@@ -151,6 +151,12 @@ utf8_move_back(u8* start){
 #undef unicode_bitmask10
 } // namespace internal
 
+// returns the codepoint that begins 'a'
+global u32
+codepoint(String a) {
+    return internal::decoded_codepoint_from_utf8(a.str, 4).codepoint;
+}
+
 global b32 
 isspace(u32 codepoint){
 	switch(codepoint){
@@ -402,13 +408,12 @@ hash(String s, u64 seed = 14695981039346656037) {
 consteval u64
 static_hash(String s, u64 seed = 14695981039346656037) {
     while(s.count-- != 0){
-		seed ^= (u8)*s.str;
+		seed ^= (u8)*s.__char_str;
 		seed *= 1099511628211; //64bit FNV_prime
-		s.str++;
+		s.__char_str++;
 	}
 	return seed;
 }
-
 
 f64 
 to_f64(const String& s) {

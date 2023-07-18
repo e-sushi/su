@@ -17,7 +17,7 @@ wrap_color(DString& current, u32 color) {
 
 void
 process_part(DString& current, MessagePart& part) {
-    MessageFormatting& formatting = shared_array::readref(instance.formatting_stack, -1);
+    MessageFormatting& formatting = array::readref(instance.formatting_stack, -1);
     switch(part.kind) {
         case messagepart::plain: {
             DString temp = dstring::init(part.plain);
@@ -99,13 +99,13 @@ process_message(DString& current, Message& m) {
             dstring::append(current, compiler_prefix);
         } break;
         case MessageSender::Source: {
-            DString temp = dstring::init(String(m.sender.source->file->name));
+            DString temp = dstring::init(m.sender.source->path.relative_path());
             wrap_color(temp, message::color_cyan);
             dstring::append(current, temp, ": ");
             dstring::deinit(temp);
         } break;
         case MessageSender::SourceLoc: {
-            DString temp = dstring::init(String(m.sender.source->file->name));
+            DString temp = dstring::init(m.sender.source->path.relative_path());
             wrap_color(temp, message::color_cyan);
             dstring::append(current, temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");
             dstring::deinit(temp);
@@ -163,9 +163,8 @@ Messenger instance;
 
 void 
 init() {
-    instance.messages = shared_array::init<Message>();
-    instance.formatting_stack = shared_array::init<MessageFormatting>();
-    instance.delivering = mutex_init();
+    instance.messages = array::init<Message>();
+    instance.formatting_stack = array::init<MessageFormatting>();
 
     push_formatting(MessageFormatting());
 }
@@ -177,7 +176,7 @@ dispatch(Message message) {
         array::push(temp, message);
         deliver(stdout, temp);
         array::deinit(temp);
-    } else shared_array::push(instance.messages, message);
+    } else array::push(instance.messages, message);
 }
 
 // dispatch a plain str8
@@ -193,17 +192,12 @@ dispatch(String message, Source* source) {
 
 void 
 deliver(Destination destination, b32 clear_messages) {
-    Array<Message> temp = shared_array::lock(instance.messages);
-    defer{ shared_array::unlock(instance.messages, temp); };
-    deliver(destination, temp);
+    deliver(destination, instance.messages);
 }
 
 
 void
 deliver(Destination destination, Array<Message> messages) {
-    mutex_lock(&instance.delivering);
-    defer{ mutex_unlock(&instance.delivering); };
-
     DString out = dstring::init();
 
     internal::current_dest = &destination;
@@ -213,24 +207,18 @@ deliver(Destination destination, Array<Message> messages) {
             array::readref(messages, i));
     }
 
-    switch(destination.kind) {
-        case Destination::STLFILE: {
-            size_t bytes_written = fwrite(out.s.str, 1, out.s.count, destination.stl_file);
-        } break;
-        case Destination::DESHFILE: {
-            file_append(destination.desh_file, out.s.str, out.s.count);
-        } break;
-    }
+    if(compiler::instance.options.quiet && destination.file == stdout) return;
+    fwrite(out.str, 1, out.count, destination.file);
 }
 
 void
 push_formatting(MessageFormatting formatting) {
-    shared_array::push(instance.formatting_stack, formatting);
+    array::push(instance.formatting_stack, formatting);
 }
 
 void 
 pop_formatting() {
-    shared_array::pop(instance.formatting_stack);
+    array::pop(instance.formatting_stack);
 }
 
 } // namespace messenger

@@ -1,37 +1,37 @@
 namespace amu {
 
-Allocator _amu_allocator{
-    memory::allocate,
-    memory::free,
-    memory::reallocate,
-};
-Allocator* amu_allocator = &_amu_allocator;
-
 namespace memory {
 
-mutex global_lock;
-
-void* 
+FORCE_INLINE void* 
 allocate(upt size) {
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-    void* out = memalloc(size);
-    mutex_unlock(&compiler::instance.deshi_mem_lock);
+    void* out = malloc(size);
+    zero(out, size);
     return out;
 }
 
-void* 
+FORCE_INLINE void* 
 reallocate(void* ptr, upt size) {
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-    void* out = memrealloc(ptr, size);
-    mutex_unlock(&compiler::instance.deshi_mem_lock);
-    return out;
+    return realloc(ptr, size);
 }
 
-void 
+FORCE_INLINE void 
 free(void* ptr) {
-    mutex_lock(&compiler::instance.deshi_mem_lock);
-    memzfree(ptr);
-    mutex_unlock(&compiler::instance.deshi_mem_lock);
+    ::free(ptr);
+}
+
+FORCE_INLINE void
+copy(void* destination, void* source, upt bytes) {
+    memcpy(destination, source, bytes);
+}
+
+FORCE_INLINE void
+move(void* destination, void* source, upt bytes) {
+    memmove(destination, source, bytes);
+}   
+
+FORCE_INLINE void
+zero(void* ptr, upt bytes) {
+    memset(ptr, 0, bytes);
 }
 
 } // namespace memory

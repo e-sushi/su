@@ -7,7 +7,6 @@
 #ifndef AMU_MESSENGER_H
 #define AMU_MESSENGER_H
 
-#include "kigu/color.h"
 #include "storage/Array.h"
 #include "storage/DString.h"
 #include "Source.h"
@@ -176,30 +175,15 @@ struct MessageFormatting {
 };
 
 struct Messenger {
-    SharedArray<Message> messages; 
-    SharedArray<MessageFormatting> formatting_stack;
-
-    mutex delivering; // locked when the messenger is in the process of delivering messages
-};
+    Array<Message> messages; 
+    Array<MessageFormatting> formatting_stack;
+}; // !Threading this will likely required SharedArray or a mutex to prevent messages from being dispatched at the same time
 
 struct Destination {
-    enum Kind{
-        DESHFILE,
-        STLFILE,
-    };
-    Kind kind;
-
-    union {
-        File* desh_file;
-        FILE* stl_file;
-    };
-
+    FILE* file;
     b32 allow_color;
 
-    Destination(File* file, b32 allow_color = false) : desh_file(file), kind(DESHFILE) {}
-    // allow color is default true here, because it is most likely that this is chosen
-    // when passing stdout or stderr as a destination
-    Destination(FILE* file, b32 allow_color = true) : stl_file(file), kind(STLFILE) {}
+    Destination(FILE* file, b32 allow_color = true) : file(file) {}
 };
 
 namespace messenger {

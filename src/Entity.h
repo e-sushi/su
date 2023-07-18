@@ -9,6 +9,7 @@
 #include "basic/Node.h"
 #include "storage/Pool.h"
 #include "Label.h"
+#include "Type.h"
 
 namespace amu{
 

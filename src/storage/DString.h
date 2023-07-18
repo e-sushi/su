@@ -25,7 +25,6 @@
 #define AMU_DSTRING_H
 
 #include "Memory.h"
-#include "kigu/unicode.h"
 #include "util.h"
 #include "storage/String.h"
 
@@ -103,8 +102,6 @@ to_string(T x) {
     DString out = dstring::init();
 	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
 		dstring::append(out, String(x, (s64)strlen(x)));
-	}else if constexpr(std::is_same_v<T, str8> || std::is_same_v<T, const str8&>){
-        dstring::append(out, String{x});
 	}else if constexpr(std::is_same_v<T, char>){
         dstring::append(out, String(&x, 1));
 	}else if constexpr(std::is_same_v<T, s32>){
@@ -167,8 +164,6 @@ template<typename T> global void
 to_string(DString& start, T x) {
 	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
 		dstring::append(start, String(x, (s64)strlen(x)));
-	}else if constexpr(std::is_same_v<T, str8> || std::is_same_v<T, const str8&>){
-        dstring::append(start, String{x});
 	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString, T>) {
 		dstring::append(start, x);
 	}else if constexpr(std::is_same_v<T, char>){
