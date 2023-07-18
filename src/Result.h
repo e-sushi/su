@@ -7,8 +7,6 @@
 #ifndef AMU_RESULT_H
 #define AMU_RESULT_H
 
-#include "kigu/common.h"
-
 namespace amu {
 
 template<typename R, typename E>

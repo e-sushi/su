@@ -127,14 +127,14 @@
 #include "Lexer.cpp"
 #include "Parser.cpp"
 
-int main(int argc, char* argv[]){DPZoneScoped;
+int main(int argc, char* argv[]){
 	{using namespace amu;
 
 		compiler::init();
 
 		auto args = array::init<String>(argc);
 		forI(argc) {
-			array::push(args, string::init(argv[i]));q
+			array::push(args, string::init(argv[i]));
 		}
 
 		compiler::begin(args);

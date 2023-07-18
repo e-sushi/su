@@ -9,11 +9,6 @@
 #ifndef AMU_COMPILER_H
 #define AMU_COMPILER_H
 
-namespace deshi {
-    #include "core/time.h"
-    #include "core/threading.h"
-}
-
 #include "Messenger.h"
 #include "storage/Pool.h"
 #include "Entity.h"

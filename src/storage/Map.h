@@ -12,8 +12,6 @@
 #define AMU_MAP_H
 
 #include "Array.h"
-#include "kigu/pair.h"
-
 namespace amu {
 
 template<typename K, typename V>
@@ -28,6 +26,11 @@ struct Map {
     Array<V> values;
 };
 
+
+struct FindResult {
+    spt index;
+    b32 found;
+};
 
 namespace map {
 
@@ -51,10 +54,10 @@ has(Map<K,V>& m, const K& key);
 
 // returns the index reached in a binary search of the map
 // and a boolean indicating if it actually found the key or not
-template<typename K, typename V> pair<spt,b32>
+template<typename K, typename V> FindResult
 find(Map<K,V>& m, const K& key);
 
-template<typename K, typename V> pair<spt,b32>
+template<typename K, typename V> FindResult
 find(Map<K,V>& m, u64 hash);
 
 } // namespace map

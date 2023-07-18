@@ -367,6 +367,22 @@ template <class F> deferrer<F> operator*(defer_dummy, F f) { return {f}; }
 #  define defer auto DEFER(__LINE__) = defer_dummy{} *[&]()
 #endif //#ifndef defer
 
+/////////////////////////
+//// for-loop macros ////
+/////////////////////////
+#define forX(var_name,iterations) for(int var_name=0; var_name<(iterations); ++var_name)
+#define forX_reverse(var_name,iterations) for(int var_name=(iterations)-1; var_name>=0; --var_name)
+#define forI(iterations) for(int i=0; i<(iterations); ++i)
+#define forI_reverse(iterations) for(int i=(iterations)-1; i>=0; --i)
+#if COMPILER_FEATURE_TYPEOF
+#  define For(start,count) for(typeof(*(start))* it = start; it < start+(count); ++it)
+#  define ForX(var_name,start,count) for(typeof(*(start))* var_name = start; var_name < start+(count); ++var_name)
+#elif COMPILER_FEATURE_CPP
+#  define For(start,count) for(auto it = start; it < start+(count); ++it)
+#  define ForX(var_name,start,count) for(auto var_name = start; var_name < start+(count); ++var_name)
+#  define forE(iterable) for(auto it = iterable.begin(), it_begin = iterable.begin(), it_end = iterable.end(); it != it_end; ++it)
+#endif //#if COMPILER_FEATURE_TYPEOF
+
 //// terminal colors ////
 #define VTS_Default         "\x1b[0m"
 #define VTS_Bold            "\x1b[1m"

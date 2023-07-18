@@ -46,12 +46,12 @@ has(Map<K,V>& m, const K& key) {
     return find(m, util::hash(key)).second;
 }
 
-template<typename K, typename V> pair<spt,b32>
+template<typename K, typename V> FindResult
 find(Map<K,V>& m, const K& key) {
     return find(m, util::hash(key));
 }
 
-template<typename K, typename V> pair<spt,b32>
+template<typename K, typename V> FindResult
 find(Map<K,V>& m, u64 hash) {
     spt index = -1;
     spt middle = -1;
