@@ -37,7 +37,7 @@ void
 append(DString& a, String b) {
     s64 offset = a.count;
     a.count += b.count;
-    if(a.space < b.count+1) {
+    if(a.space < a.count+1) {
         a.space = util::round_up_to(a.count+1, 8);
         a.str = (u8*)memory::reallocate(a.str, a.space);
     }

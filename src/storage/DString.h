@@ -165,7 +165,7 @@ to_string(DString& start, T x) {
 	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
 		dstring::append(start, String(x, (s64)strlen(x)));
 	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString, T>) {
-		dstring::append(start, x);
+		dstring::append(start, String(x));
 	}else if constexpr(std::is_same_v<T, char>){
         dstring::append(start, String(&x, 1));
     }else if constexpr(std::is_same_v<T, u8>){
