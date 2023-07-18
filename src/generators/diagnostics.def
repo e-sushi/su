@@ -2,7 +2,7 @@ group path {
     diagnostic not_found {
         type: error;
         message: {
-            en: "the path %path% cound not be found";
+            en: "the path %path% could not be found";
         }
     }
 }
