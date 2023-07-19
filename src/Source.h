@@ -18,7 +18,11 @@ struct Parser;
 struct Module;
 struct Source {
     FILE* file;
-    std::filesystem::path path;
+    
+    DString path; // NOTE(sushi) DString because we need to copy the path given by std::filesystem
+    String name;
+    String front;
+    String ext;
 
     DString buffer; // the loaded file
 
