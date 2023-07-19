@@ -35,9 +35,8 @@ class String_printer:
         try:
             val = self.val
             ptr = int(gdb.parse_and_eval(f"((String*){val.address})->str"))
-            print(hex(ptr))
             # this must be a corrupt String
-            if val['count'] > int(1e6):
+            if abs(val['count']) > int(10000):
                 return "corrupt String"
             buf = gdb.selected_inferior().read_memory(ptr, val['count']).tobytes().decode()
             buf.replace('\n', '\\n')
