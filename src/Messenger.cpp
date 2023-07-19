@@ -93,20 +93,24 @@ process_message(DString& current, Message& m) {
     // dont do anything if current verbosity is less than the message's
     if(m.kind == message::debug && m.verbosity > compiler::instance.options.verbosity) return; 
 
+    // TODO(sushi) we need to support a way to detect when there are conflicting file names 
+    //             and in those cases show a relative path instead of just the name
     switch(m.sender.type) {
         case MessageSender::Compiler: {
             static constexpr String compiler_prefix = "\e[36mamu\e[0m: ";
             dstring::append(current, compiler_prefix);
         } break;
         case MessageSender::Source: {
-            DString temp = dstring::init(m.sender.source->path.relative_path());
-            wrap_color(temp, message::color_cyan);
+            DString temp = dstring::init(m.sender.source->name);
+            if(current_dest->allow_color)
+                wrap_color(temp, message::color_cyan);
             dstring::append(current, temp, ": ");
             dstring::deinit(temp);
         } break;
         case MessageSender::SourceLoc: {
-            DString temp = dstring::init(m.sender.source->path.relative_path());
-            wrap_color(temp, message::color_cyan);
+            DString temp = dstring::init(m.sender.source->name);
+            if(current_dest->allow_color)
+                wrap_color(temp, message::color_cyan);
             dstring::append(current, temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");
             dstring::deinit(temp);
             
@@ -119,7 +123,8 @@ process_message(DString& current, Message& m) {
 
         case message::debug: { 
             DString temp = dstring::init("debug");
-            wrap_color(temp, message::color_green);
+            if(current_dest->allow_color)
+                wrap_color(temp, message::color_green);
             dstring::append(current, temp);
             dstring::append(current, ": ");
             dstring::deinit(temp);
@@ -127,7 +132,8 @@ process_message(DString& current, Message& m) {
 
         case message::warning: {
             DString temp = dstring::init("warning");
-            wrap_color(temp, message::color_yellow);
+            if(current_dest->allow_color)
+                wrap_color(temp, message::color_yellow);
             dstring::append(current, temp);
             dstring::append(current, ": ");
             dstring::deinit(temp);
@@ -135,7 +141,8 @@ process_message(DString& current, Message& m) {
 
         case message::error: {
             DString temp = dstring::init("error");
-            wrap_color(temp, message::color_red);
+            if(current_dest->allow_color)
+                wrap_color(temp, message::color_red);
             dstring::append(current, temp);
             dstring::append(current, ": ");
             dstring::deinit(temp);
@@ -143,7 +150,8 @@ process_message(DString& current, Message& m) {
 
         case message::note: {
             DString temp = dstring::init("note");
-            wrap_color(temp, message::color_magenta);
+            if(current_dest->allow_color)
+                wrap_color(temp, message::color_magenta);
             dstring::append(current, temp);
             dstring::append(current, ": ");
             dstring::deinit(temp);

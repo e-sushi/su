@@ -183,7 +183,7 @@ struct Destination {
     FILE* file;
     b32 allow_color;
 
-    Destination(FILE* file, b32 allow_color = true) : file(file) {}
+    Destination(FILE* file, b32 allow_color = true) : file(file), allow_color(allow_color) {}
 };
 
 namespace messenger {
