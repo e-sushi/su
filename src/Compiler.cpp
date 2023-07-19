@@ -56,7 +56,9 @@ init() {
     compiler::builtins.functype = compiler::create_structure();
     compiler::builtins.functype->size = compiler::builtins.unsigned64->size;
     
-    messenger::init();
+    messenger::init();  // TODO(sushi) compiler arguments to control this
+    array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false)));
+    array::push(messenger::instance.destinations, Destination(fopen("temp/log", "w"), false));
 }
 
 global void
@@ -86,7 +88,7 @@ b32 parse_arguments(Array<String> args) {
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
                         expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens");
-                    messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                    messenger::deliver(true);
                     return false;
                 }
                 instance.options.dump_tokens.path = arg;
@@ -100,7 +102,7 @@ b32 parse_arguments(Array<String> args) {
                     if(arg.str[0] == '-') {
                         diagnostic::compiler::
                             expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source");
-                        messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                        messenger::deliver(true);
                         return false;
                     }
                     String curt = arg;
@@ -119,7 +121,7 @@ b32 parse_arguments(Array<String> args) {
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
                         expected_a_path_for_arg(MessageSender::Compiler, "--dump-diagnostics");
-                    messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                    messenger::deliver(true);
                     return false;
                 }
                 instance.options.dump_diagnostics.path = arg;
@@ -129,7 +131,7 @@ b32 parse_arguments(Array<String> args) {
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
                         unknown_option(MessageSender::Compiler, arg);
-                    messenger::deliver(stdout); messenger::deliver(instance.log_file);
+                    messenger::deliver(true);
                     return false;
                 }
                 // otherwise this is (hopefully) a path
@@ -192,7 +194,7 @@ begin(Array<String> args) {
     if(!instance.options.entry_path.str){
         diagnostic::compiler::
             no_path_given(MessageSender::Compiler);
-        messenger::deliver(stdout); messenger::deliver(instance.log_file);
+        messenger::deliver(true);
         return;
     }
 
@@ -202,7 +204,7 @@ begin(Array<String> args) {
     if(!entry_source) {
         diagnostic::path::
             not_found(MessageSender::Compiler, instance.options.entry_path);
-        messenger::deliver(stdout); messenger::deliver(instance.log_file);
+        messenger::deliver(true);
         return;
     }
 
@@ -213,20 +215,18 @@ begin(Array<String> args) {
     if(instance.options.dump_tokens.path.str) {
         lex::output(*lexer, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
         if(instance.options.dump_tokens.exit) {
-            messenger::deliver(stdout); messenger::deliver(instance.log_file);
+            messenger::deliver(true);
             return;
         }
     }
 
-    messenger::deliver(stdout);
-    messenger::deliver(instance.log_file);
+    messenger::deliver(true);
 
     Parser* parser = pool::add(instance.storage.parsers, parser::init(entry_source));
     entry_source->parser = parser;
     parser::execute(*parser);
 
-    messenger::deliver(stdout);
-    messenger::deliver(instance.log_file);
+    messenger::deliver(true);
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;

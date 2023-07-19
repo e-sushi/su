@@ -174,17 +174,20 @@ struct MessageFormatting {
 
 };
 
-struct Messenger {
-    Array<Message> messages; 
-    Array<MessageFormatting> formatting_stack;
-}; // !Threading this will likely required SharedArray or a mutex to prevent messages from being dispatched at the same time
-
 struct Destination {
     FILE* file;
     b32 allow_color;
 
     Destination(FILE* file, b32 allow_color = true) : file(file), allow_color(allow_color) {}
 };
+
+struct Messenger {
+    Array<Message> messages; 
+    Array<MessageFormatting> formatting_stack;
+    Array<Destination> destinations;
+}; // !Threading this will likely required SharedArray or a mutex to prevent messages from being dispatched at the same time
+
+
 
 namespace messenger {
 
@@ -203,11 +206,14 @@ dispatch(Message message);
 void
 dispatch(String message, Source* source = 0);
 
+// deliver all queued messages to the stored destinations
+// optionally clearing the message queue
+void
+deliver(b32 clear_messages = false);
 
-// deliver all available messages to the given destination
+// deliver all queued messages to the given destination
 // optionally clearing messages
-// TODO(sushi) when we dont clear messages, cache the formatted stuff and 
-//             use it again if settings are compatible
+// TODO(sushi) when we dont clear messages, cache the formatted stuff and use it again if settings are compatible
 void
 deliver(Destination dest, b32 clear_messages = false);
 

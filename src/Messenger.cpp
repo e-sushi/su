@@ -1,6 +1,17 @@
 namespace amu {
 namespace messenger { // ---------------------------------------------------- messenger
 
+Messenger instance;
+
+void 
+init() {
+    instance.messages = array::init<Message>();
+    instance.formatting_stack = array::init<MessageFormatting>();
+    instance.destinations = array::init<Destination>();
+
+    push_formatting(MessageFormatting());
+}
+
 namespace internal {
 
 Destination* current_dest;
@@ -97,7 +108,10 @@ process_message(DString& current, Message& m) {
     //             and in those cases show a relative path instead of just the name
     switch(m.sender.type) {
         case MessageSender::Compiler: {
-            static constexpr String compiler_prefix = "\e[36mamu\e[0m: ";
+            DString compiler_prefix = dstring::init("amu");
+            if(current_dest->allow_color)
+                wrap_color(compiler_prefix, message::color_cyan);
+                dstring::append(compiler_prefix, String(": "));
             dstring::append(current, compiler_prefix);
         } break;
         case MessageSender::Source: {
@@ -167,15 +181,7 @@ process_message(DString& current, Message& m) {
 
 } // namespace internal
 
-Messenger instance;
 
-void 
-init() {
-    instance.messages = array::init<Message>();
-    instance.formatting_stack = array::init<MessageFormatting>();
-
-    push_formatting(MessageFormatting());
-}
 
 void
 dispatch(Message message) {
@@ -198,9 +204,18 @@ dispatch(String message, Source* source) {
     dispatch(message);
 }
 
+void
+deliver(b32 clear_messages) {
+    forI(instance.destinations.count) {
+        deliver(array::read(instance.destinations, i), instance.messages);
+    }
+    if(clear_messages) array::clear(instance.messages);
+}
+
 void 
 deliver(Destination destination, b32 clear_messages) {
     deliver(destination, instance.messages);
+    if(clear_messages) array::clear(instance.messages);
 }
 
 
