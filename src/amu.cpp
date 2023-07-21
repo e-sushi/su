@@ -129,7 +129,6 @@
 
 int main(int argc, char* argv[]){
 	{using namespace amu;
-
 		compiler::init();
 
 		auto args = array::init<String>(argc);
@@ -138,8 +137,6 @@ int main(int argc, char* argv[]){
 		}
 
 		compiler::begin(args);
-
 	}
-  
 	return 0;
 }

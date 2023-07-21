@@ -57,7 +57,7 @@ init() {
     compiler::builtins.functype->size = compiler::builtins.unsigned64->size;
     
     messenger::init();  // TODO(sushi) compiler arguments to control this
-    array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false)));
+    array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
     array::push(messenger::instance.destinations, Destination(fopen("temp/log", "w"), false));
 }
 
@@ -88,7 +88,7 @@ b32 parse_arguments(Array<String> args) {
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
                         expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens");
-                    messenger::deliver(true);
+                    messenger::deliver();
                     return false;
                 }
                 instance.options.dump_tokens.path = arg;
@@ -102,7 +102,7 @@ b32 parse_arguments(Array<String> args) {
                     if(arg.str[0] == '-') {
                         diagnostic::compiler::
                             expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source");
-                        messenger::deliver(true);
+                        messenger::deliver();
                         return false;
                     }
                     String curt = arg;
@@ -121,7 +121,7 @@ b32 parse_arguments(Array<String> args) {
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
                         expected_a_path_for_arg(MessageSender::Compiler, "--dump-diagnostics");
-                    messenger::deliver(true);
+                    messenger::deliver();
                     return false;
                 }
                 instance.options.dump_diagnostics.path = arg;
@@ -131,7 +131,7 @@ b32 parse_arguments(Array<String> args) {
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
                         unknown_option(MessageSender::Compiler, arg);
-                    messenger::deliver(true);
+                    messenger::deliver();
                     return false;
                 }
                 // otherwise this is (hopefully) a path
@@ -178,7 +178,13 @@ b32 dump_diagnostics(String path, Array<String> sources) {
         dstring::append(source_strings, '"', current->path, '"');
     }
 
-    fwrite(&source_strings.count, sizeof(u64), 1, out);
+    if(!diagnostics.count){
+        int bleh = 0;
+        fwrite(&bleh, sizeof(s64), 1, out);
+        return true;
+    } 
+
+    fwrite(&source_strings.count, sizeof(s64), 1, out);
     fwrite(source_strings.str, source_strings.count, 1, out);
     fwrite(diagnostics.data, diagnostics.count*sizeof(DiagnosticEntry), 1, out);
 
@@ -194,7 +200,7 @@ begin(Array<String> args) {
     if(!instance.options.entry_path.str){
         diagnostic::compiler::
             no_path_given(MessageSender::Compiler);
-        messenger::deliver(true);
+        messenger::deliver();
         return;
     }
 
@@ -204,7 +210,7 @@ begin(Array<String> args) {
     if(!entry_source) {
         diagnostic::path::
             not_found(MessageSender::Compiler, instance.options.entry_path);
-        messenger::deliver(true);
+        messenger::deliver();
         return;
     }
 
@@ -215,18 +221,18 @@ begin(Array<String> args) {
     if(instance.options.dump_tokens.path.str) {
         lex::output(*lexer, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
         if(instance.options.dump_tokens.exit) {
-            messenger::deliver(true);
+            messenger::deliver();
             return;
         }
     }
 
-    messenger::deliver(true);
+    messenger::deliver();
 
     Parser* parser = pool::add(instance.storage.parsers, parser::init(entry_source));
     entry_source->parser = parser;
     parser::execute(*parser);
-
-    messenger::deliver(true);
+    
+    messenger::deliver();
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
@@ -318,6 +324,8 @@ create_module(){
     Module* out = pool::add(instance.storage.modules);
     node::init(&out->node);
     out->node.kind = node::module;
+    out->labels = array::init<spt>();
+    out->table.map = map::init<String, Label*>();
     return out;
 }
 

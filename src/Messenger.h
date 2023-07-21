@@ -209,7 +209,7 @@ dispatch(String message, Source* source = 0);
 // deliver all queued messages to the stored destinations
 // optionally clearing the message queue
 void
-deliver(b32 clear_messages = false);
+deliver(b32 clear_messages = true);
 
 // deliver all queued messages to the given destination
 // optionally clearing messages
