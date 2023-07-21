@@ -4,11 +4,11 @@
 
 
 #internal{
-    func0() : s64 {
+    func0 :: () -> s64 {
         return 0;
     };
 
-    func1() : s32 {
+    func1 :: () -> s32 {
         return 1;
     };
 
@@ -21,7 +21,7 @@ vec3 : struct {
     x,y : f32;
 };
 
-main() : s64 {  
+main :: () -> s64 {  
     
     unsigned_decimal     : u64 = 1000;
     unsigned_hexadecimal : u32 = 0x3e8;
@@ -123,11 +123,11 @@ exported_var : str = "an exported var";
 
 #internal
 
-internalfunc() : void {
+internalfunc :: () -> void {
     return;
 };
 
-internalfunc2() : void {
+internalfunc2 :: () -> void {
     return;
 }
 

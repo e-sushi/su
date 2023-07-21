@@ -2,7 +2,7 @@ s32 add(s32 a, s32 b) {
     return a + b;
 }
 
-main() : s32 {
-    sum:s32 = add(1 + 2, 4);
+main :: () -> s32 {
+    sum: s32 = add(1 + 2, 4);
     return sum + sum;
 }

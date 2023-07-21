@@ -1,4 +1,4 @@
-main() : s32 {
+main :: () -> s32 {
     while(s32 a) {
         2;
     }

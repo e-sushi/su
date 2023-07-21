@@ -1,4 +1,4 @@
-main() : s32 {
+main :: () -> s32 {
     sum:s32 = 0;
     for (i:s32 = 0; i < 10; i = i + 1) {
         if ((sum / 2) * 2 != sum)
