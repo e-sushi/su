@@ -13,17 +13,6 @@
 
 namespace amu{
 
-namespace entity{
-enum kind : u32 {
-    unknown,
-    variable,
-    function,
-    structure,
-    module,
-    loop,
-};
-} // namespace entity
-
 // representation of something that has a place in memory, name borrowed from rust
 struct Place {
     TNode node;
@@ -44,6 +33,8 @@ struct Function {
 
 struct Module {
     TNode node;
+
+    Array<spt> labels; 
 
     LabelTable table;    
 };

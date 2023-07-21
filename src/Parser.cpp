@@ -1,3 +1,14 @@
+/*
+
+    NOTES
+    -----
+
+    When an Entity is created, eg. a Function, Place, etc. It is pushed onto the stack 
+    *before* the actual node that represents it is placed
+
+
+*/
+
 namespace amu {
 namespace parser{
 
@@ -8,10 +19,7 @@ init(Source* source) {
     out.labels.exported = array::init<Label*>();
     out.labels.imported = array::init<Label*>();
     out.labels.internal = array::init<Label*>();
-    out.label.stack = array::init<Label*>();
-    out.label.table = map::init<String, Label*>();
-
-    out.source->module = compiler::create_module();
+    out.module_stack = array::init<Module*>();
     return out;
 }
 
@@ -35,6 +43,14 @@ Array<TNode*> stack;
         DebugBreakpoint;                               \
         curt++;                                        \
     }                                                  \
+} while(0)
+
+// we will have already hit the break token, so dont break again
+#define backtrack() do {                                \
+    curt--;                                             \
+    if(curt->kind == token::directive_compiler_break) { \
+        curt--;                                         \
+    }                                                   \
 } while(0)
 
 void
@@ -62,6 +78,17 @@ __stack_pop(String caller) {
 
 #define stack_pop() __stack_pop(__func__)
 
+FORCE_INLINE void 
+push_module(Module* m) {
+    array::push(parser->module_stack, parser->current_module);
+    parser->current_module = m;
+}
+
+FORCE_INLINE void 
+pop_module() {
+    parser->current_module = array::pop(parser->module_stack);
+}
+
 FORCE_INLINE void
 debug_announce_stage(String stage) {
     if(compiler::instance.options.verbosity < message::verbosity::debug) return;
@@ -88,6 +115,17 @@ do{                                                     \
 }while(0)                                    
 
 
+Label* 
+search_for_label(LabelTable* table, u64 hash) {
+    while(1) {
+        auto [idx, found] = map::find(table->map, hash);
+        if(found) return array::read(table->map.values, idx);
+        if(!table->last) return 0;
+        table = table->last;
+    }
+}
+
+
 void before_expr();
 void label_after_colon();
 void factor();
@@ -105,7 +143,41 @@ void bit_shift();
 void additive();
 void term();
 void access();
+void block();
+void start();
 
+
+// parses identifiers separate by commas and groups them under a tuple 
+// this must be called after the first identifier and comma have been parsed
+// and the first identfier must have been pushed onto the stack
+void identifier_group() { announce_stage;
+    while(1) {
+        if(curt->kind != token::identifier) break; 
+        Expression* expr = compiler::create_expression();
+        expr->kind = expression::identifier;
+        expr->node.start = expr->node.end = curt;
+        
+        TNode* last = array::read(stack, -1);
+        if(last->kind == node::tuple) {
+            // a label group was already created, so just append to it
+            node::insert_last(last, (TNode*)expr);
+            last->end = curt;
+        } else {
+            // this is the second label, so the last must be another identifier
+            // make the label group tuple
+            Tuple* group = compiler::create_tuple();
+            group->kind = tuple::label_group;
+            node::change_parent((TNode*)group, stack_pop());
+            node::insert_last((TNode*)group, (TNode*)expr);
+            set_start_end_from_children(group);
+            stack_push((TNode*)group);
+        }
+        advance_curt();
+        if(curt->kind == token::comma) advance_curt();
+        else break;
+    }
+
+}
 
 // state8:
 // factor: ID *
@@ -206,13 +278,20 @@ void tuple_after_close_paren() { announce_stage;
         node::insert_first((TNode*)e, stack_pop());
 
         set_start_end_from_children(e);
-        // since we've made an entity, we need to push it to the stack first so that whatever
-        // label is taking it can consume it 
-        Function* f = compiler::create_function();
-        stack_push((TNode*)f);
-        stack_push((TNode*)e);
+        
+        // this is a function entity declaration
+        if(curt->kind == token::open_brace) {
+            advance_curt();
+            block(); check_error;
+            node::insert_last((TNode*)e, stack_pop());
+            e->node.end = e->node.last_child->end;
+            Function* f = compiler::create_function();
+            f->node.start = e->node.start;
+            f->node.end = e->node.end;
+            stack_push((TNode*)f);
+        }
 
-        after_typeref(); 
+        stack_push((TNode*)e);
     }
 }
 
@@ -240,7 +319,6 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
                         before_expr(); check_error;
                     } break;
                 }
-
             } break;
             default: {
                 before_expr();
@@ -259,7 +337,7 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
     Tuple* tuple = compiler::create_tuple();
     tuple->kind = tuple::unknown;
 
-    forI(count) {
+    forI(count){
         node::insert_first((TNode*)tuple, stack_pop());
     }
 
@@ -299,22 +377,30 @@ void block() {
                 skind = statement::expression;
             } break;
         }
-        if(curt->kind != token::semicolon && curt->kind != token::close_brace) {
-            diagnostic::parser::
-                missing_semicolon({parser->source, curt});
+        if(curt->kind != token::semicolon) {
+            if(curt->kind != token::close_brace) {
+                diagnostic::parser::
+                    missing_semicolon({parser->source, curt});
+                return;
+            }
+            // if there's a close brace, this must be the last expression of a block
+            // so we dont't do anything, allowing the expression to be attached as the last
+            // node of the block below
+            count++;
+            break;
+        } else { // this is just a normal statement
+            Statement* s = compiler::create_statement();
+            s->kind = skind;
+
+            node::insert_first((TNode*)s, stack_pop());
+            s->node.start = s->node.first_child->start;
+            s->node.end = curt;
+
+            stack_push((TNode*)s);
+
+            advance_curt();
+            count++;
         }
-
-        Statement* s = compiler::create_statement();
-        s->kind = skind;
-
-        node::insert_first((TNode*)s, stack_pop());
-        s->node.start = s->node.first_child->start;
-        s->node.end = curt;
-
-        stack_push((TNode*)s);
-
-        advance_curt();
-        count++;
     }
 
     Expression* e = compiler::create_expression();
@@ -372,7 +458,7 @@ void after_typeref() { announce_stage;
     Token* save = curt;
     switch(curt->kind) {
         case token::colon: advance_curt(); comptime_after_colon(); break;
-        case token::assignment: {
+        case token::equal: {
             advance_curt(); // assignment: typeref '=' * expr
             before_expr(); check_error;
             // now we reduce to binary assignment
@@ -384,7 +470,17 @@ void after_typeref() { announce_stage;
             node::insert_first((TNode*)e, stack_pop());
 
             set_start_end_from_children(e);
+
+            // this is a place in memory, so we need to create a Place entity for it 
+            Place* p = compiler::create_place();
+            // TODO(sushi) type information ?
+            p->node.start = e->node.start;
+            p->node.end = e->node.end;
+
+            stack_push((TNode*)p);
+
             stack_push((TNode*)e);
+
         } break;
         case token::open_brace: {
             advance_curt();
@@ -392,6 +488,9 @@ void after_typeref() { announce_stage;
             node::insert_last(array::read(stack, -2), stack_pop());
             TNode* typeref = array::read(stack, -1);
             typeref->end = typeref->last_child->end;
+        } break;
+        case token::asterisk: {
+
         } break;
     }
 }
@@ -416,88 +515,183 @@ void loop() { announce_stage;
 }
 
 /*
+    for: "for" ( "(" label ";" expr ";"" expr ")" | "(" id { "," id } "in" expr ")" ) expr
+*/
+void for_() {
+    Token* save = curt;
+
+    advance_curt();
+    if(curt->kind != token::open_paren) {
+        diagnostic::parser::
+            for_missing_open_paren({parser->source, curt});
+        push_error();
+    }
+
+    advance_curt();
+    if(curt->kind != token::identifier) {
+        diagnostic::parser::for_expected_some_identfier({parser->source, curt});
+        push_error();
+    }
+
+    b32 c_style = false;
+    
+    switch((curt+1)->kind) {
+        case token::in:
+        case token::comma: { // this is a list of identifiers that must be followed by 'in'
+            Expression* expr = compiler::create_expression();
+            expr->kind = expression::identifier;
+            expr->node.start = curt;
+            expr->node.end = curt;
+            stack_push((TNode*)expr);
+            advance_curt();
+
+            if(curt->kind == token::comma){
+                advance_curt();
+                identifier_group(); check_error;
+                // TODO(sushi) maybe look into properly supporting this later
+                if(curt->kind == token::colon) { 
+                    diagnostic::parser::for_label_group_not_allowed({parser->source, curt});
+                    push_error();
+                }
+            }
+
+            if(curt->kind != token::in) {
+                diagnostic::parser::for_expected_in({parser->source, curt});
+                push_error();
+            }
+
+            advance_curt();
+            before_expr(); check_error;
+        } break;
+        case token::colon: { 
+            c_style = true;
+            label();
+            if(curt->kind != token::semicolon) {
+                diagnostic::parser::missing_semicolon({parser->source, curt});
+                push_error();
+            }
+
+            advance_curt();
+            before_expr(); check_error;
+
+            if(curt->kind != token::semicolon) {
+                diagnostic::parser::missing_semicolon({parser->source, curt});
+                push_error();
+            }
+
+            advance_curt();
+            before_expr(); check_error;
+
+        } break;
+        
+    }   
+
+    if(curt->kind != token::close_paren) {
+        diagnostic::parser::for_missing_close_paren({parser->source, curt});
+        push_error();
+    }
+    
+    advance_curt();
+
+    // we should be before some expression now 
+    before_expr(); check_error;
+
+    Expression* e = compiler::create_expression();
+    e->kind = expression::for_;
+
+    node::insert_first((TNode*)e, stack_pop());
+    node::insert_first((TNode*)e, stack_pop());
+    if(c_style) {
+        node::insert_first((TNode*)e, stack_pop());
+    }
+    node::insert_first((TNode*)e, stack_pop());
+
+    e->node.start = save;
+    e->node.end = e->node.last_child->end;
+
+    stack_push((TNode*)e);
+}
+
+/*
     switch: conditional | "switch" '(' expr ')' '{' { expr "=>" expr } '}'
 */ 
 void switch_() { announce_stage;
-    check_error;
-    if(curt->kind == token::switch_) {
+    advance_curt();
+    if(curt->kind != token::open_paren) {
+        diagnostic::parser::
+            switch_missing_open_paren({parser->source, curt});
+        return;
+    }
+
+    advance_curt(); // "switch" "(" * expr ")" ...
+
+    before_expr(); // dont care what this returns cause any expression is good (for now)
+
+    if(curt->kind != token::close_paren) {
+        diagnostic::parser::
+            switch_missing_close_paren({parser->source, curt});
+        push_error();
+    }
+
+    advance_curt(); // "switch" "(" expr ")" * "{" ...
+
+    if(curt->kind != token::open_brace) {
+        diagnostic::parser::
+            switch_missing_open_brace({parser->source, curt});
+        push_error();
+    }
+
+    advance_curt(); // "switch" "(" expr ")" "{" * { expr } "}"
+
+    u32 count = 0;
+    while(1) {
+        if(curt->kind == token::close_brace) break;
+        before_expr(); 
+        
+        if(curt->kind != token::match_arrow) {
+            diagnostic::parser::
+                switch_missing_match_arrow_after_expr({parser->source, curt});
+            push_error();
+        }
+
         advance_curt();
-        if(curt->kind != token::open_paren) {
+        before_expr();
+
+        if(curt->kind != token::comma && curt->kind != token::close_brace ) {
             diagnostic::parser::
-                switch_missing_open_paren({parser->source, curt});
-            return;
-        }
-
-        advance_curt(); // "switch" "(" * expr ")" ...
-
-        before_expr(); // dont care what this returns cause any expression is good (for now)
-
-        if(curt->kind != token::close_paren) {
-            diagnostic::parser::
-                switch_missing_close_paren({parser->source, curt});
+                switch_missing_comma_after_match_arm({parser->source, curt});
             push_error();
         }
-
-        advance_curt(); // "switch" "(" expr ")" * "{" ...
-
-        if(curt->kind != token::open_brace) {
-            diagnostic::parser::
-                switch_missing_open_brace({parser->source, curt});
-            push_error();
-        }
-
-        advance_curt(); // "switch" "(" expr ")" "{" * { expr } "}"
-
-        u32 count = 0;
-        while(1) {
-            if(curt->kind == token::close_brace) break;
-            before_expr(); 
-            
-            if(curt->kind != token::match_arrow) {
-                diagnostic::parser::
-                    switch_missing_match_arrow_after_expr({parser->source, curt});
-                push_error();
-            }
-
-            advance_curt();
-            before_expr();
-
-            if(curt->kind != token::comma && curt->kind != token::close_brace ) {
-                diagnostic::parser::
-                    switch_missing_comma_after_match_arm({parser->source, curt});
-                push_error();
-            }
-            advance_curt();
-            count++;
-
-            Expression* e = compiler::create_expression();
-            e->kind = expression::switch_case;
-            
-            node::insert_first((TNode*)e, stack_pop());
-            node::insert_first((TNode*)e, stack_pop());
-
-            set_start_end_from_children(e);
-
-            stack_push((TNode*)e);
-
-        }
-
-        if(!count) {
-            diagnostic::parser::
-                switch_empty_body({parser->source, curt});
-        }
+        advance_curt();
+        count++;
 
         Expression* e = compiler::create_expression();
-        e->kind = expression::switch_expr;
-
-        // reduce to switch expression
-        forI(count+1){
-            node::insert_first((TNode*)e, stack_pop());
-        }
+        e->kind = expression::switch_case;
+        
+        node::insert_first((TNode*)e, stack_pop());
+        node::insert_first((TNode*)e, stack_pop());
 
         set_start_end_from_children(e);
+
         stack_push((TNode*)e);
+
     }
+
+    if(!count) {
+        diagnostic::parser::
+            switch_empty_body({parser->source, curt});
+    }
+
+    Expression* e = compiler::create_expression();
+    e->kind = expression::switch_expr;
+
+    // reduce to switch expression
+    forI(count+1){
+        node::insert_first((TNode*)e, stack_pop());
+    }
+
+    set_start_end_from_children(e);
+    stack_push((TNode*)e);
 }
 
 /*
@@ -583,7 +777,7 @@ void logi_or() { announce_stage;
 */
 void logi_and() { announce_stage;
     check_error;
-    if(curt->kind == token::logi_and) {
+    if(curt->kind == token::double_ampersand) {
         advance_curt();
         factor(); check_error;
         access(); check_error;
@@ -613,7 +807,7 @@ void logi_and() { announce_stage;
 */
 void bit_or() { announce_stage;
     check_error;
-    if(curt->kind == token::bit_or) {
+    if(curt->kind == token::vertical_line) {
         advance_curt();
         factor(); check_error;
         access(); check_error;
@@ -642,7 +836,7 @@ void bit_or() { announce_stage;
 */
 void bit_xor() { announce_stage;
     check_error;
-    if(curt->kind == token::bit_xor) {
+    if(curt->kind == token::caret) {
         advance_curt();
         factor(); check_error;
         access(); check_error;
@@ -671,7 +865,7 @@ void bit_xor() { announce_stage;
 */
 void bit_and() { announce_stage;
     check_error;
-    if(curt->kind == token::bit_and) {
+    if(curt->kind == token::ampersand) {
         advance_curt();
         factor(); check_error;
         access(); check_error;
@@ -700,8 +894,8 @@ void equality() { announce_stage;
     check_error;
     token::kind kind = curt->kind;
     switch(kind) {
-        case token::equal:
-        case token::not_equal: {
+        case token::double_equal:
+        case token::explanation_mark_equal: {
             advance_curt();
             factor(); check_error;
             access(); check_error;
@@ -710,7 +904,7 @@ void equality() { announce_stage;
             bit_shift(); check_error;
             relational(); check_error;
             Expression* e = compiler::create_expression();
-            e->kind = kind == token::equal ? expression::binary_equal : expression::binary_not_equal;
+            e->kind = kind == token::double_equal ? expression::binary_equal : expression::binary_not_equal;
 
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
@@ -731,9 +925,9 @@ void relational() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::less_than:
-        case token::less_than_or_equal:
+        case token::less_than_equal:
         case token::greater_than:
-        case token::greater_than_or_equal: {
+        case token::greater_than_equal: {
             advance_curt();
             factor(); check_error;
             access(); check_error;
@@ -743,7 +937,7 @@ void relational() { announce_stage;
             Expression* e = compiler::create_expression();
             e->kind = kind == token::less_than ?
                       expression::binary_less_than :
-                      kind == token::less_than_or_equal ? 
+                      kind == token::less_than_equal ? 
                       expression::binary_less_than_or_equal :
                       kind == token::greater_than ? 
                       expression::binary_greater_than :
@@ -767,15 +961,15 @@ void bit_shift() { announce_stage;
     check_error;
     token::kind kind = curt->kind;
     switch(kind) {
-        case token::bit_shift_left: 
-        case token::bit_shift_right: {
+        case token::double_less_than: 
+        case token::double_greater_than: {
             advance_curt(); 
             factor(); check_error;
             access(); check_error;
             term(); check_error;
             additive(); check_error;
             Expression* e = compiler::create_expression();
-            e->kind = kind == token::bit_shift_left ? 
+            e->kind = kind == token::double_less_than ? 
                       expression::binary_bit_shift_left :
                       expression::binary_bit_shift_right;
             
@@ -798,7 +992,7 @@ void additive() { announce_stage;
     token::kind kind = curt->kind;
     switch(kind) {
         case token::plus:
-        case token::negation: {
+        case token::minus: {
             advance_curt();
             factor(); check_error;
             access(); check_error;
@@ -823,16 +1017,16 @@ void term() { announce_stage;
     check_error;
     token::kind kind = curt->kind;
     switch(kind) {
-        case token::modulo: 
-        case token::division: 
-        case token::multiplication: {
+        case token::percent: 
+        case token::solidus: 
+        case token::asterisk: {
             advance_curt();
             factor(); check_error; 
             access(); check_error;
             Expression* e = compiler::create_expression();
             e->kind = 
-                    kind == token::modulo ? expression::binary_modulo 
-                    : kind == token::division ? expression::binary_division
+                    kind == token::percent ? expression::binary_modulo 
+                    : kind == token::solidus ? expression::binary_division
                     : expression::binary_multiply;
             
             node::insert_first((TNode*)e, stack_pop());
@@ -875,10 +1069,29 @@ void access() { announce_stage;
 void factor() { announce_stage;
     check_error;
     switch(curt->kind) {
-        case token::identifier: reduce_identifier_to_identifier_expression(); advance_curt(); break;
+        case token::identifier: {
+            reduce_identifier_to_identifier_expression(); 
+            Label* label = search_for_label(&parser->current_module->table, curt->hash); 
+            if(!label) {
+                diagnostic::parser::unknown_identifier({parser->source, curt});
+                push_error();
+            }
+            // in order to determine how we will treat this identfier syntactically, we figure out what sort of 
+            // entity the label points to
+            switch(label->entity->kind) {
+                case node::function: {
+
+                } break;
+                case node::structure: {
+                    after_typeref(); 
+                } break;
+            }
+            advance_curt(); 
+        } break;
         case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
         case token::if_: conditional(); break;
         case token::switch_: switch_(); break;
+        case token::for_: for_(); break;
         case token::open_brace: advance_curt(); block(); break;
         default: {
             if(curt->group == token::group_literal) {
@@ -944,7 +1157,6 @@ void struct_decl() {
 
 }
 
-
 /* general expr handler, since we will come across this alot
            expr: * ( loop | switch | assignment | ctime | conditional ) .
            loop: * "loop" expr
@@ -966,7 +1178,7 @@ void struct_decl() {
 */
 void before_expr() { announce_stage;
     switch(curt->kind) {
-        case token::assignment: {
+        case token::equal: {
             Token* save = curt;
             advance_curt();
             before_expr();
@@ -996,6 +1208,27 @@ void before_expr() { announce_stage;
         case token::structdecl: {
             struct_decl(); check_error;
         } break;
+        case token::moduledecl: {
+            push_module(curt->module);
+            advance_curt();
+            advance_curt();
+            start();
+            pop_module();
+        } break;
+        case token::return_: {
+            Token* save = curt;
+            advance_curt();
+            before_expr();
+
+            Expression* e = compiler::create_expression();
+            e->kind = expression::return_;
+
+            node::insert_first((TNode*)e, stack_pop());
+            e->node.start = save;
+            e->node.end = e->node.last_child->end;
+
+            stack_push((TNode*)e);
+        }break;
         default: factor(); check_error;
     }
 
@@ -1004,22 +1237,23 @@ void before_expr() { announce_stage;
     while(search) {
         switch(curt->kind) {
             case token::dot: access(); check_error; break;
-            case token::multiplication:
-            case token::division: term(); check_error; break;
+            case token::asterisk:
+            case token::solidus: term(); check_error; break;
             case token::plus:
-            case token::negation: additive(); check_error; break;
-            case token::bit_shift_left:
-            case token::bit_shift_right: bit_shift(); check_error; break;
+            case token::minus: additive(); check_error; break;
+            case token::double_less_than:
+            case token::double_greater_than: bit_shift(); check_error; break;
+            case token::double_equal: 
+            case token::explanation_mark_equal: equality(); check_error; break;
             case token::less_than:
-            case token::less_than_or_equal:
+            case token::less_than_equal:
             case token::greater_than:
-            case token::greater_than_or_equal: equality(); check_error; break;
-            case token::bit_and: bit_and(); check_error; break;
-            case token::bit_xor: bit_xor(); check_error; break;
-            case token::bit_or: bit_or(); check_error; break;
-            case token::logi_and: logi_and(); check_error; break;
+            case token::greater_than_equal: relational(); check_error; break;
+            case token::ampersand: bit_and(); check_error; break;
+            case token::caret: bit_xor(); check_error; break;
+            case token::vertical_line: bit_or(); check_error; break;
+            case token::double_ampersand: logi_and(); check_error; break;
             case token::logi_or: logi_or(); check_error; break;
-            case token::directive_compiler_break: DebugBreakpoint; break;
             //case token::open_brace: advance_curt(); block(); check_error; break;
             default: search = false;
         }
@@ -1050,7 +1284,7 @@ void label_after_colon() { announce_stage;
         case token::identifier:      reduce_identifier_to_identifier_expression(); advance_curt(); break;
         case token::colon:           before_expr(); break;
         case token::open_paren:      advance_curt(); tuple_after_open_paren(); break;
-        case token::assignment:      before_expr(); break;
+        case token::equal:      before_expr(); break;
         default: {
             if(curt->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
@@ -1075,43 +1309,7 @@ void label_after_colon() { announce_stage;
         } break;
     }
 
-    // switch(last->kind) {
-    //     case node::expression: {
-    //         Expression* expr = (Expression*)last;
-    //         switch(expr->kind) {
-    //             case expression::binary_assignment: reduce_assignment_to_expr(); break;
-    //             case expression::binary_comptime:   reduce_comptime_to_expr(); break;
-    //             case expression::binary_plus: 
-    //             case expression::binary_minus:      reduce_additive_to_expr(); break;
-
-    //         }
-    //     } break;
-    // }
-    
-
 }
-
-// state3: module: label * EOF
-void before_eof() { announce_stage;
-    // switch(curt->kind) {
-    //     case token::end_of_file: advance_curt(); after_eof(); break;
-    // }
-}
-
-// state2: accept: module * end
-void before_end() { announce_stage;
-    // this is the end, just dont do anything
-}
-
-// // state1: 
-// // label: ID * { "," ID } ':' expr ( ';' | ']' | '}' )
-// void label_before_colon_or_list() { announce_stage;
-//     switch(curt->kind) {
-//         case token::colon: advance_curt(); label_after_colon(); break;
-//         case token::comma: 
-//     }
-// }
-
 /*
          label: labelgroup ':' expr ( ';' | ']' | '}' )
     labelgroup: ID ( "," * ID )+
@@ -1121,31 +1319,7 @@ void before_end() { announce_stage;
 
 */
 void label_group_after_comma() { announce_stage;
-    check_error;
-
-    while(1) {
-        if(curt->kind != token::identifier) break; 
-        Expression* expr = compiler::create_expression();
-        expr->kind = expression::identifier;
-        
-        TNode* last = array::read(stack, -1);
-        if(last->kind == node::tuple) {
-            // a label group was already created, so just append to it
-            node::insert_last(last, (TNode*)expr);
-        } else {
-            // this is the second label, so the last must be another identifier
-            // make the label group tuple
-            Tuple* group = compiler::create_tuple();
-            group->kind = tuple::label_group;
-            node::change_parent((TNode*)group, stack_pop());
-            node::insert_last((TNode*)group, (TNode*)expr);
-            set_start_end_from_children(group);
-            stack_push((TNode*)group);
-        }
-        advance_curt();
-        if(curt->kind == token::comma) advance_curt();
-        else break;
-    }
+    identifier_group(); check_error;
 
     // if we have come to a place where a comma was not followed by an identifier
     // we throw an error about it
@@ -1155,7 +1329,7 @@ void label_group_after_comma() { announce_stage;
     }
 
     if(curt->kind == token::colon) {
-        label_after_colon();
+        label_after_colon(); check_error;
     } else {
         diagnostic::parser::
             label_missing_colon({parser->source, curt});
@@ -1182,11 +1356,19 @@ void label() {
     expr->node.end = curt;
     stack_push((TNode*)expr);
 
+    Token* save = curt;
+
     advance_curt();
     label_after_id(); check_error;
 
-    // reduce to a label 
-    Label* label = compiler::create_label();
+    Label* label;
+    auto [idx, found] = map::find(parser->current_module->table.map, curt->raw);
+    if(found) {
+        label = array::read(parser->current_module->table.map.values, idx);
+    } else {
+        label = compiler::create_label();
+    }
+
     node::insert_first((TNode*)label, stack_pop());
 
     TNode* cand = stack_pop();
@@ -1196,6 +1378,8 @@ void label() {
         case node::function:
         case node::module: {
             label->entity = cand;
+            cand->start = label->node.first_child->start;
+            cand->end = label->node.last_child->end; 
             node::insert_first((TNode*)label, stack_pop());
         } break;
         default: node::insert_first((TNode*)label, cand);
@@ -1227,7 +1411,7 @@ void start() { announce_stage;
         advance_curt();
     }
 
-    Module* m = compiler::create_module();
+    Module* m = parser->current_module;
     forI(count) {
         node::insert_first((TNode*)m, stack_pop());
     }
@@ -1235,6 +1419,117 @@ void start() { announce_stage;
     set_start_end_from_children(m);
     stack_push((TNode*)m);
 }
+
+/*
+    perform an initial scan over the labels marked by the lexer 
+    we start parsing at each label and continue up until we are able 
+    to resolve what it is and add a Symbol entry for it 
+
+    this doesn't build any part of the AST, it just precreates labels so that we may 
+    refer back to them during actual parsing to get more of an idea what identifiers are
+    when we find them
+*/
+void prescan() {
+    forI(parser->current_module->labels.count) {
+        curt = array::readptr(parser->source->lexer->tokens, array::read(parser->current_module->labels, i));
+        Label* l = compiler::create_label();
+        l->node.start = curt;
+        map::add(parser->current_module->table.map, curt->raw, l);
+
+        advance_curt();
+        advance_curt();
+        switch(curt->kind) {
+            case token::open_paren: {
+                // this can either be a variable of some tuple type, a function type, or a function definition
+                // so we skip until we find the end of the tuple
+                u32 nesting = 0;
+                while(1) {
+                    advance_curt();
+                    if(curt->kind == token::open_paren) nesting++;
+                    else if(curt->kind == token::close_paren) {
+                        if(!nesting) break;
+                        nesting--;
+                    }
+                }
+                advance_curt();
+
+                switch(curt->kind) {
+                    case token::function_arrow: {
+                        // we now have to skip until either a semicolon or opening brace is found 
+                        // if a brace is found, this must be a function definition and so the label
+                        // refers to a function entity, otherwise it is a label of function pointer type
+                        while(1) {
+                            advance_curt();
+                            if(curt->kind == token::open_brace) {
+                                // we assume this is a function definion, so we'll create a function entity to be 
+                                // filled out later during actual parsing 
+                                Function* f = compiler::create_function();
+                                l->entity = (TNode*)f;
+                                goto label_finished;
+                            } else if(curt->kind == token::semicolon || curt->kind == token::equal) {
+                                // this is probably a variable pointing to a function
+                                // if '=' is found, then it's the same, only it is being initialized
+                                Place* p = compiler::create_place();
+                                l->entity = (TNode*)p;
+                                goto label_finished;
+                            }
+                        }
+                    } break;
+                    case token::equal:
+                    case token::semicolon: {
+                        // this must be a label representing a variable of some tuple type
+                        Place* p = compiler::create_place();
+                        l->entity = (TNode*)p;
+                        goto label_finished;
+                    } break;
+                    
+                }
+
+            } break;
+            case token::equal: {
+                // this is some implicitly typed runtime label
+            } break;    
+            case token::colon: {
+                // this is some implicitly typed compile time label
+                // we may run into 'struct', 'module', 'variant', or just an expression 
+                advance_curt();
+                switch(curt->kind) {
+                    case token::structdecl: {
+                        Structure* s = compiler::create_structure();
+                        l->entity = (TNode*)s;
+                        goto label_finished;
+                    } break;
+                    case token::moduledecl: {
+                        l->entity = (TNode*)curt->module;
+                        // we switch over to the new module and recurse
+                        Token* save = curt;
+                        push_module(curt->module);
+                        prescan();
+                        pop_module();
+                        curt = save;
+                        goto label_finished;
+                    } break;
+                    case token::open_paren: {
+                        // this has to be a function definition
+                        // for now, at least
+                        // TODO(sushi) determine if the grammar can support Type objects being assigned like this
+                        Function* f = compiler::create_function();
+                        l->entity = (TNode*)f;
+                        goto label_finished;
+                    } break;
+                }
+            } break;
+            default: {
+                // in any other case, this is probably just a compile time variable declaration
+                Place* p = compiler::create_place();
+                l->entity = (TNode*)p;
+                goto label_finished;
+            } break;
+        }
+label_finished:;
+    }
+}
+
 } // namespace internal
 
 void
@@ -1245,18 +1540,18 @@ execute(Parser& parser) {
         message::make_debug(message::verbosity::stages,
             String("beginning syntactic analysis"))));
 
-    Lexer lexer = *parser.source->lexer;
+    parser.current_module = parser.source->module;
     internal::parser = &parser;
-    internal::curt = array::readptr(lexer.tokens, 0);
     internal::stack = array::init<TNode*>(32);
+    internal::prescan();
+    internal::curt = array::readptr(parser.source->lexer->tokens, 0);
     internal::start();
 
+    // !Leak: need to setup MessagePart to take a dynamic string and clean it up when it is no longer needed
     DString time_taken = util::format_time(util::stopwatch::peek(parser_time));
     messenger::dispatch(message::attach_sender(parser.source,
         message::make_debug(message::verbosity::stages, 
             String("syntactic analysis finished in "), String(time_taken))));
-    if(compiler::instance.options.deliver_debug_immediately)
-        dstring::deinit(time_taken);
 }
 
 } // namespace parser

@@ -19,11 +19,8 @@ struct Parser {
         Array<Label*> internal;
     } labels;
 
-     struct{
-        Array<Label*> stack;
-        Map<String, Label*> table;
-        Label* current;
-    }label;
+    Array<Module*> module_stack;
+    Module* current_module;
 
     struct{ 
         b32 failed;

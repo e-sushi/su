@@ -26,9 +26,11 @@ enum kind : u32 {
     
     block,
     loop,
+    for_,
     switch_expr,
     switch_case,
     conditional,
+    return_,
 
     unary_bit_comp,
     unary_logi_not,
