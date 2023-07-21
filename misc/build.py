@@ -158,9 +158,7 @@ parts = {
             "paths": []
         },
         "linux": {
-            "always": ["X11", "Xrandr"],
-            "vulkan": ["vulkan", "shaderc_combined"],
-            "opengl": ["GL"],
+            "always": ["stdc++fs"],
             "none": [],
             "paths": []
         },
@@ -271,6 +269,7 @@ parts = {
                 "-Wno-unused-variable "
                 "-Wno-undefined-inline "
                 "-Wno-return-type-c-linkage "
+
             ),
             "release":(
                 "-O2 " # maximizes speed (O1 minimizes size)
@@ -379,7 +378,7 @@ full_app = (
 
 full_link = (
     f'{config["compiler"]} ' # NOTE(sushi) this should not be the compiler, but it is for now cause that is how it is on linux for me so fix later please
-    f'{folders["build"]}/deshi.o {folders["build"]}/{app_name}.o '
+    f'{folders["build"]}/{app_name}.o '
     f'{link["flags"]} '
     f'{link["libs"]} '
     f'{link["paths"]} '
