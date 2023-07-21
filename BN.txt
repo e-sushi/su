@@ -91,25 +91,26 @@
             char = ? any unicode codepoint ? 
                  
 module = { label | import }
- 
+
 
 label = id { "," id } ":" expr
-
+idgroup = id { "," id }
 stmt = ( label | defer | expr ) ";"
 defer = "defer" expr
 expr = assignment | ctime | loop
 assignment = [ id | type ] "=" exp
 ctime = [ type ] ":" exp
-loop = switch | "loop" expr
-switch = conditional | "switch" "(" expr ")" "{" { expr "=>" expr } "}" 
+loop = switch | "loop" expr | 
+for = "for" ( "(" label ";" expr ";" expr ")" | "(" id { "," id } "in" expr ")" ) expr
+switch = conditional | "switch" "(" expr ")" "{" { expr "=>" expr } "}"
 conditional = logical-or | "if" "(" expr ")" expr [ "else" expr ]
 logical-or = logical-and { "||" logical-and }
-logical-and = bit-or { "&&" bit-or }            
-bit-or = bit-xor { "|" bit-xor }            
-bit-xor = bit-and { "^" bit-and }                     
-bit-and = equality { "&" equality }                              
-equality = relational { ("!=" | "==" ) relational }              
-relational = bit-shift { ( "<" | ">" | "<=" | ">=" ) bit-shift } 
+logical-and = bit-or { "&&" bit-or }
+bit-or = bit-xor { "|" bit-xor }
+bit-xor = bit-and { "^" bit-and }
+bit-and = equality { "&" equality }
+equality = relational { ("!=" | "==" ) relational }
+relational = bit-shift { ( "<" | ">" | "<=" | ">=" ) bit-shift }
 bit-shift = additive { "<<" | ">>" additive }
 additive = term { ( "+" | "-" ) term }                           
 term = access { ( "*" | "/" | "%" ) access }
