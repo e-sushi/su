@@ -120,6 +120,13 @@ group parser {
         }
     }
 
+    diagnostic unknown_identifier {
+        type: error;
+        message: {
+            en: "reference to unknown identifier.";
+        }
+    }
+
     diagnostic expected_comma_or_closing_paren_tuple {
         type: error;
         message: {
@@ -215,6 +222,41 @@ group parser {
         type: error;
         message: {
             en: "expected a ',' after switch arm that does not end with a '}'";
+        }
+    }
+
+    diagnostic for_missing_open_paren {
+        type: error;
+        message: {
+            en: "missing a '(' after 'for'";
+        }
+    }
+
+    diagnostic for_missing_close_paren {
+        type: error;
+        message: {
+            en: "missing a ')' after for's expression";
+        }
+    }
+
+    diagnostic for_expected_some_identfier {
+        type: error;
+        message: {
+            en: "expected some identifier to begin 'for' clause";
+        }
+    }
+
+    diagnostic for_label_group_not_allowed {
+        type: error;
+        message: {
+            en: "multi label definition is not allowed in C style for loops.";
+        }
+    }
+
+    diagnostic for_expected_in {
+        type: error;
+        message: {
+            en: "expected 'in' for 'for' clause";
         }
     }
 
