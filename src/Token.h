@@ -49,39 +49,39 @@ enum kind : u32 {
     //// operators ////
     group_operator,
     plus = group_operator,      // +
-    increment,                  // ++
-    plus_assignment,            // +=
-    negation,                   // -
-    negation_assignment,        // -=
-    multiplication,             // *
-    multiplication_assignment,  // *=
-    division,                   // /
-    division_assignment,        // /=
-    bit_not,                    // ~
-    bit_not_assignment,         // ~=
-    bit_and,                    // &
-    bit_and_assignment,         // &=
-    logi_and,                   // &&
-    bit_or,                     // |
-    bit_or_assignment,          // |=
+    plus_equal,                 // +=
+    minus,                      // -
+    minus_equal,                // -=
+    asterisk,                   // *
+    asterisk_assignment,        // *=
+    solidus,                    // /
+    solidus_assignment,         // /=
+    tilde,                      // ~
+    tilde_assignment,           // ~=
+    ampersand,                  // &
+    ampersand_assignment,       // &=
+    double_ampersand,           // &&
+    vertical_line,              // |
+    vertical_line_equals,       // |=
     logi_or,                    // ||
-    bit_xor,                    // ^
-    bit_xor_assignment,         // ^=
-    bit_shift_left,             // <<
-    bit_shift_left_assignment,  // <<=
-    bit_shift_right,            // >>
-    bit_shift_right_assignment, // >>=
-    modulo,                     // %
-    modulo_assignment,          // %=
-    assignment,                 // =
-    equal,                      // ==
-    logical_not,                // !
-    not_equal,                  // !=
+    caret,                      // ^
+    caret_equal,                // ^=
+    double_less_than,           // <<
+    double_less_than_equal,     // <<=
+    double_greater_than,        // >>
+    double_greater_than_equal,  // >>=
+    percent,                    // %
+    percent_equal,              // %=
+    equal,                      // =
+    double_equal,               // ==
+    explanation_mark,           // !
+    explanation_mark_equal,     // !=
     less_than,                  // <
-    less_than_or_equal,         // <=
+    less_than_equal,            // <=
     greater_than,               // >
-    greater_than_or_equal,      // >=
+    greater_than_equal,         // >=
     dollar,                     // $
+    double_dollar,              // $$
     
     //// keywords ////
     group_keyword,
@@ -95,9 +95,10 @@ enum kind : u32 {
     defer_,                  // defer
     structdecl,              // struct
     moduledecl,              // module
-    using_,                   // using
+    using_,                  // using
     switch_,                 // switch
     loop,                    // loop
+    in,                      // in
     
     //// types  ////
     group_type,
@@ -143,7 +144,9 @@ struct Token {
 
     u8* line_start;
 
-    TNode* prescan_symbol; 
+    // if this is a token::moduledecl
+    // we will have already created a Module entity, so we store that here
+    Module* module;
 
     union{
         f64 f64_val;

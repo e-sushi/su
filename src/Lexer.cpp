@@ -34,6 +34,7 @@ token_is_keyword_or_identifier(String raw) {
 		strcase("str"):       return token::string;
 		strcase("any"):       return token::any;
 		strcase("using"):     return token::using_;
+		strcase("in"):        return token::in;
     }
     return token::identifier;
 }
@@ -104,18 +105,32 @@ stream_next;                \
 }                           \
 }break;
 
-#define CASE3(c1,t1, c2,t2, c3,t3) \
-case c1:{                          \
-token.kind = t1;                   \
-stream_next;                       \
-if      (*stream.str == c3){       \
-token.kind = t3;                   \
-stream_next;                       \
-}else if(*stream.str == c2){       \
-token.kind = t2;                   \
-stream_next;                       \
-}                                  \
+#define CASE2ALT(c1,t1, c2,t2, c3,t3) \
+case c1:{                             \
+token.kind = t1;                      \
+stream_next;                          \
+if      (*stream.str == c3){          \
+token.kind = t3;                      \
+stream_next;                          \
+}else if(*stream.str == c2){          \
+token.kind = t2;                      \
+stream_next;                          \
+}                                     \
 }break;
+
+#define CASE3(c1,t1,c2,t2,c3,t3) \
+case c1:{                        \
+token.kind = t1;                 \
+stream_next;                     \
+if(*stream.str == c2){           \
+token.kind = t2;                 \
+stream_next;                     \
+if(*stream.str == c3){           \
+token.kind = t3;                 \
+stream_next;                     \
+}                                \
+}                                \
+}break;                          \
 
     util::Stopwatch lexer_time = util::stopwatch::start();
     
@@ -132,6 +147,27 @@ stream_next;                       \
 
 	Token last_token = {};
 	b32 label_latch = false; // true when a label has been found, set back to false when a label ending token is crossed (a semicolon or close brace)
+
+	struct ModuleEntry {
+		Module* module;
+		u32 scope_level; // scope level that this module was started at 
+		b32 label_latch;
+	};
+
+	auto module_stack = array::init<ModuleEntry>();
+	defer{array::deinit(module_stack);};
+
+	Module* file_module = lexer.source->module = compiler::create_module();
+	ModuleEntry current_module = {file_module, 0, false};
+
+	auto push_module = [&](Module* m) {
+		array::push(module_stack, current_module);
+		current_module = {m,scope_level+1,false};
+	};
+
+	auto pop_module = [&]() {
+		current_module = array::pop(module_stack);
+	};
 
     while(stream) {
         Token token = {};
@@ -210,9 +246,8 @@ stream_next;                       \
 
 			case '"':{
 				token.kind  = token::literal_string;
-				// token.group = TokenGroup_Literal;
+				token.group = token::group_literal;
 				stream_next;
-				
 				
 				while(*stream.str != '"'){
 					stream_next; //skip until closing double quotes
@@ -232,14 +267,10 @@ stream_next;                       \
 			}continue; //skip token creation b/c we did it manually
 			
 			case ';': {
-				if(!scope_level) label_latch = false;
+				if(!scope_level) current_module.label_latch = false;
 				token.kind = token::semicolon;
 				stream_next;
 			} break;
-
-			//CASE1(';', token::semicolon);
-            // CASE1('(', Token::OpenParen);
-            // CASE1(')', Token::CloseParen);
 			case '(':{ 
 				token.kind = token::open_paren;
 				scope_level++;
@@ -255,19 +286,21 @@ stream_next;                       \
 			CASE1(']', token::close_square);
 			CASE1(',', token::comma);
 			CASE1('?', token::question_mark);
+
 			case ':':{ //NOTE special for declarations and compile time expressions
 				token.kind = token::colon; 
-				if(!label_latch && last_token.kind == token::identifier) {
-					label_latch = true;
-					array::push(lexer.global_labels, lexer.tokens.count-1);
+				if(!current_module.label_latch && last_token.kind == token::identifier) {
+					current_module.label_latch = true;
+					array::push(current_module.module->labels, lexer.tokens.count-1);
 				}
 				stream_next; 
 			}break;
+			
 			CASE3('.', token::dot, '.', token::range, '.', token::ellipsis);
 			CASE1('@', token::at);
 			CASE1('#', token::pound);
 			CASE1('`', token::backtick);
-            CASE1('$', token::dollar);
+            CASE2('$', token::dollar, '$', token::double_dollar);
 
 			case '{':{ //NOTE special for scope tracking and internals 
 				token.kind = token::open_brace;
@@ -278,25 +311,25 @@ stream_next;                       \
 			case '}':{ //NOTE special for scope tracking and internals
 				token.kind = token::close_brace;
 				scope_level--;
-				if(!scope_level) label_latch = false;
-
+				if(scope_level+1 == current_module.scope_level) pop_module();
+				else if(scope_level == current_module.scope_level) current_module.label_latch = false;
 				stream_next;
 			}break;
 			
 			//// @operators ////
-			CASE2('+', token::plus,             '=', token::plus_assignment);
-			CASE2('*', token::multiplication,   '=', token::multiplication_assignment);
-			CASE2('%', token::modulo,           '=', token::modulo_assignment);
-			CASE2('~', token::bit_not,          '=', token::bit_not_assignment);
-			CASE3('&', token::bit_and,          '=', token::bit_and_assignment,    '&', token::logi_and);
-			CASE3('|', token::bit_or,           '=', token::bit_or_assignment,     '|', token::logi_or);
-			CASE2('^', token::bit_xor,          '=', token::bit_xor_assignment);
+			CASE2('+', token::plus,             '=', token::plus_equal);
+			CASE2('*', token::asterisk,         '=', token::asterisk_assignment);
+			CASE2('%', token::percent,          '=', token::percent_equal);
+			CASE2('~', token::tilde,            '=', token::tilde_assignment);
+			CASE2ALT('&', token::ampersand,     '=', token::ampersand_assignment, '&', token::double_ampersand);
+			CASE2ALT('|', token::vertical_line, '=', token::vertical_line_equals, '|', token::logi_or);
+			CASE2('^', token::caret,            '=', token::caret_equal);
 
 			case '=': {
-				token.kind = token::assignment;
+				token.kind = token::equal;
 				stream_next;
 				if(*stream.str == '=') {
-					token.kind = token::equal;
+					token.kind = token::double_equal;
 					stream_next;
 				} else if(*stream.str == '>') {
 					token.kind = token::match_arrow;
@@ -304,10 +337,10 @@ stream_next;                       \
 				}
 			} break;
 
-			CASE2('!', token::logical_not,      '=', token::not_equal);
+			CASE2('!', token::explanation_mark, '=', token::explanation_mark_equal);
 
 			case '-':{ // NOTE special because of ->
-				token.kind = token::negation;
+				token.kind = token::minus;
 				stream_next;
 				if(*stream.str == '>'){
 					token.kind = token::function_arrow;
@@ -317,10 +350,10 @@ stream_next;                       \
 			}break;
 
 			case '/':{ //NOTE special because of comments
-				token.kind = token::division;
+				token.kind = token::solidus;
 				stream_next;
 				if(*stream.str == '='){
-					token.kind = token::division_assignment;
+					token.kind = token::solidus_assignment;
 					stream_next;
 				}else if(*stream.str == '/'){
 					while(stream && *stream.str != '\n') stream_next; //skip single line comment
@@ -342,13 +375,13 @@ stream_next;                       \
 				token.kind = token::less_than;
 				stream_next;
 				if      (*stream.str == '='){
-					token.kind = token::less_than_or_equal;
+					token.kind = token::less_than_equal;
 					stream_next;
 				}else if(*stream.str == '<'){
-					token.kind = token::bit_shift_left;
+					token.kind = token::double_less_than;
 					stream_next;
 					if(*stream.str == '='){
-						token.kind = token::bit_shift_left_assignment;
+						token.kind = token::double_less_than_equal;
 						stream_next;
 					}
 				}
@@ -358,13 +391,13 @@ stream_next;                       \
 				token.kind = token::greater_than;
 				stream_next;
 				if      (*stream.str == '='){
-					token.kind = token::greater_than_or_equal;
+					token.kind = token::greater_than_equal;
 					stream_next;
 				}else if(*stream.str == '>'){
-					token.kind = token::bit_shift_right;
+					token.kind = token::double_greater_than;
 					stream_next;
 					if(*stream.str == '='){
-						token.kind = token::bit_shift_right_assignment;
+						token.kind = token::double_greater_than_equal;
 						stream_next;
 					}
 				}
@@ -391,7 +424,13 @@ stream_next;                       \
 					} else {
 						switch(token.kind) {
 							case token::structdecl: array::push(lexer.structs, lexer.tokens.count); break;
-							case token::moduledecl: array::push(lexer.modules, lexer.tokens.count); break;
+							case token::moduledecl: {
+								Module* m = compiler::create_module();
+								// link the new module's symbol table to the current one 
+								m->table.last = &current_module.module->table;
+								push_module(m);
+								token.module = m;
+							} break;
 						}
 					}
 				}else{
@@ -409,7 +448,7 @@ stream_next;                       \
 			token.group = token::group_literal;
 		}else if(token.kind >= token::semicolon && token.kind <= token::backtick){
 			token.group = token::group_control;
-		}else if(token.kind >= token::plus && token.kind <= token::greater_than_or_equal){
+		}else if(token.kind >= token::plus && token.kind <= token::greater_than_equal){
 			token.group = token::group_operator;
 		}else if(token.kind >= token::return_ && token.kind <= token::structdecl){
 			token.group = token::group_keyword;
@@ -437,6 +476,11 @@ stream_next;                       \
 	array::push(lexer.tokens, eof);
 
     lexer.status.time = util::stopwatch::peek(lexer_time);
+
+	// !Leak: see Parser.cpp where we do the same thing
+	DString temp = util::format_time(lexer.status.time);
+	messenger::dispatch(message::attach_sender(lexer.source,
+		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(temp))));
 } // lex::execute
 
 void
