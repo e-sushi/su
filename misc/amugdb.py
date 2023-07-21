@@ -7,6 +7,11 @@ def dbgmsg(s):
     t = time.perf_counter()
     gdb.write(f"dbg:{t}: {s}"); gdb.flush()
 
+def full_deref_if_ptr(thing):
+    while thing.type.code == gdb.TYPE_CODE_PTR:
+        thing = thing.dereference()
+    return thing
+
 class print_lnode_chain(gdb.Command):
     def __init__(self):
         super(print_lnode_chain, self).__init__("plnode", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
@@ -34,13 +39,12 @@ class String_printer:
     def to_string(self):
         try:
             val = self.val
-            ptr = int(gdb.parse_and_eval(f"((String*){val.address})->str"))
+            ptr = int(val['str'])
             # this must be a corrupt String
             if abs(val['count']) > int(10000):
                 return "corrupt String"
             buf = gdb.selected_inferior().read_memory(ptr, val['count']).tobytes().decode()
-            buf.replace('\n', '\\n')
-
+            buf = buf.replace('\n', '\\n')
             return buf
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -71,8 +75,14 @@ class Array_printer:
             if not val['count']:
                 return "{empty}"
             type = str(val.type)
-            subtype = type[type.find("<")+1:type.rfind(">")]
-            return gdb.parse_and_eval(f"*(({subtype}*){val['data']})@{val['count']}")
+            subtype = type[type.find("<")+1:-1]
+            ptr = val['data']
+            out = "{\n"
+            for i in range(val['count']):
+                out += "  " + str(full_deref_if_ptr(gdb.parse_and_eval(f"*((({subtype}*){ptr})+{i})"))) + " ,\n"
+            out += "}"
+            return out
+            # return gdb.parse_and_eval(f"*(({subtype}*){val['data']})@{val['count']}")
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Array", r"^amu::Array<.*>$", Array_printer)
@@ -126,7 +136,7 @@ class Token_printer:
         try:
             val:gdb.Value = self.val
             kind = str(val['kind'])[12:]
-            file = str(val['source']['file']['name']).strip('"')
+            file = str(val['source']['name']).strip('"')
             line = str(val['l0'])
             col = str(val['c0'])
             raw = str(val['raw'])
@@ -317,6 +327,16 @@ class Expression_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Expression", r"^amu::Expression", Expression_printer)
 
+class Map_printer: 
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+# pp.add_printer("Map", r"^amu::Map<.*?,.*>$", Map_printer)
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
 
@@ -335,7 +355,7 @@ class graph_ast(gdb.Command):
         super(graph_ast, self).__init__("gast", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
     
     def build_tree(self, node:gdb.Value):
-        print(f"building {node}")
+        print(f"building {node.dereference()}")
         label = ""
         match str(node['kind']):
             case "amu::node::label":
@@ -489,7 +509,7 @@ class parser_track_stack(gdb.Command):
 
         # we need to load the source's buffer manually, because gdb with attempt to 
         # fold repeating things in arrays, including strings!
-        bufferptr = int(gdb.parse_and_eval("parser->source->buffer->s.str"))
+        bufferptr = int(gdb.parse_and_eval("parser->source->buffer->str"))
 
         length = 0
         while 1:
