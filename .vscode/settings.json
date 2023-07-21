@@ -80,6 +80,24 @@
         "*.def": "cpp",
         "*.inc": "cpp",
         "*.generated": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "any": "cpp",
+        "cctype": "cpp",
+        "clocale": "cpp",
+        "codecvt": "cpp",
+        "concepts": "cpp",
+        "coroutine": "cpp",
+        "cstdarg": "cpp",
+        "cstdint": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "cwchar": "cpp",
+        "cwctype": "cpp",
+        "memory_resource": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "cinttypes": "cpp",
+        "variant": "cpp"
     }
 }
