@@ -98,6 +98,7 @@ clear(Array<T>& arr) {
     forI(arr.count) {
         arr.data[i] = {};
     }
+    arr.count = 0;
 }
 
 template<typename T> void
