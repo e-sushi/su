@@ -35,6 +35,15 @@ struct Source {
     Parser* parser;
 };
 
+namespace source {
+
+global Source*
+load(String path);
+
+global Source*
+lookup(String name);
+
+} // namespace source
 } // namespace amu
 
 #endif // AMU_SOURCE_H

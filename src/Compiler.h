@@ -56,7 +56,7 @@ struct Compiler {
         b32 deliver_debug_immediately;
 
         b32 quiet;
-
+        
         struct{
             String path;
             b32 exit;
@@ -99,16 +99,6 @@ deinit();
 
 global void
 begin(Array<String> args);
-
-// loads a file as an amu::Source and stores it internally
-// returns a handle to the Source
-global Source*
-load_source(String path);
-
-// attempts to locate a given source name
-// returns 0 if it doesn't exist
-global Source*
-lookup_source(String name);
 
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler
