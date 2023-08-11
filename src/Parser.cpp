@@ -153,7 +153,7 @@ void start();
 void identifier_group() { announce_stage;
     while(1) {
         if(curt->kind != token::identifier) break; 
-        Expression* expr = compiler::create_expression();
+        Expression* expr = expression::create();
         expr->kind = expression::identifier;
         expr->node.start = expr->node.end = curt;
         
@@ -165,7 +165,7 @@ void identifier_group() { announce_stage;
         } else {
             // this is the second label, so the last must be another identifier
             // make the label group tuple
-            Tuple* group = compiler::create_tuple();
+            Tuple* group = tuple::create();
             group->kind = tuple::label_group;
             node::change_parent((TNode*)group, stack_pop());
             node::insert_last((TNode*)group, (TNode*)expr);
@@ -183,7 +183,7 @@ void identifier_group() { announce_stage;
 // factor: ID *
 // reduce ID -> expr:id
 void reduce_identifier_to_identifier_expression() { announce_stage;
-    Expression* e = compiler::create_expression();
+    Expression* e = expression::create();
     e->kind = expression::identifier;
     TNode* n = (TNode*)e;
     n->start = n->end = curt;
@@ -197,7 +197,7 @@ void reduce_identifier_to_identifier_expression() { announce_stage;
     TODO(sushi) this may only be used in one or two places so it can be removed if so 
 */
 void reduce_literal_to_literal_expression() { announce_stage;
-    Expression* e = compiler::create_expression();
+    Expression* e = expression::create();
     e->kind = expression::literal;
     TNode* n = (TNode*)e;
     n->start = n->end = curt;
@@ -212,23 +212,22 @@ void reduce_literal_to_literal_expression() { announce_stage;
            | "f32" * | "f64" *
 */
 void reduce_builtin_type_to_typeref_expression() { announce_stage;
-    Expression* e = compiler::create_expression();
+    Expression* e = expression::create();
     e->kind = expression::typeref;
-    Type type = {};
+    e->type = type::create();
     switch(curt->kind) {
-        case token::void_:      type.structure = compiler::builtins.void_; break; 
-        case token::unsigned8:  type.structure = compiler::builtins.unsigned8; break;
-        case token::unsigned16: type.structure = compiler::builtins.unsigned16; break;
-        case token::unsigned32: type.structure = compiler::builtins.unsigned32; break;
-        case token::unsigned64: type.structure = compiler::builtins.unsigned64; break;
-        case token::signed8:    type.structure = compiler::builtins.signed8; break;
-        case token::signed16:   type.structure = compiler::builtins.signed16; break;
-        case token::signed32:   type.structure = compiler::builtins.signed32; break;
-        case token::signed64:   type.structure = compiler::builtins.signed64; break;
-        case token::float32:    type.structure = compiler::builtins.float32; break;
-        case token::float64:    type.structure = compiler::builtins.float64; break;
+        case token::void_:      e->type->structure = compiler::builtins.void_; break; 
+        case token::unsigned8:  e->type->structure = compiler::builtins.unsigned8; break;
+        case token::unsigned16: e->type->structure = compiler::builtins.unsigned16; break;
+        case token::unsigned32: e->type->structure = compiler::builtins.unsigned32; break;
+        case token::unsigned64: e->type->structure = compiler::builtins.unsigned64; break;
+        case token::signed8:    e->type->structure = compiler::builtins.signed8; break;
+        case token::signed16:   e->type->structure = compiler::builtins.signed16; break;
+        case token::signed32:   e->type->structure = compiler::builtins.signed32; break;
+        case token::signed64:   e->type->structure = compiler::builtins.signed64; break;
+        case token::float32:    e->type->structure = compiler::builtins.float32; break;
+        case token::float64:    e->type->structure = compiler::builtins.float64; break;
     }
-    e->type = type;
     e->node.start = curt;
     e->node.end = curt;
     stack_push((TNode*)e);
@@ -237,7 +236,6 @@ void reduce_builtin_type_to_typeref_expression() { announce_stage;
 /*
         tuple: '(' ... ')' *
     func_type: tuple * "->" factor { "," factor } 
-
 */
 void tuple_after_close_paren() { announce_stage;
     if(curt->kind == token::function_arrow) {
@@ -256,12 +254,13 @@ void tuple_after_close_paren() { announce_stage;
             push_error();
         }
 
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::typeref;
-        e->type.structure = compiler::builtins.functype;
+        e->type = type::create();
+        e->type->structure = compiler::builtins.functype;
 
         if(count > 1) {
-            Tuple* t = compiler::create_tuple();
+            Tuple* t = tuple::create();
             t->kind = tuple::multireturn;
             
             forI(count) {
@@ -285,7 +284,7 @@ void tuple_after_close_paren() { announce_stage;
             block(); check_error;
             node::insert_last((TNode*)e, stack_pop());
             e->node.end = e->node.last_child->end;
-            Function* f = compiler::create_function();
+            Function* f = function::create();
             f->node.start = e->node.start;
             f->node.end = e->node.end;
             stack_push((TNode*)f);
@@ -334,7 +333,7 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
     }
 
 
-    Tuple* tuple = compiler::create_tuple();
+    Tuple* tuple = tuple::create();
     tuple->kind = tuple::unknown;
 
     forI(count){
@@ -389,7 +388,7 @@ void block() {
             count++;
             break;
         } else { // this is just a normal statement
-            Statement* s = compiler::create_statement();
+            Statement* s = statement::create();
             s->kind = skind;
 
             node::insert_first((TNode*)s, stack_pop());
@@ -403,7 +402,7 @@ void block() {
         }
     }
 
-    Expression* e = compiler::create_expression();
+    Expression* e = expression::create();
     e->kind = expression::block;
 
     forI(count) {
@@ -452,7 +451,7 @@ void comptime_after_colon() { announce_stage;
 /*
     assignment: typeref * '=' expr
          ctime: typeref * ':' expr
-        factor: typeref * [ block ]
+        factor: typeref * [ block | '*' ]
 */ 
 void after_typeref() { announce_stage;
     Token* save = curt;
@@ -462,7 +461,7 @@ void after_typeref() { announce_stage;
             advance_curt(); // assignment: typeref '=' * expr
             before_expr(); check_error;
             // now we reduce to binary assignment
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = expression::binary_assignment;
             e->node.start = save;
             e->node.end = curt;
@@ -472,8 +471,7 @@ void after_typeref() { announce_stage;
             set_start_end_from_children(e);
 
             // this is a place in memory, so we need to create a Place entity for it 
-            Place* p = compiler::create_place();
-            // TODO(sushi) type information ?
+            Place* p = place::create();
             p->node.start = e->node.start;
             p->node.end = e->node.end;
 
@@ -490,7 +488,8 @@ void after_typeref() { announce_stage;
             typeref->end = typeref->last_child->end;
         } break;
         case token::asterisk: {
-
+            Expression* last = (Expression*)array::read(stack, -1);
+            Type* type = type::create();
         } break;
     }
 }
@@ -506,7 +505,7 @@ void loop() { announce_stage;
         advance_curt();
         before_expr();
 
-        Expression* loop = compiler::create_expression();
+        Expression* loop = expression::create();
         loop->kind = expression::loop;
         node::insert_last((TNode*)loop, stack_pop());
         set_start_end_from_children(loop);
@@ -538,7 +537,7 @@ void for_() {
     switch((curt+1)->kind) {
         case token::in:
         case token::comma: { // this is a list of identifiers that must be followed by 'in'
-            Expression* expr = compiler::create_expression();
+            Expression* expr = expression::create();
             expr->kind = expression::identifier;
             expr->node.start = curt;
             expr->node.end = curt;
@@ -596,7 +595,7 @@ void for_() {
     // we should be before some expression now 
     before_expr(); check_error;
 
-    Expression* e = compiler::create_expression();
+    Expression* e = expression::create();
     e->kind = expression::for_;
 
     node::insert_first((TNode*)e, stack_pop());
@@ -665,7 +664,7 @@ void switch_() { announce_stage;
         advance_curt();
         count++;
 
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::switch_case;
         
         node::insert_first((TNode*)e, stack_pop());
@@ -682,7 +681,7 @@ void switch_() { announce_stage;
             switch_empty_body({parser->source, curt});
     }
 
-    Expression* e = compiler::create_expression();
+    Expression* e = expression::create();
     e->kind = expression::switch_expr;
 
     // reduce to switch expression
@@ -722,7 +721,7 @@ void conditional() { announce_stage;
 
         before_expr();
 
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::conditional;
 
         node::insert_first((TNode*)e, stack_pop());
@@ -759,7 +758,7 @@ void logi_or() { announce_stage;
         bit_xor(); check_error;
         bit_or(); check_error;
         logi_and(); check_error;
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::binary_or;
 
         node::insert_first((TNode*)e, stack_pop());
@@ -789,7 +788,7 @@ void logi_and() { announce_stage;
         bit_and(); check_error;
         bit_xor(); check_error;
         bit_or(); check_error;
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::binary_and;
 
         node::insert_first((TNode*)e, stack_pop());
@@ -818,7 +817,7 @@ void bit_or() { announce_stage;
         equality(); check_error;
         bit_and(); check_error;
         bit_xor(); check_error;
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::binary_bit_or;
 
         node::insert_first((TNode*)e, stack_pop());
@@ -846,7 +845,7 @@ void bit_xor() { announce_stage;
         relational(); check_error;
         equality(); check_error;
         bit_and(); check_error;
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::binary_bit_xor;
 
         node::insert_first((TNode*)e, stack_pop());
@@ -874,7 +873,7 @@ void bit_and() { announce_stage;
         bit_shift(); check_error;
         relational(); check_error;
         equality(); check_error;
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::binary_bit_and;
 
         node::insert_first((TNode*)e, stack_pop());
@@ -903,7 +902,7 @@ void equality() { announce_stage;
             additive(); check_error;
             bit_shift(); check_error;
             relational(); check_error;
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = kind == token::double_equal ? expression::binary_equal : expression::binary_not_equal;
 
             node::insert_first((TNode*)e, stack_pop());
@@ -934,7 +933,7 @@ void relational() { announce_stage;
             term(); check_error;
             additive(); check_error;
             bit_shift(); check_error;
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = kind == token::less_than ?
                       expression::binary_less_than :
                       kind == token::less_than_equal ? 
@@ -968,7 +967,7 @@ void bit_shift() { announce_stage;
             access(); check_error;
             term(); check_error;
             additive(); check_error;
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = kind == token::double_less_than ? 
                       expression::binary_bit_shift_left :
                       expression::binary_bit_shift_right;
@@ -997,7 +996,7 @@ void additive() { announce_stage;
             factor(); check_error;
             access(); check_error;
             term(); check_error;
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = kind == token::plus ? expression::binary_plus : expression::binary_minus;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
@@ -1023,7 +1022,7 @@ void term() { announce_stage;
             advance_curt();
             factor(); check_error; 
             access(); check_error;
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = 
                     kind == token::percent ? expression::binary_modulo 
                     : kind == token::solidus ? expression::binary_division
@@ -1049,7 +1048,7 @@ void access() { announce_stage;
         advance_curt();
         factor(); check_error;
         // access: factor { "." factor * }
-        Expression* e = compiler::create_expression();
+        Expression* e = expression::create();
         e->kind = expression::binary_access;
         node::insert_first((TNode*)e, stack_pop());
         node::insert_first((TNode*)e, stack_pop());
@@ -1076,6 +1075,7 @@ void factor() { announce_stage;
                 diagnostic::parser::unknown_identifier({parser->source, curt});
                 push_error();
             }
+            
             // in order to determine how we will treat this identfier syntactically, we figure out what sort of 
             // entity the label points to
             switch(label->entity->kind) {
@@ -1083,7 +1083,9 @@ void factor() { announce_stage;
 
                 } break;
                 case node::structure: {
-                    after_typeref(); 
+                    ((Expression*)array::read(stack, -1))->kind = expression::typeref;
+                    advance_curt();
+                    after_typeref(); check_error;
                 } break;
             }
             advance_curt(); 
@@ -1144,7 +1146,7 @@ void struct_decl() {
         }
     }
 
-    Structure* s = compiler::create_structure();
+    Structure* s = structure::create();
     s->node.start = save;
     s->node.end = curt;
 
@@ -1183,7 +1185,7 @@ void before_expr() { announce_stage;
             advance_curt();
             before_expr();
 
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = expression::unary_assignment;
 
             node::insert_first((TNode*)e, stack_pop());
@@ -1197,7 +1199,7 @@ void before_expr() { announce_stage;
             advance_curt();
             before_expr(); check_error;
 
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = expression::unary_comptime;
 
             node::insert_first((TNode*)e, stack_pop());
@@ -1220,7 +1222,7 @@ void before_expr() { announce_stage;
             advance_curt();
             before_expr();
 
-            Expression* e = compiler::create_expression();
+            Expression* e = expression::create();
             e->kind = expression::return_;
 
             node::insert_first((TNode*)e, stack_pop());
@@ -1281,9 +1283,27 @@ void label_after_colon() { announce_stage;
     check_error;
   
     switch(curt->kind) {
-        case token::identifier:      reduce_identifier_to_identifier_expression(); advance_curt(); break;
-        case token::colon:           before_expr(); break;
-        case token::open_paren:      advance_curt(); tuple_after_open_paren(); break;
+        case token::identifier: {
+            reduce_identifier_to_identifier_expression(); 
+            Label* label = search_for_label(&parser->current_module->table, curt->hash);
+            if(!label) {
+                diagnostic::parser::unknown_identifier({parser->source, curt});
+                push_error();
+            }
+
+            switch(label->entity->kind) {
+                case node::structure: {
+                    Expression* last = (Expression*)array::read(stack, -1);
+                    last->kind = expression::typeref;
+                    last->type = type::create();
+                    last->type->structure = (Structure*)label->entity;
+                    after_typeref(); check_error;
+                } break;
+            }
+            advance_curt(); 
+        } break;
+        case token::colon:      before_expr(); break;
+        case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
         case token::equal:      before_expr(); break;
         default: {
             if(curt->group == token::group_type) {
@@ -1350,7 +1370,7 @@ void label_after_id() { announce_stage;
 }
 
 void label() {
-    Expression* expr = compiler::create_expression();
+    Expression* expr = expression::create();
     expr->kind = expression::identifier;
     expr->node.start = curt;
     expr->node.end = curt;
@@ -1366,7 +1386,7 @@ void label() {
     if(found) {
         label = array::read(parser->current_module->table.map.values, idx);
     } else {
-        label = compiler::create_label();
+        label = label::create();
     }
 
     node::insert_first((TNode*)label, stack_pop());
@@ -1432,7 +1452,7 @@ void start() { announce_stage;
 void prescan() {
     forI(parser->current_module->labels.count) {
         curt = array::readptr(parser->source->lexer->tokens, array::read(parser->current_module->labels, i));
-        Label* l = compiler::create_label();
+        Label* l = label::create();
         l->node.start = curt;
         map::add(parser->current_module->table.map, curt->raw, l);
 
@@ -1463,13 +1483,13 @@ void prescan() {
                             if(curt->kind == token::open_brace) {
                                 // we assume this is a function definion, so we'll create a function entity to be 
                                 // filled out later during actual parsing 
-                                Function* f = compiler::create_function();
+                                Function* f = function::create();
                                 l->entity = (TNode*)f;
                                 goto label_finished;
                             } else if(curt->kind == token::semicolon || curt->kind == token::equal) {
                                 // this is probably a variable pointing to a function
                                 // if '=' is found, then it's the same, only it is being initialized
-                                Place* p = compiler::create_place();
+                                Place* p = place::create();
                                 l->entity = (TNode*)p;
                                 goto label_finished;
                             }
@@ -1478,7 +1498,7 @@ void prescan() {
                     case token::equal:
                     case token::semicolon: {
                         // this must be a label representing a variable of some tuple type
-                        Place* p = compiler::create_place();
+                        Place* p = place::create();
                         l->entity = (TNode*)p;
                         goto label_finished;
                     } break;
@@ -1495,7 +1515,7 @@ void prescan() {
                 advance_curt();
                 switch(curt->kind) {
                     case token::structdecl: {
-                        Structure* s = compiler::create_structure();
+                        Structure* s = structure::create();
                         l->entity = (TNode*)s;
                         goto label_finished;
                     } break;
@@ -1513,7 +1533,7 @@ void prescan() {
                         // this has to be a function definition
                         // for now, at least
                         // TODO(sushi) determine if the grammar can support Type objects being assigned like this
-                        Function* f = compiler::create_function();
+                        Function* f = function::create();
                         l->entity = (TNode*)f;
                         goto label_finished;
                     } break;
@@ -1521,7 +1541,7 @@ void prescan() {
             } break;
             default: {
                 // in any other case, this is probably just a compile time variable declaration
-                Place* p = compiler::create_place();
+                Place* p = place::create();
                 l->entity = (TNode*)p;
                 goto label_finished;
             } break;

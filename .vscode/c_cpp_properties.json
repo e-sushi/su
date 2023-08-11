@@ -35,7 +35,8 @@
                 "DESHI_VULKAN=1",
                 "SUUGU_USE_GRAPHVIZ",
                 "FIX_MY_IDE_PLEASE",
-                "AMU_GRAPHVIZ"
+                "AMU_GRAPHVIZ",
+                "AMU_IMPLEMENTATION"
             ],
             "windowsSdkVersion": "10.0.22000.0",
             "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.32.31326/bin/Hostx64/x64/cl.exe",

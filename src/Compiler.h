@@ -86,6 +86,7 @@ global struct{
     Structure* float32;
     Structure* float64;
     Structure* array;
+    Structure* darray;
     Structure* functype; // the internal rep for a function 'type', which is just a function pointer 
 }builtins;
 
@@ -108,31 +109,6 @@ load_source(String path);
 // returns 0 if it doesn't exist
 global Source*
 lookup_source(String name);
-
-// creates a Label and passes a handle to it
-global Label*
-create_label();
-
-global Place*
-create_place();
-
-global Structure*
-create_structure();
-
-global Function*
-create_function();
-
-global Module*
-create_module();
-
-global Statement*
-create_statement();
-
-global Tuple*
-create_tuple();
-
-global Expression*
-create_expression();
 
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler

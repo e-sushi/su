@@ -75,10 +75,20 @@ struct Expression {
     TNode node;
     expression::kind kind;
 
-    Type type; // the semantic type of this expression
+    Type* type; // the semantic type of this expression
 
     b32 is_compiletime;
 };
+
+namespace expression {
+
+global Expression*
+create();
+
+global void
+destroy(Expression& e);
+
+} // namespace expression
 } // namespace amu
 
 #endif // AMu_EXPRESSION_H

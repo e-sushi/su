@@ -26,34 +26,41 @@ init() {
 
     instance.options.deliver_debug_immediately = true;
 
-    compiler::builtins.void_ = compiler::create_structure();
+    compiler::builtins.void_ = structure::create();
     compiler::builtins.void_->size = 0;
-    compiler::builtins.unsigned8 = compiler::create_structure();
+    compiler::builtins.unsigned8 = structure::create();
     compiler::builtins.unsigned8->size = 1;
-    compiler::builtins.unsigned16 = compiler::create_structure();
+    compiler::builtins.unsigned16 = structure::create();
     compiler::builtins.unsigned16->size = 2;
-    compiler::builtins.unsigned32 = compiler::create_structure();
+    compiler::builtins.unsigned32 = structure::create();
     compiler::builtins.unsigned32->size = 4;
-    compiler::builtins.unsigned64 = compiler::create_structure();
+    compiler::builtins.unsigned64 = structure::create();
     compiler::builtins.unsigned64->size = 8;
-    compiler::builtins.signed8 = compiler::create_structure();
+    compiler::builtins.signed8 = structure::create();
     compiler::builtins.signed8->size = 1;
-    compiler::builtins.signed16 = compiler::create_structure();
+    compiler::builtins.signed16 = structure::create();
     compiler::builtins.signed16->size = 2;
-    compiler::builtins.signed32 = compiler::create_structure();
+    compiler::builtins.signed32 = structure::create();
     compiler::builtins.signed32->size = 4;
-    compiler::builtins.signed64 = compiler::create_structure();
+    compiler::builtins.signed64 = structure::create();
     compiler::builtins.signed64->size = 8;
-    compiler::builtins.float32 = compiler::create_structure();
+    compiler::builtins.float32 = structure::create();
     compiler::builtins.float32->size = 4;
-    compiler::builtins.float64 = compiler::create_structure();
+    compiler::builtins.float64 = structure::create();
     compiler::builtins.float64->size = 8;
-    compiler::builtins.array = compiler::create_structure();
-    compiler::builtins.array->size = sizeof(s64) + sizeof(void*);
-    map::add(compiler::builtins.array->members, String("data"), compiler::builtins.void_);
+
+    compiler::builtins.array = structure::create();
+    compiler::builtins.array->size = 2*sizeof(s64);
+    map::add(compiler::builtins.array->members, String("data"), compiler::builtins.signed64);
     map::add(compiler::builtins.array->members, String("count"), compiler::builtins.signed64);
 
-    compiler::builtins.functype = compiler::create_structure();
+    compiler::builtins.darray = structure::create();
+    compiler::builtins.darray->size = 3*sizeof(s64);
+    map::add(compiler::builtins.darray->members, String("data"), compiler::builtins.signed64);
+    map::add(compiler::builtins.darray->members, String("count"), compiler::builtins.signed64);
+    map::add(compiler::builtins.darray->members, String("space"), compiler::builtins.signed64);
+
+    compiler::builtins.functype = structure::create();
     compiler::builtins.functype->size = compiler::builtins.unsigned64->size;
     
     messenger::init();  // TODO(sushi) compiler arguments to control this
@@ -62,7 +69,7 @@ init() {
 }
 
 global void
-deinit() {}
+deinit() {} // TODO(sushi)
 
 namespace internal {
 
@@ -288,69 +295,6 @@ lookup_source(String name) {
         pool::next(iter);        
     }
     return 0;
-}
-
-global Label*
-create_label() {
-    Label* out = pool::add(instance.storage.labels);
-    out->node.kind = node::label;
-    return out;
-}
-
-global Place*
-create_place(){
-    Place* out = pool::add(instance.storage.places);
-    out->node.kind = node::place;
-    return out;
-}
-
-global Structure*
-create_structure(){
-    Structure* out = pool::add(instance.storage.structures);
-    out->members = map::init<String, Structure*>();
-    out->node.kind = node::structure;
-    return out;
-}
-
-global Function*
-create_function(){
-    Function* out = pool::add(instance.storage.functions);
-    out->node.kind = node::function;
-    return out;
-}
-
-global Module*
-create_module(){
-    Module* out = pool::add(instance.storage.modules);
-    node::init(&out->node);
-    out->node.kind = node::module;
-    out->labels = array::init<spt>();
-    out->table.map = map::init<String, Label*>();
-    return out;
-}
-
-global Statement*
-create_statement() {
-    Statement* out = pool::add(instance.storage.statements);
-    node::init(&out->node);
-    out->node.kind = node::statement;
-    return out;
-}
-
-global Tuple*
-create_tuple() {
-    Tuple* out = pool::add(instance.storage.tuples);
-    node::init(&out->node);
-    out->node.kind = node::tuple;
-    return out;
-}
-
-global Expression*
-create_expression() {
-    Expression* out = pool::add(instance.storage.expressions);
-    node::init(&out->node);
-    out->node.kind = node::expression;
-    return out;
 }
 
 } // namespace compiler

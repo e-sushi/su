@@ -90,6 +90,7 @@
 #include <iostream>
 #include <filesystem>
 
+#define AMU_IMPLEMENTATION
 #include "basic/Node.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
@@ -120,6 +121,12 @@
 #include "storage/SharedArray.cpp"
 #include "storage/DString.cpp"
 #include "storage/Map.cpp"
+#include "Label.cpp"
+#include "Entity.cpp"
+#include "Statement.cpp"
+#include "Expression.cpp"
+#include "Tuple.cpp"
+#include "Type.cpp"
 #include "Diagnostics.cpp"
 #include "Messenger.cpp"
 #include "Diagnostics.cpp"

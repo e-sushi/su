@@ -29,6 +29,15 @@ struct Statement {
     statement::kind kind;
 };
 
+namespace statement {
+
+global Statement*
+create();
+
+global void
+destroy(Statement& s);
+
+} // namespace statement
 } // namespace amu
 
 #endif // AMU_STATEMENT_H

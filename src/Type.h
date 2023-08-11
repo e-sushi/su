@@ -1,7 +1,7 @@
 /*
 
     Internal representation of a type in amu, an attribute of expressions, but can also be expressions themselves
-
+    This represents a fully 
 */
 
 #ifndef AMU_TYPE_H
@@ -11,42 +11,31 @@
 
 namespace amu {
 
+namespace type {} // namespace type
+
 struct Structure;
 struct Type {
-    // if this is 0, then the type is a pointer 
+    // a Type may have children which serve to represent parameters 
+    // these parameters are those found on structs, modules, and functions
+    TNode node;
     Structure* structure; // the base struct of this type
-    // when a type is decorated with pointers or arrays, each level of decoration
-    // is its own type which points back to the type that it decorates, for example
-    // u32*[2] is three Types, u32, u32*, and u32*[2] and these point at each other like so:
-    // u32*[2] -> u32* -> u32
-    Type* indirection; 
 };
-
-
 
 namespace type {
 
-struct key{
-    String base_type_id;
-    Array<token::kind> decorators;
-};
 
-template<typename... T> key
-make_key(String identifier, T... decorators) {
-    key out;
-    out.base_type_id = identifier;
-    out.decorators = array::init<token::kind>(sizeof...(decorators));
-    (array::push(out.decorators, decorators), ...);
-}
+global Type*
+create();
 
-template<typename... T> u64 
-hash(String identifier, T... indirections) {
-    u64 id_hash = string::hash(identifier);
-}
+global void
+destroy(Type& t);
 
-};
+// adds a layer of indirection to the type and returns the new layer
+// this creates a new Type
+Type*
+add_indirection(Type* type, Structure* s);
 
-
+} // namespace type
 } // namespace amu
 
 #endif // AMU_TYPE_H

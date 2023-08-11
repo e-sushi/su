@@ -28,6 +28,15 @@ struct LabelTable {
     Map<String, Label*> map;
 };
 
+namespace label {
+
+global Label*
+create();
+
+global void
+destroy();
+
+} // namespace label
 } //namespace amu
 
 #endif // AMU_LABEL_H

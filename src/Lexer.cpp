@@ -157,7 +157,7 @@ stream_next;                     \
 	auto module_stack = array::init<ModuleEntry>();
 	defer{array::deinit(module_stack);};
 
-	Module* file_module = lexer.source->module = compiler::create_module();
+	Module* file_module = lexer.source->module = module::create();
 	ModuleEntry current_module = {file_module, 0, false};
 
 	auto push_module = [&](Module* m) {
@@ -425,7 +425,7 @@ stream_next;                     \
 						switch(token.kind) {
 							case token::structdecl: array::push(lexer.structs, lexer.tokens.count); break;
 							case token::moduledecl: {
-								Module* m = compiler::create_module();
+								Module* m = module::create();
 								// link the new module's symbol table to the current one 
 								m->table.last = &current_module.module->table;
 								push_module(m);

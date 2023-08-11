@@ -21,15 +21,45 @@ struct Place {
     Type type;
 };
 
+namespace place {
+
+global Place*
+create();
+
+global void
+destroy(Place& p);
+
+} // namespace place
+
 struct Structure {
     TNode node;
     u64 size; // size of this structure in bytes
     Map<String, Structure*> members;
 };
 
+namespace structure {
+
+global Structure*
+create();
+
+global void
+destroy(Structure& s);
+
+} // namespace structure
+
 struct Function {
     TNode node;
 };
+
+namespace function {
+
+global Function*
+create();
+
+global void
+destroy(Function& f);
+
+} // namespace function
 
 struct Module {
     TNode node;
@@ -39,6 +69,15 @@ struct Module {
     LabelTable table;    
 };
 
+namespace module {
+
+global Module*
+create();
+
+global void
+destroy(Module& m);
+
+} // namespace module
 } // namespace amu
 
 #endif // AMU_ENTITY_H

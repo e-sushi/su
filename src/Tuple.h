@@ -50,6 +50,16 @@ struct Tuple {
     tuple::kind kind;
 };
 
+namespace tuple {
+
+global Tuple*
+create();
+
+global void
+destroy(Tuple& t);
+
+} // namespace tuple
+
 } // namespace amu
 
 #endif // AMU_TUPLE_H
