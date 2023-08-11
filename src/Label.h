@@ -12,15 +12,14 @@
 #include "storage/String.h"
 
 namespace amu{
-    
+
+struct Entity;
 struct Token;
 struct Label {
     TNode node;
-    Token* token; // token representing this Label
+    Entity* entity;
 
-    TNode* entity;
-
-    Label* original; // if this label is an alias of another label, this is the original
+    Label* aliased; // if this label is an alias of another label, this is the original
 };
 
 struct LabelTable {

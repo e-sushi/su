@@ -476,7 +476,6 @@ void after_typeref() { announce_stage;
             p->node.end = e->node.end;
 
             stack_push((TNode*)p);
-
             stack_push((TNode*)e);
 
         } break;
@@ -490,14 +489,16 @@ void after_typeref() { announce_stage;
         case token::asterisk: {
             Expression* last = (Expression*)array::read(stack, -1);
             Type* type = type::create();
+            node::insert_first((TNode*)type, (TNode*)last->type);
+            last->type = type;
+            advance_curt();
+            after_typeref(); check_error;
         } break;
     }
 }
 
-
-
 /*
-    loop: switch | "loop" expr
+    loop: "loop" expr
 */
 void loop() { announce_stage;
     check_error;
@@ -1078,12 +1079,15 @@ void factor() { announce_stage;
             
             // in order to determine how we will treat this identfier syntactically, we figure out what sort of 
             // entity the label points to
-            switch(label->entity->kind) {
+            switch(label->entity->node.kind) {
                 case node::function: {
 
                 } break;
                 case node::structure: {
-                    ((Expression*)array::read(stack, -1))->kind = expression::typeref;
+                    Expression* last = (Expression*)array::read(stack, -1);
+                    last->kind = expression::typeref;
+                    last->type = type::create();
+                    last->type->structure = (Structure*)label->entity;
                     advance_curt();
                     after_typeref(); check_error;
                 } break;
@@ -1231,6 +1235,39 @@ void before_expr() { announce_stage;
 
             stack_push((TNode*)e);
         }break;
+        case token::using_: {
+            // this should just be an alias
+            Expression* e = expression::create();
+            e->kind = expression::using_;
+            e->node.start = curt;
+
+            // TODO(sushi) this needs to be changed to take in an expression that may result in an identifier
+            advance_curt();
+            if(curt->kind != token::identifier) {
+                diagnostic::parser::expected_identifier({parser->source, curt});
+                push_error();
+            }
+
+            e->node.end = curt;
+
+            Expression* i = expression::create();
+            i->kind = expression::identifier;
+
+            i->node.start = i->node.end = curt;
+
+            node::insert_last((TNode*)e, (TNode*)i);
+
+            Label* label = search_for_label(&parser->current_module->table, curt->hash);
+            if(!label) {
+                diagnostic::parser::unknown_identifier({parser->source, curt});
+                push_error();
+            }
+
+            stack_push((TNode*)label->entity);
+            stack_push((TNode*)e);
+
+            advance_curt();
+        } break;
         default: factor(); check_error;
     }
 
@@ -1291,7 +1328,7 @@ void label_after_colon() { announce_stage;
                 push_error();
             }
 
-            switch(label->entity->kind) {
+            switch(label->entity->node.kind) {
                 case node::structure: {
                     Expression* last = (Expression*)array::read(stack, -1);
                     last->kind = expression::typeref;
@@ -1305,6 +1342,7 @@ void label_after_colon() { announce_stage;
         case token::colon:      before_expr(); break;
         case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
         case token::equal:      before_expr(); break;
+        
         default: {
             if(curt->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
@@ -1382,7 +1420,7 @@ void label() {
     label_after_id(); check_error;
 
     Label* label;
-    auto [idx, found] = map::find(parser->current_module->table.map, curt->raw);
+    auto [idx, found] = map::find(parser->current_module->table.map, save->raw);
     if(found) {
         label = array::read(parser->current_module->table.map.values, idx);
     } else {
@@ -1397,7 +1435,10 @@ void label() {
         case node::structure:
         case node::function:
         case node::module: {
-            label->entity = cand;
+            label->entity = (Entity*)cand;
+            Entity* e = (Entity*)cand;
+            if(e->label) label->aliased = e->label;
+            e->label = label;
             cand->start = label->node.first_child->start;
             cand->end = label->node.last_child->end; 
             node::insert_first((TNode*)label, stack_pop());
@@ -1407,7 +1448,6 @@ void label() {
 
     set_start_end_from_children(label);
     stack_push((TNode*)label);
-
 }
 
 /* 
@@ -1484,13 +1524,13 @@ void prescan() {
                                 // we assume this is a function definion, so we'll create a function entity to be 
                                 // filled out later during actual parsing 
                                 Function* f = function::create();
-                                l->entity = (TNode*)f;
+                                l->entity = f;
                                 goto label_finished;
                             } else if(curt->kind == token::semicolon || curt->kind == token::equal) {
                                 // this is probably a variable pointing to a function
                                 // if '=' is found, then it's the same, only it is being initialized
                                 Place* p = place::create();
-                                l->entity = (TNode*)p;
+                                l->entity = p;
                                 goto label_finished;
                             }
                         }
@@ -1499,7 +1539,7 @@ void prescan() {
                     case token::semicolon: {
                         // this must be a label representing a variable of some tuple type
                         Place* p = place::create();
-                        l->entity = (TNode*)p;
+                        l->entity = p;
                         goto label_finished;
                     } break;
                     
@@ -1516,11 +1556,11 @@ void prescan() {
                 switch(curt->kind) {
                     case token::structdecl: {
                         Structure* s = structure::create();
-                        l->entity = (TNode*)s;
+                        l->entity = s;
                         goto label_finished;
                     } break;
                     case token::moduledecl: {
-                        l->entity = (TNode*)curt->module;
+                        l->entity = curt->module;
                         // we switch over to the new module and recurse
                         Token* save = curt;
                         push_module(curt->module);
@@ -1534,15 +1574,20 @@ void prescan() {
                         // for now, at least
                         // TODO(sushi) determine if the grammar can support Type objects being assigned like this
                         Function* f = function::create();
-                        l->entity = (TNode*)f;
+                        l->entity = f;
                         goto label_finished;
+                    } break;
+                    case token::using_: {
+                        // this must be an alias, so we don't do anything because we can't reliably
+                        // determine what entity to set the Label to yet
+                        // this is handled later in label_after_colon
                     } break;
                 }
             } break;
             default: {
                 // in any other case, this is probably just a compile time variable declaration
                 Place* p = place::create();
-                l->entity = (TNode*)p;
+                l->entity = p;
                 goto label_finished;
             } break;
         }
@@ -1566,7 +1611,6 @@ execute(Parser& parser) {
     internal::prescan();
     internal::curt = array::readptr(parser.source->lexer->tokens, 0);
     internal::start();
-
     // !Leak: need to setup MessagePart to take a dynamic string and clean it up when it is no longer needed
     DString time_taken = util::format_time(util::stopwatch::peek(parser_time));
     messenger::dispatch(message::attach_sender(parser.source,

@@ -88,7 +88,36 @@ process_part(DString& current, MessagePart& part) {
             NotImplemented;
         } break;
         case messagepart::label: {
-            NotImplemented;
+
+            auto append_label = [&](Label* l) {
+                DString temp = dstring::init(l->node.start->raw);
+                if(current_dest->allow_color) {
+                    wrap_color(temp, formatting.label.col);
+                }
+                dstring::prepend(temp, formatting.identifier.prefix);
+                dstring::append(current, temp, formatting.label.suffix);
+                dstring::deinit(temp);
+            };
+
+            append_label(part.label);
+
+            if(part.label->aliased && !formatting.label.no_aka) {
+                dstring::append(current, " (aka ");
+                if(formatting.label.full_aka) {
+                    Label* step = part.label->aliased;
+                    while(1) {
+                        append_label(step);
+                        step = step->aliased;
+                        if(!step) break;
+                        dstring::append(current, " aka ");
+                    }
+                } else {
+                    Label* step = part.label->aliased;
+                    while(step->aliased) step = step->aliased;
+                    append_label(step);
+                }
+                dstring::append(current, ')');
+            }
         } break;
         case messagepart::code: {
             NotImplemented;
@@ -250,7 +279,7 @@ namespace message { // ---------------------------------------------------- mess
 
 Message
 init() {
-    Message out;
+    Message out = {};
     out.time = time(0);
     out.parts = array::init<MessagePart>();
     return out;

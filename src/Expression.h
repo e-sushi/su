@@ -31,6 +31,7 @@ enum kind : u32 {
     switch_case,
     conditional,
     return_,
+    using_,
 
     unary_bit_comp,
     unary_logi_not,
