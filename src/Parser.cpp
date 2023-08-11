@@ -56,11 +56,11 @@ Array<TNode*> stack;
 void
 __stack_push(TNode* n, String caller) {
     array::push(stack, n);
-    messenger::dispatch(message::attach_sender({parser->source, curt},
-        message::make_debug(message::verbosity::debug,
-            String("pushed: "), caller, String(" // "), 
-                (n->start? n->start->raw : String("bad start")), String(" -> "), 
-                (n->end? n->end->raw : String("bad end")))));
+    // messenger::dispatch(message::attach_sender({parser->source, curt},
+    //     message::make_debug(message::verbosity::debug,
+    //         String("pushed: "), caller, String(" // "), 
+    //             (n->start? n->start->raw : String("bad start")), String(" -> "), 
+    //             (n->end? n->end->raw : String("bad end")))));
 }
 
 #define stack_push(n) __stack_push(n, __func__)
@@ -68,11 +68,11 @@ __stack_push(TNode* n, String caller) {
 TNode*
 __stack_pop(String caller) {
     TNode* ret = array::pop(stack);
-    messenger::dispatch(message::attach_sender({parser->source, curt},
-        message::make_debug(message::verbosity::debug,
-            String("popped: "), caller, String(" // "), 
-                (ret->start? ret->start->raw : String("bad start")), String(" -> "), 
-                (ret->end? ret->end->raw : String("bad end")))));
+    // messenger::dispatch(message::attach_sender({parser->source, curt},
+    //     message::make_debug(message::verbosity::debug,
+    //         String("popped: "), caller, String(" // "), 
+    //             (ret->start? ret->start->raw : String("bad start")), String(" -> "), 
+    //             (ret->end? ret->end->raw : String("bad end")))));
     return ret;
 }
 
@@ -97,7 +97,7 @@ debug_announce_stage(String stage) {
             String("parse level: "), stage)));
 }
 
-#define announce_stage debug_announce_stage(__func__)
+#define announce_stage //debug_announce_stage(__func__)
 
 #define check_error if(!array::read(stack, -1)) return;
 #define push_error() do{                                                \
@@ -187,7 +187,7 @@ void reduce_identifier_to_identifier_expression() { announce_stage;
     e->kind = expression::identifier;
     TNode* n = (TNode*)e;
     n->start = n->end = curt;
-    stack_push((TNode*)e);
+    stack_push(n);
 }
 
 /* there doesn't need to do anything special for reducing a literal, because they all become the same sort of expression
@@ -201,7 +201,25 @@ void reduce_literal_to_literal_expression() { announce_stage;
     e->kind = expression::literal;
     TNode* n = (TNode*)e;
     n->start = n->end = curt;
-    stack_push((TNode*)e);
+    e->type = type::create();
+    switch(curt->kind) {
+        case token::literal_character: {
+            e->type->structure = compiler::builtins.unsigned8;
+        } break;
+        case token::literal_float: {
+            e->type->structure = compiler::builtins.float64;
+        } break;
+        case token::literal_integer: {
+            e->type->structure = compiler::builtins.signed64;
+        } break;
+        case token::literal_string: {
+            Type* c = type::create();
+            c->structure = compiler::builtins.unsigned8;
+            e->type->structure = compiler::builtins.array;
+            node::insert_last((TNode*)e, (TNode*)c);
+        } break;
+    }
+    stack_push(n);
 }
 
 
@@ -371,6 +389,29 @@ void block() {
                     skind = statement::expression;
                 }
             } break;
+            case token::directive_print_type: {
+                // special directive to emit the type of the given identifier
+                advance_curt();
+                if(curt->kind != token::identifier) {
+                    diagnostic::parser::expected_identifier({parser->source, curt});
+                    push_error();
+                }
+
+                Label* l = search_for_label(&parser->current_module->table, curt->hash);
+                if(!l) {
+                    diagnostic::parser::unknown_identifier({parser->source, curt});
+                    push_error();
+                }
+
+                switch(l->entity->node.kind) {
+                    case node::place: {
+                        DString temp = dstring::init();
+                        to_string(temp, ((Place*)l->entity)->type);
+                        messenger::dispatch(message::attach_sender({parser->source, curt},
+                            message::init(message::plain(temp))));
+                    } break;
+                }
+            } break;
             default: {
                 before_expr(); check_error;
                 skind = statement::expression;
@@ -467,6 +508,8 @@ void after_typeref() { announce_stage;
             e->node.end = curt;
             node::insert_first((TNode*)e, stack_pop());
             node::insert_first((TNode*)e, stack_pop());
+            // always take the type of the left side because it controls the type of the expression
+            e->type = ((Expression*)e->node.first_child)->type;
 
             set_start_end_from_children(e);
 
@@ -474,6 +517,7 @@ void after_typeref() { announce_stage;
             Place* p = place::create();
             p->node.start = e->node.start;
             p->node.end = e->node.end;
+            p->type = e->type;
 
             stack_push((TNode*)p);
             stack_push((TNode*)e);
@@ -1317,8 +1361,6 @@ void before_expr() { announce_stage;
         typeref: * ( func_type | factor decorators | "void" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64" )
 */ 
 void label_after_colon() { announce_stage;
-    check_error;
-  
     switch(curt->kind) {
         case token::identifier: {
             reduce_identifier_to_identifier_expression(); 
@@ -1334,10 +1376,12 @@ void label_after_colon() { announce_stage;
                     last->kind = expression::typeref;
                     last->type = type::create();
                     last->type->structure = (Structure*)label->entity;
+                    advance_curt();
                     after_typeref(); check_error;
                 } break;
+                default: advance_curt(); break; 
             }
-            advance_curt(); 
+            
         } break;
         case token::colon:      before_expr(); break;
         case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
@@ -1366,7 +1410,6 @@ void label_after_colon() { announce_stage;
             }
         } break;
     }
-
 }
 /*
          label: labelgroup ':' expr ( ';' | ']' | '}' )
@@ -1425,6 +1468,7 @@ void label() {
         label = array::read(parser->current_module->table.map.values, idx);
     } else {
         label = label::create();
+        map::add(parser->current_module->table.map, save->raw, label);
     }
 
     node::insert_first((TNode*)label, stack_pop());
@@ -1437,7 +1481,7 @@ void label() {
         case node::module: {
             label->entity = (Entity*)cand;
             Entity* e = (Entity*)cand;
-            if(e->label) label->aliased = e->label;
+            label->aliased = e->label;
             e->label = label;
             cand->start = label->node.first_child->start;
             cand->end = label->node.last_child->end; 
@@ -1557,6 +1601,7 @@ void prescan() {
                     case token::structdecl: {
                         Structure* s = structure::create();
                         l->entity = s;
+                        s->label = l;
                         goto label_finished;
                     } break;
                     case token::moduledecl: {
@@ -1611,8 +1656,9 @@ execute(Parser& parser) {
     internal::prescan();
     internal::curt = array::readptr(parser.source->lexer->tokens, 0);
     internal::start();
+    
     // !Leak: need to setup MessagePart to take a dynamic string and clean it up when it is no longer needed
-    DString time_taken = util::format_time(util::stopwatch::peek(parser_time));
+    DString time_taken = to_string(util::stopwatch::peek(parser_time));//util::format_time(util::stopwatch::peek(parser_time));
     messenger::dispatch(message::attach_sender(parser.source,
         message::make_debug(message::verbosity::stages, 
             String("syntactic analysis finished in "), String(time_taken))));
