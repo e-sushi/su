@@ -107,6 +107,10 @@ begin(Array<String> args);
 // from direct use
 extern Compiler instance;
 
+// global compiler module, which is built up with information accessible to
+// the language itself
+extern Module* module;
+
 } // namespace compiler 
 } // namespace amu
 

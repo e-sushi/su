@@ -4,6 +4,7 @@ namespace compiler {
 
 // global compiler instance
 Compiler instance;
+Module* module;
 
 void
 init() {
@@ -66,6 +67,8 @@ init() {
     messenger::init();  // TODO(sushi) compiler arguments to control this
     array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
     array::push(messenger::instance.destinations, Destination(fopen("temp/log", "w"), false));
+
+    module = module::create();
 }
 
 global void
@@ -211,7 +214,7 @@ begin(Array<String> args) {
         return;
     }
 
-    instance.options.verbosity = message::verbosity::always;
+    instance.options.verbosity = message::verbosity::debug;
 
     Source* entry_source = source::load(instance.options.entry_path);
     if(!entry_source) {

@@ -1,9 +1,7 @@
 main :: () -> s32 {
-    a: Apple = (remaining: 1, nutrients: 0.5); 
-    Apple*;
+    a: Apple*** = 1 + 2; 
+
+    #print_type a;
 }
 
-Apple :: struct {
-    remaining: f32;
-    nutrients: f32;
-}
+Apple :: struct {}

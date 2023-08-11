@@ -1,0 +1,66 @@
+// ownership.amu
+
+#import compiler;
+
+Property :: trait {
+    using Mixin;
+    // there's nothing that needs to be implemented for this trait
+    // it is just a tag for other things to look for 
+}
+
+Owned :: trait {
+    using Mixin;
+    using Drop;
+    mixin :: () -> void {
+        // we need to generate and emit a 'drop' function for the type that we are mixing into
+        compiler.register_label( // we are registering a new label to the global scope 
+            compiler.scopes.global,
+            $label{
+                drop,
+                (s: Self but Owned*) -> void {
+                    $generate { // emplaces $code objects into code, while ignoring all other code
+                        for(member in Self$.members) {
+                            if(!member.traits.has(Property)) continue;
+                            $code{mem.free(s.`member.identifier`);}
+                        }
+                    }
+                }
+            }
+        );
+    }
+}
+
+// --------------------------------
+// string.amu
+
+String :: struct {
+    // applying Property here generates a new type, a pointer to a u8 that has the trait Property
+    chars: u8* but Property;  
+    bytes: u64; 
+}
+
+// some string implementation......
+
+// --------------------------------
+// main.amu
+
+using #import string;
+
+main :: () -> s32 {
+    a: String = "hello"; // normal string 
+    // this generates the type String with the newly attached Owned trait, which generates
+    // the drop functions above. any references to `String but Owned` from here on will reuse the type
+    b: String but Owned = "blah"; 
+
+    {
+        // this results in an error, because the base String structure does not implement Drop
+        a: ^String;
+        // this is okay, and the drop function will be called at the end of this scope
+        b: ^String but Owned; 
+    }
+
+    // can also call the drop function explicitly
+    b.drop();
+}
+
+
