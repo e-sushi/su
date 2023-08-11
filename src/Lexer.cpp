@@ -47,6 +47,7 @@ token_is_directive_or_identifier(String raw) {
 		strcase("internal"):       return token::directive_internal;
 		strcase("run"):            return token::directive_run;
 		strcase("compiler_break"): return token::directive_compiler_break;
+		strcase("print_type"):     return token::directive_print_type;
     }
 
     return token::identifier;
