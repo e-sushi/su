@@ -27,7 +27,7 @@ wrap_color(DString& current, u32 color) {
 }
 
 void
-process_part(DString& current, MessagePart& part) {
+process_part(DString& current, const MessagePart& part) {
     MessageFormatting& formatting = array::readref(instance.formatting_stack, -1);
     switch(part.kind) {
         case messagepart::plain: {
@@ -121,6 +121,26 @@ process_part(DString& current, MessagePart& part) {
         } break;
         case messagepart::code: {
             NotImplemented;
+        } break;
+        case messagepart::type: {
+            Type* step = part.type;
+            while(step) {
+                if(!step->structure){
+                    dstring::append(current, "ptr(");
+                } else if(step->structure == compiler::builtins.array) {
+                    dstring::append(current, "array(");
+                } else {
+                    dstring::append(current, part.type->structure->label->node.start->raw, "(");
+                }
+
+                for(TNode* t = step->node.first_child; t; t = t->next) {
+                    switch(t->kind) {
+                        case node::label: process_part(current, (Label*)t); break;
+                    }
+                }
+
+                dstring::append(current, ')');
+            }
         } break;
     }
 }

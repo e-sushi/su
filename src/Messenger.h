@@ -53,7 +53,7 @@ enum : u32 {
 
 namespace messagepart {
 enum kind{
-    plain, token, identifier, path, source, place, structure, function, module, label, code
+    plain, token, identifier, path, source, place, structure, function, module, label, code, type
 };
 } // namespace messagepart
 
@@ -73,6 +73,7 @@ struct MessagePart {
         Module* module;
         Label* label; // a label whose name we will print
         Source* source; // a source file whose name we will likely print
+        Type* type;
     };
     // if this is 0, default colors will be applied in processing
     // this is set to a number from message::color_
@@ -87,6 +88,7 @@ struct MessagePart {
     MessagePart(Module* m) : module(m) {kind = messagepart::module;}
     MessagePart(Label* l) : label(l) {kind = messagepart::label;}
     MessagePart(Source* s) : source(s) {kind = messagepart::source;}
+    MessagePart(Type* t) : type(t) {kind = messagepart::type;}
 };
 
 // indicates who sent the message
