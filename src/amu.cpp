@@ -121,6 +121,7 @@
 #include "storage/SharedArray.cpp"
 #include "storage/DString.cpp"
 #include "storage/Map.cpp"
+#include "Source.cpp"
 #include "Label.cpp"
 #include "Entity.cpp"
 #include "Statement.cpp"

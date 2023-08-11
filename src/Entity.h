@@ -13,10 +13,13 @@
 
 namespace amu{
 
-// representation of something that has a place in memory, name borrowed from rust
-struct Place {
+struct Entity {
     TNode node;
+    Label* label; // the most recent label used to represent this entity
+};
 
+// representation of something that has a place in memory, name borrowed from rust
+struct Place : public Entity {
     // type information for this place in memory
     Type type;
 };
@@ -31,8 +34,7 @@ destroy(Place& p);
 
 } // namespace place
 
-struct Structure {
-    TNode node;
+struct Structure : public Entity {
     u64 size; // size of this structure in bytes
     Map<String, Structure*> members;
 };
@@ -47,8 +49,7 @@ destroy(Structure& s);
 
 } // namespace structure
 
-struct Function {
-    TNode node;
+struct Function : public Entity {
 };
 
 namespace function {
@@ -61,9 +62,7 @@ destroy(Function& f);
 
 } // namespace function
 
-struct Module {
-    TNode node;
-
+struct Module : public Entity {
     Array<spt> labels; 
 
     LabelTable table;    
@@ -78,6 +77,23 @@ global void
 destroy(Module& m);
 
 } // namespace module
+
+namespace entity {
+
+// retrieves the label that was originally used when declaring this entity
+global Label*
+declared_label(Function* f);
+
+global Label*
+declared_label(Structure* f);
+
+global Label*
+declared_label(Module* f);
+
+global Label*
+declared_label(Place* f);
+
+} // namespace entity
 } // namespace amu
 
 #endif // AMU_ENTITY_H

@@ -7,11 +7,11 @@ create() {
     return out; 
 }
 
-Type*
-add_indirection(Type* type, Structure* s) {
-    Type* out = type::create();
-    // out->indirection = type;
-    // out->structure = s;
+global Type*
+base(Type& t) {
+    Type* out = &t;
+    while(out->node.parent)
+        out = (Type*)out->node.parent;
     return out;
 }
 

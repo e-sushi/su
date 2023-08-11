@@ -3,6 +3,7 @@ namespace amu {
 global Place*
 place::create() {
     Place* out = pool::add(compiler::instance.storage.places);
+    node::init(&out->node);
     out->node.kind = node::place;
     return out;
 }
@@ -11,6 +12,7 @@ global Structure*
 structure::create() {
     Structure* out = pool::add(compiler::instance.storage.structures);
     out->members = map::init<String, Structure*>();
+    node::init(&out->node);
     out->node.kind = node::structure;
     return out;
 }
@@ -18,6 +20,7 @@ structure::create() {
 global Function*
 function::create() {
     Function* out = pool::add(compiler::instance.storage.functions);
+    node::init(&out->node);
     out->node.kind = node::function;
     return out;
 }
@@ -32,4 +35,7 @@ module::create() {
     return out;
 }
 
+namespace entity {
+
+} // namespace entity
 } // namespace amu
