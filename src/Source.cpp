@@ -18,7 +18,7 @@ load(String path) {
         }
         scan--;
     }
-    out->name = {scan+1, out->path.count-(scan-out->path.str)};
+    out->name = {scan+1, out->path.count-(scan-out->path.str)-1};
     out->front = {out->name.str, (out->ext.str? out->ext.str-out->name.str-1 : out->name.count)};
 
     out->file = fopen((char*)out->path.str, "r");
