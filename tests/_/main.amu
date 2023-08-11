@@ -1,6 +1,6 @@
 main :: () -> s32 {
     a: Apple = (remaining: 1, nutrients: 0.5); 
-    Apple #compiler_break *;
+    Apple*;
 }
 
 Apple :: struct {
