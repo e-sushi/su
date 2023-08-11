@@ -249,5 +249,63 @@ remove(TNode* node) {
     //deshi::mutex_unlock(&node->lock);
 }
 
+namespace util {
+namespace internal {
+
+template<void (*callback)(DString&,TNode*)> void
+print_tree_recursive(DString& current, TNode* n, b32 newlines) {
+    persist u32 layers = 0;
+	if(newlines) forI(layers) dstring::append(current, "    ");
+
+    if(n->child_count) dstring::append(current, "(");
+
+	callback(current, n);
+	
+	layers++;
+	for(TNode* c = n->first_child; c; c = c->next) {
+		if(newlines) dstring::append(current, "\n");
+		else dstring::append(current, " ");
+		print_tree_recursive<callback>(current, c, newlines);
+	}
+	layers--;
+
+	if(n->child_count) {
+		dstring::append(current, ")");
+	} 
+} 
+
+} // namespace internal
+
+template<void (*callback)(DString&,TNode*)> DString
+print_tree(TNode* root, b32 newlines) {
+    DString out = dstring::init();
+    internal::print_tree_recursive<callback>(out, root, newlines);
+    return out;
+} 
+
+} // namespace util
+
 } // namespace node
+
+void
+to_string(DString& start, TNode* n, b32 expand) {
+    if(expand) switch(n->kind) {
+		case node::place:      to_string(start, (Place*)n);      return;
+		case node::label:      to_string(start, (Label*)n);      return;
+		case node::expression: to_string(start, (Expression*)n); return;
+		case node::type:       to_string(start, (Type*)n);       return;
+		default: NotImplemented;
+	}
+    
+	dstring::append(start, "TNode<", node::strings[n->kind]);
+
+	if(n->start) dstring::append(start, ":", n->start);
+	else dstring::append(start, ":null_start");
+
+	if(n->end) dstring::append(start, ":", n->end);
+	else dstring::append(start, ":null_end");
+
+	dstring::append(start, ">");
+}
+
 } // namespace amu

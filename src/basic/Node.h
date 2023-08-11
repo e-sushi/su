@@ -21,6 +21,7 @@
 #define AMU_NODE_H
 
 #include "storage/String.h"
+#include <source_location>
 
 namespace amu{
 struct Token;
@@ -37,6 +38,7 @@ struct LNode {
 namespace node {
 // @genstrings(data/node_strings.generated)
 enum kind {
+    null,
     label,
     place,
     structure,
@@ -47,6 +49,9 @@ enum kind {
     tuple,
     type,
 };
+
+#include "data/node_strings.generated"
+
 } // namespace node::type
 
 // a Node for trees 
@@ -69,8 +74,6 @@ struct TNode {
 #include "data/node_strings.generated"
 
 namespace node {
-
-
 
 global inline void
 init(LNode* node);
@@ -123,7 +126,20 @@ remove(LNode* node);
 global inline void
 remove(TNode* node);
 
+namespace util {
+    
+// print a given tree
+// the callback provided is called on each node and expects a String returned to represent it
+template<void (*callback)(DString&, TNode*)> DString
+print_tree(TNode* root, b32 newlines = true);
+
+} // namespace util
 } // namespace node
+
+// if 'expand' is true, it will resolve the TNode to what it represents, then return that string
+void
+to_string(DString& start, TNode* n, b32 expand = false);
+
 } // namespace amu
 
 #endif // AMU_NODE_H

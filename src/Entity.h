@@ -10,6 +10,7 @@
 #include "storage/Pool.h"
 #include "Label.h"
 #include "Type.h"
+#include <source_location>
 
 namespace amu{
 
@@ -21,7 +22,7 @@ struct Entity {
 // representation of something that has a place in memory, name borrowed from rust
 struct Place : public Entity {
     // type information for this place in memory
-    Type type;
+    Type* type;
 };
 
 namespace place {
@@ -46,6 +47,9 @@ create();
 
 global void
 destroy(Structure& s);
+
+global b32
+is_builtin(Structure* s);
 
 } // namespace structure
 
@@ -94,6 +98,19 @@ global Label*
 declared_label(Place* f);
 
 } // namespace entity
+
+void
+to_string(DString& start, Place* p);
+
+void
+to_string(DString& start, Function* p);
+
+void
+to_string(DString& start, Module* p);
+
+void
+to_string(DString& start, Structure* p);
+
 } // namespace amu
 
 #endif // AMU_ENTITY_H

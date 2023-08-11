@@ -427,13 +427,22 @@ to_s64(const String& s) {
     return x;
 }
 
-
-
 } // namespace string
 
 namespace util {
 template<> FORCE_INLINE u64 hash(const String& s) {return string::hash((String&)s);}
 template<> FORCE_INLINE u64 hash(String* s) {return string::hash(*s);}
+
+void 
+print(String s) {
+	fprintf(stdout, "%s", s.str);
+}
+
+void
+println(String s) {
+	fprintf(stdout, "%s\n", s.str);
+}
+
 } // namespace util::hash
 
 } // namespace amu

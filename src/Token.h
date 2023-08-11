@@ -6,6 +6,8 @@
 #define AMU_TOKEN_H
 
 #include "Source.h"
+#include "storage/String.h"
+#include "storage/DString.h"
 
 namespace amu{
 
@@ -125,6 +127,7 @@ enum kind : u32 {
     directive_internal,
     directive_run,
     directive_compiler_break,
+    directive_print_type,
 };
 
 #include "data/token_strings.generated"
@@ -135,7 +138,7 @@ struct Token {
     String raw;
     u64 hash;
 
-    token::kind kind;
+    token::kind kind; 
     token::kind group;
 
     Source* source; 
@@ -154,6 +157,13 @@ struct Token {
         u64 u64_val;
     };
 };
+
+void
+to_string(DString& start, Token t) {
+    dstring::append(start, "Token<", t.source->name, ":", t.l0, ":", t.c0, " '", t.raw, "'>");
+}
+FORCE_INLINE void to_string(DString& start, Token* t) { return to_string(start, *t); }
+
 } // namespace amu
 
 #endif // AMU_TOKEN_H

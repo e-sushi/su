@@ -90,6 +90,10 @@ global void
 destroy(Expression& e);
 
 } // namespace expression
+
+void
+to_string(DString& start, Expression* e);
+
 } // namespace amu
 
 #endif // AMu_EXPRESSION_H

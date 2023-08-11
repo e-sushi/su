@@ -35,7 +35,14 @@ create();
 global void
 destroy();
 
+global Label*
+base(Label* l);
+
 } // namespace label
+
+global void
+to_string(DString& start, Label* l);
+
 } //namespace amu
 
 #endif // AMU_LABEL_H

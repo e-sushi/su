@@ -1,7 +1,7 @@
 /*
 
     Internal representation of a type in amu, an attribute of expressions, but can also be expressions themselves
-    This represents a fully 
+
 */
 
 #ifndef AMU_TYPE_H
@@ -34,6 +34,10 @@ global DString
 chain_to_base_str(Type& t);
 
 } // namespace type
+
+void
+to_string(DString& start, Type* t);
+
 } // namespace amu
 
 #endif // AMU_TYPE_H

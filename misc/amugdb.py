@@ -12,6 +12,11 @@ def full_deref_if_ptr(thing):
         thing = thing.dereference()
     return thing
 
+def is_tnode(val):
+    n = str(val.type)
+    return n == "amu::TNode" or n == "amu::TNode *"
+
+
 class print_lnode_chain(gdb.Command):
     def __init__(self):
         super(print_lnode_chain, self).__init__("plnode", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
@@ -113,17 +118,18 @@ class MessagePart_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
+            print(str(val['kind']))
             match str(val['kind']):
-                case "amu::MessagePart::Plain": 
+                case "amu::messagepart::plain": 
                     return f"plain: {val['plain']}"
-                case "amu::MessagePart::Path": 
+                case "amu::messagepart::path": 
                     return f"path: {val['plain']}"
-                case "amu::MessagePart::Token": 
+                case "amu::messagepart::token": 
                     return f"token: {val['token']}"
-                case "amu::MessagePart::Source": print("source")
-                case "amu::MessagePart::Entity": print("entity")
-                case "amu::MessagePart::Label": print("label")
-                case "amu::MessagePart::Code": print("code")
+                case "amu::messagepart::source": return f"source: {val['source'].dereference()}"
+                case "amu::messagepart::entity": return f"entity"
+                case "amu::messagepart::label": return f"label: {val['label'].dereference()}"
+                case "amu::messagepart::code": return f"code"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("MessagePart", r"^amu::MessagePart$", MessagePart_printer)
@@ -394,7 +400,7 @@ class graph_ast(gdb.Command):
             if val == None:
                 print("err")
                 return
-            if str(val.type) != "amu::TNode" and str(val.type) != "amu::TNode *":
+            if not is_tnode(val):
                 print(f"gast requires a TNode or TNode* as its argument")
                 return
             
@@ -463,7 +469,7 @@ class print_ast(gdb.Command):
             if val == None:
                 print("failed to parse given argument")
                 return 
-            if str(val.type) != "amu::TNode" and str(val.type) != "amu::TNode *":
+            if not is_tnode(val):
                 print(f"past requires a TNode ot TNode* as its argument")
                 return
             self.build_string(val)

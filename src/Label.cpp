@@ -1,4 +1,5 @@
-namespace amu::label {
+namespace amu {
+namespace label {
 
 global Label*
 create() {
@@ -7,6 +8,30 @@ create() {
     return out;
 }
 
-} // namespace amu::label
+global Label*
+base(Label* l) {
+    while(l->aliased) l = l->aliased;
+    return l;
+}
+
+
+} // namespace label
+
+global void
+to_string(DString& start, Label* l) {
+    dstring::append(start, "Label<");
+    
+    dstring::append(start, "'", l->node.start->raw, "' ");
+
+    if(l->aliased)
+        dstring::append(start, "(aka ", label::base(l)->node.start->raw, ") ");
+
+    dstring::append(start, l->node.start->source->name, ":", 
+            l->node.start->l0, ",", l->node.start->c0, ":",
+            l->node.end->l0, ",", l->node.end->c0,
+        ">");
+}
+
+} // namespace amu
  
  
