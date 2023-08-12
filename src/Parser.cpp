@@ -37,13 +37,13 @@ Parser* parser;
 Token* curt;
 Array<TNode*> stack;
 
-#define advance_curt() do {                            \
-    curt++;                                            \
-    if(curt->kind == token::directive_compiler_break){ \
-        DebugBreakpoint;                               \
-        curt++;                                        \
-    }                                                  \
-} while(0)
+FORCE_INLINE void 
+advance_curt() {
+    curt++;
+    if(curt->kind == token::directive_compiler_break) {
+        DebugBreakpoint; curt++;
+    }
+}
 
 // we will have already hit the break token, so dont break again
 #define backtrack() do {                                \
@@ -53,10 +53,17 @@ Array<TNode*> stack;
     }                                                   \
 } while(0)
 
+FORCE_INLINE Token* 
+lookahead(u32 n) {
+    Token* out = curt + n;
+    while(out->kind == token::directive_compiler_break) out++;
+    return out;
+}
+
 void
 __stack_push(TNode* n, String caller) {
     array::push(stack, n);
-    // messenger::dispatch(message::attach_sender({parser->source, curt},
+    // messenger::dispatch(message::attach_sender(curt,
     //     message::make_debug(message::verbosity::debug,
     //         String("pushed: "), caller, String(" // "), 
     //             (n->start? n->start->raw : String("bad start")), String(" -> "), 
@@ -68,7 +75,7 @@ __stack_push(TNode* n, String caller) {
 TNode*
 __stack_pop(String caller) {
     TNode* ret = array::pop(stack);
-    // messenger::dispatch(message::attach_sender({parser->source, curt},
+    // messenger::dispatch(message::attach_sender(curt,
     //     message::make_debug(message::verbosity::debug,
     //         String("popped: "), caller, String(" // "), 
     //             (ret->start? ret->start->raw : String("bad start")), String(" -> "), 
@@ -92,7 +99,7 @@ pop_module() {
 FORCE_INLINE void
 debug_announce_stage(String stage) {
     if(compiler::instance.options.verbosity < message::verbosity::debug) return;
-    messenger::dispatch(message::attach_sender({parser->source, curt},
+    messenger::dispatch(message::attach_sender(curt,
         message::make_debug(message::verbosity::debug, 
             String("parse level: "), stage)));
 }
@@ -101,7 +108,7 @@ debug_announce_stage(String stage) {
 
 #define check_error if(!array::read(stack, -1)) return;
 #define push_error() do{                                                \
-    messenger::dispatch(message::attach_sender({parser->source, curt}, \
+    messenger::dispatch(message::attach_sender(curt, \
         message::make_debug(message::verbosity::debug,                       \
             String(__func__), String(ErrorFormat(" pushed error")))));  \
     return (void)array::push(stack, (TNode*)0);                         \
@@ -268,7 +275,7 @@ void tuple_after_close_paren() { announce_stage;
 
         if(!count) {
             diagnostic::parser::
-                missing_function_return_type({parser->source, curt});
+                missing_function_return_type(curt);
             push_error();
         }
 
@@ -345,7 +352,7 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
         if(curt->kind == token::comma) advance_curt();
         else if(curt->kind != token::close_paren) { // there was some error in consuming an expr/label
             diagnostic::parser::
-                tuple_expected_comma_or_close_paren({parser->source, curt});
+                tuple_expected_comma_or_close_paren(curt);
             return;
         }
     }
@@ -393,13 +400,13 @@ void block() {
                 // special directive to emit the type of the given identifier
                 advance_curt();
                 if(curt->kind != token::identifier) {
-                    diagnostic::parser::expected_identifier({parser->source, curt});
+                    diagnostic::parser::expected_identifier(curt);
                     push_error();
                 }
 
                 Label* l = search_for_label(&parser->current_module->table, curt->hash);
                 if(!l) {
-                    diagnostic::parser::unknown_identifier({parser->source, curt});
+                    diagnostic::parser::unknown_identifier(curt);
                     push_error();
                 }
 
@@ -407,7 +414,7 @@ void block() {
                     case node::place: {
                         DString temp = dstring::init();
                         to_string(temp, ((Place*)l->entity)->type);
-                        messenger::dispatch(message::attach_sender({parser->source, curt},
+                        messenger::dispatch(message::attach_sender(curt,
                             message::init(message::plain(temp))));
                     } break;
                 }
@@ -420,7 +427,7 @@ void block() {
         if(curt->kind != token::semicolon) {
             if(curt->kind != token::close_brace) {
                 diagnostic::parser::
-                    missing_semicolon({parser->source, curt});
+                    missing_semicolon(curt);
                 return;
             }
             // if there's a close brace, this must be the last expression of a block
@@ -567,13 +574,13 @@ void for_() {
     advance_curt();
     if(curt->kind != token::open_paren) {
         diagnostic::parser::
-            for_missing_open_paren({parser->source, curt});
+            for_missing_open_paren(curt);
         push_error();
     }
 
     advance_curt();
     if(curt->kind != token::identifier) {
-        diagnostic::parser::for_expected_some_identfier({parser->source, curt});
+        diagnostic::parser::for_expected_some_identfier(curt);
         push_error();
     }
 
@@ -594,13 +601,13 @@ void for_() {
                 identifier_group(); check_error;
                 // TODO(sushi) maybe look into properly supporting this later
                 if(curt->kind == token::colon) { 
-                    diagnostic::parser::for_label_group_not_allowed({parser->source, curt});
+                    diagnostic::parser::for_label_group_not_allowed(curt);
                     push_error();
                 }
             }
 
             if(curt->kind != token::in) {
-                diagnostic::parser::for_expected_in({parser->source, curt});
+                diagnostic::parser::for_expected_in(curt);
                 push_error();
             }
 
@@ -611,7 +618,7 @@ void for_() {
             c_style = true;
             label();
             if(curt->kind != token::semicolon) {
-                diagnostic::parser::missing_semicolon({parser->source, curt});
+                diagnostic::parser::missing_semicolon(curt);
                 push_error();
             }
 
@@ -619,7 +626,7 @@ void for_() {
             before_expr(); check_error;
 
             if(curt->kind != token::semicolon) {
-                diagnostic::parser::missing_semicolon({parser->source, curt});
+                diagnostic::parser::missing_semicolon(curt);
                 push_error();
             }
 
@@ -631,7 +638,7 @@ void for_() {
     }   
 
     if(curt->kind != token::close_paren) {
-        diagnostic::parser::for_missing_close_paren({parser->source, curt});
+        diagnostic::parser::for_missing_close_paren(curt);
         push_error();
     }
     
@@ -663,7 +670,7 @@ void switch_() { announce_stage;
     advance_curt();
     if(curt->kind != token::open_paren) {
         diagnostic::parser::
-            switch_missing_open_paren({parser->source, curt});
+            switch_missing_open_paren(curt);
         return;
     }
 
@@ -673,7 +680,7 @@ void switch_() { announce_stage;
 
     if(curt->kind != token::close_paren) {
         diagnostic::parser::
-            switch_missing_close_paren({parser->source, curt});
+            switch_missing_close_paren(curt);
         push_error();
     }
 
@@ -681,7 +688,7 @@ void switch_() { announce_stage;
 
     if(curt->kind != token::open_brace) {
         diagnostic::parser::
-            switch_missing_open_brace({parser->source, curt});
+            switch_missing_open_brace(curt);
         push_error();
     }
 
@@ -694,7 +701,7 @@ void switch_() { announce_stage;
         
         if(curt->kind != token::match_arrow) {
             diagnostic::parser::
-                switch_missing_match_arrow_after_expr({parser->source, curt});
+                switch_missing_match_arrow_after_expr(curt);
             push_error();
         }
 
@@ -703,7 +710,7 @@ void switch_() { announce_stage;
 
         if(curt->kind != token::comma && curt->kind != token::close_brace ) {
             diagnostic::parser::
-                switch_missing_comma_after_match_arm({parser->source, curt});
+                switch_missing_comma_after_match_arm(curt);
             push_error();
         }
         advance_curt();
@@ -723,7 +730,7 @@ void switch_() { announce_stage;
 
     if(!count) {
         diagnostic::parser::
-            switch_empty_body({parser->source, curt});
+            switch_empty_body(curt);
     }
 
     Expression* e = expression::create();
@@ -748,7 +755,7 @@ void conditional() { announce_stage;
 
         if(curt->kind != token::open_paren) {
             diagnostic::parser::
-                if_missing_open_paren({parser->source, curt});
+                if_missing_open_paren(curt);
             push_error();
         }
 
@@ -758,7 +765,7 @@ void conditional() { announce_stage;
 
         if(curt->kind != token::close_paren) {
             diagnostic::parser::
-                if_missing_close_paren({parser->source, curt});
+                if_missing_close_paren(curt);
             push_error();
         }
 
@@ -1117,7 +1124,7 @@ void factor() { announce_stage;
             reduce_identifier_to_identifier_expression(); 
             Label* label = search_for_label(&parser->current_module->table, curt->hash); 
             if(!label) {
-                diagnostic::parser::unknown_identifier({parser->source, curt});
+                diagnostic::parser::unknown_identifier(curt);
                 push_error();
             }
             
@@ -1125,7 +1132,17 @@ void factor() { announce_stage;
             // entity the label points to
             switch(label->entity->node.kind) {
                 case node::function: {
-
+                    if(lookahead(1)->kind == token::open_paren) {
+                        // must be a function call
+                        advance_curt(); advance_curt();
+                        tuple_after_open_paren(); check_error;
+                    } else {
+                        // probably just a reference to a function entity
+                        Expression* last = (Expression*)array::read(stack, -1);
+                        last->kind = expression::entity_func;
+                        last->entity = label->entity;
+                        advance_curt();
+                    }
                 } break;
                 case node::structure: {
                     Expression* last = (Expression*)array::read(stack, -1);
@@ -1139,9 +1156,9 @@ void factor() { announce_stage;
             advance_curt(); 
         } break;
         case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
-        case token::if_: conditional(); break;
+        case token::if_:     conditional(); break;
         case token::switch_: switch_(); break;
-        case token::for_: for_(); break;
+        case token::for_:    for_(); break;
         case token::open_brace: advance_curt(); block(); break;
         default: {
             if(curt->group == token::group_literal) {
@@ -1152,7 +1169,7 @@ void factor() { announce_stage;
                 advance_curt();
             } else {
                 diagnostic::parser::
-                    unexpected_token({parser->source, curt}, curt);
+                    unexpected_token(curt, curt);
                 push_error();
             }
         } break;
@@ -1164,7 +1181,7 @@ void struct_decl() {
     advance_curt(); // TODO(sushi) struct parameters
     if(curt->kind != token::open_brace) {
         diagnostic::parser::
-            missing_open_brace_for_struct({parser->source, curt});
+            missing_open_brace_for_struct(curt);
         push_error();
     }
 
@@ -1177,19 +1194,19 @@ void struct_decl() {
             label(); check_error;
             if(curt->kind != token::semicolon) {
                 diagnostic::parser::
-                    missing_semicolon({parser->source, curt});
+                    missing_semicolon(curt);
             }
             advance_curt();
             count++;
             TNode* last = array::read(stack, -1);
             if(last->last_child->kind == node::function) {
                 diagnostic::parser::
-                    struct_member_functions_not_allowed({parser->source, last->start});
+                    struct_member_functions_not_allowed(last->start);
                 push_error();
             }
         } else {
             diagnostic::parser::
-                struct_only_labels_allowed({parser->source, curt});
+                struct_only_labels_allowed(curt);
             push_error();
         }
     }
@@ -1288,7 +1305,7 @@ void before_expr() { announce_stage;
             // TODO(sushi) this needs to be changed to take in an expression that may result in an identifier
             advance_curt();
             if(curt->kind != token::identifier) {
-                diagnostic::parser::expected_identifier({parser->source, curt});
+                diagnostic::parser::expected_identifier(curt);
                 push_error();
             }
 
@@ -1303,7 +1320,7 @@ void before_expr() { announce_stage;
 
             Label* label = search_for_label(&parser->current_module->table, curt->hash);
             if(!label) {
-                diagnostic::parser::unknown_identifier({parser->source, curt});
+                diagnostic::parser::unknown_identifier(curt);
                 push_error();
             }
 
@@ -1366,7 +1383,7 @@ void label_after_colon() { announce_stage;
             reduce_identifier_to_identifier_expression(); 
             Label* label = search_for_label(&parser->current_module->table, curt->hash);
             if(!label) {
-                diagnostic::parser::unknown_identifier({parser->source, curt});
+                diagnostic::parser::unknown_identifier(curt);
                 push_error();
             }
 
@@ -1426,14 +1443,14 @@ void label_group_after_comma() { announce_stage;
     // we throw an error about it
     if((curt-1)->kind == token::comma) {
         diagnostic::parser::
-            label_group_missing_id({parser->source, curt});
+            label_group_missing_id(curt);
     }
 
     if(curt->kind == token::colon) {
         label_after_colon(); check_error;
     } else {
         diagnostic::parser::
-            label_missing_colon({parser->source, curt});
+            label_missing_colon(curt);
     }
 }
 
@@ -1507,7 +1524,7 @@ void start() { announce_stage;
 
         if(curt->kind != token::close_brace && curt->kind != token::semicolon) {
             diagnostic::parser::
-                missing_semicolon({parser->source, curt});
+                missing_semicolon(curt);
             return;
         }
 
@@ -1656,9 +1673,12 @@ execute(Parser& parser) {
     internal::prescan();
     internal::curt = array::readptr(parser.source->lexer->tokens, 0);
     internal::start();
+
+    util::println(
+        node::util::print_tree<[](DString& c, TNode* n){to_string(c, n, true);}>(internal::stack.data[0]));
     
     // !Leak: need to setup MessagePart to take a dynamic string and clean it up when it is no longer needed
-    DString time_taken = to_string(util::stopwatch::peek(parser_time));//util::format_time(util::stopwatch::peek(parser_time));
+    DString time_taken = util::format_time(util::stopwatch::peek(parser_time));
     messenger::dispatch(message::attach_sender(parser.source,
         message::make_debug(message::verbosity::stages, 
             String("syntactic analysis finished in "), String(time_taken))));

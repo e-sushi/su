@@ -293,6 +293,13 @@ pop_formatting() {
     array::pop(instance.formatting_stack);
 }
 
+template<typename... T> void 
+qdebug(MessageSender sender, T...args) {
+    messenger::dispatch(
+        message::attach_sender(sender, 
+            message::make_debug(message::verbosity::debug, args...)));
+}
+
 } // namespace messenger
 
 namespace message { // ---------------------------------------------------- message

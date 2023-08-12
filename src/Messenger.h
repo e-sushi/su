@@ -105,7 +105,7 @@ struct MessageSender {
     MessageSender() : type(Compiler) {}
     MessageSender(Type type) : type(type) {}
     MessageSender(amu::Source* s) : type(Source), source(s) {}
-    MessageSender(amu::Source* s, Token* t) : type(SourceLoc), source(s), token(t) {}
+    MessageSender(Token* t) : type(SourceLoc), source(t->source), token(t) {}
 };
 
 namespace message {
@@ -236,6 +236,10 @@ push_formatting(MessageFormatting formatting);
 
 void
 pop_formatting();
+
+// quick debug function
+template<typename... T> void 
+qdebug(MessageSender sender, T...args);
 
 } // namespace messenger
 
