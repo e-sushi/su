@@ -231,7 +231,7 @@ stream_next;                     \
 					stream_next; 
 					if(*stream.str == 0){
 						diagnostic::lexer::
-							unexpected_eof_single_quotes({lexer.source, &token});
+							unexpected_eof_single_quotes(&token);
 						lexer.status.failed = true;
                         return;
 					}
@@ -254,7 +254,7 @@ stream_next;                     \
 					stream_next; //skip until closing double quotes
 					if(*stream.str == 0){
 						diagnostic::lexer::
-							unexpected_eof_double_quotes({lexer.source, &token});
+							unexpected_eof_double_quotes(&token);
                         lexer.status.failed = true;
 						return;
 					}	
@@ -417,7 +417,7 @@ stream_next;                     \
 						token::kind kind = internal::token_is_directive_or_identifier(token.raw);
 						if(kind == token::identifier){
                             diagnostic::lexer::
-								unknown_directive({lexer.source, &token}, token.raw);
+								unknown_directive(&token, token.raw);
                             lexer.status.failed = true;
 						}
 						token.kind = kind;
@@ -435,7 +435,7 @@ stream_next;                     \
 						}
 					}
 				}else{
-					diagnostic::lexer::invalid_token({lexer.source, &token});
+					diagnostic::lexer::invalid_token(&token);
 					token.kind = token::error;
                     lexer.status.failed = true;
 					stream_next;
