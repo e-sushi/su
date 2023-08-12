@@ -21,7 +21,8 @@ enum kind : u32 {
 
     identifier,
     literal,
-    entity,
+    entity_func,
+    entity_module,    
     typeref,
     
     block,
@@ -38,8 +39,6 @@ enum kind : u32 {
     unary_negate,
     unary_assignment,
     unary_comptime,
-
-    type, // this expression represents a handle to some type 
 
     binary_plus,
     binary_minus,
@@ -72,13 +71,15 @@ enum kind : u32 {
 } // namespace expression
 
 struct Token;
+struct Entity;
 struct Expression {
     TNode node;
     expression::kind kind;
 
-    Type* type; // the semantic type of this expression
-
-    b32 is_compiletime;
+    union {
+        Type* type; // the semantic type of this expression
+        Entity* entity;
+    };
 };
 
 namespace expression {

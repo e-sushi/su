@@ -71,8 +71,6 @@ struct TNode {
 	u32   child_count;
 };
 
-#include "data/node_strings.generated"
-
 namespace node {
 
 global inline void

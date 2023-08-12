@@ -21,10 +21,6 @@ struct Parser {
 
     Array<Module*> module_stack;
     Module* current_module;
-
-    struct{ 
-        b32 failed;
-    }status;    
 };
 
 namespace parser {

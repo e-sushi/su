@@ -294,6 +294,9 @@ to_string(DString& start, TNode* n, b32 expand) {
 		case node::label:      to_string(start, (Label*)n);      return;
 		case node::expression: to_string(start, (Expression*)n); return;
 		case node::type:       to_string(start, (Type*)n);       return;
+		case node::function:   to_string(start, (Function*)n);   return;
+		case node::tuple:      to_string(start, (Tuple*)n);      return;
+		case node::module:     to_string(start, (Module*)n);     return;
 		default: NotImplemented;
 	}
     

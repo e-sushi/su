@@ -30,9 +30,6 @@ destroy(Type& t);
 global Type*
 base(Type& t);
 
-global DString
-chain_to_base_str(Type& t);
-
 } // namespace type
 
 void
