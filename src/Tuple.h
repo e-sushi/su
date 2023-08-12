@@ -35,6 +35,7 @@
 namespace amu {
 
 namespace tuple{
+// @genstrings(data/tuple_strings.generated)
 enum kind : u32 {
     unknown,
     label_group,
@@ -43,6 +44,9 @@ enum kind : u32 {
     multireturn,
     builtin,
 };
+
+#include "data/tuple_strings.generated"
+
 } // namespace tuple
 
 struct Tuple {
@@ -59,6 +63,9 @@ global void
 destroy(Tuple& t);
 
 } // namespace tuple
+
+void
+to_string(DString& start, Tuple* t);
 
 } // namespace amu
 
