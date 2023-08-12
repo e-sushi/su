@@ -629,3 +629,20 @@ class trace_parser(gdb.Command):
                 print(f"{self.__class__.__name__} error: {e}")
                 return 
 trace_parser()
+
+class emit_gast(gdb.Command):
+    def __init__(self):
+        super(emit_gast, self).__init__("egast", gdb.COMMAND_USER)
+    
+    def invoke(self, args, tty):
+        try: 
+            b = gdb.rbreak("parser::internal::start")[0]
+            gdb.execute("r")
+            gdb.execute("finish")
+            gdb.execute("gast internal::stack.data[0]")
+            gdb.execute("c")
+            b.delete()
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+            return 
+emit_gast()
