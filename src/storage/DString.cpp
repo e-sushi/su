@@ -84,5 +84,21 @@ remove(DString& a, u64 offset) {
     return 0;
 }
 
+global u32
+remove(DString& a, u64 offset, u64 count) {
+    // if offset is beyond a, or we are at a continuation byte at either ends of the range
+    // return 0
+    if(offset > a.count || 
+        string::internal::utf8_continuation_byte(*(a.str+offset)) || 
+        string::internal::utf8_continuation_byte(*(a.str+offset+count))) 
+            return 0;
+    
+    u64 actual_remove = util::Min(a.count - offset, count);
+    memory::copy(a.str+offset, a.str+offset+actual_remove, a.count-actual_remove+1);
+
+    a.count -= actual_remove;
+    return actual_remove;
+}
+
 } // namespace string
 } // namespace amu

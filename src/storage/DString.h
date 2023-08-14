@@ -79,6 +79,13 @@ concat(DString& a, String b);
 global u64
 remove(DString& a, u64 offset);
 
+// removes 'count' bytes starting from byte 'offset'
+// if the given offset is within a codepoint, or the offset is greater than a's length, returns 0
+// if 'offset' plus 'count' is greater than a's length, we remove until we can't anymore
+// returns the number of bytes removed
+global u32
+remove(DString& a, u64 offset, u64 count);
+
 } // namespace dstring
 
 DString to_string(const String& s) {
