@@ -102,6 +102,10 @@ template<typename T> Array<T>
 copy(Array<T>& arr);
 
 } // namespace array
+
+template<typename T>
+using ScopedArray = util::scoped<Array<T>, [](Array<T>* a) { array::deinit(*a); }>;
+
 } // namespace amu
 
 #endif // AMU_ARRAY_H
