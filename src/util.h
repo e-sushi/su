@@ -12,6 +12,8 @@
 #include <chrono>
 #define global static
 
+#include "Memory.h"
+
 namespace amu {
 namespace util {
 
@@ -74,6 +76,23 @@ hash(T* x) {
 	}
 	return seed;
 }
+
+template<typename A> FORCE_INLINE A
+Min(A x, A y) { return (x<y?x:y); }
+
+template<typename A> FORCE_INLINE A
+Max(A x, A y) { return (x>y?x:y); }
+
+// experimental type for creating scoped types when needed
+// this is to avoid making deconstructors, since you can't explicitly control
+// those. This isn't meant to be used in place, as that would be very ugly,
+// it should be typedef'd instead, for example: 
+//   typedef scoped<RString, [](RString* x) { ostring::dereference(*x); } ScopedRString;
+template<typename T, void (*cleanup)(T*)>
+struct scoped : public T {
+	scoped(const T& in) {memory::copy(this, (void*)&in, sizeof(T));}
+	~scoped() {cleanup((T*)this);}
+};
 
 }
 
