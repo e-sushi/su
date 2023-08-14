@@ -250,12 +250,13 @@ remove(TNode* node) {
 }
 
 namespace util {
+
 namespace internal {
 
 template<void (*callback)(DString&,TNode*)> void
 print_tree_recursive(DString& current, TNode* n, b32 newlines) {
     persist u32 layers = 0;
-	if(newlines) forI(layers) dstring::append(current, "    ");
+	if(newlines) forI(layers) dstring::append(current, " ");
 
     if(n->child_count) dstring::append(current, "(");
 
@@ -283,6 +284,7 @@ print_tree(TNode* root, b32 newlines) {
     return out;
 } 
 
+
 } // namespace util
 
 } // namespace node
@@ -297,6 +299,7 @@ to_string(DString& start, TNode* n, b32 expand) {
 		case node::function:   to_string(start, (Function*)n);   return;
 		case node::tuple:      to_string(start, (Tuple*)n);      return;
 		case node::module:     to_string(start, (Module*)n);     return;
+		case node::statement:  to_string(start, (Statement*)n);  return;
 		default: NotImplemented;
 	}
     

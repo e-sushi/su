@@ -15,6 +15,7 @@
 namespace amu {
 
 namespace statement{
+// @genstrings(data/statement_strings.generated)
 enum kind {
     unknown,
     label,
@@ -22,6 +23,9 @@ enum kind {
     defer_,
     expression
 };
+
+#include "data/statement_strings.generated"
+
 } // namespace statement
 
 struct Statement {
@@ -38,6 +42,10 @@ global void
 destroy(Statement& s);
 
 } // namespace statement
+
+void
+to_string(DString& start, Statement* s);
+
 } // namespace amu
 
 #endif // AMU_STATEMENT_H

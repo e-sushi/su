@@ -1,4 +1,5 @@
-namespace amu::statement {
+namespace amu {
+namespace statement {
 
 global Statement*
 create() {
@@ -8,4 +9,11 @@ create() {
     return out;
 }
 
-} // namespace amu::statement
+} // namespace statement
+
+void
+to_string(DString& start, Statement* s) {
+    dstring::append(start, "Statement<", statement::strings[s->kind], ">");
+}
+
+} // namespace amu
