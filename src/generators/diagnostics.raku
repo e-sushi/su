@@ -216,7 +216,7 @@ sub construct-diag(@diag) {
     "\tdiag.code = $count;\n" ~
     "\tdiag.severity = diagnostic::$type;\n" ~
     "\tif(!sender.type) array::push(::amu::compiler::instance.diagnostics, diag);\n" ~
-    "\telse array::push(sender.source->diagnostics, diag);\n" ~
+    "\telse code::add_diagnostic(sender.code, diag);\n" ~
     "\tMessage out = message::init();\n" ~
     "\tout.kind = message::$type;\n" ~
     "\tswitch(lang) \{\n";
