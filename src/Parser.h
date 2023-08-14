@@ -6,12 +6,12 @@
 #include "storage/Array.h"
 #include "storage/SharedArray.h"
 #include "storage/String.h"
-#include "Source.h"
+#include "Code.h"
 
 namespace amu {
 
 struct Parser {
-    Source* source;
+    Code* code;
 
     struct {
         Array<Label*> exported; // !Threading: these will need to be SharedArrays or locked with some mutex
@@ -26,13 +26,13 @@ struct Parser {
 namespace parser {
 
 Parser
-init(Source* source);
+init(Code* source);
 
 void
 deinit(Parser& parser);
 
 void
-execute(Parser& parser);
+execute(Code* code);
 
 } // namespace parser
 

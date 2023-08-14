@@ -26,7 +26,7 @@ to_string(DString& start, Label* l) {
     if(l->aliased)
         dstring::append(start, "(aka ", label::base(l)->node.start->raw, ") ");
 
-    dstring::append(start, l->node.start->source->name, ":", 
+    dstring::append(start, code::name(l->node.start->code), ":", 
             l->node.start->l0, ",", l->node.start->c0, ":",
             l->node.end->l0, ",", l->node.end->c0,
         ">");

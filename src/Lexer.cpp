@@ -67,26 +67,16 @@ is_identifier_char(u32 codepoint) {
 } // namespace internal
 
 Lexer
-init(Source* source) {
-    Lexer out;
-    out.source = source;
-    out.tokens = array::init<Token>(source->buffer.count); // it will surely not take this many, but we want to try and minimize the amount of reallocations we need to do
-	out.global_labels = array::init<spt>();
-	out.structs = array::init<spt>();
-	out.modules = array::init<spt>();
-	out.funcarrows = array::init<spt>();
-    out.status = {};
-    return out;
+init() {
+	Lexer out = {};
+	return out;
 }
 
 void 
-deinit(Lexer& lexer) {
-    array::deinit(lexer.tokens);
-    lexer.source = 0;
-}
+deinit(Lexer& lexer) {}
 
 void
-execute(Lexer& lexer) {
+execute(Code* code) {
 #define stream_next { string::advance(stream); line_col++; } 
 
 //!ref: https://github.com/pervognsen/bitwise/blob/master/ion/lex.c
@@ -135,11 +125,11 @@ stream_next;                     \
 
     util::Stopwatch lexer_time = util::stopwatch::start();
     
-    messenger::dispatch(message::attach_sender(lexer.source,
+    messenger::dispatch(message::attach_sender(code,
         message::make_debug(message::verbosity::stages, 
             String("beginning lexical analysis."))));
 
-    String stream = lexer.source->buffer;
+    String stream = code->raw;
 
     u32 line_num = 1, line_col = 1;
     u8* line_start = stream.str;
@@ -155,11 +145,12 @@ stream_next;                     \
 		b32 label_latch;
 	};
 
-	auto module_stack = array::init<ModuleEntry>();
-	defer{array::deinit(module_stack);};
+	ScopedArray<ModuleEntry> module_stack = array::init<ModuleEntry>();
 
-	Module* file_module = lexer.source->module = module::create();
+	Module* file_module = code->source->module = module::create();
 	ModuleEntry current_module = {file_module, 0, false};
+
+	auto tokens = array::init<Token>();
 
 	auto push_module = [&](Module* m) {
 		array::push(module_stack, current_module);
@@ -172,7 +163,7 @@ stream_next;                     \
 
     while(stream) {
         Token token = {};
-        token.source = lexer.source;
+        token.code = code;
         token.l0 = line_num;
         token.c0 = line_col;
         token.line_start = line_start;
@@ -218,7 +209,7 @@ stream_next;                     \
 				token.l1 = line_num;
 	 			token.c1 = line_col;
 				token.group = token::group_literal;
-	 			array::push(lexer.tokens, token);
+	 			array::push(tokens, token);
 				last_token = token;
 			}continue;
 
@@ -232,7 +223,6 @@ stream_next;                     \
 					if(*stream.str == 0){
 						diagnostic::lexer::
 							unexpected_eof_single_quotes(&token);
-						lexer.status.failed = true;
                         return;
 					}
 				}
@@ -240,7 +230,7 @@ stream_next;                     \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				array::push(lexer.tokens, token);
+				array::push(tokens, token);
 				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
@@ -255,7 +245,6 @@ stream_next;                     \
 					if(*stream.str == 0){
 						diagnostic::lexer::
 							unexpected_eof_double_quotes(&token);
-                        lexer.status.failed = true;
 						return;
 					}	
 				} 
@@ -292,7 +281,7 @@ stream_next;                     \
 				token.kind = token::colon; 
 				if(!current_module.label_latch && last_token.kind == token::identifier) {
 					current_module.label_latch = true;
-					array::push(current_module.module->labels, lexer.tokens.count-1);
+					// array::push(current_module.module->labels, tokens.count-1);
 				}
 				stream_next; 
 			}break;
@@ -345,7 +334,7 @@ stream_next;                     \
 				stream_next;
 				if(*stream.str == '>'){
 					token.kind = token::function_arrow;
-					array::push(lexer.funcarrows, lexer.tokens.count);
+					// array::push(lexer.funcarrows, tokens.count);
 					stream_next;
 				}
 			}break;
@@ -363,8 +352,7 @@ stream_next;                     \
 					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
 					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
                         diagnostic::lexer::
-							multiline_comment_missing_end(lexer.source);
-                        lexer.status.failed = 1;                        
+							multiline_comment_missing_end(&token);
 						return;
 					}
 					stream_next; stream_next;
@@ -413,18 +401,17 @@ stream_next;                     \
                 	token.kind = internal::token_is_keyword_or_identifier(token.raw);
 					token.hash = string::hash(token.raw);
 
-					if(lexer.tokens.count && array::read(lexer.tokens, -1).kind == token::pound){
+					if(tokens.count && array::read(tokens, -1).kind == token::pound){
 						token::kind kind = internal::token_is_directive_or_identifier(token.raw);
 						if(kind == token::identifier){
                             diagnostic::lexer::
 								unknown_directive(&token, token.raw);
-                            lexer.status.failed = true;
 						}
 						token.kind = kind;
-						array::pop(lexer.tokens);
+						array::pop(tokens);
 					} else {
 						switch(token.kind) {
-							case token::structdecl: array::push(lexer.structs, lexer.tokens.count); break;
+							case token::structdecl: break; // array::push(lexer.structs, tokens.count); break;
 							case token::moduledecl: {
 								Module* m = module::create();
 								// link the new module's symbol table to the current one 
@@ -437,7 +424,6 @@ stream_next;                     \
 				}else{
 					diagnostic::lexer::invalid_token(&token);
 					token.kind = token::error;
-                    lexer.status.failed = true;
 					stream_next;
 				}
 			}break;
@@ -463,7 +449,7 @@ stream_next;                     \
             token.l1 = line_num;
             token.c1 = line_col;
             token.raw.count = stream.str - token.raw.str;
-            array::push(lexer.tokens, token);
+            array::push(tokens, token);
         }
 
 		last_token = token;
@@ -473,41 +459,49 @@ stream_next;                     \
 	eof.kind = token::end_of_file;
 	eof.l0 = line_num;
 	eof.c0 = line_col;
-	eof.raw = String("");
-	array::push(lexer.tokens, eof);
+	array::push(tokens, eof);
 
-    lexer.status.time = util::stopwatch::peek(lexer_time);
+	if(code::is_virtual(code)) {
+		VirtualCode* code = code;
+		code->vtokens = tokens;
+	} else {
+		code->source->tokens = tokens;
+	}
 
-	// !Leak: see Parser.cpp where we do the same thing
-	DString temp = util::format_time(lexer.status.time);
-	messenger::dispatch(message::attach_sender(lexer.source,
-		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(temp))));
+    code->lexer->status.time = util::stopwatch::peek(lexer_time);
+
+	// !Leak: a DString is generated by util::format_time, but messenger currently has no way to know 
+	//        if a String needs to be cleaned up or not 
+	messenger::dispatch(message::attach_sender(code,
+		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(util::format_time(code->lexer->status.time)))));
 } // lex::execute
 
 void
-output(Lexer& lexer, b32 human, String path) {
+output(Code* code, b32 human, String path) {
     FILE* out = fopen((char*)path.str, "w");
     if(!out) {
 		diagnostic::internal::
-			valid_path_but_internal_err(lexer.source, path, "TODO(sushi) get error info for failing to open lexer::output");
+			valid_path_but_internal_err(code, path, "TODO(sushi) get error info for failing to open lexer::output");
         return;
     }
+
+	Array<Token>& tokens = code::get_token_array(code);
 
 	if(human) {
 		DString buffer = dstring::init();
 
-		forI(lexer.tokens.count) {
-			Token& t = array::readref(lexer.tokens, i);
+		forI(tokens.count) {
+			Token& t = array::readref(tokens, i);
 			dstring::append(buffer, (u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
 		}
 		
 		fwrite(buffer.str, buffer.count, 1, out);
 		dstring::deinit(buffer);
 	} else {
-		Array<u32> data = array::init<u32>(4*lexer.tokens.count);
+		Array<u32> data = array::init<u32>(4*tokens.count);
 
-		Token* curt = array::readptr(lexer.tokens, 0);
-		forI(lexer.tokens.count) {
+		Token* curt = array::readptr(tokens, 0);
+		forI(tokens.count) {
 			array::push(data, (u32)curt->kind);
 			array::push(data, (u32)curt->l0);
 			array::push(data, (u32)curt->c0);

@@ -91,14 +91,15 @@
 #include <filesystem>
 
 #define AMU_IMPLEMENTATION
+#include "Memory.h"
 #include "basic/Node.h"
+#include "storage/View.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
 #include "storage/SharedArray.h"
 #include "storage/String.h"
 #include "storage/DString.h"
 #include "storage/Map.h"
-#include "Memory.h"
 #include "Token.h"
 #include "Source.h"
 #include "Expression.h"
@@ -107,6 +108,7 @@
 #include "Label.h"
 #include "Entity.h"
 #include "Type.h"
+#include "Code.h"
 #include "Diagnostics.h"
 #include "Messenger.h"
 #include "Compiler.h"
@@ -128,6 +130,7 @@
 #include "Expression.cpp"
 #include "Tuple.cpp"
 #include "Type.cpp"
+#include "Code.cpp"
 #include "Diagnostics.cpp"
 #include "Messenger.cpp"
 #include "Diagnostics.cpp"

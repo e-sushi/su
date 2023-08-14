@@ -95,17 +95,17 @@ struct MessagePart {
 struct MessageSender {
     enum Type {
         Compiler, // the compiler when there is no specific source that 
-        Source, // some source file, no location
-        SourceLoc, // some source file with location
+        Code, // some Code 
+        CodeLoc, // some Code and a token location
     };
     Type type;
-    amu::Source* source;
+    amu::Code* code;
     Token* token;
 
     MessageSender() : type(Compiler) {}
     MessageSender(Type type) : type(type) {}
-    MessageSender(amu::Source* s) : type(Source), source(s) {}
-    MessageSender(Token* t) : type(SourceLoc), source(t->source), token(t) {}
+    MessageSender(amu::Code* c) : type(Code), code(c) {}
+    MessageSender(Token* t) : type(CodeLoc), code(t->code), token(t) {}
 };
 
 namespace message {

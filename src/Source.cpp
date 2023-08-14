@@ -9,7 +9,7 @@ load(String path) {
     Source* out = pool::add(compiler::instance.storage.sources);
 
     std::filesystem::path ab = std::filesystem::absolute(p);
-    out->path = dstring::init(ab.c_str());
+    out->path = String(dstring::init(ab.c_str()));
 
     u8* scan = out->path.str + out->path.count;
     while(*scan != '/' && *scan != '\\') {
@@ -31,10 +31,24 @@ load(String path) {
     fread(buffer, file_size, 1, out->file);
     out->buffer.str = buffer;
     out->buffer.count = file_size;
-    out->buffer.space = file_size + 1;
+
+    // don't keep the file locked
+    fclose(out->file);
 
     out->diagnostics = array::init<Diagnostic>();
     return out;
+}
+
+global void
+unload(Source* source) {
+    memory::free(source->path.str);
+    source->path.str = 0;
+    source->path.count = 0;
+
+    array::deinit(source->diagnostics);
+
+    // module::destroy(*source->module);
+    code::destroy(source->code);
 }
 
 // TODO(sushi) we can store a map String -> Source* and do this more efficiently

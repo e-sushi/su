@@ -6,6 +6,7 @@
 #define AMU_TOKEN_H
 
 #include "Source.h"
+#include "Code.h"
 #include "storage/String.h"
 #include "storage/DString.h"
 
@@ -141,7 +142,7 @@ struct Token {
     token::kind kind; 
     token::kind group;
 
-    Source* source; 
+    Code* code; 
     u64 l0, l1;
     u64 c0, c1;
 
@@ -160,7 +161,7 @@ struct Token {
 
 void
 to_string(DString& start, Token t) {
-    dstring::append(start, "Token<", t.source->name, ":", t.l0, ":", t.c0, " '", t.raw, "'>");
+    dstring::append(start, "Token<", code::name(t.code), ":", t.l0, ":", t.c0, " '", t.raw, "'>");
 }
 FORCE_INLINE void to_string(DString& start, Token* t) { return to_string(start, *t); }
 

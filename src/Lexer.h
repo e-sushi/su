@@ -12,17 +12,9 @@
 namespace amu {
 
 struct Lexer {
-    Source* source; // source file this Analyzer belongs to 
-
-    Array<Token> tokens;
-    Array<spt> global_labels;
-    Array<spt> colons; 
-    Array<spt> structs; 
-    Array<spt> modules;
-    Array<spt> funcarrows;
+    Code* code; 
 
     struct {
-        b32 failed; // set when the lexer fails in any way 
         f64 time; // time taken by the lexer
     } status;   
 };
@@ -30,19 +22,20 @@ struct Lexer {
 namespace lex {
 
 Lexer
-init(Source* source);
+init();
 
 void
 deinit(Lexer& lexer);
 
-// ask a Lexer to perform its analysis
+// ask a Lexer to perform its analysis, storing information
+// in the provided Code object
 void
-execute(Lexer& lexer);
+execute(Code* code);
 
 // output the data emitted by the Lexer to the given path
 // binary = false - outputs a human readable format
 void
-output(Lexer& lexer, b32 human, String path);
+output(Code* code, b32 human, String path);
 
 } // namespace lexer
 

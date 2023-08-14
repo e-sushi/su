@@ -12,18 +12,20 @@ init() {
 
     instance.log_file = fopen("temp/log", "w");
 
-    instance.storage.sources     = pool::init<Source>(32);
-    instance.storage.lexers      = pool::init<Lexer>(32);
-    instance.storage.parsers     = pool::init<Parser>(32);
-    instance.storage.modules     = pool::init<Module>(32);
-    instance.storage.labels      = pool::init<Label>(32);
-    instance.storage.structures  = pool::init<Structure>(32);
-    instance.storage.functions   = pool::init<Function>(32);
-    instance.storage.statements  = pool::init<Statement>(32);
-    instance.storage.expressions = pool::init<Expression>(32);
-    instance.storage.places      = pool::init<Place>(32);
-    instance.storage.tuples      = pool::init<Tuple>(32);
-    instance.storage.types       = pool::init<Type>(32);
+    instance.storage.sources      = pool::init<Source>(32);
+    instance.storage.code         = pool::init<Code>(32);
+    instance.storage.virtual_code = pool::init<VirtualCode>(32);
+    instance.storage.lexers       = pool::init<Lexer>(32);
+    instance.storage.parsers      = pool::init<Parser>(32);
+    instance.storage.modules      = pool::init<Module>(32);
+    instance.storage.labels       = pool::init<Label>(32);
+    instance.storage.structures   = pool::init<Structure>(32);
+    instance.storage.functions    = pool::init<Function>(32);
+    instance.storage.statements   = pool::init<Statement>(32);
+    instance.storage.expressions  = pool::init<Expression>(32);
+    instance.storage.places       = pool::init<Place>(32);
+    instance.storage.tuples       = pool::init<Tuple>(32);
+    instance.storage.types        = pool::init<Type>(32);
 
     instance.options.deliver_debug_immediately = true;
 
@@ -224,12 +226,14 @@ begin(Array<String> args) {
         return;
     }
 
-    Lexer* lexer = pool::add(instance.storage.lexers, lex::init(entry_source));
-    entry_source->lexer = lexer;
-    lex::execute(*lexer);
+    entry_source->code = code::from(entry_source);
+
+    Lexer* lexer = pool::add(instance.storage.lexers, lex::init());
+    entry_source->code->lexer = lexer;
+    lex::execute(entry_source->code);
     
     if(instance.options.dump_tokens.path.str) {
-        lex::output(*lexer, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
+        lex::output(entry_source->code, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
         if(instance.options.dump_tokens.exit) {
             messenger::deliver();
             return;
@@ -238,9 +242,9 @@ begin(Array<String> args) {
 
     messenger::deliver();
 
-    Parser* parser = pool::add(instance.storage.parsers, parser::init(entry_source));
-    entry_source->parser = parser;
-    parser::execute(*parser);
+    Parser* parser = pool::add(instance.storage.parsers, parser::init(entry_source->code));
+    entry_source->code->parser = parser;
+    parser::execute(entry_source->code);
     
     messenger::deliver();
 
