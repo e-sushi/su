@@ -14,6 +14,11 @@ reallocate(void* ptr, upt size) {
     return realloc(ptr, size);
 }
 
+template<typename T> FORCE_INLINE T*
+reallocate(T* ptr, upt size) {
+    return (T*)realloc(ptr, size);
+}
+
 FORCE_INLINE void 
 free(void* ptr) {
     ::free(ptr);
@@ -22,6 +27,13 @@ free(void* ptr) {
 FORCE_INLINE void
 copy(void* destination, void* source, upt bytes) {
     memcpy(destination, source, bytes);
+}
+
+template<typename T> FORCE_INLINE T*
+copy(T* source, upt bytes) {
+    T* out = (T*)memory::allocate(bytes);
+    memory::copy((void*)out, (void*)source, bytes);
+    return out;
 }
 
 FORCE_INLINE void
