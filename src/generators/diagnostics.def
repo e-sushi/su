@@ -3,6 +3,7 @@ group path {
         type: error;
         message: {
             en: "the path %path% could not be found";
+            esp: "la vojo %path% maltroveblis";
         }
     }
 }
@@ -12,6 +13,7 @@ group compiler {
         type: error;
         message: {
             en: "expected a path for arg '%String%'";
+            esp: "atendis vojopor argumento '%String%'";
         }
     }
 
@@ -19,6 +21,7 @@ group compiler {
         type: error;
         message: {
             en: "unknown option '%String%'";
+            esp: "nekonata opcio '%String%'";
         }
     }
 
@@ -327,6 +330,30 @@ group parser {
         type: error;
         message: {
             en: "unexpected token in module, only labels and directives are allowed";
+        }
+    }
+}
+
+group validator {
+    diagnostic func_ret_expected_typeref {
+        type: error;
+        message: {
+            en: "expected a type reference for function return type";
+        }
+    }
+
+    diagnostic cannot_implict_coerce {
+        type: error;
+        message: {
+            en: "the type %type% does not define trait Coersion to type %type%";
+            esp: "la tipo %type% ne difinas la trajton Coersion al tipo %type%";
+        }
+    }
+
+    diagnostic cant_find_binop_trait {
+        type: error;
+        message: {
+            en: "the trait %String% is not defined between %type% and %type%";
         }
     }
 }
