@@ -106,6 +106,9 @@ global inline void
 insert_first(TNode* parent, TNode* node);
 
 global inline void
+insert_above(TNode* below, TNode* above);
+
+global inline void
 change_parent(TNode* new_parent, TNode* node);
 
 // rearrages the parent of 'node' such that 'node' is the first child, 
@@ -137,6 +140,9 @@ print_tree(TNode* root, b32 newlines = true);
 // if 'expand' is true, it will resolve the TNode to what it represents, then return that string
 void
 to_string(DString& start, TNode* n, b32 expand = false);
+
+DString
+to_string(TNode* n, b32 expand = false);
 
 } // namespace amu
 

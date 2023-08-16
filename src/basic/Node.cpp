@@ -142,6 +142,31 @@ insert_first(TNode* parent, TNode* child) {
 }
 
 global inline void
+insert_above(TNode* below, TNode* above) {
+	TNode copy = *below;
+	copy.parent->child_count++;
+	remove(below);
+
+	if(copy.parent){
+		above->parent = copy.parent;
+		
+		if(copy.next && copy.prev){
+			insert_after(copy.prev, above);
+		}else if( copy.next && !copy.prev){
+			insert_before(copy.next, above);
+			copy.parent->first_child = above;
+		}else if(!copy.next &&  copy.prev){
+			insert_after(copy.prev, above);
+			copy.parent->last_child = above;
+		}else{
+			copy.parent->first_child = copy.parent->last_child = above;
+		}
+	}
+
+	change_parent(above, below);
+}
+
+global inline void
 change_parent(TNode* new_parent, TNode* node) {
     // deshi::mutex_lock(&node->lock);
     // deshi::mutex_lock(&new_parent->lock);
@@ -300,6 +325,7 @@ to_string(DString& start, TNode* n, b32 expand) {
 		case node::tuple:      to_string(start, (Tuple*)n);      return;
 		case node::module:     to_string(start, (Module*)n);     return;
 		case node::statement:  to_string(start, (Statement*)n);  return;
+		case node::structure:  to_string(start, (Structure*)n);  return;
 		default: NotImplemented;
 	}
     
@@ -312,6 +338,13 @@ to_string(DString& start, TNode* n, b32 expand) {
 	else dstring::append(start, ":null_end");
 
 	dstring::append(start, ">");
+}
+
+DString
+to_string(TNode* n, b32 expand) {
+	DString out = dstring::init();
+	to_string(out, n, expand);
+	return out;
 }
 
 } // namespace amu
