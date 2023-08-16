@@ -66,14 +66,14 @@ is_identifier_char(u32 codepoint) {
 
 } // namespace internal
 
-Lexer
-init() {
-	Lexer out = {};
+Lexer*
+create() {
+	Lexer* out = pool::add(compiler::instance.storage.lexers);
 	return out;
 }
 
 void 
-deinit(Lexer& lexer) {}
+destroy(Lexer* lexer) {}
 
 void
 execute(Code* code) {
@@ -147,6 +147,10 @@ stream_next;                     \
 
 	ScopedArray<ModuleEntry> module_stack = array::init<ModuleEntry>();
 
+	// TODO(sushi) currently this stage gathers file scope information
+	//             but I plan to make it so that Code is more general than that
+	//             so eventually this will not work and we need to rewrite Lexer
+	//             to not worry about Modules
 	Module* file_module = code->source->module = module::create();
 	ModuleEntry current_module = {file_module, 0, false};
 
@@ -281,7 +285,7 @@ stream_next;                     \
 				token.kind = token::colon; 
 				if(!current_module.label_latch && last_token.kind == token::identifier) {
 					current_module.label_latch = true;
-					// array::push(current_module.module->labels, tokens.count-1);
+					array::push(current_module.module->labels, tokens.count-1);
 				}
 				stream_next; 
 			}break;

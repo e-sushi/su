@@ -14,6 +14,9 @@ namespace amu {
 struct Lexer {
     Code* code; 
 
+    // indexes into code's Token Array that indicates possible global label declarations
+    Array<spt> labels;
+
     struct {
         f64 time; // time taken by the lexer
     } status;   
@@ -21,11 +24,11 @@ struct Lexer {
 
 namespace lex {
 
-Lexer
-init();
+Lexer*
+create();
 
 void
-deinit(Lexer& lexer);
+destroy(Lexer* lexer);
 
 // ask a Lexer to perform its analysis, storing information
 // in the provided Code object

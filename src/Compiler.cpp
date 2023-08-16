@@ -12,60 +12,31 @@ init() {
 
     instance.log_file = fopen("temp/log", "w");
 
-    instance.storage.sources      = pool::init<Source>(32);
-    instance.storage.code         = pool::init<Code>(32);
-    instance.storage.virtual_code = pool::init<VirtualCode>(32);
-    instance.storage.lexers       = pool::init<Lexer>(32);
-    instance.storage.parsers      = pool::init<Parser>(32);
-    instance.storage.modules      = pool::init<Module>(32);
-    instance.storage.labels       = pool::init<Label>(32);
-    instance.storage.structures   = pool::init<Structure>(32);
-    instance.storage.functions    = pool::init<Function>(32);
-    instance.storage.statements   = pool::init<Statement>(32);
-    instance.storage.expressions  = pool::init<Expression>(32);
-    instance.storage.places       = pool::init<Place>(32);
-    instance.storage.tuples       = pool::init<Tuple>(32);
-    instance.storage.types        = pool::init<Type>(32);
+    instance.storage.sources          = pool::init<Source>(32);
+    instance.storage.code             = pool::init<Code>(32);
+    instance.storage.virtual_code     = pool::init<VirtualCode>(32);
+    instance.storage.lexers           = pool::init<Lexer>(32);
+    instance.storage.parsers          = pool::init<Parser>(32);
+    instance.storage.validators       = pool::init<Validator>(32);
+    instance.storage.modules          = pool::init<Module>(32);
+    instance.storage.labels           = pool::init<Label>(32);
+    instance.storage.structures       = pool::init<Structure>(32);
+    instance.storage.functions        = pool::init<Function>(32);
+    instance.storage.statements       = pool::init<Statement>(32);
+    instance.storage.expressions      = pool::init<Expression>(32);
+    instance.storage.places           = pool::init<Place>(32);
+    instance.storage.tuples           = pool::init<Tuple>(32);
+    instance.storage.types            = pool::init<Type>(32);
+    instance.storage.builtin_types    = pool::init<ScalarType>(32);
+    instance.storage.structured_types = pool::init<StructuredType>(32);
+    instance.storage.pointer_types    = pool::init<PointerType>(32);
+    instance.storage.array_types      = pool::init<ArrayType>(32);
+    instance.storage.variant_types    = pool::init<VariantType>(32);
+    instance.storage.function_types   = pool::init<FunctionType>(32);
+    instance.storage.meta_types       = pool::init<MetaType>(32);
 
     instance.options.deliver_debug_immediately = true;
 
-    compiler::builtins.void_ = structure::create();
-    compiler::builtins.void_->size = 0;
-    compiler::builtins.unsigned8 = structure::create();
-    compiler::builtins.unsigned8->size = 1;
-    compiler::builtins.unsigned16 = structure::create();
-    compiler::builtins.unsigned16->size = 2;
-    compiler::builtins.unsigned32 = structure::create();
-    compiler::builtins.unsigned32->size = 4;
-    compiler::builtins.unsigned64 = structure::create();
-    compiler::builtins.unsigned64->size = 8;
-    compiler::builtins.signed8 = structure::create();
-    compiler::builtins.signed8->size = 1;
-    compiler::builtins.signed16 = structure::create();
-    compiler::builtins.signed16->size = 2;
-    compiler::builtins.signed32 = structure::create();
-    compiler::builtins.signed32->size = 4;
-    compiler::builtins.signed64 = structure::create();
-    compiler::builtins.signed64->size = 8;
-    compiler::builtins.float32 = structure::create();
-    compiler::builtins.float32->size = 4;
-    compiler::builtins.float64 = structure::create();
-    compiler::builtins.float64->size = 8;
-
-    compiler::builtins.array = structure::create();
-    compiler::builtins.array->size = 2*sizeof(s64);
-    map::add(compiler::builtins.array->members, String("data"), compiler::builtins.signed64);
-    map::add(compiler::builtins.array->members, String("count"), compiler::builtins.signed64);
-
-    compiler::builtins.darray = structure::create();
-    compiler::builtins.darray->size = 3*sizeof(s64);
-    map::add(compiler::builtins.darray->members, String("data"), compiler::builtins.signed64);
-    map::add(compiler::builtins.darray->members, String("count"), compiler::builtins.signed64);
-    map::add(compiler::builtins.darray->members, String("space"), compiler::builtins.signed64);
-
-    compiler::builtins.functype = structure::create();
-    compiler::builtins.functype->size = compiler::builtins.unsigned64->size;
-    
     messenger::init();  // TODO(sushi) compiler arguments to control this
     array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
     array::push(messenger::instance.destinations, Destination(fopen("temp/log", "w"), false));
@@ -227,9 +198,8 @@ begin(Array<String> args) {
     }
 
     entry_source->code = code::from(entry_source);
-
-    Lexer* lexer = pool::add(instance.storage.lexers, lex::init());
-    entry_source->code->lexer = lexer;
+    
+    entry_source->code->lexer = lex::create();
     lex::execute(entry_source->code);
     
     if(instance.options.dump_tokens.path.str) {
@@ -248,9 +218,15 @@ begin(Array<String> args) {
     
     messenger::deliver();
 
+    entry_source->code->validator = validator::create();
+    validator::execute(entry_source->code);
+
+    messenger::deliver();
+
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
     }
+
 }
 
 } // namespace compiler

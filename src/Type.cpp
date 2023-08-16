@@ -1,38 +1,59 @@
 namespace amu {
 namespace type {
 
-global Type*
+Type*
 create() {
     Type* out = pool::add(compiler::instance.storage.types);
-    node::init(&out->node);
-    out->node.kind = node::type;
     return out; 
 }
 
-global Type*
-base(Type& t) {
-    Type* out = &t;
-    while(out->node.parent)
-        out = (Type*)out->node.parent;
-    return out;
+namespace internal {
+
+b32 
+is_builtin(Type* t) {
+    NotImplemented;
+    return 0;//!t->structure->kind;
 }
+
+} // namespace internal
+
+
+b32
+can_coerce(Type* to, Type* from) { 
+    if(from == to) return true;
+
+    // all scalar types may coerce to each other
+    // TODO(sushi) this should probably not allow float <-> int coercion in implicit cases, though
+    if(to->kind == type::kind::scalar && from->kind == type::kind::scalar)
+        return true;
+
+    // pointers may coerce freely
+    // TODO(sushi) stronger rules may be safer, though
+    if(to->kind == type::kind::pointer && from->kind == type::kind::pointer)
+        return true;
+
+    // this may be too loose a rule
+    // this allows arrays that have equal sizes but different types to coerce between each other
+    // but I have no idea if this is a good idea or not 
+    if(to->kind == type::kind::array && from->kind == type::kind::array) {
+        ArrayType* to = to,* from = from;
+        return to->size == from->size && can_coerce(to->type, from->type);
+    }
+
+    // allow implicit coercion of an array to its data pointer
+    // this may not be a good idea either
+    if(to->kind == type::kind::pointer && from->kind == type::kind::array) {
+        PointerType* to = to;
+        ArrayType* from = from;
+        return to->type == from->type;
+    }
+
+    return false;
+}   
 
 } // namespace type
 
-void
-to_string(DString& start, Type* t) {
-    dstring::append(start, 
-        node::util::print_tree<[](DString& current, TNode* n) {
-            if(n->kind != node::type) return to_string(current, n, true);
 
-            Type* t = (Type*)n;
-
-            // this is a pointer
-            if(!t->structure) return dstring::append(current, "ptr");
-
-            to_string(current, t->structure);
-        }>((TNode*)t, false));
-}
 
 } // namespace amu
 

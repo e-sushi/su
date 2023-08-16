@@ -17,8 +17,6 @@ namespace expression {
 enum kind : u32 {
     null,
 
-    top_level,
-
     identifier,
     literal,
     entity_func,
@@ -72,14 +70,12 @@ enum kind : u32 {
 
 struct Token;
 struct Entity;
+struct Type;
 struct Expression {
     TNode node;
     expression::kind kind;
 
-    union {
-        Type* type; // the semantic type of this expression
-        Entity* entity;
-    };
+    Type* type; // the semantic type of this expression
 };
 
 namespace expression {

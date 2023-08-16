@@ -154,7 +154,7 @@ void block();
 void start();
 
 
-// parses identifiers separate by commas and groups them under a tuple 
+// parses identifiers separated by commas and groups them under a tuple 
 // this must be called after the first identifier and comma have been parsed
 // and the first identfier must have been pushed onto the stack
 void identifier_group() { announce_stage;
@@ -208,22 +208,22 @@ void reduce_literal_to_literal_expression() { announce_stage;
     e->kind = expression::literal;
     TNode* n = (TNode*)e;
     n->start = n->end = curt;
-    e->type = type::create();
     switch(curt->kind) {
         case token::literal_character: {
-            e->type->structure = compiler::builtins.unsigned8;
+            e->type = &type::scalar::unsigned8;
         } break;
         case token::literal_float: {
-            e->type->structure = compiler::builtins.float64;
+            e->type = &type::scalar::float64;
         } break;
         case token::literal_integer: {
-            e->type->structure = compiler::builtins.signed64;
+            e->type = &type::scalar::signed64;
         } break;
         case token::literal_string: {
-            Type* c = type::create();
-            c->structure = compiler::builtins.unsigned8;
-            e->type->structure = compiler::builtins.array;
-            node::insert_last((TNode*)e, (TNode*)c);
+            NotImplemented;
+            // Type* c = type::create();
+            // c->structure = &compiler::scalar::unsigned8;
+            // e->structure = &compiler::scalar::array;
+            // node::insert_last((TNode*)e, (TNode*)c);
         } break;
     }
     stack_push(n);
@@ -239,19 +239,18 @@ void reduce_literal_to_literal_expression() { announce_stage;
 void reduce_builtin_type_to_typeref_expression() { announce_stage;
     Expression* e = expression::create();
     e->kind = expression::typeref;
-    e->type = type::create();
     switch(curt->kind) {
-        case token::void_:      e->type->structure = compiler::builtins.void_; break; 
-        case token::unsigned8:  e->type->structure = compiler::builtins.unsigned8; break;
-        case token::unsigned16: e->type->structure = compiler::builtins.unsigned16; break;
-        case token::unsigned32: e->type->structure = compiler::builtins.unsigned32; break;
-        case token::unsigned64: e->type->structure = compiler::builtins.unsigned64; break;
-        case token::signed8:    e->type->structure = compiler::builtins.signed8; break;
-        case token::signed16:   e->type->structure = compiler::builtins.signed16; break;
-        case token::signed32:   e->type->structure = compiler::builtins.signed32; break;
-        case token::signed64:   e->type->structure = compiler::builtins.signed64; break;
-        case token::float32:    e->type->structure = compiler::builtins.float32; break;
-        case token::float64:    e->type->structure = compiler::builtins.float64; break;
+        case token::void_:      e->type = &type::scalar::void_; break; 
+        case token::unsigned8:  e->type = &type::scalar::unsigned8; break;
+        case token::unsigned16: e->type = &type::scalar::unsigned16; break;
+        case token::unsigned32: e->type = &type::scalar::unsigned32; break;
+        case token::unsigned64: e->type = &type::scalar::unsigned64; break;
+        case token::signed8:    e->type = &type::scalar::signed8; break;
+        case token::signed16:   e->type = &type::scalar::signed16; break;
+        case token::signed32:   e->type = &type::scalar::signed32; break;
+        case token::signed64:   e->type = &type::scalar::signed64; break;
+        case token::float32:    e->type = &type::scalar::float32; break;
+        case token::float64:    e->type = &type::scalar::float64; break;
     }
     e->node.start = curt;
     e->node.end = curt;
@@ -281,8 +280,8 @@ void tuple_after_close_paren() { announce_stage;
 
         Expression* e = expression::create();
         e->kind = expression::typeref;
-        e->type = type::create();
-        e->type->structure = compiler::builtins.functype;
+        e->type = type::function::create();
+        auto f = (FunctionType*)e->type;
 
         if(count > 1) {
             Tuple* t = tuple::create();
@@ -292,14 +291,17 @@ void tuple_after_close_paren() { announce_stage;
                 node::insert_first((TNode*)t, stack_pop());
             }
 
+            f->returns = (TNode*)t;
             node::insert_last((TNode*)e, (TNode*)t);
 
             set_start_end_from_children(t);
         } else {
-            node::insert_first((TNode*)e, stack_pop());
+            f->returns = stack_pop();
+            node::insert_first((TNode*)e, f->returns);
         }
 
-        node::insert_first((TNode*)e, stack_pop());
+        f->parameters = stack_pop();
+        node::insert_first((TNode*)e, f->parameters);
 
         set_start_end_from_children(e);
         
@@ -524,7 +526,7 @@ void after_typeref() { announce_stage;
             Place* p = place::create();
             p->node.start = e->node.start;
             p->node.end = e->node.end;
-            p->type = e->type;
+            // p->type = e->type;
 
             stack_push((TNode*)p);
             stack_push((TNode*)e);
@@ -538,12 +540,13 @@ void after_typeref() { announce_stage;
             typeref->end = typeref->last_child->end;
         } break;
         case token::asterisk: {
-            Expression* last = (Expression*)array::read(stack, -1);
-            Type* type = type::create();
-            node::insert_first((TNode*)type, (TNode*)last->type);
-            last->type = type;
-            advance_curt();
-            after_typeref(); check_error;
+            NotImplemented;
+            // Expression* last = (Expression*)array::read(stack, -1);
+            // Type* type = type::create();
+            // node::insert_first((TNode*)type, (TNode*)last->type);
+            // last->type = type;
+            // advance_curt();
+            // after_typeref(); check_error;
         } break;
     }
 }
@@ -1121,7 +1124,7 @@ void factor() { announce_stage;
     check_error;
     switch(curt->kind) {
         case token::identifier: {
-            reduce_identifier_to_identifier_expression(); 
+            reduce_identifier_to_identifier_expression();
             Label* label = search_for_label(&parser->current_module->table, curt->hash); 
             if(!label) {
                 diagnostic::parser::unknown_identifier(curt);
@@ -1137,20 +1140,25 @@ void factor() { announce_stage;
                         advance_curt(); advance_curt();
                         tuple_after_open_paren(); check_error;
                     } else {
-                        // probably just a reference to a function entity
-                        Expression* last = (Expression*)array::read(stack, -1);
-                        last->kind = expression::entity_func;
-                        last->entity = label->entity;
-                        advance_curt();
+                        NotImplemented;
+                        // // probably just a reference to a function entity
+                        // Expression* last = (Expression*)array::read(stack, -1);
+                        // last->kind = expression::entity_func;
+                        // last->entity = label->entity;
+                        // advance_curt();
                     }
                 } break;
                 case node::structure: {
                     Expression* last = (Expression*)array::read(stack, -1);
                     last->kind = expression::typeref;
-                    last->type = type::create();
-                    last->type->structure = (Structure*)label->entity;
+                    last->type = (Type*)label->entity;
                     advance_curt();
                     after_typeref(); check_error;
+                } break;
+                case node::place: {
+                    Expression* last = (Expression*)array::read(stack, -1);
+                    last->kind = expression::identifier;
+                    last->type = ((Place*)label->entity)->type;
                 } break;
             }
             advance_curt(); 
@@ -1388,21 +1396,28 @@ void label_after_colon() { announce_stage;
             }
 
             switch(label->entity->node.kind) {
-                case node::structure: {
+                case node::type: {
                     Expression* last = (Expression*)array::read(stack, -1);
                     last->kind = expression::typeref;
-                    last->type = type::create();
-                    last->type->structure = (Structure*)label->entity;
+                    last->type = (Type*)label->entity;
                     advance_curt();
                     after_typeref(); check_error;
+                    // this is a place in memory
+
+                    Place* p = place::create();
+                    p->type = last->type;
+                    p->label = label;
+                    TNode* save = stack_pop();
+                    stack_push((TNode*)p);
+                    stack_push(save);
                 } break;
                 default: advance_curt(); break; 
             }
             
         } break;
-        case token::colon:      before_expr(); break;
-        case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
-        case token::equal:      before_expr(); break;
+        case token::open_paren: advance_curt(); tuple_after_open_paren(); check_error; break;
+        case token::equal:    
+        case token::colon: before_expr(); check_error; break;
         
         default: {
             if(curt->group == token::group_type) {
@@ -1617,8 +1632,10 @@ void prescan() {
                 switch(curt->kind) {
                     case token::structdecl: {
                         Structure* s = structure::create();
-                        l->entity = s;
                         s->label = l;
+                        StructuredType* t = type::structured::create(s);
+                        l->entity = (Entity*)t;
+                        t->label = l;
                         goto label_finished;
                     } break;
                     case token::moduledecl: {
@@ -1657,6 +1674,8 @@ label_finished:;
     }
 }
 
+
+#undef announce_stage
 } // namespace internal
 
 void
@@ -1677,7 +1696,6 @@ execute(Code* code) {
     util::println(
         node::util::print_tree<[](DString& c, TNode* n){to_string(c, n, true);}>(internal::stack.data[0]));
     
-
     // !Leak: a DString is generated by util::format_time, but messenger currently has no way to know 
 	//        if a String needs to be cleaned up or not 
     messenger::dispatch(message::attach_sender(code,
