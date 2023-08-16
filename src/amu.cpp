@@ -115,6 +115,7 @@
 #include "Result.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "Validator.h"
 
 #include "Memory.cpp"
 #include "basic/Node.cpp"
@@ -137,6 +138,8 @@
 #include "Compiler.cpp"
 #include "Lexer.cpp"
 #include "Parser.cpp"
+#include "Validator.cpp"
+
 
 int main(int argc, char* argv[]){
 	{using namespace amu;

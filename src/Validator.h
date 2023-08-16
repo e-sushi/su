@@ -4,6 +4,9 @@
 
 */
 
+#ifndef AMU_VALIDATOR_H
+#define AMU_VALIDATOR_H
+
 namespace amu {
 
 struct Validator {
@@ -15,14 +18,16 @@ struct Validator {
 
 namespace validator {
 
-global Validator
-init();
+Validator*
+create();
 
-global void
-deinit(Validator& v);
+void
+destroy(Validator* v);
 
 void 
-execute(Validator& v);
+execute(Code* code);
 
 } // namespace validator
 } // namespace amu 
+
+#endif // AMU_VALIDATOR_H
