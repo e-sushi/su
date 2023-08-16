@@ -124,23 +124,24 @@ process_part(DString& current, const MessagePart& part) {
         } break;
         case messagepart::type: {
             Type* step = part.type;
-            while(step) {
-                if(!step->structure){
-                    dstring::append(current, "ptr(");
-                } else if(step->structure == compiler::builtins.array) {
-                    dstring::append(current, "array(");
-                } else {
-                    dstring::append(current, part.type->structure->label->node.start->raw, "(");
-                }
+            to_string(current, step);
+            // while(step) {
+            //     if(!step->structure){
+            //         dstring::append(current, "ptr(");
+            //     } else if(step->structure == compiler::builtins.array) {
+            //         dstring::append(current, "array(");
+            //     } else {
+            //         dstring::append(current, part.type->structure->label->node.start->raw, "(");
+            //     }
 
-                for(TNode* t = step->node.first_child; t; t = t->next) {
-                    switch(t->kind) {
-                        case node::label: process_part(current, (Label*)t); break;
-                    }
-                }
+            //     for(TNode* t = step->node.first_child; t; t = t->next) {
+            //         switch(t->kind) {
+            //             case node::label: process_part(current, (Label*)t); break;
+            //         }
+            //     }
 
-                dstring::append(current, ')');
-            }
+            //     dstring::append(current, ')');
+            // }
         } break;
     }
 }
