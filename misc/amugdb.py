@@ -141,12 +141,8 @@ class Token_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            kind = str(val['kind'])[12:]
-            file = str(val['source']['name']).strip('"')
-            line = str(val['l0'])
-            col = str(val['c0'])
-            raw = str(val['raw'])
-            return f"{file}:{line}:{col}:{kind} {raw}"
+            s = gdb.execute(f"call to_string((Token*){val.address})", to_string=True)
+            return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Token", r"^amu::Token$", Token_printer)
@@ -285,25 +281,8 @@ class TNode_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            kind = str(val['kind'])
-            match kind:
-                case "amu::node::label":
-                    return gdb.parse_and_eval(f"*(amu::Label*){val.address}")
-                case "amu::node::tuple":
-                    return gdb.parse_and_eval(f"*(amu::Tuple*){val.address}")
-                case "amu::node::expression":
-                    return gdb.parse_and_eval(f"*(amu::Expression*){val.address}")
-                case "amu::node::statement":
-                    return gdb.parse_and_eval(f"*(amu::Statement*){val.address}")
-                case "amu::node::function":
-                    return gdb.parse_and_eval(f"*(amu::Function*){val.address}")
-                case "amu::node::structure":
-                    return gdb.parse_and_eval(f"*(amu::Structure*){val.address}")
-                case "amu::node::module":
-                    return gdb.parse_and_eval(f"*(amu::Module*){val.address}")
-                case _:
-                    return f"unhandled node kind: {kind}"
-                
+            s = gdb.execute(f"call to_string((TNode*){val.address}, true)", to_string = True)
+            return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("TNode", r"^amu::TNode", TNode_printer)
@@ -515,7 +494,7 @@ class parser_track_stack(gdb.Command):
 
         # we need to load the source's buffer manually, because gdb with attempt to 
         # fold repeating things in arrays, including strings!
-        bufferptr = int(gdb.parse_and_eval("parser->source->buffer->str"))
+        bufferptr = int(gdb.parse_and_eval("parser->code->raw->str"))
 
         length = 0
         while 1:
