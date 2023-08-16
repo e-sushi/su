@@ -13,6 +13,8 @@
 #ifndef AMU_CODE_H
 #define AMU_CODE_H
 
+#include "Validator.h"
+
 namespace amu {
 
 namespace code {
@@ -32,20 +34,40 @@ enum kind {
 };
 } // namespace code
 
+// information that would be provided from outside of a Code object
+struct CodeContext {
+    // the module this code would be residing in 
+    Module* module;
+};
+
 struct Code {
     code::kind kind;
     // raw representation of this code
     String raw;
+    
+    Code* next;
+    Code* prev;
 
-    View<Token> tokens;
+    // if this Code was generated from another Code object, this points to that original
+    // object. this is used when we generate Code from generic types and such and when we
+    // perform formatting
+    Code* base;
 
-    TNode* node;
-
-    // Source this code belongs to, if this is 0, then this is VirtualCode
+    // Source this code belongs to. if this is 0, then this is VirtualCode
     Source* source;
 
+    // the range of Tokens that this code represents 
+    // empty if lexing has not yet been performed on this Code
+    View<Token> tokens;
+
+    // the highest level node of the source this Code represents
+    // null if parsing has not yet been performed on this Code
+    TNode* node;
+
+    // information from stages that this Code has been passed through
     Lexer* lexer;
     Parser* parser;
+    Validator* validator;
 };
 
 // Code which is not represented by any given Source.
@@ -66,6 +88,9 @@ create();
 
 Code*
 from(Source* source);
+
+VirtualCode*
+from(String s);
 
 // creates a Code object from start and end Tokens
 Code*
