@@ -170,10 +170,16 @@ sub construct-diag(@diag) {
                         @locdynparts.push: 'Token*';
                         $part = "arg$argcount";
                     }
+                    when 'type' {
+                        @locdynparts.push: 'Type*';
+                        $part = "arg$argcount";
+                    }
                 }
+                $argcount += 1;
             } else {
                 $part = 'String("' ~ $part ~ '")';
             }
+            
         }
 
         once @dynparts = @locdynparts;
@@ -182,7 +188,7 @@ sub construct-diag(@diag) {
             if @dynparts !(==) @locdynparts;
 
         die "in '{@diag[0]}': unknown locale '{$message.key}'" 
-            if not $message.key eq any('en', 'jp');
+            if not $message.key eq any('en', 'jp', 'esp');
         
         @locales.push: ($message.key => @parts);
     }
@@ -241,6 +247,7 @@ $data ~=
 "\n\nenum language \{\n" ~
 "\ten,\n" ~
 "\tjp,\n" ~
+"\tesp,\n" ~
 "};\n\n" ~
 "enum severity \{\n" ~
 "\terror,\n" ~
