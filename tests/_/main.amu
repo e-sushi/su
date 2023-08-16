@@ -1,7 +1,6 @@
 main :: () -> s32 {
-    a: Apple*** = 1 + 2; 
-
-    #print_type a;
+    b: Apple;
+    a: s64* = b + b;
 }
 
 Apple :: struct {}

@@ -7,7 +7,7 @@
             "command": "python",
             "args": [
                 "misc/build.py",
-                "--ba",
+                // "--ba",
                 //"--r",
                 //"--v",
                 //"--pch",
