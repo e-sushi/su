@@ -101,6 +101,20 @@ readref(Array<T>& arr, spt idx);
 template<typename T> Array<T>
 copy(Array<T>& arr);
 
+
+namespace util {
+
+struct SearchResult {
+    s64 index;
+    b32 found;
+};
+
+// if the given array is sorted by the value retrieved by 'get', then
+// this performs a binary search for 'element'
+template<typename T, typename I> SearchResult
+search(Array<T>& arr, I element, I (*get)(T&));
+
+} // namespace util
 } // namespace array
 
 template<typename T>

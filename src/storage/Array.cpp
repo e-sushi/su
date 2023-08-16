@@ -57,6 +57,8 @@ pop(Array<T>& arr, u32 count) {
 
 template<typename T> T*
 insert(Array<T>& arr, spt idx) {
+    if(!arr.count && !idx) return push(arr);
+    
     Assert(idx < arr.count);
 
     internal::grow_if_needed(arr);
@@ -167,5 +169,35 @@ copy(Array<T>& arr) {
     return out;
 }
 
+
+namespace util {
+
+
+template<typename T, typename I> SearchResult
+search(Array<T>& arr, I element, I (*get)(T&)) {
+    s64 index = -1;
+    s64 middle = -1;
+    if(arr.count) {
+        s64 left = 0;
+        s64 right = arr.count - 1;
+        while(left <= right) {
+            middle = left+(right-left)/2;
+            I elem = get(array::readref(arr,middle));
+            if(elem == element) {
+                index = middle;
+                break;
+            }
+            if(elem < element) {
+                left = middle+1;
+            } else {
+                right = middle - 1;
+            }
+        }
+    }
+
+    return {(index==-1? 0 : index), index!=-1};
+}
+
+} // namespace util
 } // namespace array
 } // namespace amu
