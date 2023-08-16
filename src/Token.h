@@ -165,6 +165,14 @@ to_string(DString& start, Token t) {
 }
 FORCE_INLINE void to_string(DString& start, Token* t) { return to_string(start, *t); }
 
+DString
+to_string(Token t) {
+    DString out = dstring::init();
+    to_string(out, t);
+    return out;
+}
+DString to_string(Token* t) { return to_string(*t); }
+
 } // namespace amu
 
 #endif // AMU_TOKEN_H
