@@ -48,12 +48,13 @@ struct Compiler {
         Pool<Place>          places;
         Pool<Tuple>          tuples;
         Pool<Type>           types;
-        Pool<ScalarType>    builtin_types;
+        Pool<ScalarType>     builtin_types;
         Pool<StructuredType> structured_types;
         Pool<PointerType>    pointer_types;
         Pool<ArrayType>      array_types;
         Pool<VariantType>    variant_types;
         Pool<FunctionType>   function_types;
+        Pool<TupleType>      tuple_types;
         Pool<MetaType>       meta_types;
     }storage;
 

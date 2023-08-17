@@ -33,6 +33,7 @@ init() {
     instance.storage.array_types      = pool::init<ArrayType>(32);
     instance.storage.variant_types    = pool::init<VariantType>(32);
     instance.storage.function_types   = pool::init<FunctionType>(32);
+    instance.storage.tuple_types      = pool::init<TupleType>(32);
     instance.storage.meta_types       = pool::init<MetaType>(32);
 
     instance.options.deliver_debug_immediately = true;

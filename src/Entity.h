@@ -35,6 +35,7 @@ struct TemplatedEntity : public Entity {
 };
 
 // representation of something that has a place in memory, name borrowed from rust
+// aka an lvalue
 struct Place : public Entity {
     // type information for this place in memory
     Type* type;
@@ -46,13 +47,9 @@ global Place*
 create();
 
 global void
-destroy(Place& p);
+destroy(Place* p);
 
 } // namespace place
-
-namespace structure {
-
-}
 
 struct Member {
     Structure* s;
@@ -89,6 +86,7 @@ can_coerce(Structure* from, Structure* to);
 
 struct Function : public Entity {
     FunctionType* type;
+    LabelTable table;
 };
 
 namespace function {
@@ -133,6 +131,7 @@ enum class kind {
     pointer,
     array,
     function,
+    tuple,
     meta,
 };
 } // namespace type
@@ -221,8 +220,7 @@ struct ArrayType : public Type {
 
 namespace type::array {
 struct ExistantArray {
-    Type* type;
-    u64 size;
+    u64 hash;
     ArrayType* atype;
 };
 extern Array<ExistantArray> set;
@@ -246,12 +244,34 @@ struct FunctionType : public Type {
     // pointers to the nodes that define these things
     TNode* parameters;
     TNode* returns;
+    Type* return_type;
 };
 
 namespace type::function {
 FunctionType*
 create();
 } // namespace type::function
+
+// a tuple acting as a type, eg. one that only contains references to types and not values
+// while this represents the types of the tuple, the names given to each element and other syntactic
+// information is handled by the Entity representation of the tuple.
+struct TupleType : public Type {
+    Array<Type*> types;
+};
+
+namespace type::tuple {
+struct ExistantTupleType {
+    u64 hash;
+    TupleType* ttype;
+};
+extern Array<ExistantTupleType> set;
+
+// creates a Tuple type from an array of Type*
+// this takes ownership of the types array
+// if the TupleType already exists, the array is deinitialized
+TupleType*
+create(Array<Type*>& types);
+} // namespace type::tuple
 
 namespace type::meta {
 enum class kind {

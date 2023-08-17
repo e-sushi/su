@@ -30,6 +30,7 @@ module::create() {
     node::init(&out->node);
     out->node.kind = node::module;
     out->labels = array::init<spt>();
+    out->table = {};
     out->table.map = map::init<String, Label*>();
     return out;
 }
@@ -75,7 +76,13 @@ name(Type* type){
         } break;
 
         case type::kind::function: {
-            return "func";
+            auto ftype = (FunctionType*)type;
+            DString out = dstring::init("func<args: "); // !Leak
+            dstring::append(out, node::util::print_tree<[](DString& current, TNode* n) {
+                to_string(current, n, true);
+            }>(ftype->parameters, false));
+            dstring::append(out, ", ret: ", ftype->return_type, ">");
+            return out;
         } break;
 
         case type::kind::array: {
@@ -86,6 +93,7 @@ name(Type* type){
 
         case type::kind::pointer: {
             auto ptype = (PointerType*)type;
+            // !Leak
             return dstring::init(name(ptype->type), "*");
         } break;
     }
@@ -111,7 +119,7 @@ create(Structure* s) {
 } // namespace structured
 
 namespace pointer {
-Array<ExistantPointer> set;
+Array<ExistantPointer> set = amu::array::init<ExistantPointer>();
 
 PointerType*
 create(Type* type) {
@@ -129,20 +137,24 @@ create(Type* type) {
 } // namespace pointer
 
 namespace array {
-Array<ExistantArray> set;
+Array<ExistantArray> set = amu::array::init<ExistantArray>();
 
 ArrayType*
 create(Type* type, u64 size) {
     // TODO(sushi) better way to encode this
     u64 hash = (u64)type << size * 162325677;
     auto [idx, found] = amu::array::util::
-        search<ExistantArray, u64>(set, hash, [](ExistantArray& a){return (u64)a.type << a.size * 162325677;});
+        search<ExistantArray, u64>(set, hash, [](ExistantArray& a){return a.hash;});
 
-    ArrayType* out = pool::add(compiler::instance.storage.array_types);
-    out->type = type;
-    out->size = size;
-    out->kind = type::kind::array;
-    return out;
+    if(found) return amu::array::read(set, idx).atype;
+    ExistantArray* nu = amu::array::insert(set, idx);
+    nu->hash = hash;
+    nu->atype = pool::add(compiler::instance.storage.array_types);
+    nu->atype->size = size;
+    nu->atype->type = type;
+    nu->atype->kind = type::kind::array;
+    nu->atype->node.kind = node::type;
+    return nu->atype;
 }
 
 } // namespace array
@@ -154,10 +166,38 @@ FunctionType*
 create() {
     FunctionType* out = pool::add(compiler::instance.storage.function_types);
     out->kind = type::kind::function;
+    out->node.kind = node::type;
     return out;
 }
 
 } // namespace function
+
+namespace tuple {
+Array<ExistantTupleType> set;
+
+TupleType*
+create(Array<Type*>& types) {
+    u64 hash = 1212515131534;
+    forI(types.count) {
+        hash <<= (u64)amu::array::read(types, i) * 167272723;
+    }
+    auto [idx, found] = amu::array::util::
+        search<ExistantTupleType, u64>(set, hash, [](ExistantTupleType& t){return t.hash;});
+    
+    if(found) {
+        amu::array::deinit(types);
+        return amu::array::read(set, idx).ttype;
+    } 
+    ExistantTupleType* nu = amu::array::insert(set, idx);
+    nu->hash = hash;
+    nu->ttype = pool::add(compiler::instance.storage.tuple_types);
+    nu->ttype->types = types;
+    nu->ttype->kind = type::kind::tuple;
+    nu->ttype->node.kind = node::type;
+    return nu->ttype;
+}
+} // namespace tuple
+
 } // namespace type
 
 void
