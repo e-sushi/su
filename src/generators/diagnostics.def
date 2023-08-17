@@ -345,8 +345,8 @@ group validator {
     diagnostic cannot_implict_coerce {
         type: error;
         message: {
-            en: "the type %type% does not define trait Coersion to type %type%";
-            esp: "la tipo %type% ne difinas la trajton Coersion al tipo %type%";
+            en: "the type %type% does not define trait ImplicitConvert to type %type%";
+            esp: "la tipo %type% ne difinas la trajton ImplicitConvert al tipo %type%";
         }
     }
 
