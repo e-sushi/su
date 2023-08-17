@@ -84,6 +84,9 @@ typeref(Expression* e) { announce_stage(e);
         case type::kind::structured: {
             return true;
         } break;
+        case type::kind::pointer: {
+            return true;
+        } break;
     }
     return false;
 }
@@ -92,6 +95,7 @@ b32
 expr(Expression* e) { announce_stage(e);
     switch(e->kind) {
         case expression::unary_comptime: return expr((Expression*)e->node.first_child);
+        case expression::unary_assignment: return expr((Expression*)e->node.first_child);
         case expression::typeref: return typeref(e);
         case expression::binary_assignment: {
             auto lhs = (Expression*)e->node.first_child;
@@ -105,7 +109,10 @@ expr(Expression* e) { announce_stage(e);
                     cannot_implict_coerce(lhs->node.start, rhs->type, lhs->type);
                 return false;
             }
+
+            return true;
         } break;
+
         case expression::binary_plus: {
             auto lhs = (Expression*)e->node.first_child;
             auto rhs = (Expression*)e->node.last_child;

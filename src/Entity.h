@@ -220,6 +220,13 @@ struct ArrayType : public Type {
 };
 
 namespace type::array {
+struct ExistantArray {
+    Type* type;
+    u64 size;
+    ArrayType* atype;
+};
+extern Array<ExistantArray> set;
+
 ArrayType*
 create(Type* type, u64 size);
 } // namespace type::array

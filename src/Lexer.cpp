@@ -43,11 +43,12 @@ token_is_keyword_or_identifier(String raw) {
 local token::kind
 token_is_directive_or_identifier(String raw) {
     switch(string::hash(raw)) {
-        strcase("import"):         return token::directive_import;
-		strcase("internal"):       return token::directive_internal;
-		strcase("run"):            return token::directive_run;
-		strcase("compiler_break"): return token::directive_compiler_break;
-		strcase("print_type"):     return token::directive_print_type;
+        strcase("import"):          return token::directive_import;
+		strcase("internal"):        return token::directive_internal;
+		strcase("run"):             return token::directive_run;
+		strcase("compiler_break"):  return token::directive_compiler_break;
+		strcase("print_type"):      return token::directive_print_type;
+		strcase("print_meta_type"): return token::directive_print_meta_type;
     }
 
     return token::identifier;
@@ -256,6 +257,7 @@ stream_next;                     \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
+				array::push(tokens, token);
 				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually

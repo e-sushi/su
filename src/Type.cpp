@@ -43,9 +43,9 @@ can_coerce(Type* to, Type* from) {
     // allow implicit coercion of an array to its data pointer
     // this may not be a good idea either
     if(to->kind == type::kind::pointer && from->kind == type::kind::array) {
-        PointerType* to = to;
-        ArrayType* from = from;
-        return to->type == from->type;
+        auto pto = (PointerType*)to;
+        auto pfrom = (ArrayType*)from;
+        return pto->type == pfrom->type;
     }
 
     return false;

@@ -219,11 +219,7 @@ void reduce_literal_to_literal_expression() { announce_stage;
             e->type = &type::scalar::signed64;
         } break;
         case token::literal_string: {
-            NotImplemented;
-            // Type* c = type::create();
-            // c->structure = &compiler::scalar::unsigned8;
-            // e->structure = &compiler::scalar::array;
-            // node::insert_last((TNode*)e, (TNode*)c);
+            e->type = type::array::create(&type::scalar::unsigned8, curt->raw.count);
         } break;
     }
     stack_push(n);
@@ -398,6 +394,28 @@ void block() {
                     skind = statement::expression;
                 }
             } break;
+            case token::directive_print_meta_type: {
+                // special directive to emit the meta type of the given identifier
+                advance_curt();
+                if(curt->kind != token::identifier) {
+                    diagnostic::parser::expected_identifier(curt);
+                    push_error();
+                }
+
+                Label* l = search_for_label(&parser->current_module->table, curt->hash);
+                if(!l) {
+                    diagnostic::parser::unknown_identifier(curt);
+                    push_error();
+                }
+
+                switch(l->entity->node.kind) {
+                    case node::place: {
+                        messenger::dispatch(message::attach_sender(curt, 
+                            message::make_debug(message::verbosity::debug, message::plain("place"))));
+                    } break;
+                }
+                advance_curt();
+            } break;
             case token::directive_print_type: {
                 // special directive to emit the type of the given identifier
                 advance_curt();
@@ -417,9 +435,10 @@ void block() {
                         DString temp = dstring::init();
                         to_string(temp, ((Place*)l->entity)->type);
                         messenger::dispatch(message::attach_sender(curt,
-                            message::init(message::plain(temp))));
+                            message::make_debug(message::verbosity::debug, message::plain(temp))));
                     } break;
                 }
+                advance_curt();
             } break;
             default: {
                 before_expr(); check_error;
@@ -526,7 +545,7 @@ void after_typeref() { announce_stage;
             Place* p = place::create();
             p->node.start = e->node.start;
             p->node.end = e->node.end;
-            // p->type = e->type;
+            p->type = e->type;
 
             stack_push((TNode*)p);
             stack_push((TNode*)e);
@@ -540,13 +559,10 @@ void after_typeref() { announce_stage;
             typeref->end = typeref->last_child->end;
         } break;
         case token::asterisk: {
-            NotImplemented;
-            // Expression* last = (Expression*)array::read(stack, -1);
-            // Type* type = type::create();
-            // node::insert_first((TNode*)type, (TNode*)last->type);
-            // last->type = type;
-            // advance_curt();
-            // after_typeref(); check_error;
+            Expression* last = (Expression*)array::read(stack, -1);
+            last->type = type::pointer::create(last->type);
+            advance_curt();
+            after_typeref(); check_error;
         } break;
     }
 }
@@ -1256,15 +1272,22 @@ void before_expr() { announce_stage;
         case token::equal: {
             Token* save = curt;
             advance_curt();
-            before_expr();
+            before_expr(); check_error;
 
             Expression* e = expression::create();
             e->kind = expression::unary_assignment;
 
-            node::insert_first((TNode*)e, stack_pop());
+            Expression* last = (Expression*)stack_pop();
+
+            node::insert_first((TNode*)e, (TNode*)last);
             e->node.start = save;
             e->node.end = e->node.last_child->end;
+            e->type = last->type;
 
+            Place* p = place::create();
+            p->type = last->type;
+
+            stack_push((TNode*)p);
             stack_push((TNode*)e);
         } break;
         case token::colon: {
@@ -1321,7 +1344,6 @@ void before_expr() { announce_stage;
 
             Expression* i = expression::create();
             i->kind = expression::identifier;
-
             i->node.start = i->node.end = curt;
 
             node::insert_last((TNode*)e, (TNode*)i);
@@ -1402,14 +1424,19 @@ void label_after_colon() { announce_stage;
                     last->type = (Type*)label->entity;
                     advance_curt();
                     after_typeref(); check_error;
-                    // this is a place in memory
 
-                    Place* p = place::create();
-                    p->type = last->type;
-                    p->label = label;
-                    TNode* save = stack_pop();
-                    stack_push((TNode*)p);
-                    stack_push(save);
+                    // auto last = (Expression*)array::read(stack, -1);
+
+                    // // // in this case, 'after_typeref' will have already made a place in memory for this 
+                    // if(last->kind = expression::binary_assignment) break;
+
+                    // // this is a place in memory
+                    // // Place* p = place::create();
+                    // // p->type = last->type;
+                    // // p->label = label;
+                    // // TNode* save = stack_pop();
+                    // // stack_push((TNode*)p);
+                    // // stack_push(save);
                 } break;
                 default: advance_curt(); break; 
             }
