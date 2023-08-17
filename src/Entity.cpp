@@ -53,7 +53,7 @@ String
 name(Type* type){
     switch(type->kind) {
         case type::kind::scalar: {
-            ScalarType* stype = (ScalarType*)type;
+            auto stype = (ScalarType*)type;
             switch(stype->kind) {
                 case type::scalar::kind::void_:      return "void";
                 case type::scalar::kind::unsigned8:  return "u8";
@@ -76,7 +76,18 @@ name(Type* type){
 
         case type::kind::function: {
             return "func";
-        } break;    
+        } break;
+
+        case type::kind::array: {
+            auto atype = (ArrayType*)type;
+            // !Leak
+            return dstring::init(name(atype->type), "[", atype->size, "]"); 
+        } break;
+
+        case type::kind::pointer: {
+            auto ptype = (PointerType*)type;
+            return dstring::init(name(ptype->type), "*");
+        } break;
     }
 
     return "type::name couldn't find a name";
@@ -111,19 +122,30 @@ create(Type* type) {
     nu->ptype = pool::add(compiler::instance.storage.pointer_types);
     nu->ptype->kind = type::kind::pointer;
     nu->ptype->node.kind = node::type;
+    nu->ptype->type = type;
     nu->type = type;
     return nu->ptype;
 }
-}
+} // namespace pointer
+
+namespace array {
+Array<ExistantArray> set;
 
 ArrayType*
-array::create(Type* type, u64 size) {
+create(Type* type, u64 size) {
+    // TODO(sushi) better way to encode this
+    u64 hash = (u64)type << size * 162325677;
+    auto [idx, found] = amu::array::util::
+        search<ExistantArray, u64>(set, hash, [](ExistantArray& a){return (u64)a.type << a.size * 162325677;});
+
     ArrayType* out = pool::add(compiler::instance.storage.array_types);
     out->type = type;
     out->size = size;
     out->kind = type::kind::array;
     return out;
 }
+
+} // namespace array
 
 namespace function {
 
