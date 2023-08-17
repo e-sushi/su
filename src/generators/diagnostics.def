@@ -270,6 +270,13 @@ group parser {
         }
     }
 
+    diagnostic tuple_positional_arg_but_found_label {
+        type: error;
+        message: {
+            en: "all elements after a named tuple element must also be named";
+        }
+    }
+
     diagnostic if_missing_open_paren {
         type: error;
         message: {
