@@ -31,6 +31,7 @@
 #define AMU_TUPLE_H
 
 #include "basic/Node.h"
+#include "Label.h"
 
 namespace amu {
 
@@ -52,6 +53,8 @@ enum kind : u32 {
 struct Tuple {
     TNode node;
     tuple::kind kind;
+    // if this tuple applies names to its elements, they are stored here
+    LabelTable table;
 };
 
 namespace tuple {

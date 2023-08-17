@@ -6,6 +6,7 @@ create() {
     Tuple* out = pool::add(compiler::instance.storage.tuples);
     node::init(&out->node);
     out->node.kind = node::tuple;
+    out->table = {};
     return out;
 }
 

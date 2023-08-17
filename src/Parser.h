@@ -21,6 +21,9 @@ struct Parser {
 
     Array<Module*> module_stack;
     Module* current_module;
+    
+    Array<LabelTable*> table_stack;
+    LabelTable* current_table;
 };
 
 namespace parser {

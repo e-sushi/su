@@ -20,6 +20,9 @@ init(Code* code) {
     out.labels.imported = array::init<Label*>();
     out.labels.internal = array::init<Label*>();
     out.module_stack = array::init<Module*>();
+    out.current_module = 0;
+    out.table_stack = array::init<LabelTable*>();
+    out.current_table = 0;
     return out;
 }
 
@@ -28,6 +31,8 @@ deinit(Parser& parser) {
     array::deinit(parser.labels.exported);
     array::deinit(parser.labels.imported);
     array::deinit(parser.labels.internal);
+    array::deinit(parser.module_stack);
+    array::deinit(parser.table_stack);
     parser.code = 0;
 }
 
@@ -85,16 +90,32 @@ __stack_pop(String caller) {
 
 #define stack_pop() __stack_pop(__func__)
 
+FORCE_INLINE void
+push_table(LabelTable* table) {
+    array::push(parser->table_stack, parser->current_table);
+    table->last = parser->current_table;
+    parser->current_table = table;
+}
+
+FORCE_INLINE void
+pop_table() {
+    parser->current_table = array::pop(parser->table_stack);
+}
+
 FORCE_INLINE void 
 push_module(Module* m) {
     array::push(parser->module_stack, parser->current_module);
     parser->current_module = m;
+    push_table(&m->table);
 }
 
 FORCE_INLINE void 
 pop_module() {
     parser->current_module = array::pop(parser->module_stack);
+    pop_table();
 }
+
+
 
 FORCE_INLINE void
 debug_announce_stage(String stage) {
@@ -253,71 +274,6 @@ void reduce_builtin_type_to_typeref_expression() { announce_stage;
     stack_push((TNode*)e);
 }
 
-/*
-        tuple: '(' ... ')' *
-    func_type: tuple * "->" factor { "," factor } 
-*/
-void tuple_after_close_paren() { announce_stage;
-    if(curt->kind == token::function_arrow) {
-        advance_curt();
-        u32 count = 0;
-        while(1) {
-            factor();
-            count++;
-            if(curt->kind != token::comma) break;
-            advance_curt();
-        }
-
-        if(!count) {
-            diagnostic::parser::
-                missing_function_return_type(curt);
-            push_error();
-        }
-
-        Expression* e = expression::create();
-        e->kind = expression::typeref;
-        e->type = type::function::create();
-        auto f = (FunctionType*)e->type;
-
-        if(count > 1) {
-            Tuple* t = tuple::create();
-            t->kind = tuple::multireturn;
-            
-            forI(count) {
-                node::insert_first((TNode*)t, stack_pop());
-            }
-
-            f->returns = (TNode*)t;
-            node::insert_last((TNode*)e, (TNode*)t);
-
-            set_start_end_from_children(t);
-        } else {
-            f->returns = stack_pop();
-            node::insert_first((TNode*)e, f->returns);
-        }
-
-        f->parameters = stack_pop();
-        node::insert_first((TNode*)e, f->parameters);
-
-        set_start_end_from_children(e);
-        
-        // this is a function entity declaration
-        if(curt->kind == token::open_brace) {
-            advance_curt();
-            block(); check_error;
-            node::insert_last((TNode*)e, stack_pop());
-            e->node.end = e->node.last_child->end;
-            Function* f = function::create();
-            f->node.start = e->node.start;
-            f->node.end = e->node.end;
-            stack_push((TNode*)f);
-        }
-
-        stack_push((TNode*)e);
-    }
-}
-
-
 /* 
     tuple: '(' * ( label | expr ) { ( label | expr ) "," } [ "," ] ')' 
     label: * ID ':' ...
@@ -326,7 +282,11 @@ void tuple_after_close_paren() { announce_stage;
 void tuple_after_open_paren() { announce_stage; announce_stage;
     Token* save = curt-1;
     
+    Tuple* tuple = tuple::create();
+    tuple->kind = tuple::unknown;
+
     u32 count = 0;
+    b32 found_label = 0;
     while(1) { // NOTE(sushi) label lists are not supported in tuples, so if a comma is encountered, it's assumed to be starting a new tuple item
         if(curt->kind == token::close_paren) break;
         switch(curt->kind) {
@@ -334,9 +294,18 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
                 // need to figure out if this is an expression or label 
                 switch((curt+1)->kind) {
                     case token::colon:{
+                        if(!found_label) {
+                            tuple->table.map = map::init<String, Label*>();
+                            push_table(&tuple->table);
+                        }
+                        found_label = true;
                         label(); check_error;
                     } break;
                     default: {
+                        if(found_label) {
+                            diagnostic::parser::tuple_positional_arg_but_found_label(curt);
+                            push_error();
+                        }
                         // otherwise this is assumed to be an expression handled by before_expr
                         before_expr(); check_error;
                     } break;
@@ -355,9 +324,7 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
         }
     }
 
-
-    Tuple* tuple = tuple::create();
-    tuple->kind = tuple::unknown;
+    
 
     forI(count){
         node::insert_first((TNode*)tuple, stack_pop());
@@ -370,9 +337,75 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
     }   
     stack_push((TNode*)tuple);
 
-    advance_curt();
+    // check for function type definition
+    if(lookahead(1)->kind == token::function_arrow) {
+        advance_curt(); advance_curt();
+        u32 count = 0;
+        while(1) {
+            factor();
+            count++;
+            if(curt->kind != token::comma) break;
+            advance_curt();
+        }
 
-    tuple_after_close_paren();
+        if(!count) {
+            diagnostic::parser::
+                missing_function_return_type(curt);
+            push_error();
+        }
+
+        Expression* e = expression::create();
+        e->kind = expression::typeref;
+        e->type = type::function::create();
+        auto ft = (FunctionType*)e->type;
+
+        if(count > 1) {
+            Tuple* t = tuple::create();
+            t->kind = tuple::multireturn;
+            
+            // need to collect types to form a TupleType
+            auto types = array::init<Type*>(count);
+
+            forI(count) {
+                auto n = (Type*)stack_pop();
+                array::push(types, n);
+                node::insert_first((TNode*)t, (TNode*)n);
+            }
+
+            ft->return_type = type::tuple::create(types);
+            ft->returns = (TNode*)t;
+            node::insert_last((TNode*)e, (TNode*)t);
+
+            set_start_end_from_children(t);
+        } else {
+            auto t = (Type*)stack_pop();
+            ft->return_type = t;
+            ft->returns = (TNode*)t;
+            node::insert_first((TNode*)e, ft->returns);
+        }
+
+        ft->parameters = stack_pop();
+        node::insert_first((TNode*)e, ft->parameters);
+
+        set_start_end_from_children(e);
+        
+        // this is a function entity declaration
+        if(curt->kind == token::open_brace) {
+            advance_curt();
+            block(); check_error;
+            node::insert_last((TNode*)e, stack_pop());
+            e->node.end = e->node.last_child->end;
+            Function* f = function::create();
+            f->node.start = e->node.start;
+            f->node.end = e->node.end;
+            f->type = ft;
+            stack_push((TNode*)f);
+        }
+
+        stack_push((TNode*)e);
+    }
+
+    if(found_label) pop_table();
 }
 
 /*
@@ -381,6 +414,11 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
 void block() {
     u32 count = 0;
     Token* start = curt-1;
+    Expression* e = expression::create();
+    e->kind = expression::block;
+    e->table.map = map::init<String, Label*>();
+    push_table(&e->table);
+
     while(1) {
         statement::kind skind = statement::unknown;
         if(curt->kind == token::close_brace) break;
@@ -402,7 +440,7 @@ void block() {
                     push_error();
                 }
 
-                Label* l = search_for_label(&parser->current_module->table, curt->hash);
+                Label* l = search_for_label(parser->current_table, curt->hash);
                 if(!l) {
                     diagnostic::parser::unknown_identifier(curt);
                     push_error();
@@ -415,6 +453,12 @@ void block() {
                     } break;
                 }
                 advance_curt();
+                if(curt->kind != token::semicolon) {
+                    diagnostic::parser::missing_semicolon(curt);
+                    push_error();
+                }
+                advance_curt();
+                continue; // this isn't an actual statement, so prevent making one
             } break;
             case token::directive_print_type: {
                 // special directive to emit the type of the given identifier
@@ -424,21 +468,31 @@ void block() {
                     push_error();
                 }
 
-                Label* l = search_for_label(&parser->current_module->table, curt->hash);
+                Label* l = search_for_label(parser->current_table, curt->hash);
                 if(!l) {
                     diagnostic::parser::unknown_identifier(curt);
                     push_error();
                 }
 
+
+                String out;
                 switch(l->entity->node.kind) {
                     case node::place: {
-                        DString temp = dstring::init();
-                        to_string(temp, ((Place*)l->entity)->type);
-                        messenger::dispatch(message::attach_sender(curt,
-                            message::make_debug(message::verbosity::debug, message::plain(temp))));
+                        out = type::name(((Place*)l->entity)->type);                        
+                    } break;
+                    case node::function: {
+                        out = type::name(((Function*)l->entity)->type);
                     } break;
                 }
+                messenger::dispatch(message::attach_sender(curt,
+                            message::make_debug(message::verbosity::debug, out)));
                 advance_curt();
+                if(curt->kind != token::semicolon) {
+                    diagnostic::parser::missing_semicolon(curt);
+                    push_error();
+                }
+                advance_curt();
+                continue; // this isn't an actual statement, so prevent making one
             } break;
             default: {
                 before_expr(); check_error;
@@ -471,8 +525,7 @@ void block() {
         }
     }
 
-    Expression* e = expression::create();
-    e->kind = expression::block;
+    
 
     forI(count) {
         node::insert_first((TNode*)e, stack_pop());
@@ -480,6 +533,7 @@ void block() {
     e->node.start = start;
     e->node.end = curt;
     stack_push((TNode*)e);
+    pop_table();
 }
 
 /*
@@ -1141,7 +1195,7 @@ void factor() { announce_stage;
     switch(curt->kind) {
         case token::identifier: {
             reduce_identifier_to_identifier_expression();
-            Label* label = search_for_label(&parser->current_module->table, curt->hash); 
+            Label* label = search_for_label(parser->current_table, curt->hash); 
             if(!label) {
                 diagnostic::parser::unknown_identifier(curt);
                 push_error();
@@ -1153,8 +1207,16 @@ void factor() { announce_stage;
                 case node::function: {
                     if(lookahead(1)->kind == token::open_paren) {
                         // must be a function call
+                        Expression* e = expression::create();
+                        e->kind = expression::call;
+                        e->node.start = curt;
                         advance_curt(); advance_curt();
-                        tuple_after_open_paren(); check_error;
+                        tuple_after_open_paren(); check_error;          
+                        e->node.end = curt;
+                        node::insert_last((TNode*)e, stack_pop()); // append argument tuple
+                        node::insert_last((TNode*)e, stack_pop()); // append identfier found above
+                        stack_push((TNode*)e);
+
                     } else {
                         NotImplemented;
                         // // probably just a reference to a function entity
@@ -1180,10 +1242,24 @@ void factor() { announce_stage;
             advance_curt(); 
         } break;
         case token::open_paren: advance_curt(); tuple_after_open_paren(); break;
-        case token::if_:     conditional(); break;
-        case token::switch_: switch_(); break;
-        case token::for_:    for_(); break;
+        case token::if_:        conditional(); break;
+        case token::switch_:    switch_(); break;
+        case token::for_:       for_(); break;
         case token::open_brace: advance_curt(); block(); break;
+        case token::ampersand: {
+            Expression* ref = expression::create();
+            ref->kind = expression::unary_reference;
+            ref->node.start = curt;
+
+            advance_curt();
+            factor(); check_error;
+            
+            auto last = (Expression*)stack_pop();
+            ref->type = type::pointer::create(last->type);
+            ref->node.end = last->node.end;
+            node::insert_last((TNode*)ref, (TNode*)last);
+            stack_push((TNode*)ref);
+        } break;
         default: {
             if(curt->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
@@ -1348,7 +1424,7 @@ void before_expr() { announce_stage;
 
             node::insert_last((TNode*)e, (TNode*)i);
 
-            Label* label = search_for_label(&parser->current_module->table, curt->hash);
+            Label* label = search_for_label(parser->current_table, curt->hash);
             if(!label) {
                 diagnostic::parser::unknown_identifier(curt);
                 push_error();
@@ -1411,7 +1487,7 @@ void label_after_colon() { announce_stage;
     switch(curt->kind) {
         case token::identifier: {
             reduce_identifier_to_identifier_expression(); 
-            Label* label = search_for_label(&parser->current_module->table, curt->hash);
+            Label* label = search_for_label(parser->current_table, curt->hash);
             if(!label) {
                 diagnostic::parser::unknown_identifier(curt);
                 push_error();
@@ -1713,8 +1789,8 @@ execute(Code* code) {
         message::make_debug(message::verbosity::stages,
             String("beginning syntactic analysis"))));
 
-    code->parser->current_module = code->source->module;
     internal::parser = code->parser;
+    internal::push_module(code->source->module);
     internal::stack = array::init<TNode*>(32);
     internal::prescan();
     internal::curt = array::readptr(code::get_token_array(code), 0);

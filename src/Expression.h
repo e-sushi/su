@@ -9,6 +9,7 @@
 
 #include "basic/Node.h"
 #include "Type.h"
+#include "Label.h"
 
 namespace amu {
 
@@ -22,6 +23,7 @@ enum kind : u32 {
     entity_func,
     entity_module,    
     typeref,
+    call,
     
     block,
     loop,
@@ -35,6 +37,7 @@ enum kind : u32 {
     unary_bit_comp,
     unary_logi_not,
     unary_negate,
+    unary_reference,
     unary_assignment,
     unary_comptime,
 
@@ -76,6 +79,9 @@ struct Expression {
     expression::kind kind;
 
     Type* type; // the semantic type of this expression
+
+    // blocks (which are expressions) scope their labels
+    LabelTable table;
 };
 
 namespace expression {

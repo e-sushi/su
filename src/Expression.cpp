@@ -6,6 +6,7 @@ create() {
     Expression* out = pool::add(compiler::instance.storage.expressions);
     node::init(&out->node);
     out->node.kind = node::expression;
+    out->table = {};
     return out;
 }
 
@@ -33,6 +34,8 @@ to_string(DString& start, Expression* e) {
             dstring::append(start, expression::strings[e->kind]);
         } break;
     }
+
+    auto a = &start;
 
     dstring::append(start, ">");
 }
