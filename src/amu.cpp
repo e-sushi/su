@@ -89,6 +89,7 @@
 
 #include <iostream>
 #include <filesystem>
+#include <unistd.h>
 
 #define AMU_IMPLEMENTATION
 #include "Memory.h"

@@ -200,7 +200,7 @@ parts = {
                 "-MD "                 # create a multithreaded dll
                 "-Oi "                 # generates intrinsic functions
                 "-GR "                 # enables runtime type information
-                "-std:c++17 "          # use C++17
+                "-std:c++20 "          # use C++17
                 "-utf-8 "              # read source as utf8
                 "-MP "                 # builds multiple source files concurrently
                 "-W1"                  # warning level 1
@@ -216,7 +216,11 @@ parts = {
             "debug": (
                 "-Z7 " # generates C 7.0-compatible debugging information
                 "-Od " # disables optimization complete
-            )
+            ),
+            "analyze": {
+                True: "--analyze ",
+                False: ""
+            }
         },
 
         "clang-cl": {
@@ -227,7 +231,7 @@ parts = {
                 "-MD "                  # create a multithreaded dll
                 "-Oi "                  # generates intrinsic functions
                 "-GR "                  # enables runtime type information
-                "-std:c++17 "           # use C++17
+                "-std:c++20 "           # use C++17
                 "-utf-8 "               # read source as utf8
                 "-msse3 "               # enables SSE
                 "-Wno-unused-value "                # 
