@@ -416,7 +416,10 @@ void block() {
     e->node.start = curt-1;
     push_table(&e->table);
 
+    u32 count = 0;
     while(1) {
+        // this is set to false when a nested block ends, so that we skip checking for a semicolon
+        b32 need_semicolon = true; 
         statement::kind skind = statement::unknown;
         if(curt->kind == token::close_brace) break;
         switch(curt->kind) {
@@ -494,9 +497,13 @@ void block() {
             default: {
                 before_expr(); check_error;
                 skind = statement::expression;
+                if(curt->kind == token::close_brace) {
+                    // this must be the end of a block expression, so we dont need a semicolon
+                    need_semicolon = false;
+                }
             } break;
         }
-        if(curt->kind != token::semicolon) {
+        if(need_semicolon && curt->kind != token::semicolon) {
             if(curt->kind != token::close_brace) {
                 diagnostic::parser::
                     missing_semicolon(curt);
