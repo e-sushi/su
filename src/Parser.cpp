@@ -412,11 +412,8 @@ void tuple_after_open_paren() { announce_stage; announce_stage;
     block: '{' { stmt } '}'
 */
 void block() {
-    u32 count = 0;
-    Token* start = curt-1;
-    Expression* e = expression::create();
-    e->kind = expression::block;
-    e->table.map = map::init<String, Label*>();
+    BlockExpression* e = block_expression::create();
+    e->node.start = curt-1;
     push_table(&e->table);
 
     while(1) {
@@ -1207,9 +1204,10 @@ void factor() { announce_stage;
                 case node::function: {
                     if(lookahead(1)->kind == token::open_paren) {
                         // must be a function call
-                        Expression* e = expression::create();
+                        CallExpression* e = call_expression::create();
                         e->kind = expression::call;
                         e->node.start = curt;
+                        e->callee = (Function*)label->entity;
                         advance_curt(); advance_curt();
                         tuple_after_open_paren(); check_error;          
                         e->node.end = curt;

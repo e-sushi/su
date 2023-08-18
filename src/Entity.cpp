@@ -30,8 +30,7 @@ module::create() {
     node::init(&out->node);
     out->node.kind = node::module;
     out->labels = array::init<spt>();
-    out->table = {};
-    out->table.map = map::init<String, Label*>();
+    out->table = label::table::init((TNode*)out);
     return out;
 }
 

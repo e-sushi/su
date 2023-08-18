@@ -6,11 +6,40 @@ create() {
     Expression* out = pool::add(compiler::instance.storage.expressions);
     node::init(&out->node);
     out->node.kind = node::expression;
-    out->table = {};
+    out->table = {}; // NOTE(sushi) not initialized here because it only need be for block expressions
     return out;
 }
 
+
+
 } // namespace expression
+
+namespace block_expression {
+
+BlockExpression*
+create() {
+    BlockExpression* out = pool::add(compiler::instance.storage.block_expressions);
+    node::init(&out->node);
+    out->node.kind = node::expression;
+    out->kind = expression::block;
+    out->table = label::table::init((TNode*)out);
+    return out;
+}
+
+} // namespace block_expression
+
+namespace call_expression {
+
+CallExpression*
+create() {
+    CallExpression* out = pool::add(compiler::instance.storage.call_expressions);
+    node::init(&out->node);
+    out->node.kind = node::expression;
+    out->kind = expression::call;
+    return out;
+}
+
+} // namespace call_expression
 
 void
 to_string(DString& start, Expression* e) {

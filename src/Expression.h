@@ -13,6 +13,12 @@
 
 namespace amu {
 
+struct Token;
+struct Entity;
+struct Type;
+struct Function;
+struct Tuple;
+
 namespace expression {
 // @genstrings(data/expression_strings.generated)
 enum kind : u32 {
@@ -71,9 +77,7 @@ enum kind : u32 {
 
 } // namespace expression
 
-struct Token;
-struct Entity;
-struct Type;
+
 struct Expression {
     TNode node;
     expression::kind kind;
@@ -81,6 +85,7 @@ struct Expression {
     Type* type; // the semantic type of this expression
 
     // blocks (which are expressions) scope their labels
+    // TODO(sushi) eventually split this off into something like BlockExpression
     LabelTable table;
 };
 
@@ -93,6 +98,31 @@ global void
 destroy(Expression& e);
 
 } // namespace expression
+
+struct BlockExpression : public Expression {
+    LabelTable table;
+};
+
+namespace block_expression {
+
+BlockExpression*
+create();
+
+} // namespace block_expression
+
+struct CallExpression : public Expression {
+    Function* callee;
+    Tuple* arguments;
+};
+
+namespace call_expression {
+
+CallExpression*
+create();
+
+} // namespace call_expression
+
+
 
 void
 to_string(DString& start, Expression* e);
