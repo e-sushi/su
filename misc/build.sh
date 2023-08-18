@@ -417,10 +417,10 @@ if [ ! -e $build_folder ]; then mkdir $build_folder; fi
 if [ ! -e $build_folder/$build_dir ]; then mkdir $build_folder/$build_dir; fi
 pushd $root_folder > /dev/null
 build_dir="build/$build_dir"
-if [ $builder_platform == "win32" ]; then
+if [ $builder_platform == "win32" ]; then #_________________________________________________________________________________win32
   if [ -e $misc_folder/ctime.exe ]; then ctime -begin $misc_folder/$app_name.ctm; fi
   if [ $build_time == 1 ]; then start_time=$(date +%s.%3N); fi
-  echo ---------------------------------
+  echo "---------------------------------"
   
   if [ $build_compiler == "cl" ] || [ $build_compiler == "clang-cl" ]; then #______________________________________cl
     #### delete previous debug info
@@ -448,13 +448,28 @@ if [ $builder_platform == "win32" ]; then
     fi
   fi
 
-  echo ---------------------------------
+  echo "---------------------------------"
   if [ -e $misc_folder/ctime.exe ]; then ctime -end $misc_folder/$app_name.ctm; fi
   if [ $build_time == 1 ]; then printf "time: %f seconds" $(awk "BEGIN {print $(date +%s.%3N) - $start_time}"); fi
 elif [ $builder_platform == "mac" ]; then
   echo "Execute commands not setup for platform: $builder_platform"
-elif [ $builder_platform == "linux" ]; then
-  echo "Execute commands not setup for platform: $builder_platform"
+elif [ $builder_platform == "linux" ]; then #_______________________________________________________________________________linux
+  echo "---------------------------------"
+  
+  if [ $build_compiler == "clang++" ]; then #____________________________________________________________________clang++
+    #### compile app (generates app_name.exe)
+    exe $build_compiler $app_sources $includes $compile_flags $defines -Fo"$build_dir/" $link_flags $link_libs -o"$build_dir/$app_name"
+
+    if [ $? == 0 ] && [ -e $build_dir/$app_name ]; then
+      echo "[32m  $app_name[0m"
+    else
+      echo "[93mFailed to build: $app_name[0m"
+    fi
+  else
+    echo "[93mExecute commands not setup for the '$build_compiler' compiler on the 'linux' platform[0m"
+  fi
+  
+  echo "---------------------------------"
 else
   echo "Execute commands not setup for platform: $builder_platform"
 fi
