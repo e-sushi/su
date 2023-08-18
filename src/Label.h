@@ -25,6 +25,7 @@ struct Label {
 struct LabelTable {
     LabelTable* last;
     Map<String, Label*> map;
+    TNode* owner; // temp debug so I can figure out who these tables belong to 
 };
 
 namespace label {
@@ -37,6 +38,13 @@ destroy();
 
 global Label*
 base(Label* l);
+
+namespace table {
+
+LabelTable
+init(TNode* creator);
+
+} // namespace table
 
 } // namespace label
 

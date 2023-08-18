@@ -14,6 +14,18 @@ base(Label* l) {
     return l;
 }
 
+namespace table {
+
+LabelTable
+init(TNode* creator) {
+    LabelTable out;
+    out.last = 0;
+    out.map = map::init<String, Label*>();
+    out.owner = creator;
+    return out;
+}
+
+} // namespace table
 
 } // namespace label
 
