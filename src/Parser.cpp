@@ -1603,12 +1603,12 @@ void label() {
     label_after_id(); check_error;
 
     Label* label;
-    auto [idx, found] = map::find(parser->current_module->table.map, save->raw);
+    auto [idx, found] = map::find(parser->current_table->map, save->raw);
     if(found) {
-        label = array::read(parser->current_module->table.map.values, idx);
+        label = array::read(parser->current_table->map.values, idx);
     } else {
         label = label::create();
-        map::add(parser->current_module->table.map, (String)save->raw, label);
+        map::add(parser->current_table->map, (String)save->raw, label);
     }
 
     node::insert_first((TNode*)label, stack_pop());
