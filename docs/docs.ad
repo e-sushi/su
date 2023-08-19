@@ -1,0 +1,42 @@
+\title amu 
+
+\section[intro] Introduction {
+
+This document covers all features of the language of amu as well as the standard library that ships with it. The style of this document is somewhat non-linear. You are encouraged to click around to go to different sections that are linked. This may change in the future when it becomes more clear how this document should be laid out.
+
+}
+
+\section[label] Labels {
+A label is an identifier that points to some [ent|entity]. A label declaration is always of the form
+
+\code stop
+<id> :
+stop
+
+that is, an identifier followed by a colon. What follows must be some sort of [expr|expression] resulting in an [ent|entity].
+
+\section[id] Identifiers {
+
+The identifier of a label is restricted to a subset of unicode characters and must not start with a number. These characters are: all alphanumeric ascii characters, the underscore, and, excluding whitespace, all other characters outside of the range of ascii. For example, the following are all valid identifiers to use as labels: 
+
+\code stop
+a
+b
+Apple
+My_Apple123
+こんにちは６
+stop
+
+but these are not:
+
+\code stop
+1apple
+my variable
+/my*fancy/name
+stop
+
+}
+}
+
+
+
