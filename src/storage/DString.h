@@ -44,7 +44,7 @@ namespace dstring {
 
 // initializes a String with an optional initial string
 DString
-init(String s = ""); 
+init(String s = "");
 
 // variadic version
 template<typename... T> FORCE_INLINE DString

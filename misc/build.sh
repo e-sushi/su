@@ -21,10 +21,8 @@
 #   --sa   Enable static analysis
 #
 #   -platform <win32,mac,linux>           Build for specified OS: win32, mac, linux (default: builder's OS)
-#   -graphics <vulkan,opengl,directx>     Build for specified Graphics API (default: vulkan)
-#   -compiler <cl,gcc,clang,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
+#   -compiler <cl,gcc,clang++,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
 #   -linker <link,ld,lld,lld-link>        Build using the specified linker (default: link on Windows, ld on Mac and Linux)
-#   -vulkan_path <path_to_vulkan>         Override the default $VULKAN_SDK path with this path
 #
 # Notes:
 #   >For some reason, the argument count is wrong if you don't add sh.exe before build.sh even if 
@@ -35,8 +33,6 @@
 #   >echo out when we successfully build things
 #   >early out when we don't successfully build
 #   > eventually support gcc in the code base when someone really wants it
-#       but push for them to use clang instead :)
-#   > make this script easy to use without deshi
 #_____________________________________________________________________________________________________
 #                                           Builder Vars
 #_____________________________________________________________________________________________________
@@ -44,11 +40,11 @@
 builder_platform="unknown"
 builder_compiler="unknown"
 builder_linker="unknown"
-if [ "$OSTYPE" == "linux-gnu"* ]; then
+if [ "$OSTYPE" == "linux-gnu" ]; then
   builder_platform="linux"
   builder_compiler="gcc"
   builder_linker="ld"
-elif [ "$OSTYPE" == "darwin"* ]; then
+elif [ "$OSTYPE" == "darwin" ]; then
   builder_platform="mac"
   builder_compiler="gcc"
   builder_linker="ld"
@@ -64,7 +60,7 @@ elif [ "$OSTYPE" == "win32" ]; then
   builder_platform="win32"
   builder_compiler="cl"
   builder_linker="link"
-elif [ "$OSTYPE" == "freebsd"* ]; then
+elif [ "$OSTYPE" == "freebsd" ]; then
   builder_platform="linux"
   builder_compiler="gcc"
   builder_linker="ld"
@@ -85,7 +81,6 @@ build_time=0
 build_profiler=""
 build_static_analysis=0
 build_platform=$builder_platform
-build_graphics="vulkan"
 build_compiler="$builder_compiler"
 build_linker="$builder_linker"
 build_object=""
@@ -143,21 +138,13 @@ for (( i=1; i<=$#; i++)); do
     else
       echo "Unknown platform: ${!next_arg}; Valid options: win32, mac, linux"
     fi
-  elif [ "${!i}" == "-graphics" ]; then
-    skip_arg=1
-    next_arg=$((i+1))
-    if [ "${!next_arg}" == "vulkan" ] || [ "${!next_arg}" == "opengl" ] || [ "${!next_arg}" == "directx" ]; then
-      build_graphics="${!next_arg}"
-    else
-      echo "Unknown graphics API: ${!next_arg}; Valid options: vulkan, opengl, directx"
-    fi
   elif [ "${!i}" == "-compiler" ]; then
     skip_arg=1
     next_arg=$((i+1))
-    if [ "${!next_arg}" == "cl" ] || [ "${!next_arg}" == "gcc" ] || [ "${!next_arg}" == "clang" ] || [ "${!next_arg}" == "clang-cl" ]; then
+    if [ "${!next_arg}" == "cl" ] || [ "${!next_arg}" == "gcc" ] || [ "${!next_arg}" == "clang++" ] || [ "${!next_arg}" == "clang-cl" ]; then
       build_compiler="${!next_arg}"
     else
-      echo "Unknown compiler: ${!next_arg}; Valid options: cl, gcc, clang, clang-cl"
+      echo "Unknown compiler: ${!next_arg}; Valid options: cl, gcc, clang++, clang-cl"
     fi
   elif [ "${!i}" == "-linker" ]; then
     skip_arg=1
@@ -167,10 +154,6 @@ for (( i=1; i<=$#; i++)); do
     else
       echo "Unknown linker: ${!next_arg}; Valid options: link, ld, lld, lld-link"
     fi
-  elif [ "${!i}" == "-vulkan_path" ]; then
-    skip_arg=1
-    next_arg=$((i+1))
-    vulkan_override="${!next_arg}"
   else
     echo "Unknown switch: ${!i}"
     exit 1
@@ -189,14 +172,7 @@ fi
 #### Specify paths ####
 misc_folder="$( cd -- "$( dirname -- "${BASH_SOURCE[0]:-$0}"; )" &> /dev/null && pwd 2> /dev/null; )";
 root_folder="$misc_folder/.."
-vulkan_folder="$VULKAN_SDK"
 tracy_folder="H:/src/tracy-0.7.8" #TODO(sushi) make this an env var
-graphviz_folder="H:/src/graphviz"
-
-
-if [ $vulkan_override != 0 ]; then
-  vulkan_folder=$vulkan_override
-fi
 
 
 #### Specify outputs ####
@@ -207,72 +183,43 @@ app_name="amu"
 #### Specify sources ####
 includes="
   -Isrc
-  -Ideshi/src
-  -Ideshi/src/external
-  -I$vulkan_folder/include
   -I$tracy_folder
-  -I$graphviz_folder/include
 "
-deshi_sources="deshi/src/deshi.cpp"
-dll_sources="src/ui2.cpp"
 app_sources="src/amu.cpp"
 
 
 #### Specifiy libs ####
 lib_paths=(
-  $vulkan_folder/lib
-  $graphviz_folder/lib
 )
 libs=(
   gdi32
   shell32
   ws2_32
   Winmm
-  opengl32
-  vulkan-1
-  shaderc_combined
-
-  #graphviz libs
-  cdt
-  cgraph
-  cgraph++
-  gvc
 )
 #_____________________________________________________________________________________________________
 #                                         Global Defines
 #_____________________________________________________________________________________________________
 defines_build=""
 if [ $build_release == 0 ]; then
-  defines_build="-DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_RELEASE=0 -DAMU_GRAPHVIZ"
+  defines_build="-DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_RELEASE=0"
 else
-  defines_build="-DBUILD_INTERNAL=0 -DBUILD_SLOW=0 -DBUILD_RELEASE=1 -DAMU_GRAPHVIZ"
+  defines_build="-DBUILD_INTERNAL=0 -DBUILD_SLOW=0 -DBUILD_RELEASE=1"
 fi
 
 
 defines_platform=""
 if [ $build_platform == "win32" ]; then
-  defines_platform="-DDESHI_WINDOWS=1 -DDESHI_MAC=0 -DDESHI_LINUX=0"
+  defines_platform="-DBUILD_WINDOWS=1 -DBUILD_MAC=0 -DBUILD_LINUX=0"
 elif [ $build_platform == "mac" ]; then
-  defines_platform="-DDESHI_WINDOWS=0 -DDESHI_MAC=1 -DDESHI_LINUX=0" 
+  defines_platform="-DBUILD_WINDOWS=0 -DBUILD_MAC=1 -DBUILD_LINUX=0" 
 elif [ $build_platform == "linux" ]; then
-  defines_platform="-DDESHI_WINDOWS=0 -DDESHI_MAC=0 -DDESHI_LINUX=1"
+  defines_platform="-DBUILD_WINDOWS=0 -DBUILD_MAC=0 -DBUILD_LINUX=1"
 else
   echo "Platform defines not setup for platform: $build_platform"
   exit 1
 fi
 
-
-defines_graphics=""
-if [ $build_graphics == "vulkan" ]; then
-  defines_graphics="-DDESHI_VULKAN=1 -DDESHI_OPENGL=0 -DDESHI_DIRECTX12=0"
-elif [ $build_graphics == "opengl" ]; then
-  defines_graphics="-DDESHI_VULKAN=0 -DDESHI_OPENGL=1 -DDESHI_DIRECTX12=0"
-elif [ $build_graphics == "directx" ]; then
-  defines_graphics="-DDESHI_VULKAN=0 -DDESHI_OPENGL=0 -DDESHI_DIRECTX12=1"
-else
-  echo "Platform defines not setup for platform: $build_platform"
-  exit 1
-fi
 
 defines_misc="-D_CRT_SECURE_NO_WARNINGS"
 if [ "$build_profiler" == "profile" ]; then
@@ -280,17 +227,9 @@ if [ "$build_profiler" == "profile" ]; then
 elif [ "$build_profiler" == "wait and profile" ]; then
   defines_misc="$defines_misc -DTRACY_ENABLE -DDESHI_WAIT_FOR_TRACY_CONNECTION"
 fi
-#defines_misc="$defines_misc -DSU_GRAPHVIZ"
-
-defines_shared=""
-if [ $build_shared == 1 ]; then
-  defines_shared="-DDESHI_RELOADABLE_UI=1"
-else
-  defines_shared="-DDESHI_RELOADABLE_UI=0"
-fi
 
 
-defines="$defines_build $defines_platform $defines_graphics $defines_shared $defines_misc"
+defines="$defines_build $defines_platform $defines_misc"
 #_____________________________________________________________________________________________________
 #                                           Build Flags
 #_____________________________________________________________________________________________________
@@ -305,9 +244,9 @@ if [ $build_compiler == "cl" ] || [ $build_compiler == "clang-cl" ]; then #_____
   #### -Oi     (enables function inlining)
   #### -GR     (enables RTTI and dynamic_cast<>())
   #### -Gm-    (disables minimal rebuild (recompile all files))
-  #### -std:c++17 (specifies to use the C++17 standard)
+  #### -std:c++20 (specifies to use the C++20 standard)
   #### -utf-8  (specifies that source files are in utf8)
-  compile_flags="$compile_flags -diagnostics:column -EHsc -nologo -MD  -Oi -GR  -std:c++17 -utf-8"
+  compile_flags="$compile_flags -diagnostics:column -EHsc -nologo -MD -Oi -GR -std:c++20 -utf-8"
 
   if [ $build_compiler == "clang-cl" ]; then
     #### -msse3 (enable SSE)
@@ -344,8 +283,8 @@ if [ $build_compiler == "cl" ] || [ $build_compiler == "clang-cl" ]; then #_____
   fi
 elif [ $build_compiler == "gcc" ]; then #____________________________________________________________________________gcc
   #### -exceptions (enables exception handling)
-  #### -std=c++17  (specifies use of the C++17 standard)
-  compile_flags="$compile_flags -exceptions -std=c++17"
+  #### -std=c++20  (specifies use of the C++20 standard)
+  compile_flags="$compile_flags -exceptions -std=c++20"
   
   if [ $build_release == 0 ]; then
     #### -ggdb3 (produces max debug info with extra stuff for gdb)
@@ -367,15 +306,15 @@ elif [ $build_compiler == "gcc" ]; then #_______________________________________
     #### -fanalyzer (enables static analysis) TODO(sushi) look into other analyzer settings
     compile_flags="$compile_flags -fanalysis"
   fi
-elif [ $build_compiler == "clang" ]; then #__________________________________________________________________________clang
-  #### -std=c++17 (specifies to use the C++17 standard)
+elif [ $build_compiler == "clang++" ]; then #__________________________________________________________________________clang
+  #### -std=c++20 (specifies to use the C++20 standard)
   #### -fexceptions ()
   #### -fcxx-exceptions ()
   #### -finline-functions ()
   #### -pipe ()
   #### -msse3 ()
   compile_flags="$compile_flags 
-    -std=c++17 
+    -std=c++20 
     -fexceptions 
     -fcxx-exceptions 
     -finline-functions 
@@ -390,6 +329,7 @@ elif [ $build_compiler == "clang" ]; then #_____________________________________
   #### -Wno-unused-variable ()
   #### -Wno-undefined-inline ()
   compile_flags="$compile_flags
+    -Wno-switch 
     -Wno-unused-value 
     -Wno-implicitly-unsigned-literal 
     -Wno-nonportable-include-path 
@@ -455,8 +395,8 @@ fi
 if ([ $build_compiler == "cl" ] || [ $build_compiler == "clang-cl" ]) && ([ $build_linker == "ld" ] || [ $build_linker == "lld" ]); then
   echo "[31mcl/clang-cl compilers are not compatible with ld/lld linkers.[0m"
   exit 1
-elif ([ $build_compiler == "gcc" ] || [ $build_compiler == "clang" ]) && ([ $build_linker == "link" ] || [ $build_linker == "lld-link" ]); then
-  echo "[31mgcc/clang compilers are not compatible with link/lld-link linkers.[0m"
+elif ([ $build_compiler == "gcc" ] || [ $build_compiler == "clang++" ]) && ([ $build_linker == "link" ] || [ $build_linker == "lld-link" ]); then
+  echo "[31mgcc/clang++ compilers are not compatible with link/lld-link linkers.[0m"
   exit 1
 fi
 #_____________________________________________________________________________________________________
@@ -472,15 +412,15 @@ exe(){
 }
 
 
-date +"%a, %h %d %Y, %H:%M:%S"
+echo "`date +'%a, %h %d %Y, %H:%M:%S'` ($build_compiler/$build_dir) [$app_name]"
 if [ ! -e $build_folder ]; then mkdir $build_folder; fi
 if [ ! -e $build_folder/$build_dir ]; then mkdir $build_folder/$build_dir; fi
 pushd $root_folder > /dev/null
 build_dir="build/$build_dir"
-if [ $builder_platform == "win32" ]; then
+if [ $builder_platform == "win32" ]; then #_________________________________________________________________________________win32
   if [ -e $misc_folder/ctime.exe ]; then ctime -begin $misc_folder/$app_name.ctm; fi
   if [ $build_time == 1 ]; then start_time=$(date +%s.%3N); fi
-  echo ---------------------------------
+  echo "---------------------------------"
   
   if [ $build_compiler == "cl" ] || [ $build_compiler == "clang-cl" ]; then #______________________________________cl
     #### delete previous debug info
@@ -488,73 +428,48 @@ if [ $builder_platform == "win32" ]; then
     #echo Waiting for PDB > lock.tmp
 
     #### compile app (generates app_name.exe)
-    exe $build_compiler $app_sources $deshi_sources $includes $compile_flags $defines -Fo"$build_dir/" -link $link_flags $link_libs -OUT:"$build_dir/$app_name.exe" -PDB:"$build_dir/$app_name.pdb"
+    exe $build_compiler $app_sources $includes $compile_flags $defines -Fo"$build_dir/" -link $link_flags $link_libs -OUT:"$build_dir/$app_name.exe" -PDB:"$build_dir/$app_name.pdb"
 
     if [ $? == 0 ] && [ -e $build_dir/$app_name.exe ]; then
       echo "[32m  $app_name.exe[0m"
-
-      #### compile dll (generates deshi.dll)
-      if [ $build_shared == 1 ]; then
-        exe $build_compiler $dll_sources $build_dir/deshi.obj $build_dir/main.obj $includes $compile_flags $defines -Fo"$build_dir/" -DDESHI_DLL -LD -link -noimplib -noexp $link_flags $link_libs -OUT:"$build_dir/deshi.dll" -PDB:"$build_dir/deshi_dlls_$RANDOM.pdb"
-
-        if [ $? == 0 ] && [ -e $build_dir/deshi.dll ]; then
-          echo "[32m  deshi.dll[0m"
-          cp $build_dir/deshi.dll $root_folder/deshi.dll
-        else
-          echo "[93mFailed to build: deshi.dll[0m"
-        fi
-      fi
     else
       echo "[93mFailed to build: $app_name.exe[0m"
     fi
   elif [ $build_compiler == "gcc" ]; then #________________________________________________________________________gcc
     echo "Execute commands not setup for compiler: $builder_compiler"
-  elif [ $build_compiler == "clang" ]; then #______________________________________________________________________clang
+  elif [ $build_compiler == "clang++" ]; then #______________________________________________________________________clang++
     #### compile app (generates app_name.exe)
-    exe $build_compiler $app_sources $deshi_sources $includes $compile_flags $defines -Fo"$build_dir/" $link_flags $link_libs -o"$build_dir/$app_name.exe"
+    exe $build_compiler $app_sources $includes $compile_flags $defines -Fo"$build_dir/" $link_flags $link_libs -o"$build_dir/$app_name.exe"
 
     if [ $? == 0 ] && [ -e $build_dir/$app_name.exe ]; then
       echo "[32m  $app_name.exe[0m"
-    
-      #### compile dll (generates deshi.dll)
-      if [ $build_shared == 1 ]; then
-        exe $build_compiler $dll_sources $build_dir/deshi.o $build_dir/main.o $includes $compile_flags $defines -Fo"$build_dir/" -DDESHI_DLL $link_flags $link_libs -o"$build_dir/deshi.dll"
-
-        if [ $? == 0 ] && [ -e $build_dir/deshi.dll ]; then
-          echo "[32m  deshi.dll[0m"
-          cp $build_dir/deshi.dll $root_folder/deshi.dll
-        else
-          echo "[93mFailed to build: deshi.dll[0m"
-        fi
-      fi
     else
       echo "[93mFailed to build: $app_name.exe[0m"
     fi
-
-    #exe clang $deshi_sources -c $compile_flags $defines $includes -o"$build_dir/deshi.o"
-    #
-    ##### compile dlls (generates deshi.dll)
-    #if [ $build_shared == 1 ]; then
-    #  exe clang $dll_sources -c -shared $compile_flags $defines -DDESHI_DLL $includes -o"$build_dir/deshi.dll"
-    #  
-    #  if [ -e deshi.dll ]; then echo "  deshi.dll"; fi
-    #fi
-    #
-    #### compile app (generates app_name.o)
-    #exe clang -c $app_sources $compile_flags $defines $includes -o"$build_dir/$app_name.o"
-    #
-    ##### link everything (generates app_name.exe)
-    #exe clang deshi.o $app_name.o $link_flags $link_libs -o"$app_name.exe"
-    #if [ -e $app_name.exe ]; then echo "  $app_name.exe"; fi
   fi
 
-  echo ---------------------------------
+  echo "---------------------------------"
   if [ -e $misc_folder/ctime.exe ]; then ctime -end $misc_folder/$app_name.ctm; fi
   if [ $build_time == 1 ]; then printf "time: %f seconds" $(awk "BEGIN {print $(date +%s.%3N) - $start_time}"); fi
 elif [ $builder_platform == "mac" ]; then
   echo "Execute commands not setup for platform: $builder_platform"
-elif [ $builder_platform == "linux" ]; then
-  echo "Execute commands not setup for platform: $builder_platform"
+elif [ $builder_platform == "linux" ]; then #_______________________________________________________________________________linux
+  echo "---------------------------------"
+  
+  if [ $build_compiler == "clang++" ]; then #____________________________________________________________________clang++
+    #### compile app (generates app_name.exe)
+    exe $build_compiler $app_sources $includes $compile_flags $defines -Fo"$build_dir/" $link_flags $link_libs -o"$build_dir/$app_name"
+
+    if [ $? == 0 ] && [ -e $build_dir/$app_name ]; then
+      echo "[32m  $app_name[0m"
+    else
+      echo "[93mFailed to build: $app_name[0m"
+    fi
+  else
+    echo "[93mExecute commands not setup for the '$build_compiler' compiler on the 'linux' platform[0m"
+  fi
+  
+  echo "---------------------------------"
 else
   echo "Execute commands not setup for platform: $builder_platform"
 fi
