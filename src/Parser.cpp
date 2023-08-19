@@ -534,7 +534,6 @@ void block() {
     forI(count) {
         node::insert_first((TNode*)e, stack_pop());
     }
-    e->node.start = start;
     e->node.end = curt;
     stack_push((TNode*)e);
     pop_table();

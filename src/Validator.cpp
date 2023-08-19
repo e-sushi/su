@@ -26,6 +26,7 @@ namespace internal {
 #define announce_stage(n) messenger::dispatch(message::make_debug(message::verbosity::debug, String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true)))
 
 b32 label(TNode* node);
+b32 expr(Expression* e);
 
 b32
 statement(Statement* s) { announce_stage(s);
@@ -63,15 +64,26 @@ func_ret(TNode* n) { announce_stage(n);
 b32 
 func_arg_tuple(Tuple* t) { announce_stage(t);
     if(!t->node.child_count) return true;
-    return false;
+    for(TNode* n = t->node.first_child; n; n = n->next) {
+        if(n->kind == node::expression) {
+            if(!expr((Expression*)n)) return false;
+        } else {
+            if(!label(n)) return false;
+        }
+    }
+    return true;
 }
+
+b32 
+call(CallExpression* e) {
+
+} 
 
 b32
 typeref(Expression* e) { announce_stage(e);
 
     switch(e->type->kind) {
         case type::kind::scalar: {
-            // I don't think we need to do anything special for scalar type references
             return true;
         } break;
         case type::kind::function: {
@@ -96,6 +108,12 @@ expr(Expression* e) { announce_stage(e);
     switch(e->kind) {
         case expression::unary_comptime: return expr((Expression*)e->node.first_child);
         case expression::unary_assignment: return expr((Expression*)e->node.first_child);
+        case expression::unary_reference: {
+            
+        } break;
+        case expression::call: {
+            call((CallExpression*)e);
+        } break;
         case expression::typeref: return typeref(e);
         case expression::binary_assignment: {
             auto lhs = (Expression*)e->node.first_child;

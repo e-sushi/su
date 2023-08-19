@@ -10,13 +10,13 @@
 #include "storage/Pool.h"
 #include "Label.h"
 #include "Type.h"
-#include <source_location>
 
 namespace amu{
 
 struct Structure;
 struct Trait;
 struct FunctionType;
+struct OverloadedFunction;
 
 struct Entity {
     TNode node;
@@ -87,6 +87,12 @@ can_coerce(Structure* from, Structure* to);
 struct Function : public Entity {
     FunctionType* type;
     LabelTable table;
+};
+
+// when a label is assigned to a second function entity, this is created
+// and the label points at it instead of any of the Functions
+struct OverloadedFunction : public Entity {
+    Array<Function*> overloads;
 };
 
 namespace function {
@@ -327,19 +333,6 @@ void
 to_string(DString& start, Type* t);
 
 namespace entity {
-
-// retrieves the label that was originally used when declaring this entity
-global Label*
-declared_label(Function* f);
-
-global Label*
-declared_label(Structure* f);
-
-global Label*
-declared_label(Module* f);
-
-global Label*
-declared_label(Place* f);
 
 String
 get_name(Entity* e);

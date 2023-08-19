@@ -36,6 +36,10 @@ struct LNode {
 };
 
 namespace node {
+// NOTE(sushi) instead of just storing that a node could be an Entity
+//             and having to access what kind of Entity it is by first casting to Entity
+//             we just store Entity tags on the Node itself, since, so far, there has been
+//             no reason to access just the data held by Entity
 // @genstrings(data/node_strings.generated)
 enum kind {
     null,
@@ -43,6 +47,7 @@ enum kind {
     place,
     structure,
     function,
+    overloaded_function,
     module,
     statement,
     expression,

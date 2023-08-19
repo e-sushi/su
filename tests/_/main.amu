@@ -1,6 +1,7 @@
-main :: () -> s32 {
-    b: Apple;
-    a: s64* = b + b;
-}
+func :: (a:u32, b:f32) -> s32 {}
 
-Apple :: struct {}
+main :: () -> s32 {
+    a := func(1, 1.2);
+    b := 1;
+    c := 1 + b;
+}
