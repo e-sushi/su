@@ -117,6 +117,7 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "Validator.h"
+#include "Generator.h"
 
 #include "Memory.cpp"
 #include "basic/Node.cpp"
@@ -140,6 +141,7 @@
 #include "Lexer.cpp"
 #include "Parser.cpp"
 #include "Validator.cpp"
+#include "Generator.cpp"
 
 
 int main(int argc, char* argv[]){
