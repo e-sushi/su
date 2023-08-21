@@ -169,6 +169,13 @@ copy(Array<T>& arr) {
     return out;
 }
 
+template<typename T> View<T>
+view(Array<T>& arr) {
+    View<T> out = {};
+    out.data = arr.data;
+    out.count = arr.count;
+    return out;
+}
 
 namespace util {
 

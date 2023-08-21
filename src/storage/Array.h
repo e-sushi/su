@@ -101,6 +101,9 @@ readref(Array<T>& arr, spt idx);
 template<typename T> Array<T>
 copy(Array<T>& arr);
 
+// returns a View over the given Array
+template<typename T> View<T>
+view(Array<T>& arr);
 
 namespace util {
 
