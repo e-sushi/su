@@ -408,51 +408,20 @@ class print_ast(gdb.Command):
     def __init__(self):
         super(print_ast, self).__init__("past", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
 
-    def build_string(self, node:gdb.Value):
-        gdb.write(f"build_string {node}\n")
-        gdb.flush()
-        if node['first_child']:
-            self.out += "("
-
-        match str(node['kind']):
-            case "amu::node::label":
-                self.out += str(node.cast(gdb.lookup_symbol("amu::Label")[0].type.pointer()).dereference())
-            case "amu::node::entity":
-                self.out += str(node.cast(gdb.lookup_symbol("amu::Entity")[0].type.pointer()).dereference())
-            case "amu::node::statement":
-                self.out += str(node.cast(gdb.lookup_symbol("amu::Statement")[0].type.pointer()).dereference())
-            case "amu::node::expression":
-                self.out += str(node.cast(gdb.lookup_symbol("amu::Expression")[0].type.pointer()).dereference())
-            case "amu::node::tuple":
-                self.out += str(node.cast(gdb.lookup_symbol("amu::Tuple")[0].type.pointer()).dereference())
-            case "amu::node::module":
-                self.out += str(node.cast(gdb.lookup_symbol("amu::Module")[0].type.pointer()).dereference())
-            case _:
-                print(f"unmatched kind: {str(node['kind'])}")
-        
-        current = node['first_child']
-        if current:
-            self.layers += 1
-            while int(current):
-                self.out += "\n" + " " * self.layers * 2
-                self.build_string(current)
-                current = current['next']
-            self.out += ")"
-            self.layers -= 1
-
     def invoke(self, arg, tty):
-        self.out = ""
-        self.layers = 0
         try: 
             val = gdb.parse_and_eval(arg)
-            if val == None:
-                print("failed to parse given argument")
-                return 
             if not is_tnode(val):
-                print(f"past requires a TNode ot TNode* as its argument")
+                print(f"past requires a TNode or TNode* as its argument")
                 return
-            self.build_string(val)
-            gdb.write(self.out)
+            addr = 0
+            if val.type.code == gdb.TYPE_CODE_PTR:
+                addr = int(val)
+            else:
+                addr = val.address
+            out = gdb.execute(f"call node::util::print_tree((TNode*){addr}, true)", to_string=True)
+            # String's printer turns newlines into '\n' but we want them here, so we need to replace them (again)
+            print(out.replace("\\n", "\n"))
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 print_ast()
