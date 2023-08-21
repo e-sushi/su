@@ -3,6 +3,11 @@
     A singleton logging struct whose purpose is to recieve messages from various Senders
     and deliver them to the user in a thread safe and organized way.
 
+    Messages consist of MessageParts which can be several different things such as plain text, an Entity
+    a Type, etc. These parts are formatted before being joined to the actual message.
+
+    The Messenger has a collection of destinations that it outputs to when 'deliver' is called.
+
 */
 #ifndef AMU_MESSENGER_H
 #define AMU_MESSENGER_H

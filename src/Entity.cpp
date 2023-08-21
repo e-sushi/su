@@ -13,6 +13,7 @@ structure::create() {
     Structure* out = pool::add(compiler::instance.storage.structures);
     node::init(&out->node);
     out->node.kind = node::structure;
+    out->table = label::table::init(&out->node);
     return out;
 }
 
@@ -24,8 +25,10 @@ function::create() {
     return out;
 }
 
+namespace module {
+
 Module*
-module::create() {
+create() {
     Module* out = pool::add(compiler::instance.storage.modules);
     node::init(&out->node);
     out->node.kind = node::module;
@@ -33,6 +36,8 @@ module::create() {
     out->table = label::table::init((TNode*)out);
     return out;
 }
+
+} // namespace module
 
 
 namespace type {
@@ -71,7 +76,15 @@ name(Type* type){
 
         case type::kind::structured: {
             auto stype = (StructuredType*)type;
-            return stype->label->node.start->raw;
+            // !Leak
+            DString out = dstring::init("StructuredType<");
+            if(stype->label) {
+                dstring::append(out, "'", stype->label->node.start->raw, "' ");
+                dstring::append(out, node::util::print_tree(&stype->structure->node));
+            } else {
+                dstring::append(out, "unknown>");
+            }
+            return out;
         } break;
 
         case type::kind::function: {
@@ -101,7 +114,7 @@ name(Type* type){
 }
 
 namespace structured {
-Array<ExistingStructureType> set;
+Array<ExistingStructureType> set = amu::array::init<ExistingStructureType>();
 
 StructuredType*
 create(Structure* s) {
@@ -112,8 +125,17 @@ create(Structure* s) {
     nu->stype = pool::add(compiler::instance.storage.structured_types);
     nu->stype->kind = type::kind::structured;
     nu->stype->node.kind = node::type;
+    nu->stype->structure = s;
     nu->structure = s;
     return nu->stype;
+}
+
+Label*
+find_member(StructuredType* st, String id) {
+    Structure* s = st->structure;
+    auto [idx, found] = map::find(s->table.map, id);
+    if(!found) return 0;
+    return amu::array::read(s->table.map.values, idx);
 }
 } // namespace structured
 
@@ -196,6 +218,65 @@ create(Array<Type*>& types) {
     return nu->ttype;
 }
 } // namespace tuple
+
+Type*
+resolve(TNode* n) {
+    if(!n) return 0;
+    switch(n->kind) {
+        case node::label: {
+            return resolve((TNode*)((Label*)n)->entity);
+        } break;
+        case node::function: {
+            return ((Function*)((Label*)n)->entity)->type;
+        } break;
+        case node::module: return 0;
+        case node::statement: {
+            auto s = (Statement*)n;
+            switch(s->kind) {
+                case statement::unknown: return 0;
+                case statement::label: resolve(s->node.first_child);
+                case statement::defer_: return 0;
+                case statement::expression: resolve(s->node.first_child);
+            }
+        } break;
+        case node::expression: return ((Expression*)n)->type;
+        case node::tuple: ((Tuple*)n)->type;
+        case node::place: return ((Place*)n)->type;
+    }
+    return 0;
+}  
+
+u64
+size(Type* t) {
+    switch(t->kind) {
+        case type::kind::array: {
+            return sizeof(void*) + sizeof(u64);
+        } break;
+        case type::kind::pointer: {
+            return sizeof(void*);
+        } break;
+        case type::kind::scalar: {
+            auto stype = (ScalarType*)t;
+            switch(stype->kind) {
+                case type::scalar::kind::signed8: return 1;
+                case type::scalar::kind::unsigned8: return 1;
+                case type::scalar::kind::signed16: 
+                case type::scalar::kind::unsigned16: return 2;
+                case type::scalar::kind::float32:
+                case type::scalar::kind::signed32:
+                case type::scalar::kind::unsigned32: return 4;
+                case type::scalar::kind::float64:
+                case type::scalar::kind::signed64:
+                case type::scalar::kind::unsigned64: return 8;
+            } 
+        } break;
+        case type::kind::structured: {
+            auto stype = (StructuredType*)t;
+            return stype->structure->size;
+        } break;
+    }
+    return 0;
+}
 
 } // namespace type
 

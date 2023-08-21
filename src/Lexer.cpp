@@ -171,7 +171,6 @@ stream_next;                     \
         token.code = code;
         token.l0 = line_num;
         token.c0 = line_col;
-        token.line_start = line_start;
         token.raw.str = stream.str;
 
         switch(string::codepoint(stream)) {
@@ -468,8 +467,7 @@ stream_next;                     \
 	array::push(tokens, eof);
 
 	if(code::is_virtual(code)) {
-		VirtualCode* code = code;
-		code->vtokens = tokens;
+		((VirtualCode*)code)->tokens = tokens;
 	} else {
 		code->source->tokens = tokens;
 	}

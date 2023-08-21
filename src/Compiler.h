@@ -16,6 +16,7 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "Validator.h"
+#include "Generator.h"
 #include "Code.h"
 
 namespace amu {
@@ -33,12 +34,13 @@ struct Compiler {
     // this is experimental and depending on how much state needs cleaned up in other 
     // components of the compiler, I may just go back to storing this locally  
     struct {
-        Pool<Code>            code;
+        Pool<SourceCode>      source_code;
         Pool<VirtualCode>     virtual_code;
         Pool<Source>          sources;
         Pool<Lexer>           lexers;
         Pool<Parser>          parsers;
         Pool<Validator>       validators;
+        Pool<Generator>       generators;
         Pool<Module>          modules;
         Pool<Label>           labels;
         Pool<Structure>       structures;

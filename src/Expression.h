@@ -10,6 +10,7 @@
 #include "basic/Node.h"
 #include "Type.h"
 #include "Label.h"
+#include "Entity.h"
 
 namespace amu {
 
@@ -78,15 +79,10 @@ enum kind : u32 {
 } // namespace expression
 
 
-struct Expression {
-    TNode node;
+struct Expression : public Entity {
     expression::kind kind;
 
     Type* type; // the semantic type of this expression
-
-    // blocks (which are expressions) scope their labels
-    // TODO(sushi) eventually split this off into something like BlockExpression
-    LabelTable table;
 };
 
 namespace expression {

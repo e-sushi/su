@@ -6,7 +6,6 @@ create() {
     Expression* out = pool::add(compiler::instance.storage.expressions);
     node::init(&out->node);
     out->node.kind = node::expression;
-    out->table = {}; // NOTE(sushi) not initialized here because it only need be for block expressions
     return out;
 }
 

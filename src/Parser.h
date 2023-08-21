@@ -38,7 +38,6 @@ void
 execute(Code* code);
 
 } // namespace parser
-
 } // namespace amu 
 
 #endif // AMU_PARSER_H

@@ -1,14 +1,9 @@
 namespace amu {
 namespace code {
 
-Code*
-create() {
-    return pool::add(compiler::instance.storage.code);
-}
-
-Code*
+SourceCode*
 from(Source* source) {
-    Code* out = code::create();
+    SourceCode* out = pool::add(compiler::instance.storage.source_code);
     out->raw = source->buffer;
     out->source = source;
     return out;
@@ -30,13 +25,17 @@ name(Code* code) {
 
 View<Token>
 get_tokens(Code* code) {
-    return code->tokens;
+    if(is_virtual(code)) {
+        return array::view(((VirtualCode*)code)->tokens);
+    } else {
+        return ((SourceCode*)code)->tokens;
+    }
 }
 
 Array<Token>&
 get_token_array(Code* code) {
-    if(code::is_virtual(code)) {
-        return ((VirtualCode*)code)->vtokens;
+    if(is_virtual(code)) {
+        return ((VirtualCode*)code)->tokens;
     } else {
         return code->source->tokens;
     }

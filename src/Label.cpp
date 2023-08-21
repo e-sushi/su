@@ -27,6 +27,27 @@ init(TNode* creator) {
 
 } // namespace table
 
+Label*
+resolve(TNode* n) {
+    node::util::print_tree(n);
+    switch(n->kind) {
+        case node::label:     return (Label*)n;
+        case node::place:     return ((Place*)n)->label;
+        case node::structure: return ((Structure*)n)->label;
+        case node::function:  return ((Function*)n)->label;
+        case node::module:    return ((Module*)n)->label;
+        case node::statement: {
+            auto s = (Statement*)n;
+            switch(s->kind) {
+                case statement::label: return ((Label*)n->first_child);
+            }
+        } break;
+        case node::type: return ((Type*)n)->label;
+    }
+
+    return 0;
+}
+
 } // namespace label
 
 global void

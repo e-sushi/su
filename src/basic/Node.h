@@ -138,6 +138,9 @@ namespace util {
 template<void (*callback)(DString&, TNode*)> DString
 print_tree(TNode* root, b32 newlines = true);
 
+DString
+print_tree(TNode* root, b32 newlines = true);
+
 } // namespace util
 } // namespace node
 

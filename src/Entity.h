@@ -17,10 +17,12 @@ struct Structure;
 struct Trait;
 struct FunctionType;
 struct OverloadedFunction;
+struct Type;
+struct TAC;
 
 struct Entity {
     TNode node;
-    Label* label; // the most recent label used to represent this entity
+    Label* label; // the most recent label used to represent this entity, null if it is anonymous
 };
 
 // a TemplateParameter denotes a position in an AST where we need to place a template argument 
@@ -65,7 +67,7 @@ struct Member {
 
 struct Structure : public Entity {
     u64 size; // size of this structure in bytes
-    Map<String, Member> fields;
+    LabelTable table;    
 };
 
 namespace structure {
@@ -75,12 +77,6 @@ create();
 
 void
 destroy(Structure* s);
-
-b32
-is_builtin(Structure* s);
-
-b32
-can_coerce(Structure* from, Structure* to);
 
 } // namespace structure
 
@@ -106,8 +102,6 @@ destroy(Function& f);
 } // namespace function
 
 struct Module : public Entity {
-    Array<spt> labels; 
-
     LabelTable table;    
 };
 
@@ -119,6 +113,9 @@ create();
 global void
 destroy(Module& m);
 
+Label*
+find_label(String s);
+
 } // namespace module
 
 struct Trait : public Entity {
@@ -128,7 +125,6 @@ struct Trait : public Entity {
 namespace trait {
 
 }
-
 
 namespace type {
 enum class kind {
@@ -202,6 +198,10 @@ extern Array<ExistingStructureType> set;
 
 StructuredType*
 create(Structure* structure);
+
+Label*
+find_member(StructuredType* s, String id);
+
 } // namespace type::structured
 
 struct PointerType : public Type {
@@ -259,10 +259,12 @@ create();
 } // namespace type::function
 
 // a tuple acting as a type, eg. one that only contains references to types and not values
-// while this represents the types of the tuple, the names given to each element and other syntactic
-// information is handled by the Entity representation of the tuple.
 struct TupleType : public Type {
-    Array<Type*> types;
+    b32 is_named;
+    union {
+        Array<Type*> types;
+        LabelTable table;
+    };
 };
 
 namespace type::tuple {
@@ -326,6 +328,17 @@ has_trait(Trait* trait);
 
 b32
 is_scalar(Type* type) { return type->kind == type::kind::scalar; }
+
+// attempts to resolve a Type from some TNode. If a type cannot 
+// be resolved from the node or the node just doesn't have a Type
+// 0 is returned.
+// 
+Type*
+resolve(TNode* n);
+
+// attempts to find the size of a given Type in bytes
+u64
+size(Type* t);
 
 } // namespace type
 

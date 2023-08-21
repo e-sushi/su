@@ -17,6 +17,8 @@ struct Entity;
 struct Token;
 struct Label {
     TNode node;
+    // if this is 0, then what the Label points to must be resolved
+    // from node.first_child
     Entity* entity;
 
     Label* aliased; // if this label is an alias of another label, this is the original
@@ -38,6 +40,11 @@ destroy();
 
 global Label*
 base(Label* l);
+
+// attempts to resolve a Label from a given Node
+// returns 0 if it can't find one 
+Label*
+resolve(TNode* n);
 
 namespace table {
 

@@ -147,7 +147,6 @@ struct Token {
     u64 l0, l1;
     u64 c0, c1;
 
-    u8* line_start;
 
     // if this is a token::moduledecl
     // we will have already created a Module entity, so we store that here

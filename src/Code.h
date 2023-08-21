@@ -14,6 +14,7 @@
 #define AMU_CODE_H
 
 #include "Validator.h"
+#include "Generator.h"
 
 namespace amu {
 
@@ -56,10 +57,6 @@ struct Code {
     // Source this code belongs to. if this is 0, then this is VirtualCode
     Source* source;
 
-    // the range of Tokens that this code represents 
-    // empty if lexing has not yet been performed on this Code
-    View<Token> tokens;
-
     // the highest level node of the source this Code represents
     // null if parsing has not yet been performed on this Code
     TNode* node;
@@ -68,6 +65,12 @@ struct Code {
     Lexer* lexer;
     Parser* parser;
     Validator* validator;
+    Generator* generator;
+};
+
+// Code whose Tokens belong to some Source
+struct SourceCode : public Code {
+    View<Token> tokens;
 };
 
 // Code which is not represented by any given Source.
@@ -77,16 +80,13 @@ struct Code {
 struct VirtualCode : public Code {
     String name; // unique identifier given to this virtual code
     DString str;
-    Array<Token> vtokens;
+    Array<Token> tokens;
     Array<Diagnostic> diagnostics;
 };
 
 namespace code {
 
-Code*
-create();
-
-Code*
+SourceCode*
 from(Source* source);
 
 VirtualCode*

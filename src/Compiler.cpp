@@ -8,16 +8,20 @@ Module* module;
 
 void
 init() {
+    /*
+        Initialize most components of the singleton Compiler instance.
+    */
     instance.compiler_time = util::stopwatch::start();
 
     instance.log_file = fopen("temp/log", "w");
 
     instance.storage.sources           = pool::init<Source>(32);
-    instance.storage.code              = pool::init<Code>(32);
+    instance.storage.source_code       = pool::init<SourceCode>(32);
     instance.storage.virtual_code      = pool::init<VirtualCode>(32);
     instance.storage.lexers            = pool::init<Lexer>(32);
     instance.storage.parsers           = pool::init<Parser>(32);
     instance.storage.validators        = pool::init<Validator>(32);
+    instance.storage.generators        = pool::init<Generator>(32);
     instance.storage.modules           = pool::init<Module>(32);
     instance.storage.labels            = pool::init<Label>(32);
     instance.storage.structures        = pool::init<Structure>(32);

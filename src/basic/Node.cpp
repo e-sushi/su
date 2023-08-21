@@ -310,6 +310,11 @@ print_tree(TNode* root, b32 newlines) {
 } 
 
 
+DString
+print_tree(TNode* root, b32 newlines) {
+	return print_tree<[](DString& current, TNode* n) { to_string(current, n, true); }>(root, newlines);
+}
+
 } // namespace util
 
 } // namespace node

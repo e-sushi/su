@@ -19,7 +19,6 @@ namespace statement{
 enum kind {
     unknown,
     label,
-    assignment,
     defer_,
     expression
 };

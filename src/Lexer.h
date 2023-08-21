@@ -16,10 +16,6 @@ struct Lexer {
 
     // indexes into code's Token Array that indicates possible global label declarations
     Array<spt> labels;
-
-    struct {
-        f64 time; // time taken by the lexer
-    } status;   
 };
 
 namespace lex {

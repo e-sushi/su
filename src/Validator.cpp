@@ -25,6 +25,18 @@ namespace internal {
 
 #define announce_stage(n) messenger::dispatch(message::make_debug(message::verbosity::debug, String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true)))
 
+Array<LabelTable*> table_stack = array::init<LabelTable*>();
+LabelTable* current_table = 0;
+
+void push_table(LabelTable* lt) {
+    array::push(table_stack, current_table);
+    current_table = lt;
+}
+
+void pop_table() {
+    current_table = array::pop(table_stack);
+}
+
 b32 label(TNode* node);
 b32 expr(Expression* e);
 
@@ -32,16 +44,18 @@ b32
 statement(Statement* s) { announce_stage(s);
     switch(s->kind) {
         case statement::label: return label(s->node.first_child);
-        case statement::expression: NotImplemented;
+        case statement::expression: return expr((Expression*)s->node.first_child);
     }
     return false;
 }
 
 b32
-block(Expression* e) { announce_stage(e);
+block(BlockExpression* e) { announce_stage(e);
+    push_table(&e->table);
     for(TNode* n = e->node.first_child; n; n = n->next) {
         if(!statement((Statement*)n)) return false;
     }
+    pop_table();
     return true;
 }
 
@@ -52,7 +66,8 @@ func_ret(TNode* n) { announce_stage(n);
     }else if(n->kind == node::expression) {
         auto e = (Expression*)n;
         if(e->kind != expression::typeref) {
-            diagnostic::validator::func_ret_expected_typeref(e->node.start);
+            diagnostic::validator::
+                func_ret_expected_typeref(e->node.start);
             return false;
         }
         return true;
@@ -76,12 +91,39 @@ func_arg_tuple(Tuple* t) { announce_stage(t);
 
 b32 
 call(CallExpression* e) {
+    FunctionType* f = e->callee->type;
+    if(e->arguments->node.child_count > f->parameters->child_count) {
+        diagnostic::validator::
+            too_many_arguments(e->node.start, e->callee->label->node.start->raw);
+        return false;
+    } 
 
+    if(f->parameters->child_count > e->arguments->node.child_count) {
+        diagnostic::validator::
+            not_enough_arguments(e->node.start, e->callee->label->node.start->raw);
+        return false;
+    }
+
+    TNode* func_arg = f->parameters->first_child;
+    TNode* call_arg = e->arguments->node.first_child ;
+    while(func_arg && call_arg) {
+        if(!type::can_coerce(type::resolve(func_arg), type::resolve(call_arg))) {
+            diagnostic::validator::
+                mismatch_argument_type(call_arg->start, 
+                    type::resolve(call_arg), 
+                    type::resolve(func_arg), 
+                    label::resolve(func_arg)->node.start->raw, 
+                    e->callee->label->node.start->raw);
+            return false;
+        }
+        func_arg = func_arg->next;
+        call_arg = call_arg->next;
+    }
+    return true;
 } 
 
 b32
 typeref(Expression* e) { announce_stage(e);
-
     switch(e->type->kind) {
         case type::kind::scalar: {
             return true;
@@ -90,13 +132,65 @@ typeref(Expression* e) { announce_stage(e);
             auto type = (FunctionType*)e->type;
             if(!func_arg_tuple((Tuple*)type->parameters) ||
                !func_ret(type->returns) || 
-               !block((Expression*)e->node.last_child)) return false;
+               !block((BlockExpression*)e->node.last_child)) return false;
             return true;
         } break;
         case type::kind::structured: {
             return true;
         } break;
         case type::kind::pointer: {
+            return true;
+        } break;
+    }
+    return false;
+}
+
+b32 
+access(Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
+    switch(lhs_type->kind) {
+        case type::kind::scalar: {
+            diagnostic::validator::
+                cannot_access_members_scalar_type(lhs->node.start);
+            return false;
+        } break;
+        case type::kind::array: {
+            switch(rhs->node.start->hash) {
+                case string::static_hash("ptr"):
+                case string::static_hash("count"): return true;
+                default: {
+                    diagnostic::validator::
+                        array_types_dont_have_member(rhs->node.start, rhs->node.start->raw);
+                    return false;
+                }
+            }
+        } break;
+        case type::kind::function: {
+            diagnostic::validator::
+                cannot_access_members_of_function_type(lhs->node.start);
+            return false;
+        } break;
+        case type::kind::pointer: {
+            auto ptype = (PointerType*)lhs_type;
+            if(ptype->type->kind == type::kind::pointer) {
+                diagnostic::validator::
+                    too_many_levels_of_indirection_for_access(lhs->node.start);
+            }
+            return access(e, lhs, ptype->type, rhs);
+        } break;
+        case type::kind::tuple: {
+            auto ttype = (TupleType*)lhs_type;
+            NotImplemented;
+        } break;
+        case type::kind::structured: {
+            auto stype = (StructuredType*)lhs_type;
+            auto [idx, found] = map::find(stype->structure->table.map, rhs->node.start->raw);
+            if(!found) {
+                diagnostic::validator::
+                    unknown_member(rhs->node.start, (Type*)stype, rhs->node.start->raw);
+                return false;
+            }
+            Label* l = array::read(stype->structure->table.map.values, idx);
+            e->type = type::resolve((TNode*)l->entity);
             return true;
         } break;
     }
@@ -112,7 +206,7 @@ expr(Expression* e) { announce_stage(e);
             
         } break;
         case expression::call: {
-            call((CallExpression*)e);
+            return call((CallExpression*)e);
         } break;
         case expression::typeref: return typeref(e);
         case expression::binary_assignment: {
@@ -129,6 +223,20 @@ expr(Expression* e) { announce_stage(e);
             }
 
             return true;
+        } break;
+
+        case expression::binary_access: {
+            auto lhs = (Expression*)e->node.first_child;
+            auto rhs = (Expression*)e->node.last_child;
+            if(!expr(lhs)) return false;
+            Type* lhs_type = type::resolve((TNode*)lhs);
+            if(!lhs_type) {
+                 diagnostic::validator::
+                    invalid_type_lhs_access(lhs->node.start);
+                return false;
+            }
+
+            return access(e, lhs, lhs_type, rhs);
         } break;
 
         case expression::binary_plus: {
@@ -185,10 +293,11 @@ label(TNode* node) { announce_stage(node);
 b32
 module(TNode* node) { announce_stage(node);
     Module* m = (Module*)node;
+    push_table(&m->table);
     for(TNode* n = node->first_child; n; n = n->next) {
         if(!label(n)) return false;
-    }
-
+    }  
+    pop_table();
     return true;
 }
 
@@ -197,7 +306,9 @@ module(TNode* node) { announce_stage(node);
 void
 execute(Code* code) {
     // TODO(sushi) this will be incorrect when Code becomes more general
-    internal::module((TNode*)code->source->module);
+    if(!internal::module((TNode*)code->source->module)) {
+        util::println("validation failed");
+    }
 }
 
 } // namespace validator
