@@ -363,6 +363,70 @@ group validator {
             en: "the trait %String% is not defined between %type% and %type%";
         }
     }
+
+    diagnostic mismatch_argument_type {
+        type: error;
+        message: {
+            en: "cannot convert type %type% to %type% for argument %String% in call to %String%";
+        }
+    }
+
+    diagnostic too_many_arguments {
+        type: error;
+        message: {
+            en: "too many arguments provided in call to %String%";
+        }
+    }
+    
+
+    diagnostic not_enough_arguments {
+        type: error;
+        message: {
+            en: "not enough arguments provided in call to %String%";
+        }
+    }
+
+    diagnostic invalid_type_lhs_access {
+        type: error;
+        message: {
+            en: "unable to resolve the type of the lhs of access operator";
+        }
+    }
+
+    diagnostic cannot_access_members_scalar_type {
+        type: error;
+        message: {
+            en: "scalar types have no members";
+        }
+    }
+
+    diagnostic array_types_dont_have_member {
+        type: error;
+        message: {
+            en: "array types dont have a member %String%";
+        }
+    }
+
+    diagnostic cannot_access_members_of_function_type {
+        type: error;
+        message: {
+            en: "cannot access members of a function type";
+        }
+    }
+
+    diagnostic too_many_levels_of_indirection_for_access {
+        type: error;
+        message: {
+            en: "too many levels of indirection for access operator. The access operator will only dereference once.";
+        }
+    }
+    
+    diagnostic unknown_member {
+        type: error;
+        message: {
+            en: "type %type% has no member named %String%";
+        }
+    }
 }
 
 group internal {
