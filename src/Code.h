@@ -32,14 +32,12 @@ enum kind {
     tuple,
     type,
     source, // represents an entire source file
+    func_def_head,
+    var_decl,
 };
 } // namespace code
 
-// information that would be provided from outside of a Code object
-struct CodeContext {
-    // the module this code would be residing in 
-    Module* module;
-};
+
 
 struct Code {
     TNode node;
@@ -86,9 +84,8 @@ from(Source* source);
 VirtualCode*
 from(String s);
 
-// creates a Code object from start and end Tokens
 Code*
-from(Token* start, Token* end);
+from(Code* code, Token* start, u64 count);
 
 // create a Code object from an AST node
 // if the TNode does not already mark its own start and end tokens, and 'resolve_start_end' is true
@@ -133,6 +130,44 @@ add_diagnostic(Code* code, Diagnostic d);
 // creates a new Code object taking the information 
 Code*
 split(Code* code, Token* point);
+
+struct TokenIterator {
+    Code* code; // code we are iterating
+    Token* curt; // current token
+    Token* stop; // stop token 
+};
+
+// creates and returns a Token iterator for the given Code
+TokenIterator
+token_iterator(Code* code);
+
+Token*
+current(TokenIterator& iter);
+
+// attempts to get the next Token from a TokenIterator
+// if we've reached the end, 0 is returned 
+Token*
+next(TokenIterator& iter);
+
+// attempts to lookahead by 'n' tokens. If the result is beyond the bounds
+// of the Code, 0 is returned
+Token*
+lookahead(TokenIterator& iter, u64 n = 1);
+
+Token*
+lookback(TokenIterator& iter, u64 n = 1);
+
+// when the given iterator is at a Token that has a pair:
+// (, ", ', {, <, [
+// it will skip until it finds a matching pair
+void
+skip_to_matching_pair(TokenIterator& iter);
+
+template<typename... T> FORCE_INLINE b32
+is_any(TokenIterator& iter, T... args);
+
+template<typename... T> FORCE_INLINE void
+skip_until(TokenIterator& iter, T... args);
 
 namespace virt {
 
