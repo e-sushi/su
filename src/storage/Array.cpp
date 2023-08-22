@@ -163,9 +163,18 @@ readref(Array<T>& arr, spt idx) {
 
 template<typename T> Array<T>
 copy(Array<T>& arr) {
-    Array<T> out = init(arr.count);
-    CopyMemory(out.data, arr.data, sizeof(T)*arr.count);
+    Array<T> out = init<T>(arr.count);
+    memory::copy(out.data, arr.data, sizeof(T)*arr.count);
+    out.count = arr.count;
+    return out;
+}
 
+template<typename T> Array<T>
+copy(Array<T>& arr, u64 start, u64 count) {
+    Assert(start < arr.count && start + count < arr.count);
+    Array<T> out = init<T>(count);
+    memory::copy(out.data, arr.data+start, sizeof(T)*count);
+    out.count = count;
     return out;
 }
 

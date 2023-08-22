@@ -101,6 +101,11 @@ readref(Array<T>& arr, spt idx);
 template<typename T> Array<T>
 copy(Array<T>& arr);
 
+// makes a copy of a slice of the given Array's contents 
+// and returns a new Array with those contents
+template<typename T> Array<T>
+copy(Array<T>& arr, u64 start, u64 count);
+
 // returns a View over the given Array
 template<typename T> View<T>
 view(Array<T>& arr);
