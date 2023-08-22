@@ -15,17 +15,21 @@ struct Parser {
 
     TNode root;
 
-    struct {
-        Array<Label*> exported; // !Threading: these will need to be SharedArrays or locked with some mutex
-        Array<Label*> imported;
-        Array<Label*> internal;
-    } labels;
+    // labels collected at the highest scope of a parser
+    LabelTable table;
 
     Array<Module*> module_stack;
     Module* current_module;
     
     Array<LabelTable*> table_stack;
     LabelTable* current_table;
+
+    Array<TNode*> stack;
+    TNode* last;
+
+    // array of Tokens representing identifiers that refer to something
+    // unknown when we come across it in parsing 
+    Array<Token> unknowns;
 };
 
 namespace parser {
@@ -38,6 +42,23 @@ deinit(Parser& parser);
 
 void
 execute(Code* code);
+
+namespace stack {
+
+void
+push(Code* c, TNode* node);
+
+TNode*
+pop(Code* c);
+
+TNode*
+last(Code* c);
+
+void
+push_table(Code* c, LabelTable* table);
+
+} // namespace stack
+
 
 } // namespace parser
 } // namespace amu 
