@@ -13,6 +13,8 @@ namespace amu {
 struct Parser {
     Code* code;
 
+    TNode root;
+
     struct {
         Array<Label*> exported; // !Threading: these will need to be SharedArrays or locked with some mutex
         Array<Label*> imported;

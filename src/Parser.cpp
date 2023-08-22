@@ -1413,8 +1413,8 @@ void before_expr() { announce_stage;
             Place* p = place::create();
             p->type = last->type;
 
-            stack_push((TNode*)e);
             stack_push((TNode*)p);
+            stack_push((TNode*)e);
         } break;
         case token::colon: {
             Token* save = curt;
@@ -1711,8 +1711,8 @@ void start() { announce_stage;
     when we find them
 */
 void prescan() {
-    forI(parser->current_module->labels.count) {
-        curt = array::readptr(code::get_token_array(parser->code), array::read(parser->current_module->labels, i));
+    forI(parser->code->lexer->labels.count) {
+        curt = array::readptr(code::get_token_array(parser->code), array::read(parser->code->lexer->labels, i));
         Label* l = label::create();
         l->node.start = curt;
         map::add(parser->current_module->table.map, (String)curt->raw, l);

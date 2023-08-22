@@ -34,6 +34,7 @@ struct Source {
 
     // representation of the actual code in this source file
     Code* code;
+    Array<Code*> codes;
 };
 
 namespace source {

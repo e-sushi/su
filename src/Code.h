@@ -42,13 +42,11 @@ struct CodeContext {
 };
 
 struct Code {
+    TNode node;
     code::kind kind;
     // raw representation of this code
     String raw;
     
-    Code* next;
-    Code* prev;
-
     // if this Code was generated from another Code object, this points to that original
     // object. this is used when we generate Code from generic types and such and when we
     // perform formatting
@@ -56,10 +54,6 @@ struct Code {
 
     // Source this code belongs to. if this is 0, then this is VirtualCode
     Source* source;
-
-    // the highest level node of the source this Code represents
-    // null if parsing has not yet been performed on this Code
-    TNode* node;
 
     // information from stages that this Code has been passed through
     Lexer* lexer;
@@ -135,6 +129,10 @@ get_token_array(Code* code);
 
 void
 add_diagnostic(Code* code, Diagnostic d);
+
+// creates a new Code object taking the information 
+Code*
+split(Code* code, Token* point);
 
 namespace virt {
 

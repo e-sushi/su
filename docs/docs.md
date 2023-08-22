@@ -31,6 +31,8 @@
                 1. [ImplicitConversion](#implicitconversion)
 1. [Runtime vs Compile time](#runtime-vs-compile-time)
 1. [Tuples](#tuples-1)
+    1. [Valued Tuples](#valued-tuples)
+        1. [Structure initializer](#structure-initializer)
         
 
 
@@ -240,6 +242,8 @@ print(b); // 2
 ```
 
 ### Variables
+> Support: <html><span style="color: cyan">Parsed and typed</span></html>
+
 A variable is a [typed](#types) location in stack memory. By default, a variable is mutable. The syntax for declaring a variable whose memory is stored at runtime is:
 ```
 <id> ":" [ <type> ] [ "=" <expr> ]
@@ -603,6 +607,8 @@ What these elements are determines what kind of tuple is being created. When all
 Valued tuples may be used in different contexts and so following is a collection of those contexts and the rules on using a valued tuple in them.
 
 #### Structure initializer
+> Support: <html><span style="color:red">Nothing</span></html>
+
 A valued tuple may be used as an 'initializer' for a type where that type is expected. Say we have the [structured type](#structured-types):
 ```
 Player :: struct {
@@ -662,7 +668,7 @@ In order to keep initialization clear, however, this is not permitted to work:
 // error: too many elements in valued tuple initializer of Player
 player: Player = (100, 50, 0, 0);
 ```
-This is not limited to variable initializion, a valued tuple may be used in any context where a value is expected:
+This is not limited to variable initialization, a valued tuple may be used in any context where a value is expected:
 ```
 kill_player :: (p: Player) -> void {...}
 

@@ -47,7 +47,7 @@ void
 execute(Code* code) {
     internal::generator = code->generator;
 
-    internal::module(code->node);
+    internal::module(&code->parser->root);
 }
 
 } // namespace generator

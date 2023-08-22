@@ -32,7 +32,6 @@ create() {
     Module* out = pool::add(compiler::instance.storage.modules);
     node::init(&out->node);
     out->node.kind = node::module;
-    out->labels = array::init<spt>();
     out->table = label::table::init((TNode*)out);
     return out;
 }
