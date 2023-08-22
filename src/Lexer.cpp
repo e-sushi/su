@@ -141,31 +141,7 @@ stream_next;                     \
 	Token last_token = {};
 	b32 label_latch = false; // true when a label has been found, set back to false when a label ending token is crossed (a semicolon or close brace)
 
-	struct ModuleEntry {
-		Module* module;
-		u32 scope_level; // scope level that this module was started at 
-		b32 label_latch;
-	};
-
-	ScopedArray<ModuleEntry> module_stack = array::init<ModuleEntry>();
-
-	// TODO(sushi) currently this stage gathers file scope information
-	//             but I plan to make it so that Code is more general than that
-	//             so eventually this will not work and we need to rewrite Lexer
-	//             to not worry about Modules
-	Module* file_module = code->source->module = module::create();
-	ModuleEntry current_module = {file_module, 0, false};
-
 	auto tokens = array::init<Token>();
-
-	auto push_module = [&](Module* m) {
-		array::push(module_stack, current_module);
-		current_module = {m,scope_level+1,false};
-	};
-
-	auto pop_module = [&]() {
-		current_module = array::pop(module_stack);
-	};
 
     while(stream) {
         Token token = {};
@@ -263,7 +239,7 @@ stream_next;                     \
 			}continue; //skip token creation b/c we did it manually
 			
 			case ';': {
-				if(!scope_level) current_module.label_latch = false;
+				//if(!scope_level) current_module.label_latch = false;
 				token.kind = token::semicolon;
 				stream_next;
 			} break;
@@ -285,10 +261,10 @@ stream_next;                     \
 
 			case ':':{ //NOTE special for declarations and compile time expressions
 				token.kind = token::colon; 
-				if(!current_module.label_latch && last_token.kind == token::identifier) {
-					current_module.label_latch = true;
-					array::push(code->lexer->labels, tokens.count-1);
-				}
+				// if(!current_module.label_latch && last_token.kind == token::identifier) {
+				// 	current_module.label_latch = true;
+				// 	array::push(code->lexer->labels, tokens.count-1);
+				// }
 				stream_next; 
 			}break;
 			
@@ -307,8 +283,8 @@ stream_next;                     \
 			case '}':{ //NOTE special for scope tracking and internals
 				token.kind = token::close_brace;
 				scope_level--;
-				if(scope_level+1 == current_module.scope_level) pop_module();
-				else if(scope_level == current_module.scope_level) current_module.label_latch = false;
+				//if(scope_level+1 == current_module.scope_level) pop_module();
+				//else if(scope_level == current_module.scope_level) current_module.label_latch = false;
 				stream_next;
 			}break;
 			
@@ -419,11 +395,11 @@ stream_next;                     \
 						switch(token.kind) {
 							case token::structdecl: break; // array::push(lexer.structs, tokens.count); break;
 							case token::moduledecl: {
-								Module* m = module::create();
-								// link the new module's symbol table to the current one 
-								m->table.last = &current_module.module->table;
-								push_module(m);
-								token.module = m;
+								// Module* m = module::create();
+								// // link the new module's symbol table to the current one 
+								// m->table.last = &current_module.module->table;
+								// push_module(m);
+								// token.module = m;
 							} break;
 						}
 					}
