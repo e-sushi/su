@@ -12,34 +12,93 @@ class Element {
     has @.children is rw;
 }
 
-class Doc is Element {}
+class Doc is Element {
+    method gist {
+        my $out = "Doc<\n";
+        for @.children -> $child {
+            $out ~= $child.gist.indent(1) ~ "\n"
+        }
+        $out ~ ">"
+    }
+}
 
 class Section is Element {
     has $.title is rw;
-    has $.stopper is rw;
+    has $.level is rw;
+
+    method gist {
+        my $out = "Section<'$.title', $.level";
+        for @.children -> $child {
+            $out ~= $child.gist.indent(1) ~ "\n";
+        }
+        $out ~ ">"
+    }
 }
 
 class Code is Element {
     has $.body is rw;
-    has $.stopper is rw;
+    has $.is_inline is rw;
+
+    method gist {
+        my $out = "Code<\n";
+        $out ~= $.body.indent(1) ~ "\n";
+        $out ~ ">"
+    }
 }
 
 class Title is Element {
     has $.title is rw;
-}
 
-class Body is Element {}
+    method gist {
+        "Title<$.title>"
+    }
+}
 
 class Text is Element {
     has $.raw is rw;
+
+    method gist {
+        my $out = "Text<";
+        if $.raw.chars > 30 {
+            $out ~= $.raw.comb[0..30].join ~ "...";
+        } else {
+            $out ~= $.raw;
+        }
+        $out ~= ">";
+        $out
+    }
 }
 
 class Ref is Element {
     has $.target is rw;
     has $.body is rw;
+
+    method gist {
+        "Ref<'$.target', $.body>"
+    }
+}
+
+class Anchor is Element {
+    has @.names;
+}
+
+class Body is Element {
+    method gist {
+        my $out = "Body<\n";
+        for @.children -> $child {
+            $out ~= $child.gist.indent(1) ~ "\n";
+        }
+        $out ~ ">"
+    }
+}
+
+class HTML is Element {
+    has $.body is rw;
 }
 
 my @element_stack = [];
+
+my @section-stack = [];
 
 my @section_number_stack = [1];
 my @section-stop-stack = [];
@@ -88,42 +147,42 @@ my Int $section_nests = 0;
 my $doc = Doc.new;
 
 while $file {
-    eat_until(/\\/, True);
-    doc($doc);
-    eat_until(/\S||$/)
-}
-
-sub doc($parent) {
-    say "doc";
-    skip_whitespace;
-    given eat(/\w+/) {
-        when 'title' {title($parent)}
-        when 'section' {section($parent)}
-        default {
-            die "$line:$col: command $_ is not allowed in doc scope, $file";
-        }
-    }
+    body($doc);
 }
 
 sub body($parent) {
     my $body = Body.new;
-    skip_whitespace;
-    given $file.comb[0] {
-        when '\\' {
-            given eat(/\\(\w+)/)[0] {
-                when 'code' {code($body)}
-                when 'section' {section($body)}
+    given $file {
+        when /^\{\{/ {
+            given eat(/\{\{\s*(\w+)/)[0] {
+                when 'title' {title($body)}
+                when 'anchor' {anchor($body)}
+                when 'feature' {feature($body)}
+                when 'html' {html($body)}
                 default {
+                    say $_;
                     die "$line:$col: command '$_' cannot be used inside a section body";
                 }
             }
         }
 
-        when '[' {
+        when /^\=/ {
+            say "section";
+            section($body);
+        }
+
+        when /^\`/ {
+            say "code";
+            code($body);
+        }
+
+        when /^\[/ {
+            say "ref";
             ref($body);
         }
 
         default {
+            say "text";
             text($body);
         }
     }
@@ -131,86 +190,149 @@ sub body($parent) {
     $parent.children.push: $body;
 }
 
-
 sub title($parent) {
-    say "title";
-    $_ = Title.new;
+    my $title = Title.new;
     skip_whitespace;
-    .title = eat(/(.*?)\n/)[0].Str.trim;
-    $parent.children.push: $_;
+    if eat(
+        /
+            \s*
+            \|
+            \s*
+            (.*?)
+            \}\}
+        /
+    ) -> $match {
+        $title.title = $match[0].Str.trim;
+        $parent.children.push: $_;
+    } else {
+        text($parent);
+    }
 }
 
 sub text($parent) {
-    $_ = Text.new;
-    .raw = eat_until(/\[||\n||\\/);
-    $parent.children.push: $_;
+    my $text = Text.new;
+    $text.raw = eat_until(
+        /
+            \[   # ref start
+          | \n   # newlines are separate
+          | \{\{ # command
+          | \`   # code
+          | $    # end of file 
+        /,
+    True);
+    $parent.children.push: $text;
 }
 
 sub ref($parent) {
-    $_ = Ref.new;
-    if eat(/\[$<target>=[.*?] [\|$<body>=[.*?]]? \]/) -> $match {
-        .target = $match<target>.Str.trim;
-        .body = $match<body>.Str.trim;
-        $parent.children.push: $_;
+    if eat(
+        /   \[
+            $<tag>=[.*?] # eat tag
+            
+            [ # optional rename
+                \|
+                $<rename>=[.*?]
+            ]?
+
+            \]\] # end of ref
+            
+            [ # if there are trailing characters we take those too
+                $<trailing>=[\w+]
+            ]?  
+        /
+    ) -> $match {
+        my $ref = Ref.new;
+        $ref.target = $match<tag>.Str.trim;
+
+        if $match<rename>:exists {
+            $ref.body = $match<rename>;
+        } elsif $match<trailing>:exists {
+            $ref.body ~= $ref.target ~ $match<trailing>;
+        }
+        $parent.children.push: $ref;
     } else {
+        # if the ref is malformed, we need to eat the [[ because otherwise text will
+        # stop thinking we're at a ref again
+        # this kinda sucks though cause it removes the [[ from the output, but if the link
+        # doesn't show then I guess that's indication enough of an error
+        eat(/^\[\[?/);
         text($parent);
     }
 
 }
 
-sub section($parent) {
-    $_ = Section.new;
-    skip_whitespace;
-    if eat(/\[(.*?)\]/) -> $match {
-        .tag = $match[0].Str;
-    }
-    skip_whitespace;
-    .title = eat(/(\w+)||\"(.*?)\"/)[0].Str.trim;
-    skip_whitespace;
-    say "sect ", .title;
+sub anchor($parent) {
+    say "anchors not handled yet";
+}
 
-    if $file.starts-with: '{' {
-        .stopper = '}';
-        $file .= substr(1, *);
-        $col += 1;
+sub feature($parent) {
+    say "feature command not implemented yet";
+    eat_until(/\}\}/, True);
+}
+
+sub html($parent) {
+    if eat(
+        /
+        (.*?)
+        \}\}
+        /
+    ) -> $match {
+        my $html = HTML.new;
+        $html.body = $match[0].Str;
+        $parent.children.push: $html;
     } else {
-        .stopper = eat(/(.*?)\n/)[0];
+        text($parent);
     }
+}
 
-    $parent.children.push: $_;
-
-    my $sect = $_;
-    loop {
-        body($sect);
-        skip_whitespace;
-        if $file.starts-with($sect.stopper) {
-            $file .= substr($sect.stopper.chars, *);
-            $col += $sect.stopper.chars;
-            last;
+sub section($parent) {
+    if eat(
+        /
+            $<equals>=[\=+] # eat equals
+            \h*?
+            $<title>=[.*?]
+            [ # optional id
+                \h*?
+                \{
+                    \h*?
+                    $<id>=[.*?]
+                    \h*?
+                \}
+            ]?
+            \h*?
+            \n
+        /
+    ) -> $match {
+        my $section = Section.new;
+        $section.title = $match<title>.Str.trim;
+        $section.level = $match<equals>.chars;
+        if $match<id>:exists {
+            $section.tag = $match<id>.Str.trim;
         }
+        $parent.children.push: $section;
+    } else {
+        text($parent);
     }
-    
-    $section_nests += 1;
-    say "sect ", $sect.title, " finished";
-
 }
 
 sub code($parent) {
-    say "code";
-    $_ = Code.new;
-    skip_whitespace;
-    .stopper = eat(/(.*?)\n/)[0].Str;
-    .body = eat_until(/$($_.stopper)/, True).Str.trim;
-    $parent.children.push: $_;
-}
-
-print_elems($doc);
-sub print_elems($elem) {
-    say $elem, "\n";
-    for $elem.children -> $child {
-        print_elems($child);
+    if eat(/^\`\`\`/) -> $match {
+        my $code = Code.new;
+        $code.is_inline = False;
+        $code.body = eat_until(/\`\`\`/, True).Str.trim;
+        $code.body ~~ s:g/^^(\h*)/{say $0.chars; '&nbsp' x $0.chars}/;
+        $parent.children.push: $code;
+    } elsif eat(/^\`/) -> $match {
+        my $code = Code.new;
+        $code.is_inline = True;
+        $code.body = eat_until(/\`/, True).Str.trim;
+        $code.body ~~ s:g/\h/&nbsp/;
+        $parent.children.push: $code;
+    } else {
+        text($parent);
     }
 }
+
+say $doc;
 
 my $out = q:to/END/;
 <style>
@@ -255,14 +377,6 @@ sub output($elem) {
             $out ~= "\n<div class=\"section_header\"" ~
             do if $elem.tag { " id=\"{$elem.tag}\"" } ~
             ">{$elem.title}</div>\n";
-
-            $out ~= "<div class=\"section_body\">\n";
-            
-            for $elem.children -> $child {
-                output($child);
-            }
-
-            $out ~= "\n</div>\n";
         }
 
         when Body {
@@ -285,7 +399,8 @@ sub output($elem) {
 
         when Code {
             $out ~= "\n<div class=\"code\">\n";
-            say $elem.body.raku;
+            
+
             my @lines = $elem.body.split("\n");
             for @lines -> $line {
                 $out ~= "<div class=\"code_line\">" ~ $line ~ "</div>\n";
