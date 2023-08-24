@@ -8,6 +8,8 @@
 #ifndef AMU_ARRAY_H
 #define AMU_ARRAY_H
 
+#include "View.h"
+
 namespace amu {
 
 template<typename T>

@@ -259,6 +259,15 @@ DString format_time(f64 ms){
 	}
     return out;
 }
+
+void
+todo(String s, String file, u64 line) {
+	// !Leak
+	println(dstring::init("TODO:", file, ":", line, ": ", s));
+}
+
+// for todos that should be resolved quickly 
+#define TODO(s) util::todo(s, __FILE__, __LINE__)
 }
 
 } // namespace amu
