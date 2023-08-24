@@ -34,19 +34,22 @@ struct Parser {
 
 namespace parser {
 
-Parser
-init(Code* source);
+Parser*
+create(Code* source);
 
 void
-deinit(Parser& parser);
+destroy(Parser* parser);
 
 void
-execute(Code* code);
+parse(Code* code);
 
 namespace stack {
 
 void
 push(Code* c, TNode* node);
+
+template<typename T> FORCE_INLINE void
+push(Code* c, T* node) { push(c, (TNode*)node); }
 
 TNode*
 pop(Code* c);
@@ -56,6 +59,9 @@ last(Code* c);
 
 void
 push_table(Code* c, LabelTable* table);
+
+void
+pop_table(Code* c);
 
 } // namespace stack
 
