@@ -19,6 +19,7 @@
 namespace amu {
 
 namespace code {
+// @genstrings(data/code_strings.generated)
 enum kind {
     unknown,
     token,
@@ -30,11 +31,14 @@ enum kind {
     statement,
     expression,
     tuple,
-    type,
+    typedef_,
     source, // represents an entire source file
     func_def_head,
     var_decl,
 };
+
+#include "data/code_strings.generated"
+
 } // namespace code
 
 
@@ -58,6 +62,13 @@ struct Code {
     Parser* parser;
     Validator* validator;
     Generator* generator;
+
+    union {
+        struct {
+            Token* open_brace;
+            Token* arguments;
+        } function;
+    } locations;
 };
 
 // Code whose Tokens belong to some Source
@@ -131,43 +142,97 @@ add_diagnostic(Code* code, Diagnostic d);
 Code*
 split(Code* code, Token* point);
 
-struct TokenIterator {
+struct TokenIteratorData {
     Code* code; // code we are iterating
     Token* curt; // current token
     Token* stop; // stop token 
 };
 
-// creates and returns a Token iterator for the given Code
-TokenIterator
-token_iterator(Code* code);
+class TokenIterator : public TokenIteratorData {
+public:
+    TokenIterator(Code* code);
 
-Token*
-current(TokenIterator& iter);
+    // returns the current token
+    FORCE_INLINE Token* 
+    current();
 
-// attempts to get the next Token from a TokenIterator
-// if we've reached the end, 0 is returned 
-Token*
-next(TokenIterator& iter);
+    // returns the kind of the current token
+    FORCE_INLINE u32 
+    current_kind();
 
-// attempts to lookahead by 'n' tokens. If the result is beyond the bounds
-// of the Code, 0 is returned
-Token*
-lookahead(TokenIterator& iter, u64 n = 1);
+    // increments the iterator by one token and returns
+    // the token arrived at
+    // returns 0 if we're at the end 
+    FORCE_INLINE Token* 
+    increment();
 
-Token*
-lookback(TokenIterator& iter, u64 n = 1);
+    // decrements the iterator by one token and returns
+    // the token arrived at
+    // returns 0 if we're at the start
+    FORCE_INLINE Token*
+    decrement();
 
-// when the given iterator is at a Token that has a pair:
-// (, ", ', {, <, [
-// it will skip until it finds a matching pair
+    // get the next token
+    FORCE_INLINE Token* 
+    next();
+
+    // get the next token's kind
+    // returns token::null if at the end 
+    FORCE_INLINE u32
+    next_kind();
+
+    // get the previous token
+    FORCE_INLINE Token*
+    prev();
+
+    // get the previous token's kind
+    // returns token::null if at the beginning
+    FORCE_INLINE u32
+    prev_kind();
+
+    // get the token 'n' steps ahead
+    FORCE_INLINE Token*
+    lookahead(u64 n);
+
+    // get the token 'n' steps back
+    FORCE_INLINE Token*
+    lookback(u64 n);
+
+    // when the iterator is at a Token that has a pair:
+    // (, ", ', {, <, [
+    // it will skip until it finds a matching pair
+    FORCE_INLINE void
+    skip_to_matching_pair();
+
+    // skips until one of the given token::kinds are found
+    template<typename... T> FORCE_INLINE void
+    skip_until(T... args);
+
+    // checks if the current token is of 'kind'
+    FORCE_INLINE b32
+    is(u32 kind);
+
+    // checks if the current token is of any of 'args'
+    template<typename... T> FORCE_INLINE b32
+    is_any(T... args);
+
+    // checks if the next token is of 'kind'
+    // returns false if at the end
+    FORCE_INLINE b32
+    next_is(u32 kind);
+
+    // checks if the previous token is of 'kind'
+    // returns false if at the beginning
+    FORCE_INLINE b32
+    prev_is(u32 kind);
+};
+
+namespace display {
+
 void
-skip_to_matching_pair(TokenIterator& iter);
+lines(Code* code, s32 start = 0, s32 n = -1);
 
-template<typename... T> FORCE_INLINE b32
-is_any(TokenIterator& iter, T... args);
-
-template<typename... T> FORCE_INLINE void
-skip_until(TokenIterator& iter, T... args);
+} // namespace display
 
 namespace virt {
 
@@ -202,11 +267,12 @@ namespace lines {
 
 struct Options {
     // remove leading tabs up until the min amount of tabs over all lines
-    b32 remove_leading_whitespace : 1; 
+    // this doesn't take into account mixed spaces and tabs
+    b32 remove_leading_whitespace;
     // display line numbers
-    b32 line_numbers : 1; 
+    b32 line_numbers; 
     // when line numbers have different lengths, right align them
-    b32 right_align_line_numbers : 1; 
+    b32 right_align_line_numbers; 
     // how many lines to gather before the given line
     u32 before; 
      // how many lines to gather after the given line
@@ -229,6 +295,9 @@ template<typename T> Lines get(T* a, Options opt = {});
 void  get(DString& start, Token* t, Options opt = {});
 void  get(DString& start, TNode* n, Options opt = {});
 
+void normalize_whitespace(Lines& lines);
+void remove_leading_whitespace(Lines& lines);
+
 } // namespace lines
 
 // Code which stores a cursor as well as extra information for how to navigate the code
@@ -241,6 +310,10 @@ void  get(DString& start, TNode* n, Options opt = {});
 // }
 
 } // namespace code
+
+void
+to_string(DString& current, Code* c);
+
 } // namespace amu
 
 #endif // AMU_CODE_H
