@@ -18,6 +18,7 @@
 #define AMU_STRING_H
 
 #include "util.h"
+#include "Array.h"
 
 namespace amu {
 
@@ -396,6 +397,44 @@ skip_until_last(String a, u32 c) {
 	return b;
 }
 
+// eats and returns a line
+String
+eat_line(String s) {
+	String out = {s.str, 0};
+	while(s && *s.str != '\n') {
+		string::advance(s);
+		out.count += 1;
+	}
+	return out;
+}
+
+Array<String>
+find_lines(String s) {
+	Array<String> out = array::init<String>();
+	String cur = {s.str, 0};
+	while(s) {
+		if(*s.str == '\n') {
+			array::push(out, cur);
+			cur = {s.str + 1, 0};
+		} else cur.count++;
+		string::advance(s);
+	}
+	return out;
+}
+
+Array<s32>
+find_line_offsets(String s) {
+	Array<s32> out = array::init<s32>();
+	u8* start = s.str;
+	while(s) {
+		if(*s.str == '\n') {
+			array::push(out, s32(s.str-start));
+		}
+		string::advance(s);
+	}
+	return out;
+}
+
 global u64 
 hash(String s, u64 seed = 14695981039346656037) {
     while(s.count-- != 0){
@@ -442,6 +481,8 @@ void
 println(String s) {
 	fprintf(stdout, "%s\n", s.str);
 }
+
+
 
 } // namespace util::hash
 
