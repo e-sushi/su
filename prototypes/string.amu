@@ -1,0 +1,26 @@
+#import array;
+
+find :: (s: u8[]; codepoint: u32) -> s64 {
+    for(c,i in enumerate(s))
+        if(c == codepoint) return i;
+    return -1;
+}
+
+// splits the given string by the given codepoint
+// include: whether or not to include the given codepoint at the end of each split
+split :: (s: u8[]; codepoint: u32; include: u32 = false) -> u8[][..] {
+    out := u8[][..].create();
+    loop {
+        pos := find(s; codepoint);
+        if pos == -1 then 
+            return out;
+        out.push(s[0..pos - if(include) 0 else 1]);
+        s = s[pos + if(include) 0 else 1 ..];
+    }
+}
+
+main :: () -> s32 {
+    s := "a,string,to,test,the,thing";
+    a := ^s.split(','; true); // ^ calls a.drop() at the end of the scope
+    b := ^s.split(include: false; codepoint: ',');
+}

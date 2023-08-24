@@ -51,6 +51,9 @@ namespace table {
 LabelTable
 init(TNode* creator);
 
+FORCE_INLINE void
+add(LabelTable* table, String id, Label* l);
+
 } // namespace table
 
 } // namespace label

@@ -219,16 +219,14 @@ begin(Array<String> args) {
 
     messenger::deliver();
 
-    Parser* parser = pool::add(instance.storage.parsers, parser::init(entry_source->code));
-    entry_source->code->parser = parser;
-    parser::execute(entry_source->code);
+    parser::parse(entry_source->code);
     
     messenger::deliver();
 
-    entry_source->code->validator = validator::create();
-    validator::execute(entry_source->code);
+    // entry_source->code->validator = validator::create();
+    // validator::execute(entry_source->code);
 
-    messenger::deliver();
+    // messenger::deliver();
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;

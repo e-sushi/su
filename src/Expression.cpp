@@ -9,8 +9,6 @@ create() {
     return out;
 }
 
-
-
 } // namespace expression
 
 namespace block_expression {

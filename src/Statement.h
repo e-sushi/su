@@ -20,7 +20,8 @@ enum kind {
     unknown,
     label,
     defer_,
-    expression
+    expression,
+    block_final,
 };
 
 #include "data/statement_strings.generated"

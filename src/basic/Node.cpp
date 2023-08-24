@@ -331,6 +331,7 @@ to_string(DString& start, TNode* n, b32 expand) {
 		case node::module:     to_string(start, (Module*)n);     return;
 		case node::statement:  to_string(start, (Statement*)n);  return;
 		case node::structure:  to_string(start, (Structure*)n);  return;
+		case node::code:       to_string(start, (Code*)n);       return;
 		default: NotImplemented;
 	}
     

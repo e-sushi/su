@@ -273,6 +273,7 @@ parts = {
                 "-Wno-unused-variable "
                 "-Wno-undefined-inline "
                 "-Wno-return-type-c-linkage "
+                "-Wno-reorder-init-list "
 
             ),
             "release":(

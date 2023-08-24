@@ -42,6 +42,7 @@ namespace node {
 // @genstrings(data/node_strings.generated)
 enum kind {
     null,
+    code,
     label,
     place,
     structure,
@@ -95,41 +96,71 @@ insert_before(LNode* target, LNode* node);
 global inline void
 insert_after(TNode* target, TNode* node);
 
+template<typename A, typename B> FORCE_INLINE void
+insert_after(A* target, B* node) { insert_after((TNode*)target, (TNode*)node); }
+
 global inline void
 insert_before(TNode* target, TNode* node);
 
+template<typename A, typename B> FORCE_INLINE void 
+insert_before(A* target, B* node) { insert_before((TNode*)target, (TNode*)node); }
+
 global inline void 
 remove_horizontally(TNode* node);
+
+template<typename T> FORCE_INLINE void 
+remove_horizontally(T* node) { remove_horizontally((TNode*)node); }
 
 // inserts the given 'node' as the last child of the node 'parent'
 global inline void
 insert_last(TNode* parent, TNode* node);
 
+template<typename A, typename B> FORCE_INLINE void 
+insert_last(A* target, B* node) { insert_last((TNode*)target, (TNode*)node); }
+
 // inserts the given 'node' as the first child of the node 'parent'
 global inline void 
 insert_first(TNode* parent, TNode* node);
 
+template<typename A, typename B> FORCE_INLINE void 
+insert_first(A* target, B* node) { insert_first((TNode*)target, (TNode*)node); }
+
 global inline void
 insert_above(TNode* below, TNode* above);
 
+template<typename A, typename B> FORCE_INLINE void 
+insert_above(A* target, B* node) { insert_above((TNode*)target, (TNode*)node); }
+
 global inline void
 change_parent(TNode* new_parent, TNode* node);
+
+template<typename A, typename B> FORCE_INLINE void 
+change_parent(A* target, B* node) { change_parent((TNode*)target, (TNode*)node); }
 
 // rearrages the parent of 'node' such that 'node' is the first child, 
 // moving all other children nodes to the right
 global inline void
 move_to_parent_first(TNode* node);
 
+template<typename T> FORCE_INLINE void 
+move_to_parent_first(T* node) { move_to_parent_first((TNode*)node); }
+
 // rearrages the parent of 'node' such that 'node' is the last child, 
 // moving all other children nodes to the left
 global inline void
 move_to_parent_last(TNode* node);
+
+template<typename T> FORCE_INLINE void
+move_to_parent_last(T* node) { move_to_parent_last((TNode*)node); }
 
 global inline void 
 remove(LNode* node);
 
 global inline void
 remove(TNode* node);
+
+template<typename T> FORCE_INLINE void
+remove(T* node) { remove((TNode*)node); }
 
 namespace util {
     

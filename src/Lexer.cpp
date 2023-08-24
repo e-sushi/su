@@ -447,6 +447,7 @@ stream_next;                     \
 		((VirtualCode*)code)->tokens = tokens;
 	} else {
 		code->source->tokens = tokens;
+		((SourceCode*)code)->tokens = array::view(code->source->tokens);
 	}
 
 	// !Leak

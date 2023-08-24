@@ -25,6 +25,11 @@ init(TNode* creator) {
     return out;
 }
 
+FORCE_INLINE void
+add(LabelTable* table, String id, Label* l) {
+    map::add(table->map, id, l);
+}
+
 } // namespace table
 
 Label*

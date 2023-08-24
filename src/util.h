@@ -77,11 +77,11 @@ hash(T* x) {
 	return seed;
 }
 
-template<typename A> FORCE_INLINE A
-Min(A x, A y) { return (x<y?x:y); }
+template<typename A, typename B> FORCE_INLINE A
+Min(A x, B y) { return (x<y?x:y); }
 
-template<typename A> FORCE_INLINE A
-Max(A x, A y) { return (x>y?x:y); }
+template<typename A, typename B> FORCE_INLINE A
+Max(A x, B y) { return (x>y?x:y); }
 
 // experimental type for creating scoped types when needed
 // this is to avoid making deconstructors, since you can't explicitly control
