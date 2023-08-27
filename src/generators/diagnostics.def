@@ -341,7 +341,7 @@ group parser {
     }
 }
 
-group validator {
+group sema {
     diagnostic func_ret_expected_typeref {
         type: error;
         message: {
@@ -425,6 +425,20 @@ group validator {
         type: error;
         message: {
             en: "type %type% has no member named %String%";
+        }
+    }
+
+    diagnostic cannot_have_a_variable_of_void_type {
+        type: error;
+        message: {
+            en: "cannot create a variable of type 'void'";
+        }
+    }
+
+    diagnostic if_mismatched_types_cannot_coerce {
+        type: error;
+        message: {
+            en: "conditional branches have mismatched types and the ladder type %type% cannot be converted to the former %type%";
         }
     }
 }

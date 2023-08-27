@@ -47,6 +47,7 @@ push(Array<T>& arr, const T& val) {
 
 template<typename T> T
 pop(Array<T>& arr, u32 count) {
+    Assert(arr.count);
     forI(count-1) {
         arr.count -= 1;
     }

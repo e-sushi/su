@@ -165,14 +165,14 @@ process_message(DString& current, Message& m) {
             dstring::append(current, compiler_prefix);
         } break;
         case MessageSender::Code: {
-            DString temp = dstring::init(code::name(m.sender.code));
+            DString temp = dstring::init(m.sender.code->name);
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_cyan);
             dstring::append(current, temp, ": ");
             dstring::deinit(temp);
         } break;
         case MessageSender::CodeLoc: {
-            DString temp = dstring::init(code::name(m.sender.code));
+            DString temp = dstring::init(m.sender.code->name);
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_cyan);
             dstring::append(current, temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");
