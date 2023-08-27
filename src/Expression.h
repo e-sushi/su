@@ -30,6 +30,7 @@ enum kind : u32 {
     entity_func,
     entity_module,    
     typeref,
+    placeref, // a reference to a variable 
     call,
     
     block,
@@ -118,7 +119,16 @@ create();
 
 } // namespace call_expression
 
+struct PlaceRefExpression : public Expression {
+    Place* place;
+};
 
+namespace placeref_expression {
+
+PlaceRefExpression*
+create();
+
+} // namespace placeref_expression
 
 void
 to_string(DString& start, Expression* e);

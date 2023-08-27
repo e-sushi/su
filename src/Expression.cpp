@@ -38,6 +38,19 @@ create() {
 
 } // namespace call_expression
 
+namespace placeref_expression {
+
+PlaceRefExpression*
+create() {
+    PlaceRefExpression* out = pool::add(compiler::instance.storage.placeref_expressions);
+    node::init(&out->node);
+    out->node.kind = node::expression;
+    out->kind = expression::placeref;
+    return out;
+}
+
+} // namespace placeref_expression
+
 void
 to_string(DString& start, Expression* e) {
     dstring::append(start, "Expr<");

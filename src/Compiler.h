@@ -15,7 +15,7 @@
 #include "Result.h"
 #include "Lexer.h"
 #include "Parser.h"
-#include "Validator.h"
+#include "Sema.h"
 #include "Generator.h"
 #include "Code.h"
 
@@ -34,32 +34,33 @@ struct Compiler {
     // this is experimental and depending on how much state needs cleaned up in other 
     // components of the compiler, I may just go back to storing this locally  
     struct {
-        Pool<SourceCode>      source_code;
-        Pool<VirtualCode>     virtual_code;
-        Pool<Source>          sources;
-        Pool<Lexer>           lexers;
-        Pool<Parser>          parsers;
-        Pool<Validator>       validators;
-        Pool<Generator>       generators;
-        Pool<Module>          modules;
-        Pool<Label>           labels;
-        Pool<Structure>       structures;
-        Pool<Function>        functions;
-        Pool<Statement>       statements;
-        Pool<Expression>      expressions;
-        Pool<CallExpression>  call_expressions;
-        Pool<BlockExpression> block_expressions; 
-        Pool<Place>           places;
-        Pool<Tuple>           tuples;
-        Pool<Type>            types;
-        Pool<ScalarType>      builtin_types;
-        Pool<StructuredType>  structured_types;
-        Pool<PointerType>     pointer_types;
-        Pool<ArrayType>       array_types;
-        Pool<VariantType>     variant_types;
-        Pool<FunctionType>    function_types;
-        Pool<TupleType>       tuple_types;
-        Pool<MetaType>        meta_types;
+        Pool<SourceCode>         source_code;
+        Pool<VirtualCode>        virtual_code;
+        Pool<Source>             sources;
+        Pool<Lexer>              lexers;
+        Pool<Parser>             parsers;
+        Pool<Sema>               semas;
+        Pool<Generator>          generators;
+        Pool<Module>             modules;
+        Pool<Label>              labels;
+        Pool<Structure>          structures;
+        Pool<Function>           functions;
+        Pool<Statement>          statements;
+        Pool<Expression>         expressions;
+        Pool<CallExpression>     call_expressions;
+        Pool<BlockExpression>    block_expressions; 
+        Pool<PlaceRefExpression> placeref_expressions; 
+        Pool<Place>              places;
+        Pool<Tuple>              tuples;
+        Pool<Type>               types;
+        Pool<ScalarType>         builtin_types;
+        Pool<StructuredType>     structured_types;
+        Pool<PointerType>        pointer_types;
+        Pool<ArrayType>          array_types;
+        Pool<VariantType>        variant_types;
+        Pool<FunctionType>       function_types;
+        Pool<TupleType>          tuple_types;
+        Pool<MetaType>           meta_types;
     }storage;
 
     Array<Diagnostic> diagnostics;
