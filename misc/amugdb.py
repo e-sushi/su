@@ -84,7 +84,7 @@ class Array_printer:
             ptr = val['data']
             out = "{\n"
             for i in range(val['count']):
-                out += "  " + str(full_deref_if_ptr(gdb.parse_and_eval(f"*((({subtype}*){ptr})+{i})"))) + " ,\n"
+                out += "  " + str(full_deref_if_ptr(gdb.parse_and_eval(f"*((({subtype}*){ptr})+{i})"))) + ",\n"
             out += "}"
             return out
             # return gdb.parse_and_eval(f"*(({subtype}*){val['data']})@{val['count']}")
@@ -421,6 +421,7 @@ class print_ast(gdb.Command):
                 addr = val.address
             out = gdb.execute(f"call node::util::print_tree((TNode*){addr}, true)", to_string=True)
             # String's printer turns newlines into '\n' but we want them here, so we need to replace them (again)
+            out = out[out.find('=')+2:-1]
             print(out.replace("\\n", "\n"))
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -432,83 +433,100 @@ class parser_print_stack(gdb.Command):
     
     def invoke(self, args, tty):
         try:
-            val = gdb.parse_and_eval("stack")
-            out = ""
-            for i in range(val['count']):
-                elem = gdb.parse_and_eval(f"*(stack.data + {i})")
-                to_write = None
-                if not elem:
-                    to_write = "stack err"
-                else:
-                    to_write = str(elem.dereference())
-                if not tty:
-                    out += to_write + '\n'
-                else:
-                    print(to_write)
-            return out
+            s = gdb.execute("call parser::stack::display(code)", to_string=True)
+            
+            if tty:
+                print(s[s.find('=')+2:-1].replace("\\n", "\n"))
+            else:
+                return s[s.find('=')+2:-1].replace("\\n", "\n")
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 parser_print_stack()
+
+class display_line(gdb.Command):
+    def __init__(self):
+        super(display_line, self).__init__("dline", gdb.COMMAND_USER)
+    
+    def invoke(self, args, tty):
+        try: 
+            s = gdb.execute("call token.display_line()", to_string=True)
+            if tty:
+                print(s[s.find('=')+2:-1].replace("\\n", "\n"))
+            else:
+                return s[s.find('=')+2:-1].replace("\\n", "\n")
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+            return 
+display_line()
 
 class parser_track_stack(gdb.Command):
     def __init__(self):
         super(parser_track_stack, self).__init__("tstack", gdb.COMMAND_USER)
     
     def invoke(self, args, tty):
-        gdb.rbreak(r'amu::parser::internal::__stack_pop')
-        gdb.rbreak(r'amu::parser::internal::__stack_push')
+        gdb.rbreak(r'amu::parser::stack::pop(')
+        gdb.rbreak(r'amu::parser::stack::push(')
         gdb.execute("r")
         pps = parser_print_stack()
+        dline = display_line()
         out = open("temp/track_stack", "w")
 
-        # we need to load the source's buffer manually, because gdb with attempt to 
+        # we need to load the source's buffer manually, because gdb will attempt to 
         # fold repeating things in arrays, including strings!
-        bufferptr = int(gdb.parse_and_eval("parser->code->raw->str"))
+        # bufferptr = int(gdb.parse_and_eval("parser->code->raw->str"))
 
-        length = 0
-        while 1:
-            byte = int.from_bytes(gdb.selected_inferior().read_memory(bufferptr+length, 1)[0])
-            if not byte:
-                break
-            length += 1
+        # length = 0
+        # while 1:
+        #     byte = int.from_bytes(gdb.selected_inferior().read_memory(bufferptr+length, 1)[0])
+        #     if not byte:
+        #         break
+        #     length += 1
 
-        buffer = gdb.selected_inferior().read_memory(bufferptr, length).tobytes().decode()
-        lastln = 0
-        lines = []
-        for i,c in enumerate(buffer):
-            if c == '\n':
-                lines.append(buffer[lastln:i])
-                lastln = i+1
-        lines.append(buffer[lastln:])
+        # buffer = gdb.selected_inferior().read_memory(bufferptr, length).tobytes().decode()
+        # lastln = 0
+        # lines = []
+        # for i,c in enumerate(buffer):
+        #     if c == '\n':
+        #         lines.append(buffer[lastln:i])
+        #         lastln = i+1
+        # lines.append(buffer[lastln:])
 
         while gdb.selected_inferior().connection_num != None:
             try:
                 curfunc = gdb.selected_frame().function()
+                lastframe = gdb.selected_frame().older()
                 if curfunc == None:
                     gdb.execute("c")
                     continue
-                if "stack_push" in curfunc.name:
-                    out.write(f"push -------------------------------- {gdb.parse_and_eval('caller')} push\n")
+                if "push" in curfunc.name:
+                    out.write(f"push -------------------------------- {lastframe.function()} push\n")
                     gdb.execute("finish")
-                if "stack_pop" in curfunc.name:
-                    out.write(f"pop -------------------------------- {gdb.parse_and_eval('caller')} pop\n")
+                if "pop" in curfunc.name:
+                    out.write(f"pop -------------------------------- {lastframe.function()} pop\n")
+                    lastframe.select()
 
-                out.write(pps.invoke(None, False))
-                curt = gdb.parse_and_eval('curt')
-                line = lines[int(curt['l0'])-1]
-                linenum = str(int(curt['l0']))
-                col = int(curt['c0'])-1 + len(linenum) + 1
-                second_line = None
-                if curt['l0'] != len(lines):
-                    second_line = lines[curt['l0']]
-                    second_linenum = str(curt['l0']+1)
-                    if len(second_linenum) > len(linenum):
-                        linenum = linenum.rjust(len(second_linenum))
-                out.write(" "*col+"v\n")
-                out.write(linenum + " " + line + '\n')
-                if second_line:
-                    out.write(second_linenum + " " + second_line + '\n')
-                out.write("\n\n")
+
+                stack = pps.invoke(None, False)
+                line = dline.invoke(None, False)
+
+                out.write(stack + "\n" + line + "\n")
+
+                # out.write(pps.invoke(None, False))
+                # curt = gdb.parse_and_eval('curt')
+                # line = lines[int(curt['l0'])-1]
+                # linenum = str(int(curt['l0']))
+                # col = int(curt['c0'])-1 + len(linenum) + 1
+                # second_line = None
+                # if curt['l0'] != len(lines):
+                #     second_line = lines[curt['l0']]
+                #     second_linenum = str(curt['l0']+1)
+                #     if len(second_linenum) > len(linenum):
+                #         linenum = linenum.rjust(len(second_linenum))
+                # out.write(" "*col+"v\n")
+                # out.write(linenum + " " + line + '\n')
+                # if second_line:
+                #     out.write(second_linenum + " " + second_line + '\n')
+                # out.write("\n\n")
                 gdb.execute("c")
             except Exception as e:
                 print(f"{self.__class__.__name__} error: {e}")
