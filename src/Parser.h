@@ -13,7 +13,7 @@ namespace amu {
 struct Parser {
     Code* code;
 
-    TNode root;
+    TNode* root;
 
     // labels collected at the highest scope of a parser
     LabelTable table;
@@ -48,6 +48,11 @@ namespace stack {
 void
 push(Code* c, TNode* node);
 
+// NOTE(sushi) this is somewhat dangerous cause you can accidentally pass something like 
+//             a function pointer to this and it will work
+//             but it's useful so i will keep it for now :)
+//             if our types inherited TNode, we could use std::is_base_of
+//             but i dont want to implement all of that rn
 template<typename T> FORCE_INLINE void
 push(Code* c, T* node) { push(c, (TNode*)node); }
 
@@ -63,7 +68,26 @@ push_table(Code* c, LabelTable* table);
 void
 pop_table(Code* c);
 
+LabelTable*
+current_table(Code* c);
+
+DString
+display(Code* c);
+
 } // namespace stack
+
+namespace table {
+// adds the given label to whatever table is currently active
+void 
+add(Code* c, String id, Label* l);
+} // namespace table
+
+namespace symbol {
+
+Label*
+search(Code* code, u64 hashed_id);
+
+} // namespace symbol
 
 
 } // namespace parser

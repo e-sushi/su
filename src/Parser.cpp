@@ -1828,16 +1828,30 @@ destroy(Parser* parser) {
 
 namespace ascent {
 
-void tuple(Code* code, code::TokenIterator& iter);
-void label_after_colon(Code* code, code::TokenIterator& iter);
-void label_group_after_comma(Code* code, code::TokenIterator& iter);
-void label_after_id(Code* code, code::TokenIterator& iter);
-void label_get(Code* code, code::TokenIterator& iter);
-void label(Code* code, code::TokenIterator& iter);
-void statement(Code* code, code::TokenIterator& iter);
-void expression(Code* code, code::TokenIterator& iter);
+b32 tuple(Code* code, code::TokenIterator& iter);
+b32 label_after_colon(Code* code, code::TokenIterator& iter);
+b32 label_group_after_comma(Code* code, code::TokenIterator& iter);
+b32 label_after_id(Code* code, code::TokenIterator& iter);
+b32 label_get(Code* code, code::TokenIterator& iter);
+b32 label(Code* code, code::TokenIterator& iter);
+b32 statement(Code* code, code::TokenIterator& iter);
+b32 expression(Code* code, code::TokenIterator& iter);
+b32 struct_decl(Code* code, code::TokenIterator& token);
+b32 factor(Code* code, code::TokenIterator& token);
+b32 conditional(Code* code, code::TokenIterator& token);
+b32 logi_or(Code* code, code::TokenIterator& token);
+b32 logi_and(Code* code, code::TokenIterator& token);
+b32 bit_or(Code* code, code::TokenIterator& token);
+b32 bit_xor(Code* code, code::TokenIterator& token);
+b32 bit_and(Code* code, code::TokenIterator& token);
+b32 equality(Code* code, code::TokenIterator& token);
+b32 relational(Code* code, code::TokenIterator& token);
+b32 bit_shift(Code* code, code::TokenIterator& token);
+b32 additive(Code* code, code::TokenIterator& token);
+b32 term(Code* code, code::TokenIterator& token);
+b32 access(Code* code, code::TokenIterator& token);
 
-void 
+b32 
 reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
     Expression* e = expression::create();
     e->kind = expression::literal;
@@ -1857,15 +1871,16 @@ reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
         } break;
     }
     stack::push(code, e);
+    return true;
 }
 
-void 
+b32 
 reduce_builtin_type_to_typeref_expression(Code* code, code::TokenIterator& token) { 
     Expression* e = expression::create();
     e->kind = expression::typeref;
     e->node.start = e->node.end = token.current();
     switch(token.current_kind()) {
-        case token::void_:      e->type = &type::scalar::void_; break; 
+        case token::void_:      e->type = &type::void_; break; 
         case token::unsigned8:  e->type = &type::scalar::unsigned8; break;
         case token::unsigned16: e->type = &type::scalar::unsigned16; break;
         case token::unsigned32: e->type = &type::scalar::unsigned32; break;
@@ -1878,14 +1893,52 @@ reduce_builtin_type_to_typeref_expression(Code* code, code::TokenIterator& token
         case token::float64:    e->type = &type::scalar::float64; break;
     }
     stack::push(code, e);
+    return true;
 }
 
-// expects to start at the opening brace and returns at the token following
-// the closing brace
-void
+b32
+typeref(Code* code, code::TokenIterator& token) {
+    Token* start = token.current();
+    switch(token.current_kind()) {
+        case token::equal: {
+            token.increment();
+            if(!expression(code, token)) return false;
+
+            Expression* e = expression::create();
+            e->kind = expression::binary_assignment;
+            e->node.start = start;
+            e->node.end = token.current();
+            node::insert_first(e, stack::pop(code));
+            node::insert_first(e, stack::pop(code));
+            // always take the type of the lhs because it controls the type of the rhs expression
+            e->type = ((Expression*)e->node.first_child)->type;
+            stack::push(code, e);
+        } break;
+
+        case token::open_brace: {
+            TODO("type restricted blocks <typeref> \"{\" ... \"}\"");
+        } break;
+
+        case token::asterisk: {
+            auto last = (Expression*)stack::last(code);
+            last->type = type::pointer::create(last->type);
+            token.increment();
+            if(!typeref(code, token)) return false;
+        } break;
+    }
+
+    return true;
+}
+
+// expects to start at the opening brace and returns after the closing brace
+// TODO(sushi) it may be easier (or necessary) to just do a scan to the matching brace
+//             when parsing blocks, instead of the weird logic we try to do 
+//             to allow omitting semicolons after labels that end with blocks 
+b32
 block(Code* code, code::TokenIterator& token) {
     BlockExpression* e = block_expression::create();
     e->node.start = token.current();
+    e->table.last = stack::current_table(code);
     stack::push_table(code, &e->table);
 
     token.increment();
@@ -1893,38 +1946,66 @@ block(Code* code, code::TokenIterator& token) {
     u32 count = 0;
     while(1) {
         b32 need_semicolon = true;
+        b32 last_expr = false;
         if(token.is(token::close_brace)) break;
+        if(token.is(token::semicolon)){ // empty statements are fine, but ignored
+            token.increment(); 
+            continue; 
+        }
         Statement* s = statement::create();
         s->kind = statement::unknown;
 
         switch(token.current_kind()) {
             case token::identifier: {
                 if(token.next_kind() == token::colon) {
-                    label(code, token);
+                    if(!label(code, token)) return false;
                     s->kind = statement::label;
+                    if(token.prev_is(token::close_brace)) {
+                        need_semicolon = false;
+                    }
                 } else {
-                    expression(code, token);
+                    if(!expression(code, token)) return false;
                     s->kind = statement::expression;
+                    if(token.is(token::close_brace)) {
+                        last_expr = true;
+                        need_semicolon = false;
+                    }
                 }
             } break;
 
             default: {
-                expression(code, token);
+                if(!expression(code, token)) return false;
                 s->kind = statement::expression;
                 if(token.is(token::close_brace)) {
+                    last_expr = true;
                     need_semicolon = false;
                 }
             } break;
         }
-        
         if(need_semicolon && !token.is(token::semicolon)) {
             if(!token.is(token::close_brace)) {
                 diagnostic::parser::missing_semicolon(token.current());
-                return;
+                return false;
             }
-            s->kind = statement::block_final;
             count++;
+            node::insert_first(s, stack::pop(code));
+            s->node.start = s->node.first_child->start;
+            s->node.end = token.current();
+            s->kind = statement::block_final;
+            stack::push(code, s);
             break;
+        } else {
+            node::insert_first(s, stack::pop(code));
+            s->node.start = s->node.first_child->start;
+            s->node.end = token.current();
+
+            count++;
+            stack::push(code, s);
+            
+            if(last_expr) {
+                s->kind = statement::block_final;
+                break;
+            } else if(need_semicolon) token.increment();
         }
     }
 
@@ -1935,29 +2016,63 @@ block(Code* code, code::TokenIterator& token) {
     token.increment();
     stack::push(code, e);
     stack::pop_table(code);
+    return true;
 }
 
-void 
-struct_decl(Code* code, code::TokenIterator& token) {
-    TODO("implement struct decl parsing");
-}
 
-void
+b32
 factor(Code* code, code::TokenIterator& token) {
     switch(token.current_kind()) {
         case token::identifier: {
-            Expression* e = expression::create();
-            e->kind = expression::identifier;
+            Label* l = symbol::search(code, token.current()->hash);
+            if(!l) {
+                diagnostic::parser::unknown_identifier(token.current());
+                return false;
+            }
 
-            TODO("search for identifier");
+            switch(l->entity->node.kind) {
+                case node::place: {
+                    PlaceRefExpression* e = placeref_expression::create();
+                    e->node.start = e->node.end = token.current();
+                    e->place = (Place*)l->entity;
+                    token.increment();
+                    stack::push(code, e);
+                } break;
+                case node::function: {
+                    if(token.next_is(token::open_paren)) {
+                        // must be a function call
+                        Expression* id = expression::create();
+                        id->kind = expression::identifier;
+                        id->node.start = id->node.end = token.current();
+                        CallExpression* e = call_expression::create();
+                        e->node.start = token.current();
+                        e->callee = (Function*)l->entity;
+                        token.increment();
+                        if(!tuple(code, token)) return false;
+                        e->node.end = token.current();
+                        e->arguments = (Tuple*)stack::pop(code);
+                        node::insert_last(e, id);
+                        node::insert_last(e, e->arguments);
+                        stack::push(code, e);
+                    } else {
+                        TODO("plain function reference");
+                        NotImplemented;
+                    }
+                } break;
+                default: {
+                    util::println(dstring::init(
+                        token.current(), "unhandled identifier reference: ", node::strings[l->entity->node.kind]));
+                } break;
+            }
+
         } break;
         
         case token::open_paren: {
-            tuple(code, token);
+            if(!tuple(code, token)) return false;
         } break;
 
         case token::if_: {
-            TODO("if parsing");
+            if(!conditional(code, token)) return false;
         } break;
 
         case token::switch_: {
@@ -1969,7 +2084,7 @@ factor(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::open_brace: {
-            block(code, token);
+            if(!block(code, token)) return false;
         } break;
 
         case token::ampersand: {
@@ -1978,7 +2093,7 @@ factor(Code* code, code::TokenIterator& token) {
             e->node.start = token.current();
 
             token.increment();
-            factor(code, token);
+            if(!factor(code, token)) return false;
 
             node::insert_last(e, stack::pop(code));
             e->type = type::pointer::create(type::resolve(e->node.last_child));
@@ -1995,15 +2110,431 @@ factor(Code* code, code::TokenIterator& token) {
                 token.increment();
             } else {
                 diagnostic::parser::unexpected_token(token.current(), token.current());
-                return;
+                return false;
             }
         } break;
     }
+    return true;
 }
 
-void
+b32
+conditional(Code* code, code::TokenIterator& token) {
+    Expression* e = expression::create();
+    e->kind = expression::conditional;
+    e->node.start = token.current();
+
+    token.increment();
+
+    if(!token.is(token::open_paren)) {
+        diagnostic::parser::
+            if_missing_open_paren(token.current());
+        return false;
+    }
+
+    token.increment();
+
+    if(!expression(code,token)) return false;
+
+    if(!token.is(token::close_paren)) {
+        diagnostic::parser::
+            if_missing_close_paren(token.current());
+        return false;
+    }
+
+    token.increment();
+
+    if(!expression(code, token)) return false;
+
+    node::insert_first(e, stack::pop(code));
+    node::insert_first(e, stack::pop(code));
+
+    stack::push(code, e);
+
+    if(token.is(token::else_)) {
+        token.increment();
+        if(!expression(code, token)) return false;
+        node::insert_last(e, stack::pop(code));
+    }
+
+    e->node.end = token.current();
+
+    return true;
+}
+
+b32
+assignment(Code* code, code::TokenIterator& token) {
+    if(token.is(token::equal)) {
+        token.increment();
+        if(!factor(code, token)) return false;
+        if(!access(code, token)) return false;
+        if(!term(code, token)) return false;
+        if(!additive(code, token)) return false;
+        if(!bit_shift(code, token)) return false;
+        if(!relational(code, token)) return false;
+        if(!equality(code, token)) return false;
+        if(!bit_and(code, token)) return false;
+        if(!bit_xor(code, token)) return false;
+        if(!bit_or(code, token)) return false;
+        if(!logi_and(code, token)) return false;
+        if(!logi_or(code, token)) return false;
+
+        Expression* e = expression::create();
+        e->kind = expression::binary_assignment;
+
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+
+        stack::push(code, e);
+
+        if(!assignment(code, token)) return false;
+    }
+    return true;
+}
+
+/*
+    logi-or: logi-and { "||" logi-and }
+*/
+b32 logi_or(Code* code, code::TokenIterator& token) { 
+    if(token.current_kind() == token::logi_or) {
+        token.increment();
+        if(!factor(code, token)) return false;
+        if(!access(code, token)) return false;
+        if(!term(code, token)) return false;
+        if(!additive(code, token)) return false;
+        if(!bit_shift(code, token)) return false;
+        if(!relational(code, token)) return false;
+        if(!equality(code, token)) return false;
+        if(!bit_and(code, token)) return false;
+        if(!bit_xor(code, token)) return false;
+        if(!bit_or(code, token)) return false;
+        if(!logi_and(code, token)) return false;
+        Expression* e = expression::create();
+        e->kind = expression::binary_or;
+
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+        stack::push(code, e);
+
+        if(!logi_or(code, token)) return false;
+    }
+    return true;
+}
+
+/*
+    logi-and: bit-or { "&&" bit-or }
+*/
+b32 logi_and(Code* code, code::TokenIterator& token) { 
+    if(token.current_kind() == token::double_ampersand) {
+        token.increment();
+        if(!factor(code, token)) return false;
+        if(!access(code, token)) return false;
+        if(!term(code, token)) return false;
+        if(!additive(code, token)) return false;
+        if(!bit_shift(code, token)) return false;
+        if(!relational(code, token)) return false;
+        if(!equality(code, token)) return false;
+        if(!bit_and(code, token)) return false;
+        if(!bit_xor(code, token)) return false;
+        if(!bit_or(code, token)) return false;
+        Expression* e = expression::create();
+        e->kind = expression::binary_and;
+
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+        stack::push(code, e);
+
+        if(!logi_and(code, token)) return false;
+    }
+    return true;
+}
+
+/*
+    bit-or: bit-xor { "|" bit-xor }
+*/
+b32 bit_or(Code* code, code::TokenIterator& token) { 
+    if(token.current_kind() == token::vertical_line) {
+        token.increment();
+        if(!factor(code, token)) return false;
+        if(!access(code, token)) return false;
+        if(!term(code, token)) return false;
+        if(!additive(code, token)) return false;
+        if(!bit_shift(code, token)) return false;
+        if(!relational(code, token)) return false;
+        if(!equality(code, token)) return false;
+        if(!bit_and(code, token)) return false;
+        if(!bit_xor(code, token)) return false;
+        Expression* e = expression::create();
+        e->kind = expression::binary_bit_or;
+
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+        stack::push(code, e);
+
+        if(!bit_or(code, token)) return false;
+    }
+    return true;
+}
+
+/*
+    bit-xor: bit-and { "^" bit-and }
+*/
+b32 bit_xor(Code* code, code::TokenIterator& token) { 
+    if(token.current_kind() == token::caret) {
+        token.increment();
+        if(!factor(code, token)) return false;
+        if(!access(code, token)) return false;
+        if(!term(code, token)) return false;
+        if(!additive(code, token)) return false;
+        if(!bit_shift(code, token)) return false;
+        if(!relational(code, token)) return false;
+        if(!equality(code, token)) return false;
+        if(!bit_and(code, token)) return false;
+        Expression* e = expression::create();
+        e->kind = expression::binary_bit_xor;
+
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+        stack::push(code, e);
+
+        if(!bit_xor(code, token)) return false;
+    }
+    return true;
+}
+
+
+/*
+    bit-and: equality { "&" equality } 
+*/
+b32 bit_and(Code* code, code::TokenIterator& token) { 
+    if(token.current_kind() == token::ampersand) {
+        token.increment();
+        if(!factor(code, token)) return false;
+        if(!access(code, token)) return false;
+        if(!term(code, token)) return false;
+        if(!additive(code, token)) return false;
+        if(!bit_shift(code, token)) return false;
+        if(!relational(code, token)) return false;
+        if(!equality(code, token)) return false;
+        Expression* e = expression::create();
+        e->kind = expression::binary_bit_and;
+
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+        stack::push(code, e);
+
+        if(!bit_and(code, token)) return false;
+    }
+    return true;
+}
+
+/*
+    equality: relational { ( "!=" | "==" ) relational }
+*/
+b32 equality(Code* code, code::TokenIterator& token) { 
+    token::kind kind = token.current_kind();
+    switch(kind) {
+        case token::double_equal:
+        case token::explanation_mark_equal: {
+            token.increment();
+            if(!factor(code, token)) return false;
+            if(!access(code, token)) return false;
+            if(!term(code, token)) return false;
+            if(!additive(code, token)) return false;
+            if(!bit_shift(code, token)) return false;
+            if(!relational(code, token)) return false;
+            Expression* e = expression::create();
+            e->kind = kind == token::double_equal ? expression::binary_equal : expression::binary_not_equal;
+
+            node::insert_first(e, stack::pop(code));
+            node::insert_first(e, stack::pop(code));
+
+            e->node.start = e->node.first_child->start;
+            e->node.end = e->node.last_child->end;
+            stack::push(code, e);
+
+            if(!equality(code, token)) return false;
+        } break;
+    }
+    return true;
+}
+
+/*
+    relational: bit-shift { ( ">" | "<" | "<=" | ">=" ) bit-shift }
+*/
+b32 relational(Code* code, code::TokenIterator& token) { 
+    token::kind kind = token.current_kind();
+    switch(kind) {
+        case token::less_than:
+        case token::less_than_equal:
+        case token::greater_than:
+        case token::greater_than_equal: {
+            token.increment();
+            if(!factor(code, token)) return false;
+            if(!access(code, token)) return false;
+            if(!term(code, token)) return false;
+            if(!additive(code, token)) return false;
+            if(!bit_shift(code, token)) return false;
+            Expression* e = expression::create();
+            e->kind = kind == token::less_than ?
+                      expression::binary_less_than :
+                      kind == token::less_than_equal ? 
+                      expression::binary_less_than_or_equal :
+                      kind == token::greater_than ? 
+                      expression::binary_greater_than :
+                      expression::binary_greater_than_or_equal;
+
+            node::insert_first(e, stack::pop(code));
+            node::insert_first(e, stack::pop(code));
+
+            e->node.start = e->node.first_child->start;
+            e->node.end = e->node.last_child->end;
+            stack::push(code, e);
+
+            if(!relational(code, token)) return false;
+        } break;
+    }
+    return true;
+}
+
+/*
+    bit-shift: additive { "<<" | ">>" additive }
+*/
+b32 bit_shift(Code* code, code::TokenIterator& token) { 
+    token::kind kind = token.current_kind();
+    switch(kind) {
+        case token::double_less_than: 
+        case token::double_greater_than: {
+            token.increment(); 
+            if(!factor(code, token)) return false;
+            if(!access(code, token)) return false;
+            if(!term(code, token)) return false;
+            if(!additive(code, token)) return false;
+            Expression* e = expression::create();
+            e->kind = kind == token::double_less_than ? 
+                      expression::binary_bit_shift_left :
+                      expression::binary_bit_shift_right;
+            
+            node::insert_first(e, stack::pop(code));
+            node::insert_first(e, stack::pop(code));
+
+            e->node.start = e->node.first_child->start;
+            e->node.end = e->node.last_child->end;
+            stack::push(code, e);
+
+            if(!bit_shift(code, token)) return false;
+        } break;
+    }
+    return true;
+}
+
+/*
+    additive: term * { ("+" | "-" ) term }
+*/
+b32 additive(Code* code, code::TokenIterator& token) { 
+    token::kind kind = token.current_kind();
+    switch(kind) {
+        case token::plus:
+        case token::minus: {
+            token.increment();
+            if(!factor(code, token)) return false;
+            if(!access(code, token)) return false;
+            if(!term(code, token)) return false;
+            Expression* e = expression::create();
+            e->kind = kind == token::plus ? expression::binary_plus : expression::binary_minus;
+            node::insert_first(e, stack::pop(code));
+            node::insert_first(e, stack::pop(code));
+
+            e->node.start = e->node.first_child->start;
+            e->node.end = e->node.last_child->end;
+            stack::push(code, e);
+
+            if(!additive(code, token)) return false;
+        } break;
+    }
+    return true;
+}
+
+/*
+    term: access * { ( "*" | "/" | "%" ) access }
+*/
+b32 term(Code* code, code::TokenIterator& token) { 
+    token::kind kind = token.current_kind();
+    switch(kind) {
+        case token::percent: 
+        case token::solidus: 
+        case token::asterisk: {
+            token.increment();
+            if(!factor(code, token)) return false;
+            if(!access(code, token)) return false;
+            Expression* e = expression::create();
+            e->kind = 
+                    kind == token::percent ? expression::binary_modulo 
+                    : kind == token::solidus ? expression::binary_division
+                    : expression::binary_multiply;
+            
+            node::insert_first(e, stack::pop(code));
+            node::insert_first(e, stack::pop(code));
+
+            e->node.start = e->node.first_child->start;
+            e->node.end = e->node.last_child->end;
+            stack::push(code, e);
+
+            if(!term(code, token)) return false;
+        } break;
+    }
+    return true;
+}
+
+/*
+    access: factor * { "." factor }
+*/
+b32 access(Code* code, code::TokenIterator& token) { 
+    if(token.current_kind() == token::dot) {
+        token.increment();
+        // when we parse accesses, we don't care about figuring out if the identifier is 
+        // correct because we don't know what is being accessed and even if we did, it would
+        // possibly not have been parsed yet 
+        if(token.current_kind() != token::identifier) {
+            diagnostic::parser::
+                expected_identifier(token.current());
+            return false;
+        }
+
+        Expression* id = expression::create();
+        id->kind = expression::identifier;
+        id->node.start = id->node.end = token.current();
+
+        Expression* e = expression::create();
+        e->kind = expression::binary_access;
+        node::insert_first((TNode*)e, stack::pop(code));
+        node::insert_first((TNode*)e, id);
+        stack::push(code, e);
+        token.increment();
+        if(!access(code, token)) return false;
+    }
+    return true;
+}
+
+b32
 expression(Code* code, code::TokenIterator& token) {
-    util::println(code::lines::get(token.current(), {.remove_leading_whitespace=true,.before=2,.after=2,}).str);
     switch(token.current_kind()) {
         case token::equal: {
             Expression* e = expression::create();
@@ -2011,12 +2542,10 @@ expression(Code* code, code::TokenIterator& token) {
             e->node.start = token.current();
 
             token.increment();
-            expression(code, token);
+            if(!expression(code, token)) return false;
 
             node::insert_first(e, stack::pop(code));
             e->node.end = e->node.last_child->end;
-
-            TODO("implement Place entity creation");
 
             stack::push(code, e);
         } break;
@@ -2027,10 +2556,12 @@ expression(Code* code, code::TokenIterator& token) {
             e->node.start = token.current();
 
             token.increment();
-            expression(code, token);
+
+            if(!expression(code, token)) return false;
 
             node::insert_first(e, stack::pop(code));
             e->node.end = e->node.last_child->end;
+            e->type = ((Expression*)e->node.first_child)->type;
 
             TODO("implement comptime code funneling");
 
@@ -2038,7 +2569,7 @@ expression(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::structdecl: {
-            struct_decl(code, token);
+            if(!struct_decl(code, token)) return false;
         } break;
 
         case token::moduledecl: {
@@ -2051,7 +2582,7 @@ expression(Code* code, code::TokenIterator& token) {
             e->node.start = token.current();
 
             token.increment();
-            expression(code, token);
+            if(!expression(code, token)) return false;
 
             node::insert_first(e, stack::pop(code));
             e->node.end = e->node.last_child->end;
@@ -2063,13 +2594,47 @@ expression(Code* code, code::TokenIterator& token) {
             TODO("using expression parsing");
         } break;
 
-        default: factor(code, token); 
+        default: if(!factor(code, token)) return false; 
     }
+
+     // loop and see if any operators are being used, if so call their entry point
+    b32 search = true;
+    while(search) {
+        switch(token.current_kind()) {
+            case token::dot: if(!access(code, token)) return false; break;
+            case token::asterisk:
+            case token::solidus: if(!term(code, token)) return false; break;
+            case token::plus:
+            case token::minus: if(!additive(code, token)) return false; break;
+            case token::double_less_than:
+            case token::double_greater_than: if(!bit_shift(code, token)) return false; break;
+            case token::double_equal: 
+            case token::explanation_mark_equal: if(!equality(code, token)) return false; break;
+            case token::less_than:
+            case token::less_than_equal:
+            case token::greater_than:
+            case token::greater_than_equal: if(!relational(code, token)) return false; break;
+            case token::ampersand: if(!bit_and(code, token)) return false; break;
+            case token::caret: if(!bit_xor(code, token)) return false; break;
+            case token::vertical_line: if(!bit_or(code, token)) return false; break;
+            case token::double_ampersand: if(!logi_and(code, token)) return false; break;
+            case token::logi_or: if(!logi_or(code, token)) return false; break;
+            case token::equal: if(!assignment(code, token)) return false; break;
+            //case token::open_brace: advance_curt(); if(!block(code, token)) return false; break;
+            default: search = false;
+        }
+    }
+
+    return true;
 }
 
 // expects to be started at the opening parenthesis and returns 
 // at the token following the closing parenthesis
-void
+// if the tuple is followed by '->', then this must be a function type
+// that may be followed by a definition of a function. 
+// In the case of a function definition the token is left at
+// the closing brace
+b32
 tuple(Code* code, code::TokenIterator& token) {
     Tuple* tuple = tuple::create();
     tuple->node.start = token.current();
@@ -2085,22 +2650,23 @@ tuple(Code* code, code::TokenIterator& token) {
                 switch(token.next_kind()) {
                     case token::colon: {
                         if(!found_label) {
-                            tuple->table = label::table::init((TNode*)tuple);
+                            tuple->table.last = stack::current_table(code);
                             stack::push_table(code, &tuple->table);
+                            found_label = 1;
                         }
-                        label(code, token);
+                        if(!label(code, token)) return false;
                     } break;
                     default: {
                         if(found_label) {
                             diagnostic::parser::tuple_positional_arg_but_found_label(token.current());
-                            return;
+                            return false;
                         }
-                        expression(code, token);
+                        if(!expression(code, token)) return false;
                     } break;
                 }
             } break;
             default: {
-                expression(code, token);
+                if(!expression(code, token)) return false;
             } break;
         }
         count += 1;
@@ -2108,28 +2674,129 @@ tuple(Code* code, code::TokenIterator& token) {
         else if(!token.is(token::close_paren)) {
             diagnostic::parser::
                 tuple_expected_comma_or_close_paren(token.current());
-            return;
+            return false;
         }
     }
+
+    if(found_label)
+        stack::pop_table(code);
+    
 
     forI(count) 
         node::insert_first(tuple, stack::pop(code));
 
     tuple->node.end = token.current();
 
-    stack::push(code, tuple);
+    token.increment();
+
+    if(!token.is(token::function_arrow)){
+        stack::push(code, tuple);
+        return true;
+    } 
+
+    // this must be a function type
+    token.increment();
+
+    count = 0;
+    while(1) {
+        if(!factor(code, token)) return false;
+        count++;
+        if(!token.is(token::comma)) break;
+        token.increment();
+    }
+
+    if(!count) {
+        diagnostic::parser::missing_function_return_type(token.current());
+        return false;
+    }
+
+    Expression* e = expression::create();
+    e->kind = expression::typeref;
+
+    if(count > 1) {
+        Tuple* t = tuple::create();
+        t->kind = tuple::multireturn;
+
+        ScopedArray<Type*> types = array::init<Type*>();
+
+        forI(count) {
+            auto n = (Type*)stack::pop(code);
+            array::push(types, n);
+            node::insert_first(t, n);
+        }
+
+        node::insert_last(e, t);
+
+        t->node.start = t->node.first_child->start;
+        t->node.end = t->node.last_child->start;
+    } else {
+        auto t = (Type*)stack::pop(code);
+        node::insert_first(e, t);
+    }
+
+    // push the argument tuple under the typeref we will be returning
+    // and load its table onto the table stack for the block we're about to parse
+    node::insert_first(e, tuple);
+    // the symbol table of the block will go through the tuple's symbol table, regardless of if
+    // it generated one or not 
+    tuple->table.last = stack::current_table(code);
+    stack::push_table(code, &tuple->table);
+
+    if(!block(code, token)) return false;
+
+    stack::pop_table(code);
+
+    node::insert_last(e, stack::pop(code));
+
+    e->node.start = e->node.first_child->start;
+    e->node.end = e->node.last_child->end;
+
+    FunctionType* ft = type::function::create();
+    ft->parameters = e->node.first_child;
+    ft->returns = e->node.first_child->next;
+    ft->return_type = type::resolve(ft->returns); // kind of redundant 
+    e->type = (Type*)ft;
+
+    stack::push(code, e);
+
+    return true;
 }
 
-void 
+b32 
 label_after_colon(Code* code, code::TokenIterator& token) {
     switch(token.current_kind()) {
         case token::identifier: {
+            // this should be a typeref 
+            Label* l = symbol::search(code, token.current()->hash);
+            if(!l) {
+                diagnostic::parser::
+                    unknown_identifier(token.current());
+                return false;
+            }
+
 
         } break;
+
+        case token::colon:
+        case token::equal: {
+            if(!expression(code, token)) return false;
+        } break;
+
+        default: {
+            if(token.current()->group == token::group_type) {
+                reduce_builtin_type_to_typeref_expression(code, token);
+                token.increment();
+                typeref(code, token);
+            } else {
+                diagnostic::parser::unexpected_token(token.current(), token.current());
+                return false;
+            }
+        } break;
     }
+    return true;
 }
 
-void 
+b32 
 label_group_after_comma(Code* code, code::TokenIterator& token) {
      while(1) {
         if(token.current_kind() != token::identifier) break; 
@@ -2166,26 +2833,29 @@ label_group_after_comma(Code* code, code::TokenIterator& token) {
     }
 
     if(token.current_kind() == token::colon) {
-        label_after_colon(code, token);
+        if(!label_after_colon(code, token)) return false;
     } else {
         diagnostic::parser::
             label_missing_colon(token.current());
-        return;
+        return false;
     }
+    return true;
 }
 
 // figure out if this is a single label or a group
-void
+b32
 label_after_id(Code* code, code::TokenIterator& token) {
-    switch(token.current_kind()) {
-        case token::colon: if(!token.increment()) return; else label_after_colon(code, token); break;
-        case token::comma: if(!token.increment()) return; else label_group_after_comma(code, token); break;
-    }
+    // switch(token.current_kind()) {
+    //     case token::colon:  else break;
+    //     case token::comma: if(!token.increment()) return false; else if(!label_group_after_comma(code, token)) return false; else break;
+    // }
+    NotImplemented;
+    return true;
 }
 
 // just parses <id> { "," <id> } : and pushes a label on the stack representing it 
 // returns with the tokenator at the token following the colon
-void 
+b32 
 label_get(Code* code, code::TokenIterator& token) {
     Expression* expr = expression::create();
     expr->kind = expression::identifier;
@@ -2194,157 +2864,292 @@ label_get(Code* code, code::TokenIterator& token) {
     stack::push(code, (TNode*)expr);
 
     token.increment();
-    switch(token.increment()->kind) {
+    switch(token.current_kind()) {
         case token::colon: break;
         case token::comma: {
             token.increment();
-            label_group_after_comma(code, token);
+            if(!label_group_after_comma(code, token)) return false;
         } break;
         default: {
             diagnostic::parser::expected_colon_for_label(token.current());
-            return;
+            return false;
         } break;
     }
 
     Label* l = label::create();
-    node::insert_first((TNode*)l, stack::pop(code));
-    stack::push(code, (TNode*)label);
+    l->node.start = expr->node.start;
+    node::insert_first(l, stack::pop(code));
+    stack::push(code, l);
     token.increment();
+    return true;
 }
 
 // parses a label and whatever comes after it 
-void
+b32
 label(Code* code, code::TokenIterator& token) {
-    label_get(code, token);
-    Label* l = (Label*)stack::pop(code); if(!l) return;
-    switch(token.current_kind()) {
-        case token::colon: {
+    if(!label_get(code, token)) return false;
+    
+    Label* l = (Label*)stack::pop(code);
+    table::add(code, l->node.start->raw, l);
+    
+    if(!label_after_colon(code, token)) return false;
 
+    TNode* cand = stack::pop(code);
+    switch(cand->kind) {
+        case node::expression: {
+            auto expr = (Expression*)cand;
+            switch(expr->kind) {
+                case expression::unary_assignment: {
+                    Place* p = place::create();
+                    p->label = l;
+                    p->type = expr->type;
+                    l->entity = (Entity*)p;
+                    node::insert_last(l, cand);
+                } break;
+                case expression::unary_comptime: {
+                    // it's possible this a function def
+                    switch(expr->type->kind) {
+                        case type::kind::function: {
+                            Function* f = function::create();
+                            f->label = l;
+                            f->type = (FunctionType*)expr->type;
+                            f->node.start = f->type->parameters->start;
+                            l->entity = (Entity*)f;
+                            node::insert_last(l, cand);
+                        } break;
+                    }
+                } break;
+                case expression::binary_assignment: {
+                    Place* p = place::create();
+                    p->label = l;
+                    l->entity = (Entity*)p;
+                    node::insert_last(l, cand);
+                } break;
+                case expression::typeref: {
+                    // this is probably when we have 
+                    // <id> : <type> ;
+                    Type* t = expr->type;
+                    switch(t->kind) {
+                        case type::kind::scalar: {
+                            Place* p = place::create();
+                            p->label = l;
+                            p->type = t;
+                            l->entity = (Entity*)p;
+                            node::insert_last(l, cand);
+                        } break;
+
+                        case type::kind::function: {
+                            // it's PROBABLY fine to create a function entity here
+                            // because the only case where it would already exist 
+                            // is prescanned functions but I am not sure :P
+                            Function* f = function::create();
+                            f->label = l;
+                            f->type = (FunctionType*)t;
+                            f->node.start = f->type->parameters->start;
+                            l->entity = (Entity*)f;
+                            node::insert_last(l, cand);
+                        } break;
+                    }
+                } break;
+                default: {
+                    util::println(
+                        dstring::init("unhandled label case: ", expression::strings[expr->kind]));
+                    return false;
+                }
+            }
         } break;
+        default: {
+            util::println(
+                    dstring::init("unhandled label case: ", node::strings[cand->kind]));
+            return false;
+        }
     }
+
+    l->node.start = l->node.first_child->start;
+    l->node.end = l->node.last_child->end;
+
+    stack::push(code, l);
+    return true;
 }
 
-// parses a 'function ltokenal' aka a closure
-// which may be of the forms:
-// (...) -> ... { ... }
-// (...) { ... }
-// (...) -> ... : { ... }
-// (...) : { ... }
-// expects to start at the opening paren of the argument tuple
-void
-function_ltokenal(Code* code, code::TokenIterator& token) {
-
-}
-
-void
-labeled_function(Code* code, code::TokenIterator& token) {
-    label_get(code, token);
-    Label* l = (Label*)stack::pop(code); if(!l) return;
-    Function* f = function::create();
-    f->label = l;
-    f->type = type::function::create();
-
-    token.increment(); 
-    tuple(code, token);
-    auto t = (Tuple*)stack::pop(code);
-    f->type->parameters = (TNode*)t;
-    token.increment(); // func arrow
-    token.increment(); 
-
-    u32 count = 0;
-    while(1) {
-        factor(code, token);
-        count++;
-        if(!token.is(token::comma)) break;
-        token.increment();
+/*  parses a structure definition
+    expected to be started at the 'struct' token
+    leaves each declaration inside the struct on a typeref expression
+    for example, the struct 
+    
+    struct {
+        a: u32;
+        b: u32;
     }
 
-    if(!count) {
-        diagnostic::parser::missing_function_return_type(token.current());
-        return;
+    will leave
+
+    (expr:typeref
+        (label<'a'> ...)
+        (label<'b'> ...))
+
+    on the stack
+*/
+b32 
+struct_decl(Code* code, code::TokenIterator& token) {
+    token.increment();
+
+    if(!token.is(token::open_brace)) {
+        diagnostic::parser::
+            missing_open_brace_for_struct(token.current());
+        return false;
     }
+
+    token.increment();
 
     Expression* e = expression::create();
     e->kind = expression::typeref;
-    e->type = f->type;
-
-    if(count > 1) {
-        Tuple* t = tuple::create();
-        t->kind = tuple::multireturn;
-
-        ScopedArray<Type*> types = array::init<Type*>();
-
-        forI(count) {
-            auto n = (Type*)stack::pop(code);
-            array::push(types, n);
-            node::insert_first(t, n);
+    
+    while(1) {
+        if(token.is(token::close_brace)) break;
+        if(token.is(token::identifier)) {
+            if(!label(code, token)) return false;
+            if(!token.is(token::semicolon)) {
+                diagnostic::parser::
+                    missing_semicolon(token.current());
+                return false;
+            }
+            token.increment();
+            if(stack::last(code)->kind == node::function) {
+                diagnostic::parser::
+                    struct_member_functions_not_allowed(stack::last(code)->start);
+                return false;
+            }
+        } else {
+            diagnostic::parser::
+                struct_only_labels_allowed(token.current());
+            return false;
         }
-
-        f->type->return_type = type::tuple::create(types);
-        f->type->returns = (TNode*)t;
-        node::insert_last(e, t);
-
-        t->node.start = t->node.first_child->start;
-        t->node.end = t->node.last_child->start;
-    } else {
-        auto t = (Type*)stack::pop(code);
-        f->type->return_type = t;
-        f->type->returns = (TNode*)t;
-        node::insert_first(e, t);
+        node::insert_last(e, stack::pop(code));
     }
 
-    f->type->parameters = stack::pop(code);
-    node::insert_first(e, f->type->parameters);
-
-    block(code, token);
-
-    node::insert_last(e, stack::pop(code));
-    
-    e->node.start = e->node.first_child->start;
-    e->node.end = e->node.last_child->end;
+    stack::push(code, e);
+    return true;
 }
 
-void
+b32
+prescanned_type(Code* code, code::TokenIterator& token) {
+    Label* l = (Label*)code->parser->root;
+    Type* type = (Type*)l->entity;
+
+    switch(type->kind) {
+        case type::kind::structured: {
+            auto stype = (StructuredType*)type;
+            Structure* s = stype->structure;
+            
+            token.skip_until(token::structdecl);
+            if(!struct_decl(code, token)) return false;
+
+            stack::push_table(code, &s->table);
+
+            auto e = (Expression*)stack::pop(code);
+            for(TNode* n = e->node.first_child; n; n = n->next) {
+                auto l = (Label*)e->node.first_child;
+                table::add(code, l->node.start->raw, l);
+            }
+            // reuse the typeref to place in the AST 
+            e->type = type;
+            node::insert_last(l, e);
+        } break;
+    }
+    return true;
+}
+
+// parses a function definition, a function type followed by a block
+// expects to be started at the opening parenthesis of the parameter tuple
+// and returns with the token after the block's close brace
+// leaves a typeref expression on the stack with the form:
+// (expr:typeref
+//      tuple         -- function parameters
+//      tuple/typeref -- return information
+//      block)        -- definition
+// b32
+// function(Code* code, code::TokenIterator& token) {
+//     if(!tuple(code, token)) return false;
+    
+   
+
+//     return true;
+// }
+
+// this function is called from ascent::start, so it only parses functions that 
+// have been prescanned by the first stage of parsing. A Function entity and Label
+// will have already been created
+b32
+prescanned_function(Code* code, code::TokenIterator& token) {
+    Label* l = (Label*)code->parser->root;
+    Function* f = (Function*)l->entity;
+
+    f->type = type::function::create();
+
+    token.skip_until(token::open_paren);
+
+    stack::push_table(code, &f->table);
+
+    if(!tuple(code, token)) return false;
+
+    stack::pop_table(code);
+
+    auto e = (Expression*)stack::pop(code);
+
+    f->type = (FunctionType*)e->type;
+
+    node::insert_last(l, e);
+
+    return true;
+}
+
+b32
 statement(Code* code, code::TokenIterator& token) {
     Statement* s = statement::create();
     switch(token.current_kind()) {
         case token::identifier: {
             if(token.next_kind() == token::colon) {
-                label(code, token);
+                if(!label(code, token)) return false;
                 s->kind = statement::label;
                 if(!token.is(token::semicolon)) {  
                     if(!token.is(token::close_brace)) {
                         diagnostic::parser::missing_semicolon(token.current());
-                        return;
+                        return false;
                     }
                 }
             } else {
-                expression(code, token);
+                if(!expression(code, token)) return false;
                 s->kind = statement::expression;
             }
         } break;
     }
+    return true;
 }
 
-void
+b32
 start(Code* code) {
+    Assert(code->parser, "a parser must have been made for a Code object created in the first stage.");
     switch(code->kind) {
         case code::function: {
-            if(!code->parser) code->parser = create(code);
             code::TokenIterator token(code);
-            labeled_function(code, token);
+            if(!prescanned_function(code, token)) return false;
         } break;
         case code::typedef_: {
-
+            code::TokenIterator token(code);
+            if(!prescanned_type(code, token)) return false;
         } break;
-        default: {
+        case code::source: {
             for(TNode* n = code->node.first_child; n; n = n->next) {
                 Code* c = (Code*)n;
-                start(c);
+                if(!start(c)) return false;
+                node::insert_last(code->parser->root, c->parser->root);
             }
-            parse(code);
+            // when we're done, we need to join all of the children's nodes into the source's
+            
         } break;
     }
+    return true;
 }
 
 } // namespace ascent
@@ -2360,12 +3165,12 @@ start(Code* code) {
 */
 namespace descent {
 
-void expression(Code* code, code::TokenIterator& token);
-void label(Code* code, code::TokenIterator& token);
-void module(Code* code, code::TokenIterator& token);
-void source(Code* code, code::TokenIterator& token);
+b32 expression(Code* code, code::TokenIterator& token);
+b32 label(Code* code, code::TokenIterator& token);
+b32 module(Code* code, code::TokenIterator& token);
+b32 source(Code* code, code::TokenIterator& token);
 
-void
+b32
 label(Code* code, code::TokenIterator& token) {
     Token* id = token.current();
     switch(token.increment()->kind) {
@@ -2374,17 +3179,45 @@ label(Code* code, code::TokenIterator& token) {
                 case token::colon: {
                     switch(token.increment()->kind) {
                         case token::open_paren: {
+                            Token* open_paren = token.current(); 
                             token.skip_to_matching_pair();
                             switch(token.increment()->kind) {
                                 case token::function_arrow: {
                                     token.skip_until(token::open_brace, token::semicolon);
                                     if(token.current_kind() == token::open_brace) {
                                         // this is a function definition, so we segment it into its own
-                                        // Code object
+                                        // Code object, create a Label and Function for it, construct the AST
+                                        // for the Label and then push it onto whatever table we are 
+                                        // currently working with
                                         token.skip_to_matching_pair();
+
                                         Code* nu = code::from(code, id, token.current());
                                         nu->kind = code::function;
-                                        node::insert_last((TNode*)code, (TNode*)nu);
+
+                                        Function* f = function::create();
+                                        f->node.start = open_paren;
+                                        f->node.end = token.current();
+                                        f->table.last = stack::current_table(code);
+
+                                        Label* l = label::create();
+                                        l->node.start = id;
+                                        l->node.end = token.current();
+
+                                        l->entity = (Entity*)f;
+                                        f->label = l;
+
+                                        Expression* e = expression::create();
+                                        e->kind = expression::identifier;
+                                        e->node.start = e->node.end = id;
+
+                                        node::insert_first(l, e);
+                                        
+                                        nu->parser = parser::create(nu);
+                                        nu->parser->root = (TNode*)l;
+
+                                        table::add(code, id->raw, l);
+
+                                        node::insert_last(code, nu);
                                     }
                                 } break;
                                 case token::semicolon: {
@@ -2396,17 +3229,46 @@ label(Code* code, code::TokenIterator& token) {
                         case token::structdecl: {
                             if(token.increment()->kind != token::open_brace) {
                                 diagnostic::parser::expected_open_brace(token.current());
-                                return;
+                                return false;
                             }
+                            Token* start = token.current();
                             token.skip_to_matching_pair();
+                            
                             Code* nu = code::from(code, id, token.current());
                             nu->kind = code::typedef_;
-                            node::insert_last((TNode*)code, (TNode*)nu);
+
+                            Label* l = label::create();
+                            l->node.start = id;
+                            l->node.end = token.current();
+
+                            Structure* s = structure::create();
+                            s->node.start = start;
+                            s->node.end = token.current();
+
+                            StructuredType* stype = type::structured::create(s);
+                            stype->node.start = s->node.start;
+                            stype->node.end = s->node.end;
+
+                            l->entity = (Entity*)stype;
+                            stype->label = l;
+
+                            Expression* e = expression::create();
+                            e->kind = expression::identifier;
+                            e->node.start = e->node.end = id;
+
+                            node::insert_first(l, e);
+
+                            nu->parser = parser::create(nu);
+                            nu->parser->root = (TNode*)l;
+
+                            table::add(code, id->raw, l);
+
+                            node::insert_last(code, nu);
                         } break;
                         case token::moduledecl: {
                             if(token.increment()->kind != token::open_brace) {
                                 diagnostic::parser::expected_open_brace(token.current());
-                                return;
+                                return false;
                             }
                             token.skip_to_matching_pair();
                             Code* nu = code::from(code, id, token.current());
@@ -2432,29 +3294,44 @@ label(Code* code, code::TokenIterator& token) {
             NotImplemented; 
         } break;
     }
+    return true;
 }
 
-void 
+b32 
 module(Code* code, code::TokenIterator& token) {
+    Module* m = module::create();
+    m->table.last = code->parser->current_table;
+    stack::push_table(code, &m->table);
+    defer { stack::pop_table(code); };
+
     while(1) {
         switch(token.current_kind()) {
             case token::identifier: label(code, token); break;
-            default: return;
+            default: return false;
         }
     }
 }
 
-void
+b32
 source(Code* code, code::TokenIterator& token) {
+    // all source files are modules, so we create one for it here
+    Module* m = module::create();
+    stack::push_table(code, &m->table);
+    defer { stack::pop_table(code); };
+
+    code->parser->root = (TNode*)m;
+
     while(1) {
         switch(token.current_kind()) {
-            case token::identifier: label(code, token); break;
+            case token::identifier: {
+                label(code, token);
+            } break;
         }
-        if(token.increment()->kind == token::end_of_file) return;
+        if(token.increment()->kind == token::end_of_file) return true;
     }
 }
 
-void
+b32
 start(Code* code) {
     switch(code->kind) {
         case code::source: {
@@ -2469,6 +3346,7 @@ start(Code* code) {
 
         } break;
     }
+    return true;
 }
 
 } // namespace decent
@@ -2506,7 +3384,58 @@ pop_table(Code* c) {
     c->parser->current_table = array::pop(c->parser->table_stack);
 }
 
+LabelTable*
+current_table(Code* c) {
+    return c->parser->current_table;
+}
+
+DString
+display(Code* c) {
+    if(!c->parser->stack.count) return dstring::init("empty stack");
+    DString out = dstring::init("stack of ", c->name, ":\n");
+    forI(c->parser->stack.count) {
+        if(!i) continue; // first element is always 0 due to storing the last element separate
+        TNode* n = array::read(c->parser->stack, i);
+        to_string(out, n, true);
+        dstring::append(out, "\n");
+    }
+    to_string(out, c->parser->last, true);
+    return out;
+}
+
 } // namespace stack
+
+namespace table {
+
+void 
+add(Code* c, String id, Label* l) {
+    map::add(c->parser->current_table->map, id, l);
+}
+
+} // namespace table 
+
+namespace symbol {
+
+Label*
+search(Code* code, u64 hashed_id) {
+    LabelTable* table = stack::current_table(code);
+   
+    while(table) {
+         forI(table->map.keys.count) {
+            u64 hash = array::read(table->map.keys, i).hash;
+            util::println(to_string(hash));
+        }
+        auto [idx, found] = map::find(table->map, hashed_id);
+        if(found) {
+            return array::read(table->map.values, idx);
+        }
+        table = table->last;
+    }
+    return 0;
+}
+
+} // namespace symbol
+
 
 void
 parse(Code* code) {
@@ -2521,11 +3450,9 @@ parse(Code* code) {
     }
 
     descent::start(code); 
-    // for(TNode* n = code->node.first_child; n; n = n->next) {
-    //     auto c = (Code*)code;
-    //     parse(c);
-    // }
     ascent::start(code);
+
+    util::println(node::util::print_tree(code->parser->root));
 
     // internal::parser = code->parser;
     // internal::push_module(code->source->module);
