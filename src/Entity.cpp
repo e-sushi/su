@@ -22,6 +22,7 @@ function::create() {
     Function* out = pool::add(compiler::instance.storage.functions);
     node::init(&out->node);
     out->node.kind = node::function;
+    out->table = label::table::init((TNode*)out);
     return out;
 }
 
@@ -56,10 +57,12 @@ can_coerce(Type* to, Type* from);
 String
 name(Type* type){
     switch(type->kind) {
+        case type::kind::void_: {
+            return "void";
+        } break;
         case type::kind::scalar: {
             auto stype = (ScalarType*)type;
             switch(stype->kind) {
-                case type::scalar::kind::void_:      return "void";
                 case type::scalar::kind::unsigned8:  return "u8";
                 case type::scalar::kind::unsigned16: return "u16";
                 case type::scalar::kind::unsigned32: return "u32";
@@ -161,8 +164,7 @@ Array<ExistantArray> set = amu::array::init<ExistantArray>();
 
 ArrayType*
 create(Type* type, u64 size) {
-    // TODO(sushi) better way to encode this
-    u64 hash = (u64)type << size * 162325677;
+    u64 hash = (u64)type;
     auto [idx, found] = amu::array::util::
         search<ExistantArray, u64>(set, hash, [](ExistantArray& a){return a.hash;});
 
@@ -232,10 +234,11 @@ resolve(TNode* n) {
         case node::statement: {
             auto s = (Statement*)n;
             switch(s->kind) {
+                case statement::defer_:
                 case statement::unknown: return 0;
-                case statement::label: resolve(s->node.first_child);
-                case statement::defer_: return 0;
-                case statement::expression: resolve(s->node.first_child);
+                case statement::label: 
+                case statement::block_final:
+                case statement::expression: return resolve(s->node.first_child);
             }
         } break;
         case node::expression: return ((Expression*)n)->type;

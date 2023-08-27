@@ -128,6 +128,7 @@ namespace trait {
 
 namespace type {
 enum class kind {
+    void_, // the type representing nothing 
     scalar,
     structured,
     pointer,
@@ -144,9 +145,12 @@ struct Type : public Entity {
     Array<Trait*> traits;
 };
 
+namespace type {
+global Type void_ = {.kind = type::kind::void_};
+} // namespace type 
+
 namespace type::scalar {
 enum class kind {
-    void_,
     unsigned8,
     unsigned16,
     unsigned32,
@@ -170,7 +174,6 @@ struct ScalarType : public Type {
 };
 
 namespace type::scalar {
-global ScalarType void_      = {type::scalar::kind::void_};
 global ScalarType unsigned8  = {type::scalar::kind::unsigned8};
 global ScalarType unsigned16 = {type::scalar::kind::unsigned16};
 global ScalarType unsigned32 = {type::scalar::kind::unsigned32};
@@ -221,7 +224,10 @@ create(Type* type);
 
 struct ArrayType : public Type {
     Type* type;
-    u64 size;
+    // NOTE(sushi) the size of an ArrayType does not matter when it comes to type checking
+    //             and unique storage of ArrayType, it is used to keep track of what size 
+    //             a static array was declared with 
+    u64   size;
 };
 
 namespace type::array {
@@ -311,6 +317,9 @@ destroy(Type* t);
 Type*
 base(Type* t);
 
+
+// handles all builtin type coersion and detecting if a type has a user defined 
+// conversion to another
 b32
 can_coerce(Type* to, Type* from);
 
