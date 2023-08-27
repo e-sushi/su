@@ -32,12 +32,12 @@ can_coerce(Type* to, Type* from) {
     if(to->kind == type::kind::pointer && from->kind == type::kind::pointer)
         return true;
 
-    // this may be too loose a rule
-    // this allows arrays that have equal sizes but different types to coerce between each other
-    // but I have no idea if this is a good idea or not 
+    // arrays can coerce between each other as long as a conversion exists
+    // between their underlying types
     if(to->kind == type::kind::array && from->kind == type::kind::array) {
-        ArrayType* to = to,* from = from;
-        return to->size == from->size && can_coerce(to->type, from->type);
+        auto ato = (ArrayType*)to;
+        auto afrom = (ArrayType*)from;
+        if(type::can_coerce(ato->type, afrom->type)) return true;
     }
 
     // allow implicit coercion of an array to its data pointer
