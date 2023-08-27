@@ -54,6 +54,9 @@ init(TNode* creator);
 FORCE_INLINE void
 add(LabelTable* table, String id, Label* l);
 
+Label*
+search(LabelTable* table, u64 hashed_id);
+
 } // namespace table
 
 } // namespace label

@@ -30,6 +30,16 @@ add(LabelTable* table, String id, Label* l) {
     map::add(table->map, id, l);
 }
 
+Label*
+search(LabelTable* table, u64 hashed_id) {
+    while(table) {
+        auto [idx, found] = map::find(table->map, hashed_id);
+        if(found) return array::read(table->map.values, idx);
+        table = table->last;
+    }
+    return 0;
+}
+
 } // namespace table
 
 Label*
@@ -67,12 +77,12 @@ to_string(DString& start, Label* l) {
         dstring::append(start, "(aka ", label::base(l)->node.start->raw, ") ");
 
     if(l->node.end) {
-        dstring::append(start, code::name(l->node.start->code), ":", 
+        dstring::append(start, l->node.start->code->name, ":", 
                 l->node.start->l0, ",", l->node.start->c0, ":",
                 l->node.end->l0, ",", l->node.end->c0,
             ">");
     } else {
-        dstring::append(start, code::name(l->node.start->code), ":", 
+        dstring::append(start, l->node.start->code->name, ":", 
                 l->node.start->l0, ",", l->node.start->c0, ":",
                 "?,?",
             ">");
