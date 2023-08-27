@@ -116,7 +116,7 @@
 #include "Result.h"
 #include "Lexer.h"
 #include "Parser.h"
-#include "Validator.h"
+#include "Sema.h"
 #include "Generator.h"
 
 #include "Memory.cpp"
@@ -140,7 +140,7 @@
 #include "Compiler.cpp"
 #include "Lexer.cpp"
 #include "Parser.cpp"
-#include "Validator.cpp"
+#include "Sema.cpp"
 #include "Generator.cpp"
 
 

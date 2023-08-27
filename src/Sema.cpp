@@ -8,98 +8,106 @@
 */
 
 namespace amu {
-namespace validator {
+namespace sema {
 
-Validator* 
+Sema* 
 create() {
-    Validator* out = pool::add(compiler::instance.storage.validators);
+    Sema* out = pool::add(compiler::instance.storage.semas);
     return out;
 }
 
 void
-destroy(Validator* v) {
-    pool::remove(compiler::instance.storage.validators, v);
+destroy(Sema* v) {
+    pool::remove(compiler::instance.storage.semas, v);
 }
 
 namespace internal {
 
 #define announce_stage(n) messenger::dispatch(message::make_debug(message::verbosity::debug, String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true)))
 
-Array<LabelTable*> table_stack = array::init<LabelTable*>();
-LabelTable* current_table = 0;
+// Array<LabelTable*> table_stack = array::init<LabelTable*>();
+// LabelTable* current_table = 0;
 
-void push_table(LabelTable* lt) {
-    array::push(table_stack, current_table);
-    current_table = lt;
-}
+// void push_table(LabelTable* lt) {
+//     array::push(table_stack, current_table);
+//     current_table = lt;
+// }
 
-void pop_table() {
-    current_table = array::pop(table_stack);
-}
+// void pop_table() {
+//     current_table = array::pop(table_stack);
+// }
 
-b32 label(TNode* node);
-b32 expr(Expression* e);
+b32 label(Code* code, TNode* node);
+b32 expr(Code* code, Expression* e);
 
 b32
-statement(Statement* s) { announce_stage(s);
+statement(Code* code, Statement* s) { announce_stage(s);
     switch(s->kind) {
-        case statement::label: return label(s->node.first_child);
-        case statement::expression: return expr((Expression*)s->node.first_child);
+        case statement::label: return label(code, s->node.first_child);
+        case statement::block_final:
+        case statement::expression: return expr(code, (Expression*)s->node.first_child);
     }
     return false;
 }
 
 b32
-block(BlockExpression* e) { announce_stage(e);
-    push_table(&e->table);
+block(Code* code, BlockExpression* e) { announce_stage(e);
+    //push_table(&e->table);
     for(TNode* n = e->node.first_child; n; n = n->next) {
-        if(!statement((Statement*)n)) return false;
+        if(!statement(code, (Statement*)n)) return false;
     }
-    pop_table();
+
+    // resolve the type of this block
+    auto last = (Statement*)e->node.last_child;
+    if(!last && last->kind != statement::block_final) {
+        e->type = &type::void_;
+    } else {
+        e->type = type::resolve((TNode*)last);
+    }
+    //`pop_table();
     return true;
 }
 
 b32 
-func_ret(TNode* n) { announce_stage(n);
+func_ret(Code* code, TNode* n) { announce_stage(n);
     if(n->kind == node::tuple) {
 
     }else if(n->kind == node::expression) {
         auto e = (Expression*)n;
         if(e->kind != expression::typeref) {
-            diagnostic::validator::
+            diagnostic::sema::
                 func_ret_expected_typeref(e->node.start);
             return false;
         }
         return true;
     }
-
     return false;
 }
 
 b32 
-func_arg_tuple(Tuple* t) { announce_stage(t);
+func_arg_tuple(Code* code, Tuple* t) { announce_stage(t);
     if(!t->node.child_count) return true;
     for(TNode* n = t->node.first_child; n; n = n->next) {
         if(n->kind == node::expression) {
-            if(!expr((Expression*)n)) return false;
+            if(!expr(code, (Expression*)n)) return false;
         } else {
-            if(!label(n)) return false;
+            if(!label(code, n)) return false;
         }
     }
     return true;
 }
 
 b32 
-call(CallExpression* e) {
+call(Code* code, CallExpression* e) {
     FunctionType* f = e->callee->type;
     if(e->arguments->node.child_count > f->parameters->child_count) {
-        diagnostic::validator::
+        diagnostic::sema::
             too_many_arguments(e->node.start, e->callee->label->node.start->raw);
         return false;
     } 
 
     if(f->parameters->child_count > e->arguments->node.child_count) {
-        diagnostic::validator::
+        diagnostic::sema::
             not_enough_arguments(e->node.start, e->callee->label->node.start->raw);
         return false;
     }
@@ -108,7 +116,7 @@ call(CallExpression* e) {
     TNode* call_arg = e->arguments->node.first_child ;
     while(func_arg && call_arg) {
         if(!type::can_coerce(type::resolve(func_arg), type::resolve(call_arg))) {
-            diagnostic::validator::
+            diagnostic::sema::
                 mismatch_argument_type(call_arg->start, 
                     type::resolve(call_arg), 
                     type::resolve(func_arg), 
@@ -119,37 +127,38 @@ call(CallExpression* e) {
         func_arg = func_arg->next;
         call_arg = call_arg->next;
     }
+    e->type = f->return_type;
     return true;
 } 
 
 b32
-typeref(Expression* e) { announce_stage(e);
+typeref(Code* code, Expression* e) { announce_stage(e);
     switch(e->type->kind) {
         case type::kind::scalar: {
-            return true;
         } break;
         case type::kind::function: {
             auto type = (FunctionType*)e->type;
-            if(!func_arg_tuple((Tuple*)type->parameters) ||
-               !func_ret(type->returns) || 
-               !block((BlockExpression*)e->node.last_child)) return false;
-            return true;
+            if(!func_arg_tuple(code, (Tuple*)type->parameters) ||
+               !func_ret(code, type->returns) || 
+               !block(code, (BlockExpression*)e->node.last_child)) return false;
+            auto be = (BlockExpression*)e->node.last_child;
+            if(!type::can_coerce(type->return_type, be->type)) {
+                return false;
+            }
         } break;
         case type::kind::structured: {
-            return true;
         } break;
         case type::kind::pointer: {
-            return true;
         } break;
     }
-    return false;
+    return true;
 }
 
 b32 
-access(Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
+access(Code* code, Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
     switch(lhs_type->kind) {
         case type::kind::scalar: {
-            diagnostic::validator::
+            diagnostic::sema::
                 cannot_access_members_scalar_type(lhs->node.start);
             return false;
         } break;
@@ -158,24 +167,24 @@ access(Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
                 case string::static_hash("ptr"):
                 case string::static_hash("count"): return true;
                 default: {
-                    diagnostic::validator::
+                    diagnostic::sema::
                         array_types_dont_have_member(rhs->node.start, rhs->node.start->raw);
                     return false;
                 }
             }
         } break;
         case type::kind::function: {
-            diagnostic::validator::
+            diagnostic::sema::
                 cannot_access_members_of_function_type(lhs->node.start);
             return false;
         } break;
         case type::kind::pointer: {
             auto ptype = (PointerType*)lhs_type;
             if(ptype->type->kind == type::kind::pointer) {
-                diagnostic::validator::
+                diagnostic::sema::
                     too_many_levels_of_indirection_for_access(lhs->node.start);
             }
-            return access(e, lhs, ptype->type, rhs);
+            return access(code, e, lhs, ptype->type, rhs);
         } break;
         case type::kind::tuple: {
             auto ttype = (TupleType*)lhs_type;
@@ -185,7 +194,7 @@ access(Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
             auto stype = (StructuredType*)lhs_type;
             auto [idx, found] = map::find(stype->structure->table.map, rhs->node.start->raw);
             if(!found) {
-                diagnostic::validator::
+                diagnostic::sema::
                     unknown_member(rhs->node.start, (Type*)stype, rhs->node.start->raw);
                 return false;
             }
@@ -198,26 +207,33 @@ access(Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
 }
 
 b32 
-expr(Expression* e) { announce_stage(e);
+expr(Code* code, Expression* e) { announce_stage(e);
     switch(e->kind) {
-        case expression::unary_comptime: return expr((Expression*)e->node.first_child);
-        case expression::unary_assignment: return expr((Expression*)e->node.first_child);
+        case expression::unary_comptime: return expr(code, (Expression*)e->node.first_child);
+        case expression::unary_assignment: {
+            if(!expr(code, (Expression*)e->node.first_child)) return false;
+            e->type = type::resolve(e->node.first_child);
+            return true;
+        } break;
+        case expression::block: {
+            return block(code, (BlockExpression*)e);
+        } break;
         case expression::unary_reference: {
-            
+            return false;
         } break;
         case expression::call: {
-            return call((CallExpression*)e);
+            return call(code, (CallExpression*)e);
         } break;
-        case expression::typeref: return typeref(e);
+        case expression::typeref: return typeref(code, e);
         case expression::binary_assignment: {
             auto lhs = (Expression*)e->node.first_child;
             auto rhs = (Expression*)e->node.last_child;
-            if(!expr(lhs)) return false;
-            if(!expr(rhs)) return false;
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
 
             // TODO(sushi) type coersion
             if(!type::can_coerce(lhs->type, rhs->type)) {
-                diagnostic::validator::
+                diagnostic::sema::
                     cannot_implict_coerce(lhs->node.start, rhs->type, lhs->type);
                 return false;
             }
@@ -228,22 +244,22 @@ expr(Expression* e) { announce_stage(e);
         case expression::binary_access: {
             auto lhs = (Expression*)e->node.first_child;
             auto rhs = (Expression*)e->node.last_child;
-            if(!expr(lhs)) return false;
+            if(!expr(code, lhs)) return false;
             Type* lhs_type = type::resolve((TNode*)lhs);
             if(!lhs_type) {
-                 diagnostic::validator::
+                 diagnostic::sema::
                     invalid_type_lhs_access(lhs->node.start);
                 return false;
             }
 
-            return access(e, lhs, lhs_type, rhs);
+            return access(code, e, lhs, lhs_type, rhs);
         } break;
 
         case expression::binary_plus: {
             auto lhs = (Expression*)e->node.first_child;
             auto rhs = (Expression*)e->node.last_child;
-            if(!expr(lhs)) return false;
-            if(!expr(rhs)) return false;
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
 
             if(lhs->type == rhs->type) { 
                 if(!type::is_scalar(lhs->type)) {
@@ -267,7 +283,7 @@ expr(Expression* e) { announce_stage(e);
                 node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
                 e->type = cast->type;
             } else {
-                diagnostic::validator::
+                diagnostic::sema::
                     cant_find_binop_trait(e->node.start, "Add", lhs->type, rhs->type);
                 return false;
             }
@@ -275,8 +291,32 @@ expr(Expression* e) { announce_stage(e);
 
             // TODO(sushi) Add trait implemented here
         } break;
-        case expression::identifier:
         case expression::literal: {
+            return true;
+        } break;
+        case expression::placeref: {
+            auto pr = (PlaceRefExpression*)e;
+            e->type = pr->place->type;
+            return true;
+        } break;
+
+        case expression::conditional: {
+            if(!expr(code, (Expression*)e->node.first_child)) return false;
+            
+            Type* first_type = 0;
+            for(TNode* n = e->node.first_child->next; n; n = n->next) {
+                auto branch = (Expression*)n;
+                if(!expr(code, branch)) return false;
+                if(!first_type) first_type = branch->type;
+                else {
+                    if(!type::can_coerce(first_type, branch->type)) {
+                        diagnostic::sema::
+                            if_mismatched_types_cannot_coerce(branch->node.start, branch->type, first_type);
+                        return false;
+                    }
+                }
+            }
+
             return true;
         } break;
         
@@ -286,30 +326,62 @@ expr(Expression* e) { announce_stage(e);
 }
 
 b32
-label(TNode* node) { announce_stage(node);
-    return expr((Expression*)node->last_child);
+label(Code* code, TNode* node) { announce_stage(node);
+    if(!expr(code, (Expression*)node->last_child)) return false;
+
+    auto l = (Label*)node;
+    switch(l->entity->node.kind) {
+        case node::place: {
+            auto p = (Place*)l->entity;
+            p->type = type::resolve(l->node.last_child);
+            if(p->type == &type::void_) {
+                diagnostic::sema::cannot_have_a_variable_of_void_type(l->node.last_child->start);
+            }
+        } break;
+    }
+    return true;
 }
 
 b32
-module(TNode* node) { announce_stage(node);
+module(Code* code, TNode* node) { announce_stage(node);
     Module* m = (Module*)node;
-    push_table(&m->table);
+    //push_table(&m->table);
     for(TNode* n = node->first_child; n; n = n->next) {
-        if(!label(n)) return false;
+        if(!label(code, n)) return false;
     }  
-    pop_table();
+    //pop_table();
+    return true;
+}
+
+b32 
+start(Code* code) {
+    switch(code->parser->root->kind) {
+        case node::module: {
+            if(!module(code, code->parser->root)) return false;
+        } break;
+    }
     return true;
 }
 
 } // namespace internal
 
+namespace table {
+
 void
-execute(Code* code) {
-    // TODO(sushi) this will be incorrect when Code becomes more general
-    if(!internal::module((TNode*)code->source->module)) {
-        util::println("validation failed");
-    }
+push(Code* code);
+
+void
+pop(Code* code);
+
+} // namespace table 
+
+void
+analyze(Code* code) {
+    if(!code->sema) code->sema = sema::create();
+    if(!internal::start(code)) {
+       util::println("validation failed");
+    }    
 }
 
-} // namespace validator
+} // namespace sema
 } // namespace amu
