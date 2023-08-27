@@ -79,7 +79,7 @@ TokenIterator::current() {
     return this->curt;
 }
 
-FORCE_INLINE u32
+FORCE_INLINE token::kind
 TokenIterator::current_kind() {
     return this->curt->kind;
 }
@@ -105,7 +105,7 @@ TokenIterator::next() {
 }
 
 
-FORCE_INLINE u32
+FORCE_INLINE token::kind
 TokenIterator::next_kind() { 
     Token* t = next(); 
     if(!t) return token::null; 
@@ -117,7 +117,7 @@ TokenIterator::prev() {
     return lookback(1); 
 }
 
-FORCE_INLINE u32
+FORCE_INLINE token::kind
 TokenIterator::prev_kind() {
     Token* t = prev();
     if(!t) return token::null;
@@ -127,14 +127,36 @@ TokenIterator::prev_kind() {
 
 FORCE_INLINE Token*
 TokenIterator::lookahead(u64 n) {
+#if BUILD_SLOW
+    Token* iter = this->curt;
+    forI(n) {
+        iter++;
+        if(iter->kind == token::directive_compiler_break)
+            iter++;
+        if(iter > this->stop) return 0;
+    }
+    return iter;
+#else
     if(this->curt + n > this->stop) return 0;
     return this->curt + n;
+#endif
 }
 
 FORCE_INLINE Token*
 TokenIterator::lookback(u64 n) {
+#if BUILD_SLOW
+    Token* iter = this->curt;
+    forI(n) {
+        iter--;
+        if(iter->kind == token::directive_compiler_break)
+            iter--;
+        if(iter < code::get_tokens(this->code).data) return 0;
+    }
+    return iter;
+#else
     if(this->curt - n < code::get_tokens(this->code).data) return 0;
     return this->curt - n;
+#endif
 }
 
 void TokenIterator:: 
@@ -172,8 +194,6 @@ skip_to_matching_pair() {
 }
 
 
-
-
 template<typename... T> FORCE_INLINE void TokenIterator::
 skip_until(T... args) {
     while(!is_any(args...)) increment();
@@ -188,6 +208,43 @@ template<typename... T> FORCE_INLINE b32 TokenIterator::
 is_any(T... args) {
     return (is(args) || ...);
 }
+
+FORCE_INLINE b32 TokenIterator::
+next_is(u32 kind) {
+    return next_kind() == kind;
+}
+
+FORCE_INLINE b32 TokenIterator::
+prev_is(u32 kind) {
+    return prev_kind() == kind;
+}
+
+DString TokenIterator::
+display_line() {
+    u8* scan_left = curt->raw.str;
+
+    while(scan_left != curt->code->raw.str && *scan_left != '\n')
+        scan_left--;
+
+    u8* scan_right = scan_left + 1;
+
+    while(scan_right != curt->code->raw.str + curt->code->raw.count && *scan_right != '\n')
+        scan_right++;
+
+    String line = {scan_left, s32(scan_right - scan_left)};
+    
+    s32 depth = curt->raw.str - scan_left;
+
+    DString out = dstring::init(line, "\n");
+
+    forI(depth) {
+        dstring::append(out, " ");
+    }
+    dstring::append(out, "^");
+
+    return out;
+}
+
 
 namespace display {
 
