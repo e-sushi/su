@@ -8,6 +8,7 @@ from(Source* source) {
     out->source = source;
     out->kind = code::source;
     out->node.kind = node::code;
+    out->name = source->name;
     return out;
 }
 
@@ -17,32 +18,26 @@ from(Code* code, Token* start, Token* end) {
     if(code->source) {
         SourceCode* sc = pool::add(compiler::instance.storage.source_code);
         sc->tokens.data = start;
-        sc->tokens.count = end-start;
+        sc->tokens.count = end-start+1;
         out = (Code*)sc;
     } else {
         auto c = (VirtualCode*)code;
         VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
-        vc->tokens = array::copy(c->tokens, start-c->tokens.data, end-start);
+        vc->tokens = array::copy(c->tokens, start-c->tokens.data, end-start+1);
     }
     out->source = code->source;
     out->raw.str = start->raw.str;
     out->raw.count = end->raw.str - start->raw.str;
     out->node.kind = node::code;
+
+    out->name = dstring::init(code->name, ":subcode<", start, ",", end, ">");
+
     return out;
 }
 
 b32
 is_virtual(Code* code) {
     return !code->source;
-}
-
-String
-name(Code* code) {
-    if(code::is_virtual(code)) {
-        return ((VirtualCode*)code)->name;
-    } else {
-        return code->source->name;
-    }
 }
 
 View<Token>

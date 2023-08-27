@@ -13,10 +13,15 @@
 #ifndef AMU_CODE_H
 #define AMU_CODE_H
 
-#include "Validator.h"
+#include "Sema.h"
 #include "Generator.h"
 
 namespace amu {
+
+namespace token {
+enum kind : u32;
+} // namespace token
+
 
 namespace code {
 // @genstrings(data/code_strings.generated)
@@ -48,6 +53,9 @@ struct Code {
     code::kind kind;
     // raw representation of this code
     String raw;
+
+    // identifier for this code, only used for debugging
+    String name;
     
     // if this Code was generated from another Code object, this points to that original
     // object. this is used when we generate Code from generic types and such and when we
@@ -60,15 +68,8 @@ struct Code {
     // information from stages that this Code has been passed through
     Lexer* lexer;
     Parser* parser;
-    Validator* validator;
+    Sema* sema;
     Generator* generator;
-
-    union {
-        struct {
-            Token* open_brace;
-            Token* arguments;
-        } function;
-    } locations;
 };
 
 // Code whose Tokens belong to some Source
@@ -81,7 +82,6 @@ struct SourceCode : public Code {
 // by the compiler. 
 // It stores its own set of Tokens and Diagnostics
 struct VirtualCode : public Code {
-    String name; // unique identifier given to this virtual code
     DString str;
     Array<Token> tokens;
     Array<Diagnostic> diagnostics;
@@ -157,7 +157,7 @@ public:
     current();
 
     // returns the kind of the current token
-    FORCE_INLINE u32 
+    FORCE_INLINE token::kind
     current_kind();
 
     // increments the iterator by one token and returns
@@ -178,7 +178,7 @@ public:
 
     // get the next token's kind
     // returns token::null if at the end 
-    FORCE_INLINE u32
+    FORCE_INLINE token::kind
     next_kind();
 
     // get the previous token
@@ -187,7 +187,7 @@ public:
 
     // get the previous token's kind
     // returns token::null if at the beginning
-    FORCE_INLINE u32
+    FORCE_INLINE token::kind
     prev_kind();
 
     // get the token 'n' steps ahead
@@ -225,6 +225,11 @@ public:
     // returns false if at the beginning
     FORCE_INLINE b32
     prev_is(u32 kind);
+
+    // displays the current line as well as a caret 
+    // indicating where in the line we are 
+    DString
+    display_line();
 };
 
 namespace display {
