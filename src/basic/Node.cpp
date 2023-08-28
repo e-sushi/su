@@ -145,7 +145,7 @@ global inline void
 insert_above(TNode* below, TNode* above) {
 	TNode copy = *below;
 	copy.parent->child_count++;
-	remove(below);
+	change_parent(0, below);
 
 	if(copy.parent){
 		above->parent = copy.parent;
@@ -281,7 +281,7 @@ namespace internal {
 template<void (*callback)(DString&,TNode*)> void
 print_tree_recursive(DString& current, TNode* n, b32 newlines) {
     persist u32 layers = 0;
-	if(newlines) forI(layers) dstring::append(current, " ");
+	if(newlines) forI(layers) dstring::append(current, "  ");
 
     if(n->child_count) dstring::append(current, "(");
 
