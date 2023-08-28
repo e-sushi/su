@@ -29,7 +29,7 @@ create();
 void
 destroy(Sema* v);
 
-void 
+b32
 analyze(Code* code);
 
 namespace table {

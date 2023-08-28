@@ -23,7 +23,14 @@ destroy(Sema* v) {
 
 namespace internal {
 
-#define announce_stage(n) messenger::dispatch(message::make_debug(message::verbosity::debug, String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true)))
+u64 layers = 0;
+
+#define announce_stage(n) \
+    DString indentation = dstring::init(); \
+    forI(layers) dstring::append(indentation, " "); \
+    messenger::dispatch(message::make_debug(message::verbosity::debug, String(indentation), String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true))); \
+    layers++; \
+    defer { layers--; }
 
 // Array<LabelTable*> table_stack = array::init<LabelTable*>();
 // LabelTable* current_table = 0;
@@ -59,7 +66,7 @@ block(Code* code, BlockExpression* e) { announce_stage(e);
 
     // resolve the type of this block
     auto last = (Statement*)e->node.last_child;
-    if(!last && last->kind != statement::block_final) {
+    if(!last || last->kind != statement::block_final) {
         e->type = &type::void_;
     } else {
         e->type = type::resolve((TNode*)last);
@@ -291,9 +298,116 @@ expr(Code* code, Expression* e) { announce_stage(e);
 
             // TODO(sushi) Add trait implemented here
         } break;
+
+        case expression::binary_minus: {
+            auto lhs = (Expression*)e->node.first_child;
+            auto rhs = (Expression*)e->node.last_child;
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
+
+            if(lhs->type == rhs->type) { 
+                if(!type::is_scalar(lhs->type)) {
+                    // NOTE(sushi) temp error until traits are implemented
+                    Message m = message::init(String("cannot perform subtraction between non-scalar types yet!"));
+                    m.kind = message::error;
+                    m = message::attach_sender(e->node.start, m);
+                    messenger::dispatch(m);
+                    return false;
+                }
+                e->type = lhs->type;
+            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+                // take the larger of the two, and prefer float > signed > unsigned
+                auto l = (ScalarType*)lhs->type, 
+                     r = (ScalarType*)rhs->type;
+                
+                Expression* cast = expression::create();
+                cast->kind = expression::cast;
+                b32 take_left = l->kind > r->kind;
+                cast->type = (take_left? l : r);
+                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
+                e->type = cast->type;
+            } else {
+                diagnostic::sema::
+                    cant_find_binop_trait(e->node.start, "Sub", lhs->type, rhs->type);
+                return false;
+            }
+            return true;
+        } break;
+
+        case expression::binary_multiply: {
+            auto lhs = (Expression*)e->node.first_child;
+            auto rhs = (Expression*)e->node.last_child;
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
+
+            if(lhs->type == rhs->type) { 
+                if(!type::is_scalar(lhs->type)) {
+                    // NOTE(sushi) temp error until traits are implemented
+                    Message m = message::init(String("cannot perform multiplication between non-scalar types yet!"));
+                    m.kind = message::error;
+                    m = message::attach_sender(e->node.start, m);
+                    messenger::dispatch(m);
+                    return false;
+                }
+                e->type = lhs->type;
+            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+                // take the larger of the two, and prefer float > signed > unsigned
+                auto l = (ScalarType*)lhs->type, 
+                     r = (ScalarType*)rhs->type;
+                
+                Expression* cast = expression::create();
+                cast->kind = expression::cast;
+                b32 take_left = l->kind > r->kind;
+                cast->type = (take_left? l : r);
+                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
+                e->type = cast->type;
+            } else {
+                diagnostic::sema::
+                    cant_find_binop_trait(e->node.start, "Mul", lhs->type, rhs->type);
+                return false;
+            }
+            return true;
+        } break;
+
+        case expression::binary_division: {
+            auto lhs = (Expression*)e->node.first_child;
+            auto rhs = (Expression*)e->node.last_child;
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
+
+            if(lhs->type == rhs->type) { 
+                if(!type::is_scalar(lhs->type)) {
+                    // NOTE(sushi) temp error until traits are implemented
+                    Message m = message::init(String("cannot perform division between non-scalar types yet!"));
+                    m.kind = message::error;
+                    m = message::attach_sender(e->node.start, m);
+                    messenger::dispatch(m);
+                    return false;
+                }
+                e->type = lhs->type;
+            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+                // take the larger of the two, and prefer float > signed > unsigned
+                auto l = (ScalarType*)lhs->type, 
+                     r = (ScalarType*)rhs->type;
+                
+                Expression* cast = expression::create();
+                cast->kind = expression::cast;
+                b32 take_left = l->kind > r->kind;
+                cast->type = (take_left? l : r);
+                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
+                e->type = cast->type;
+            } else {
+                diagnostic::sema::
+                    cant_find_binop_trait(e->node.start, "Div", lhs->type, rhs->type);
+                return false;
+            }
+            return true;
+        } break;
+
         case expression::literal: {
             return true;
         } break;
+
         case expression::placeref: {
             auto pr = (PlaceRefExpression*)e;
             e->type = pr->place->type;
@@ -316,6 +430,8 @@ expr(Code* code, Expression* e) { announce_stage(e);
                     }
                 }
             }
+
+            e->type = first_type;
 
             return true;
         } break;
@@ -375,12 +491,10 @@ pop(Code* code);
 
 } // namespace table 
 
-void
+b32
 analyze(Code* code) {
     if(!code->sema) code->sema = sema::create();
-    if(!internal::start(code)) {
-       util::println("validation failed");
-    }    
+    return internal::start(code);
 }
 
 } // namespace sema
