@@ -69,6 +69,9 @@ to_string(DString& start, Expression* e) {
                 case token::literal_string:    dstring::append(start, "str lit:'", e->node.start->raw, "'"); break;
             }
         } break;
+        case expression::placeref: {
+            dstring::append(start, "placeref: ", ((PlaceRefExpression*)e)->place);
+        } break;
         default: {
             dstring::append(start, expression::strings[e->kind]);
         } break;
