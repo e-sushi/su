@@ -69,7 +69,7 @@ struct Code {
     Lexer* lexer;
     Parser* parser;
     Sema* sema;
-    Generator* generator;
+    Gen* gen;
 };
 
 // Code whose Tokens belong to some Source

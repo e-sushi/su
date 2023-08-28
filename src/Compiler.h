@@ -40,7 +40,7 @@ struct Compiler {
         Pool<Lexer>              lexers;
         Pool<Parser>             parsers;
         Pool<Sema>               semas;
-        Pool<Generator>          generators;
+        Pool<Gen>                gens;
         Pool<Module>             modules;
         Pool<Label>              labels;
         Pool<Structure>          structures;

@@ -20,8 +20,8 @@ init() {
     instance.storage.virtual_code         = pool::init<VirtualCode>(32);
     instance.storage.lexers               = pool::init<Lexer>(32);
     instance.storage.parsers              = pool::init<Parser>(32);
-    instance.storage.semas           = pool::init<Sema>(32);
-    instance.storage.generators           = pool::init<Generator>(32);
+    instance.storage.semas                = pool::init<Sema>(32);
+    instance.storage.gens                 = pool::init<Gen>(32);
     instance.storage.modules              = pool::init<Module>(32);
     instance.storage.labels               = pool::init<Label>(32);
     instance.storage.structures           = pool::init<Structure>(32);
@@ -188,10 +188,11 @@ global void
 begin(Array<String> args) {
     internal::parse_arguments(args);
 
+    defer {messenger::deliver();};
+
     if(!instance.options.entry_path.str){
         diagnostic::compiler::
             no_path_given(MessageSender::Compiler);
-        messenger::deliver();
         return;
     }
 
@@ -201,7 +202,6 @@ begin(Array<String> args) {
     if(!entry_source) {
         diagnostic::path::
             not_found(MessageSender::Compiler, instance.options.entry_path);
-        messenger::deliver();
         return;
     }
 
@@ -212,10 +212,7 @@ begin(Array<String> args) {
     
     if(instance.options.dump_tokens.path.str) {
         lex::output(entry_source->code, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
-        if(instance.options.dump_tokens.exit) {
-            messenger::deliver();
-            return;
-        }
+        if(instance.options.dump_tokens.exit) return;
     }
 
     messenger::deliver();
@@ -224,9 +221,11 @@ begin(Array<String> args) {
     
     messenger::deliver();
 
-    sema::analyze(entry_source->code);
+    if(!sema::analyze(entry_source->code)) return;
 
     messenger::deliver();
+
+    gen::generate(entry_source->code);
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
