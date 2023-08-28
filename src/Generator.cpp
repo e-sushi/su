@@ -1,14 +1,7 @@
 namespace amu {
-namespace gen {
 
-Gen*
-create(Code* code) {
-    Gen* out = pool::add(compiler::instance.storage.gens);
-    out->tac_pool = pool::init<TAC>(128);
-    out->tac = array::init<TAC*>();
-    code->gen = out;
-    return out;
-}
+
+namespace tac {
 
 TAC*
 add_tac(Gen* gen) {
@@ -17,89 +10,153 @@ add_tac(Gen* gen) {
     return out;
 }
 
-namespace internal {
-
-// expressions use this to determine if they need to consume an Arg or not
-// since Expressions can give standalone arguments, unlike other entities
-struct ExprRet {
-    b32 is_tac;
-    Arg arg;
-    Array<TAC*> assignment_backfill;
-};
-
 b32 label(Label* l, u64 stack_offset);
 void block(Code* code, BlockExpression* e);
+Arg expression(Code* code, Expression* e);
 
-ExprRet
+struct ConditionalState {
+    Array<TAC*> truelist; // list of cond_jumps that need to be backpatched with a TAC to jump to
+    Array<TAC*> falselist; // list of plain jumps that need to be backpatched with a TAC To jump to
+    TAC* result;
+    Place* temp;
+};
+
+Arg
+conditional(Code* code, Expression* cond, ConditionalState* state) {
+    Arg condition = expression(code, (Expression*)cond->node.first_child);
+
+    TAC* cond_jump = add_tac(code->gen);
+    cond_jump->op = tac::conditional_jump;
+    cond_jump->arg0 = condition;
+
+    array::push(state->falselist, cond_jump);
+    array::push(code->gen->tac, cond_jump);
+
+    Expression* first = (Expression*)cond->node.first_child->next;
+    Expression* second = (Expression*)cond->node.last_child;
+
+    // if this is a conditional then it is its own if/else ladder that does not
+    // need to use the current state
+    Arg f = expression(code, first);
+    // if(first->kind == expression::conditional) f = conditional(code, first, state);
+    // else f = expression(code, first);
+    {
+        TAC* assign = add_tac(code->gen);
+        assign->op = tac::assignment;
+        assign->arg0.kind = arg::place;
+        assign->arg0.place = state->temp;
+        assign->arg1 = f;
+        array::push(code->gen->tac, assign);
+    }
+
+    if(second != first) {
+        // add the if/else exit jump
+        TAC* jump = add_tac(code->gen);
+        jump->op = tac::jump;
+
+        array::push(code->gen->tac, jump);
+
+        // the last cond_jump can be resolved to the instruction following the jump 
+        TAC* resolved = array::pop(state->falselist);
+        u64 next_index = code->gen->tac.count;
+
+        array::push(state->truelist, jump);
+        
+        Arg s;
+        if(second->kind == expression::conditional) s = conditional(code, second, state);
+        else {
+            s = expression(code, second);
+            TAC* assign = add_tac(code->gen);
+            assign->op = tac::assignment;
+            assign->arg0.kind = arg::place;
+            assign->arg0.place = state->temp;
+            assign->arg1 = s;
+            array::push(code->gen->tac, assign);
+        }
+
+        resolved->arg1.temporary = array::read(code->gen->tac, next_index);
+        resolved->arg1.kind = arg::kind::temporary;
+
+        // we've reached the end of an if/else ladder
+        // so we can fill out the true body jumps
+        if(second->kind != expression::conditional) {
+            // we make a label TAC for the jumps, because we dont know yet
+            // what the next instruction is actually going to be
+            // this should be cleaned up eventually, ideally removing the need for making this at all
+            TAC* end = add_tac(code->gen);
+            end->op = tac::nop;
+            array::push(code->gen->tac, end);
+            forI(state->truelist.count) {
+                TAC* resolve = array::read(state->truelist, i);
+                resolve->arg0 = end;
+            }
+        }
+    } else {
+        // we're at the end, so we don't need a jump and we can backfill all previous jumps
+        // and the hanging cond_jump
+        TAC* end = add_tac(code->gen);
+        end->op = tac::nop;
+        array::push(code->gen->tac, end);
+        forI(state->truelist.count) {
+            TAC* resolve = array::read(state->truelist, i);
+            resolve->arg0 = end;
+        }
+        array::pop(state->falselist)->arg1 = end;
+    }
+    
+
+    Arg out = {};
+    out.kind = arg::temporary;
+    out.temporary = state->result;
+    return out;
+}
+
+Arg
 expression(Code* code, Expression* e) {
-    ExprRet out = {}; 
     switch(e->kind) {
         case expression::placeref: {
             auto pr = (PlaceRefExpression*)e;
-            out.arg.kind = tac::arg::place;
-            out.arg.place = pr->place;
+            return pr->place;
         } break;
         case expression::binary_plus: {
-            ExprRet lhs = expression(code, (Expression*)e->node.first_child);
-            ExprRet rhs = expression(code, (Expression*)e->node.last_child);
+            Arg lhs = expression(code, (Expression*)e->node.first_child);
+            Arg rhs = expression(code, (Expression*)e->node.last_child);
 
             TAC* add = add_tac(code->gen);
             add->op = tac::op::addition;
-            out.is_tac = true;
-
-            if(!lhs.is_tac) add->arg0 = lhs.arg;
-            else {
-                add->arg0.kind = tac::arg::temporary;
-                add->arg0.temporary = array::read(code->gen->tac, -1);
-            }
-
-            if(!rhs.is_tac) add->arg1 = rhs.arg;
-            else{
-                add->arg1.kind = tac::arg::temporary;
-                add->arg1.temporary = array::read(code->gen->tac, -1);
-            }  
+            add->arg0 = lhs;
+            add->arg1 = rhs;
 
             array::push(code->gen->tac, add);
+
+            return add;
         } break;
         case expression::cast: {
             return expression(code, (Expression*)e->node.first_child);
         } break;
         case expression::literal: {
             TODO("handle literals other than unsigned ints");
-            out.arg.kind = tac::arg::literal;
-            out.arg.literal = e->node.start->u64_val;
+            return e->node.start->u64_val;
         } break;
         case expression::binary_assignment: {
-            out.is_tac = true;
-            
-            ExprRet lhs = expression(code, (Expression*)e->node.first_child);
-            ExprRet rhs = expression(code, (Expression*)e->node.last_child);
+            Arg lhs = expression(code, (Expression*)e->node.first_child);
+            Arg rhs = expression(code, (Expression*)e->node.last_child);
 
             TAC* tac = add_tac(code->gen);
             tac->op = tac::assignment;
-
-            if(!lhs.is_tac) tac->arg0 = lhs.arg;
-            else {
-                tac->arg0.kind = tac::arg::temporary;
-                tac->arg0.temporary = array::read(code->gen->tac, -1);
-            } 
-
-            if(!rhs.is_tac) tac->arg1 = rhs.arg;
-            else {
-                tac->arg1.kind = tac::arg::temporary;
-                tac->arg1.temporary = array::read(code->gen->tac, -1);
-            }
+            tac->arg0 = lhs;
+            tac->arg1 = rhs;
 
             array::push(code->gen->tac, tac);
+
+            return tac;
         } break;
         case expression::unary_assignment: {
             // what this is being used for is handled by whatever called this
             return expression(code, (Expression*)e->node.last_child);
         } break;
         case expression::call: {
-            out.is_tac = true;
-
-            ScopedArray<ExprRet> returns = array::init<ExprRet>();
+            ScopedArray<Arg> returns = array::init<Arg>();
 
             auto ce = (CallExpression*)e;
             for(TNode* n = ce->arguments->node.last_child; n; n = n->prev) {
@@ -109,13 +166,10 @@ expression(Code* code, Expression* e) {
             forI(returns.count) {
                 TAC* tac = add_tac(code->gen);
                 tac->op = tac::param;
-                
-                ExprRet ret = array::read(returns, i);
-                if(!ret.is_tac) tac->arg0 = ret.arg;
-                else {
-                    tac->arg0.kind = tac::arg::temporary;
-                    tac->arg0.temporary = array::read(code->gen->tac, -1);
-                }
+                Arg ret = array::read(returns, i);
+
+                tac->arg0 = ret;
+
                 array::push(code->gen->tac, tac);
             }
 
@@ -125,79 +179,55 @@ expression(Code* code, Expression* e) {
             tac->arg0.func = ce->callee;
 
             array::push(code->gen->tac, tac);
-            
+
+            return tac;
         } break;
         case expression::block: {
             block(code, (BlockExpression*)e);
-            out.is_tac = true;
+            return array::read(code->gen->tac, -1);
         } break;
         case expression::conditional: {
-            // generation for conditionals is not recursive because we need to keep track of jump TAC to backfill 
-            // and, if the conditional is returning, a temp variable to fill with the resulting value of each branch
-            // TODO(sushi) the temp var kind of sucks, we should probably just back fill all of the returns
-            //             with whatever is taking the value of the if conditional
-
-            // keep a list of TAC that needs to be back filled once we resolve where its jump should be 
-            Array<TAC*> backfills = array::init<TAC*>();
+            ConditionalState state = {};
             
-            ScopedArray<Expression*> conditional_stack = array::init<Expression*>();
-            Expression* current_conditional = 0;
+            state.truelist = array::init<TAC*>();
+            state.falselist = array::init<TAC*>();
 
+            state.temp = place::create();
+            state.temp->type = e->type;
 
-            array::push(conditional_stack, current_conditional);
-            current_conditional = e;
+            state.result = add_tac(code->gen);
+            state.result->op = tac::temp;
+            state.result->arg0.kind = tac::arg::place;
+            state.result->arg0.place = state.temp;
 
-            b32 is_returning = current_conditional->flags.conditional.returning;
-
-            // if this conditional returns something we return an array of TAC 
-            // that are to be filled out by whatever is calling this 
-            Array<TAC*> external_backfill;
+            array::push(code->gen->tac, state.result);
             
-            if(is_returning) {
-                external_backfill = array::init<TAC*>();
-            }
+            return conditional(code, e, &state);
 
-            while(1) {
-                ExprRet cond = expression(code, (Expression*)current_conditional->node.first_child);
+            // // keep a list of TAC that needs to be back filled once we resolve where its jump should be 
+            // Array<TAC*> backfills 
+            
+            // ScopedArray<Expression*> conditional_stack = array::init<Expression*>();
+            // Expression* current_conditional = 0;
 
-                TAC* cond_jump = add_tac(code->gen);
-                cond_jump->op = tac::conditional_jump;
-                
-                if(!cond.is_tac) cond_jump->arg0 = cond.arg;
-                else {
-                    cond_jump->arg0.kind = tac::arg::temporary;
-                    cond_jump->arg0.temporary = array::read(code->gen->tac, -1);
-                }
+            // array::push(conditional_stack, current_conditional);
+            // current_conditional = e;
 
-                array::push(backfills, cond_jump);
-                array::push(code->gen->tac, cond_jump);
+            // b32 is_returning = current_conditional->flags.conditional.returning;
 
-                Expression* first = (Expression*)current_conditional->node.first_child->next;
-                Expression* second = (Expression*)current_conditional->node.last_child;
+            // // a TAC where the result of a returning if chain will be stored 
+            // TAC* result 
 
-                if(first->kind == expression::conditional) {
-                    // no need to worry about backfilling in this case 
-                    expression(code, first);
-                }
+            // array::push(code->gen->tac, result);
 
-                ExprRet f = expression(code, first);
-
-                TAC* jump = add_tac(code->gen);
-                jump->op = tac::jump;
-                array::push(backfills, jump);
-
-                if(second == first) {
-
-                } 
-
-            }
-        } break;
-
-        default: {
-            Assert(0); // unhandled expression 
+            
         } break;
     }
-    return out;
+
+    // an expression didn't return anything or this is a
+    // completely unhandled expression kind
+    Assert(0); 
+    return {};
 }
 
 void
@@ -209,18 +239,14 @@ statement(Code* code, Statement* s) {
             switch(l->entity->node.kind) {
                 case node::place: {
                     auto p = (Place*)l->entity;
-                    ExprRet er = expression(code, (Expression*)l->node.last_child);
+                    Arg er = expression(code, (Expression*)l->node.last_child);
 
                     TAC* tac = add_tac(code->gen);
                     tac->op = tac::assignment;
                     tac->arg0.kind = tac::arg::place;
                     tac->arg0.place = p;
 
-                    if(!er.is_tac) tac->arg1 = er.arg;
-                    else {
-                        tac->arg1.kind = tac::arg::temporary;
-                        tac->arg1.temporary = array::read(code->gen->tac, -1);
-                    }
+                    tac->arg1 = er;
 
                     array::push(code->gen->tac, tac);
                 } break;
@@ -230,24 +256,20 @@ statement(Code* code, Statement* s) {
             }
         } break;
         case statement::expression: {
-            ExprRet er = expression(code, (Expression*)s->node.first_child);
-            if(!er.is_tac) {
+            Arg er = expression(code, (Expression*)s->node.first_child);
+            if(er.kind != arg::temporary) {
                 Assert(0); // what to do here?
             }
         } break;
         case statement::block_final: {
             if(s->node.first_child) {
                 // we are returning a value
-                ExprRet er = expression(code, (Expression*)s->node.first_child);
+                Arg er = expression(code, (Expression*)s->node.first_child);
 
                 TAC* ret = add_tac(code->gen);
                 ret->op = tac::block_value;
 
-                if(!er.is_tac) ret->arg0 = er.arg;
-                else{
-                    ret->arg0.kind = tac::arg::temporary;
-                    ret->arg0.temporary = array::read(code->gen->tac, -1);
-                } 
+                ret->arg0 = er;
 
                 array::push(code->gen->tac, ret);
             } else {
@@ -338,20 +360,35 @@ start(Code* code) {
     return true;
 }
 
-} // namespace internal
-
 b32
 generate(Code* code) {
-    if(!code->gen) code->gen = create(code);
-    if(!internal::start(code)) return false;
+    if(!code->gen) code->gen = gen::create(code);
+    if(!start(code)) return false;
     return true;
 }
 
+} // namespace tac
+
+
+namespace gen {
+
+Gen*
+create(Code* code) {
+    Gen* out = pool::add(compiler::instance.storage.gens);
+    out->tac_pool = pool::init<TAC>(128);
+    out->tac = array::init<TAC*>();
+    code->gen = out;
+    return out;
+}
+
+namespace air {
+
+} // namespace air
 } // namespace gen
 
 
 void
-to_string(DString& current, Arg arg) {
+to_string(DString& current, tac::Arg arg) {
     switch(arg.kind) {
         case tac::arg::literal: {
             dstring::append(current, arg.literal);
@@ -372,22 +409,28 @@ void
 to_string(DString& current, TAC* tac) {
     dstring::append(current, "(", tac->id, ") ~ ");
     switch(tac->op) {
-         case tac::op::stack_push: {
+        case tac::nop: {
+            dstring::append(current, "nop");
+        } break;
+        case tac::temp: {
+            dstring::append(current, "temp");
+        } break;
+        case tac::stack_push: {
             dstring::append(current, "stack_push ", tac->arg0);
         } break;
-        case tac::op::stack_pop: {
+        case tac::stack_pop: {
             dstring::append(current, "stack_pop ", tac->arg0);
         } break;
-        case tac::op::addition: {
+        case tac::addition: {
             dstring::append(current, tac->arg0, " + ", tac->arg1);
         } break;
         case tac::assignment: {
             dstring::append(current, tac->arg0, " = ", tac->arg1);
         } break;
-        case tac::op::param: {
+        case tac::param: {
             dstring::append(current, "param ", tac->arg0);
         } break;
-        case tac::op::call: {
+        case tac::call: {
             dstring::append(current, "call ", tac->arg0);
         } break;
         case tac::block_start: {
@@ -399,10 +442,26 @@ to_string(DString& current, TAC* tac) {
         case tac::block_value: {
             dstring::append(current, "block_value ", tac->arg0);
         } break;
-        case tac::op::ret: {
+        case tac::ret: {
             dstring::append(current, "return ");
             if(tac->arg0.kind) {
                 dstring::append(current, tac->arg0);
+            }
+        } break;
+        case tac::jump: {
+            dstring::append(current, "jump ");
+            if(tac->arg0.kind) {
+                dstring::append(current, tac->arg0);
+            } else {
+                dstring::append(current, "...");
+            }
+        } break;
+        case tac::conditional_jump: {
+            dstring::append(current, "cond_jump ", tac->arg0, " ");
+            if(tac->arg1.kind) {
+                dstring::append(current, tac->arg1);
+            } else {
+                dstring::append(current, "...");
             }
         } break;
        
