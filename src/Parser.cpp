@@ -1966,9 +1966,13 @@ block(Code* code, code::TokenIterator& token) {
                 } else {
                     if(!expression(code, token)) return false;
                     s->kind = statement::expression;
-                    if(token.is(token::close_brace)) {
-                        last_expr = true;
+                    if(token.prev_is(token::close_brace)) {
                         need_semicolon = false;
+                        if(token.is(token::close_brace))
+                            last_expr = true;
+                    } else if(token.is(token::close_brace)) {
+                        need_semicolon = false;
+                        last_expr = true;
                     }
                 }
             } break;
@@ -1976,9 +1980,13 @@ block(Code* code, code::TokenIterator& token) {
             default: {
                 if(!expression(code, token)) return false;
                 s->kind = statement::expression;
-                if(token.is(token::close_brace)) {
-                    last_expr = true;
+                if(token.prev_is(token::close_brace)) {
                     need_semicolon = false;
+                    if(token.is(token::close_brace))
+                        last_expr = true;
+                } else if(token.is(token::close_brace)) {
+                    need_semicolon = false;
+                    last_expr = true;
                 }
             } break;
         }
