@@ -1,3 +1,29 @@
+// This file defines all diagnostics that amu may emit while compiling code
+// The format is
+// group <id> {
+//   diagnostic <id> {
+//      type: [ error | warning ];
+//        message: {
+//            <language-code> : <string>
+//        }
+//   }
+// }
+//
+// The string may request arguments from the creator of the diagnostic, which will be 
+// interpolated into the message emitted by the diagnostic. Most of these will have internal
+// formatting options associated with them, such as prefix/suffix, coloring, and other misc options
+// The logic for formatting is found in Messenger.h/cpp
+//
+//
+//      %String% - a plain String must be passed
+//      %path$ - a String representing a path
+//      %identifier% - a String representing an identifier must be passed 
+//      %token% - a Token must be passed
+//      %type% - a Type must be passed
+//
+//      
+// A message may backreference any argument it requested using the syntax $<id>$
+
 group path {
     diagnostic not_found {
         type: error;
@@ -352,22 +378,22 @@ group sema {
     diagnostic cannot_implict_coerce {
         type: error;
         message: {
-            en: "the type %type% does not define trait ImplicitConvert to type %type%";
-            esp: "la tipo %type% ne difinas la trajton ImplicitConvert al tipo %type%";
+            en: "the type %type:from_type% does not define trait ImplicitCast to type %type:to_type%";
+            esp: "la tipo %type% ne difinas la trajton ImplicitCast al tipo %type%";
         }
     }
 
     diagnostic cant_find_binop_trait {
         type: error;
         message: {
-            en: "the trait %String% is not defined between %type% and %type%";
+            en: "the trait %String:trait_name% is not defined between %type% and %type%";
         }
     }
 
     diagnostic mismatch_argument_type {
         type: error;
         message: {
-            en: "cannot convert type %type% to %type% for argument %String% in call to %String%";
+            en: "cannot convert type %type:arg_type% to %type:param_type% for argument %String:arg_str% in call to %String:func_name%";
         }
     }
 
@@ -424,7 +450,7 @@ group sema {
     diagnostic unknown_member {
         type: error;
         message: {
-            en: "type %type% has no member named %String%";
+            en: "type %type:type% has no member named %String:member_name%";
         }
     }
 
@@ -438,7 +464,14 @@ group sema {
     diagnostic if_mismatched_types_cannot_coerce {
         type: error;
         message: {
-            en: "conditional branches have mismatched types and the ladder type %type% cannot be converted to the former %type%";
+            en: "conditional branches have mismatched types and the ladder type %type:first_type% cannot be converted to the former %type:later_type%";
+        }
+    }
+
+    diagnostic return_value_of_func_block_cannot_be_coerced_to_func_return_type {
+        type: error;
+        message: {
+            en: "function return type declared as %type:func_type% but block returns %type:block_type% and $1$ does not define ImplicitCast to $0$";
         }
     }
 }
