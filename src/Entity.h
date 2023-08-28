@@ -67,7 +67,7 @@ struct Member {
 
 struct Structure : public Entity {
     u64 size; // size of this structure in bytes
-    LabelTable table;    
+    LabelTable table;
 };
 
 namespace structure {

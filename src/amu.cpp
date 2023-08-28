@@ -118,6 +118,7 @@
 #include "Parser.h"
 #include "Sema.h"
 #include "Generator.h"
+#include "Machine.h"
 
 #include "Memory.cpp"
 #include "basic/Node.cpp"
@@ -142,6 +143,7 @@
 #include "Parser.cpp"
 #include "Sema.cpp"
 #include "Generator.cpp"
+#include "Machine.cpp"
 
 
 int main(int argc, char* argv[]){

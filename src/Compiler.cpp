@@ -225,7 +225,7 @@ begin(Array<String> args) {
 
     messenger::deliver();
 
-    gen::generate(entry_source->code);
+    tac::generate(entry_source->code);
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
