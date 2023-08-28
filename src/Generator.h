@@ -1,6 +1,10 @@
 /*
 
-    Types and interface for interacting with the IR generator as well as types that it uses.
+    The Generator ahs two jobs: generating three-address code (TAC) and 
+    generating amu's intermediate representation (AIR) from TAC. 
+
+    TAC is primarily generated for use in optimization, while AIR is what is
+    sent to backends or interpretted by amu's virtual machine. 
 
 */
 
@@ -13,10 +17,19 @@ namespace amu {
 
 struct Function;
 struct Place;
+
 struct TAC;
 
 namespace tac {
+    
+
 enum op {
+    // a TAC that does nothing, usually serving as a label for something else to reference 
+    nop,
+
+    // temp memory of some Type
+    temp, 
+
     stack_push, // N bytes to push
     stack_pop,  // N bytes to pop
 
@@ -35,10 +48,12 @@ enum op {
     // a call to a function
     call,
 
-    // markers for block start and stop so that we may clean Variables up when 
-    // their containing scopes
+    // markers for block start and end
     block_start,
     block_end,
+
+    // the value given by a block if its last expression is not terminated by a semicolon
+    block_value,
 
     // return from a function
     // takes a single optional argument which indicates something to return
@@ -51,8 +66,7 @@ enum op {
     // first argument is a condition, second is a TAC to jump to 
     conditional_jump,
 
-    // the value given by a block if its last expression is not terminated by a semicolon
-    block_value,
+    
 };
 
 namespace arg {
@@ -64,26 +78,53 @@ enum kind {
     literal,
 };
 } // namespace arg
-} // namespace tac
 
 struct Arg {
-    tac::arg::kind kind;
+    arg::kind kind;
     union {
         Place* place; // a Place in memory that this Arg is referring to
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
         u64 literal;
     };
+
+    Arg() : kind(arg::none) {}
+    Arg(Place* p) : kind(arg::place), place(p) {}
+    Arg(Function* f) : kind(arg::func), func(f) {}
+    Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
+    Arg(u64 l) : kind(arg::literal), literal(l) {}
 };
 
-// representation of Three-address Code
+b32
+generate(Code* code);
+
+} // namespace tac
+
+// representation of three-address code
 // we use indirect triples style storage
+// a TAC consists of a single operation that may take 
+// one, two, or no arguments. 
 struct TAC {
     tac::op op;
-    Arg arg0, arg1;
+    tac::Arg arg0, arg1;
     // for debug purposes, when a TAC is created its id is the number of TAC created
     // before it. need to move this somewhere better eventually 
     u64 id; 
+};
+
+namespace air {
+
+enum class opcode {
+
+};
+
+b32
+generate(Code* code);
+
+} // namespace air
+
+struct AIR {
+    air::opcode instr;
 };
 
 /*
@@ -101,6 +142,8 @@ struct Gen {
     u64 tac_count;
     Pool<TAC> tac_pool;
     Array<TAC*> tac;
+
+    Array<u8> air;
 };
 
 namespace gen {
@@ -108,16 +151,13 @@ namespace gen {
 Gen*
 create(Code* code);
 
-b32
-generate(Code* code);
-
 } // namespace gen
 
 void
-to_string(DString& current, Arg arg);
+to_string(DString& current, tac::Arg arg);
 
 DString
-to_string(Arg arg) {
+to_string(tac::Arg arg) {
     DString out = dstring::init();
     to_string(out, arg);
     return out;
