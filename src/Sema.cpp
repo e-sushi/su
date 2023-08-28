@@ -150,6 +150,9 @@ typeref(Code* code, Expression* e) { announce_stage(e);
                !block(code, (BlockExpression*)e->node.last_child)) return false;
             auto be = (BlockExpression*)e->node.last_child;
             if(!type::can_coerce(type->return_type, be->type)) {
+                diagnostic::sema::
+                    return_value_of_func_block_cannot_be_coerced_to_func_return_type(
+                        be->node.last_child->start, type->return_type, be->type);
                 return false;
             }
         } break;
