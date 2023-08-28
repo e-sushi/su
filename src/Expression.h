@@ -84,6 +84,14 @@ struct Expression : public Entity {
     expression::kind kind;
 
     Type* type; // the semantic type of this expression
+
+    // assortment of flags for each expression type that hint towards certain things 
+    struct {
+        struct {
+            b32 returning : 1;
+        } conditional;
+    } flags;
+
 };
 
 namespace expression {
