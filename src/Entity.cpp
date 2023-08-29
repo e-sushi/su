@@ -55,7 +55,66 @@ b32
 can_coerce(Type* to, Type* from);
 
 String
-name(Type* type){
+name(Type* type) {
+    switch(type->kind) {
+        case type::kind::void_: {
+            return "void";
+        } break;
+        case type::kind::scalar: {
+            auto stype = (ScalarType*)type;
+            switch(stype->kind) {
+                case type::scalar::kind::unsigned8:  return "u8";
+                case type::scalar::kind::unsigned16: return "u16";
+                case type::scalar::kind::unsigned32: return "u32";
+                case type::scalar::kind::unsigned64: return "u64";
+                case type::scalar::kind::signed8:    return "s8";
+                case type::scalar::kind::signed16:   return "s16";
+                case type::scalar::kind::signed32:   return "s32";
+                case type::scalar::kind::signed64:   return "s64";
+                case type::scalar::kind::float32:    return "f32";
+                case type::scalar::kind::float64:    return "f64";
+            }
+        } break;
+
+        case type::kind::structured: {
+            auto stype = (StructuredType*)type;
+            return label::display(stype->label);
+        } break;
+
+        case type::kind::function: {
+            auto ftype = (FunctionType*)type;
+            DString out = dstring::init("("); // !Leak
+            for(TNode* n = ftype->parameters->first_child; n; n = n->next) {
+                dstring::append(out, type::resolve(n), (n->next? ", " : ""));
+            }
+            dstring::append(out, ") -> ");
+            for(TNode* n = ftype->returns; n; n = n->next) {
+                // weird logic, should probably adjust how the AST stores function info
+                b32 should_comma = n->next && n->next->kind == node::expression && ((Expression*)n->next)->kind != expression::block;
+                dstring::append(out, type::resolve(n), (should_comma? ", " : ""));
+                if(!should_comma) break;
+            }
+            return out;
+        } break;
+
+        case type::kind::array: {
+            auto atype = (ArrayType*)type;
+            // !Leak
+            return dstring::init(name(atype->type), "[", atype->size, "]"); 
+        } break;
+
+        case type::kind::pointer: {
+            auto ptype = (PointerType*)type;
+            // !Leak
+            return dstring::init(name(ptype->type), "*");
+        } break;
+    }
+
+    return "<<type::name couldn't find a name>>";
+}
+
+String
+debug_name(Type* type){
     switch(type->kind) {
         case type::kind::void_: {
             return "void";
@@ -102,17 +161,17 @@ name(Type* type){
         case type::kind::array: {
             auto atype = (ArrayType*)type;
             // !Leak
-            return dstring::init(name(atype->type), "[", atype->size, "]"); 
+            return dstring::init(debug_name(atype->type), "[", atype->size, "]"); 
         } break;
 
         case type::kind::pointer: {
             auto ptype = (PointerType*)type;
             // !Leak
-            return dstring::init(name(ptype->type), "*");
+            return dstring::init(debug_name(ptype->type), "*");
         } break;
     }
 
-    return "type::name couldn't find a name";
+    return "<<type::debug_name couldn't find a name>>";
 }
 
 namespace structured {
@@ -287,7 +346,6 @@ to_string(DString& start, Type* t) {
     if(!t) return dstring::append(start, "Type<null>");
     dstring::append(start, 
         node::util::print_tree<[](DString& current, TNode* n) {
-            //if(n->kind != node::type) return to_string(current, n, true);
             dstring::append(current, type::name((Type*)n));
         }>((TNode*)t, false));
 }

@@ -323,8 +323,19 @@ base(Type* t);
 b32
 can_coerce(Type* to, Type* from);
 
+// returns a plain name to display to a user
 String
 name(Type* type);
+
+// returns the name of a given type with extra information about what
+// kind of Type it is, for example:
+//  Apple :: struct {}
+//  ->  StructuredType<Apple>
+//
+//  Apple :: variant {}
+//  ->  Variant<Apple>
+String
+debug_name(Type* type);
 
 u64
 hash(Type* type);
@@ -348,6 +359,22 @@ resolve(TNode* n);
 // attempts to find the size of a given Type in bytes
 u64
 size(Type* t);
+
+// struct Formatting {
+//     u32 max_parameter_nesting = -1;
+//     u32 col;
+//     String prefix = "'", suffix = "'";
+// }; 
+
+// void
+// display(DString& current, Type* type, Formatting format = Formatting(), b32 allow_color = true);
+
+// DString
+// display(Type* type, Formatting format = Formatting(), b32 allow_color = true) {
+//     DString out = dstring::init();
+//     display(out, type, format, allow_color);
+//     return out;
+// }
 
 } // namespace type
 
