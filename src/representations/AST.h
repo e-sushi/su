@@ -76,7 +76,9 @@ struct ASTNode : public TNode {
     // of its children should implement this 
     // this is primarily for finding a Type when you don't care
     // about what that Type comes from, like with printing
-    // This shouldn't be used in any real logic
+    // This shouldn't be used in any real logic. Do NOT use this to 
+    // check if an ASTNode HAS a type, because things like Label and Statement
+    // which are not typed will return the Type of the expressions they wrap.
     virtual Type*
     resolve_type() { return 0; }
 

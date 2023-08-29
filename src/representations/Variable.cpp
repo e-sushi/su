@@ -10,12 +10,12 @@ create(Type* type) {
 
 String Var::
 name() {
-    return label->name();
+    return (label? label->name() : "anon/temp var");
 }
 
 DString Var::
 debug_str() {
-    return dstring::init("Var<", label->name(), ">");
+    return dstring::init("Var<", name(), ">");
 }
 
 void

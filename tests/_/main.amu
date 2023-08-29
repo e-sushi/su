@@ -1,9 +1,7 @@
-add :: (a:u32 #compiler_break , b:u32) -> s32 {
+add :: (a:u32, b:u32) -> s32  { 
     a + b
 }
 
 main :: () -> s32 {
-    a: Apple = 1;
+    add(1,2) + if(0) add(3,4) else add(5,6)
 }
-
-Apple :: struct {}

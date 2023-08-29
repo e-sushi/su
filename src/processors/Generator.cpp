@@ -303,22 +303,6 @@ function(Code* code) {
     auto ft = f->type;
 
     block(code, l->last_child()->last_child<Block>());
-
-    // if(gr.local_space) {
-    //     TAC* tac = add_tac(code->gen);
-    //     tac->op = tac::stack_push;
-    //     tac->arg0.kind = tac::arg::literal;
-    //     tac->arg0.literal = gr.local_space;
-
-    //     array::insert(gr.tac, 0, tac);
-
-    //     tac = add_tac(code->gen);
-    //     tac->op = tac::stack_pop;
-    //     tac->arg0.kind = tac::arg::literal;
-    //     tac->arg0.literal = gr.local_space;
-
-    //     array::push(gr.tac, tac);
-    // }
 } 
 
 void
@@ -399,10 +383,10 @@ to_string(DString& current, tac::Arg arg) {
             dstring::append(current, arg.literal);
         } break;
         case tac::arg::place: {
-            dstring::append(current, label::resolve((TNode*)arg.place)); // laziness
+            dstring::append(current, arg.place->name());
         } break;
         case tac::arg::func: {
-            dstring::append(current, label::resolve((TNode*)arg.func)); // laziness
+            dstring::append(current, arg.func->name());
         } break;
         case tac::arg::temporary: {
             dstring::append(current, "(", arg.temporary->id, ")");
