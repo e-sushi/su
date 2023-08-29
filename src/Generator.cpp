@@ -364,6 +364,12 @@ b32
 generate(Code* code) {
     if(!code->gen) code->gen = gen::create(code);
     if(!start(code)) return false;
+
+    util::println(code->name);
+    forI(code->gen->tac.count) {
+        util::println(to_string(array::read(code->gen->tac, i)));
+    }
+
     return true;
 }
 
