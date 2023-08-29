@@ -260,6 +260,16 @@ DString format_time(f64 ms){
     return out;
 }
 
+// wraps a DString in ANSI terminal color
+// TODO(sushi) need to setup using the 8 original colors so that terminal themes work properly
+void
+wrap_color(DString& current, u32 color) {
+    DString temp = dstring::init("\e[", color, "m");
+    dstring::prepend(current, temp);
+    dstring::append(current, "\e[0m");
+    dstring::deinit(temp);
+}
+
 void
 todo(String s, String file, u64 line) {
 	// !Leak
