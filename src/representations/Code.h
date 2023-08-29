@@ -48,14 +48,13 @@ enum kind {
 
 
 
-struct Code {
-    TNode node;
+struct Code : public ASTNode {
     code::kind kind;
     // raw representation of this code
     String raw;
 
     // identifier for this code, only used for debugging
-    String name;
+    String identifier;
     
     // if this Code was generated from another Code object, this points to that original
     // object. this is used when we generate Code from generic types and such and when we
@@ -70,11 +69,37 @@ struct Code {
     Parser* parser;
     Sema* sema;
     Gen* gen;
+
+    
+    // ~~~~~~ interface ~~~~~~~
+
+
+    Code(code::kind k) : kind(k), ASTNode(ast::code) {}
 };
+
+template<> inline b32 ASTNode::
+is<Code>() { return kind == ast::code; }
+
+template<> inline b32 ASTNode::
+next_is<Code>() { return next() && next()->is<Code>(); }
+
+template<> inline b32 ASTNode::
+is(code::kind k) { return is<Code>() && as<Code>()->kind == k; }
 
 // Code whose Tokens belong to some Source
 struct SourceCode : public Code {
     View<Token> tokens;
+
+    
+    // ~~~~~~ interface ~~~~~~~
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    SourceCode() : Code(code::unknown) {}
 };
 
 // Code which is not represented by any given Source.
@@ -85,6 +110,20 @@ struct VirtualCode : public Code {
     DString str;
     Array<Token> tokens;
     Array<Diagnostic> diagnostics;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    String
+    name() { return Code::identifier; }
+
+    DString
+    debug_str() {
+        return dstring::init("VirtualCode<>");
+    }
+
+    VirtualCode() : Code(code::unknown) {}
 };
 
 namespace code {

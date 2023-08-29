@@ -1,19 +1,24 @@
 namespace amu {
-namespace statement {
 
-global Statement*
+Stmt* Stmt::
 create() {
-    Statement* out = pool::add(compiler::instance.storage.statements);
-    node::init(&out->node);
-    out->node.kind = node::statement;
+    Stmt* out = pool::add(compiler::instance.storage.statements);
     return out;
 }
 
-} // namespace statement
+String Stmt::
+name() { 
+    return "Statement(TODO)";
+}
+
+DString Stmt::
+debug_str() {
+    return dstring::init("Stmt<", statement::strings[kind], ">");
+}
 
 void
-to_string(DString& start, Statement* s) {
-    dstring::append(start, "Statement<", statement::strings[s->kind], ">");
+to_string(DString& start, Stmt* s) {
+    dstring::append(start, "Stmt<", statement::strings[s->kind], ">");
 }
 
 } // namespace amu

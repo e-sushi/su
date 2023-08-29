@@ -15,6 +15,14 @@ init() {
 
     instance.log_file = fopen("temp/log", "w");
 
+    /*
+
+        This is where all persistent memory lives. Anything that needs to exist and not move
+        is stored in a pool stored on the Compiler instance. The majority of things put
+        here will never be deleted. 
+
+    */
+
     instance.storage.sources          = pool::init<Source>(32);
     instance.storage.source_code      = pool::init<SourceCode>(32);
     instance.storage.virtual_code     = pool::init<VirtualCode>(32);
@@ -26,15 +34,14 @@ init() {
     instance.storage.labels           = pool::init<Label>(32);
     instance.storage.structures       = pool::init<Structure>(32);
     instance.storage.functions        = pool::init<Function>(32);
-    instance.storage.statements       = pool::init<Statement>(32);
+    instance.storage.statements       = pool::init<Stmt>(32);
     instance.storage.expressions      = pool::init<Expr>(32);
     instance.storage.calls            = pool::init<Call>(32);
     instance.storage.blocks           = pool::init<Block>(32);
-    instance.storage.placerefs        = pool::init<PlaceRef>(32);
-    instance.storage.places           = pool::init<Place>(32);
+    instance.storage.varrefs          = pool::init<VarRef>(32);
+    instance.storage.vars             = pool::init<Var>(32);
     instance.storage.tuples           = pool::init<Tuple>(32);
-    instance.storage.types            = pool::init<Type>(32);
-    instance.storage.builtin_types    = pool::init<ScalarType>(32);
+    instance.storage.scalars          = pool::init<Scalar>(32);
     instance.storage.structured_types = pool::init<Structured>(32);
     instance.storage.pointer_types    = pool::init<Pointer>(32);
     instance.storage.array_types      = pool::init<StaticArray>(32);
@@ -57,7 +64,8 @@ deinit() {} // TODO(sushi)
 
 namespace internal {
 
-b32 parse_arguments(Array<String> args) {
+b32 
+parse_arguments(Array<String> args) {
     for(s32 i = 1; i < args.count; i++) {
         String arg = array::read(args, i);
         u64 hash = string::hash(arg);
@@ -134,7 +142,8 @@ b32 parse_arguments(Array<String> args) {
     return true;
 } 
 
-b32 dump_diagnostics(String path, Array<String> sources) {
+b32 
+dump_diagnostics(String path, Array<String> sources) {
     FILE* out = fopen((char*)path.str, "w");
     if(sources.count) {
         NotImplemented; // TODO(sushi) selective diag dump

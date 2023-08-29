@@ -22,6 +22,14 @@ struct Function : public Entity {
 
     void
     destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Function() : Entity(entity::func) {}
 };
 
 // when a label is assigned to a second function entity, this is created

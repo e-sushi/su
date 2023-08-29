@@ -32,12 +32,11 @@ void
 execute(Code* code);
 
 // output the data emitted by the Lexer to the given path
-// binary = false - outputs a human readable format
+// human: true to emit a human readable format, false to emit binary data
 void
 output(Code* code, b32 human, String path);
 
 } // namespace lexer
-
 } // namespace amu
 
 #endif // AMU_LEXER_H

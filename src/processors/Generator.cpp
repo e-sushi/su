@@ -18,12 +18,12 @@ struct ConditionalState {
     Array<TAC*> truelist; // list of cond_jumps that need to be backpatched with a TAC to jump to
     Array<TAC*> falselist; // list of plain jumps that need to be backpatched with a TAC To jump to
     TAC* result;
-    Place* temp;
+    Var* temp;
 };
 
 Arg
 conditional(Code* code, Expr* cond, ConditionalState* state) {
-    Arg condition = expression(code, (Expr*)cond->node.first_child);
+    Arg condition = expression(code, cond->first_child<Expr>());
 
     TAC* cond_jump = add_tac(code->gen);
     cond_jump->op = tac::conditional_jump;
@@ -32,8 +32,8 @@ conditional(Code* code, Expr* cond, ConditionalState* state) {
     array::push(state->falselist, cond_jump);
     array::push(code->gen->tac, cond_jump);
 
-    Expr* first = (Expr*)cond->node.first_child->next;
-    Expr* second = (Expr*)cond->node.last_child;
+    Expr* first = cond->first_child()->next<Expr>();
+    Expr* second = cond->last_child<Expr>();
 
     // if this is a conditional then it is its own if/else ladder that does not
     // need to use the current state
@@ -114,13 +114,12 @@ conditional(Code* code, Expr* cond, ConditionalState* state) {
 Arg
 expression(Code* code, Expr* e) {
     switch(e->kind) {
-        case expr::placeref: {
-            auto pr = (PlaceRef*)e;
-            return pr->place;
+        case expr::varref: {
+            return e->as<VarRef>()->var;
         } break;
         case expr::binary_plus: {
-            Arg lhs = expression(code, (Expr*)e->node.first_child);
-            Arg rhs = expression(code, (Expr*)e->node.last_child);
+            Arg lhs = expression(code, e->first_child<Expr>());
+            Arg rhs = expression(code, e->last_child<Expr>());
 
             TAC* add = add_tac(code->gen);
             add->op = tac::op::addition;
@@ -132,15 +131,15 @@ expression(Code* code, Expr* e) {
             return add;
         } break;
         case expr::cast: {
-            return expression(code, (Expr*)e->node.first_child);
+            return expression(code, e->first_child<Expr>());
         } break;
         case expr::literal: {
             TODO("handle literals other than unsigned ints");
-            return e->node.start->u64_val;
+            return e->start->u64_val;
         } break;
         case expr::binary_assignment: {
-            Arg lhs = expression(code, (Expr*)e->node.first_child);
-            Arg rhs = expression(code, (Expr*)e->node.last_child);
+            Arg lhs = expression(code, e->first_child<Expr>());
+            Arg rhs = expression(code, e->last_child<Expr>());
 
             TAC* tac = add_tac(code->gen);
             tac->op = tac::assignment;
@@ -153,14 +152,14 @@ expression(Code* code, Expr* e) {
         } break;
         case expr::unary_assignment: {
             // what this is being used for is handled by whatever called this
-            return expression(code, (Expr*)e->node.last_child);
+            return expression(code, e->last_child<Expr>());
         } break;
         case expr::call: {
             ScopedArray<Arg> returns = array::init<Arg>();
 
             auto ce = (Call*)e;
-            for(TNode* n = ce->arguments->node.last_child; n; n = n->prev) {
-                array::push(returns, expression(code, (Expr*)n));
+            for(auto n = ce->arguments->last_child<Expr>(); n; n = n->prev<Expr>()) {
+                array::push(returns, expression(code, n));
             }
 
             forI(returns.count) {
@@ -192,7 +191,7 @@ expression(Code* code, Expr* e) {
             state.truelist = array::init<TAC*>();
             state.falselist = array::init<TAC*>();
 
-            state.temp = Place::create();
+            state.temp = Var::create();
             state.temp->type = e->type;
 
             state.result = add_tac(code->gen);
@@ -231,22 +230,22 @@ expression(Code* code, Expr* e) {
 }
 
 void
-statement(Code* code, Statement* s) {
+statement(Code* code, Stmt* s) {
     switch(s->kind) {
         case statement::label: {
-            auto l = (Label*)s->node.first_child;
+            auto l = s->first_child<Label>();
             
-            switch(l->entity->node.kind) {
-                case node::place: {
-                    auto p = (Place*)l->entity;
-                    Arg er = expression(code, (Expr*)l->node.last_child);
+            switch(l->entity->kind) {
+                case entity::var: {
+                    auto v = l->entity->as<Var>();
+                    Arg arg = expression(code, l->last_child<Expr>());
 
                     TAC* tac = add_tac(code->gen);
                     tac->op = tac::assignment;
                     tac->arg0.kind = tac::arg::place;
-                    tac->arg0.place = p;
+                    tac->arg0.place = v;
 
-                    tac->arg1 = er;
+                    tac->arg1 = arg;
 
                     array::push(code->gen->tac, tac);
                 } break;
@@ -256,20 +255,19 @@ statement(Code* code, Statement* s) {
             }
         } break;
         case statement::expression: {
-            Arg er = expression(code, (Expr*)s->node.first_child);
-            if(er.kind != arg::temporary) {
+            Arg arg = expression(code, s->first_child<Expr>());
+            if(arg.kind != arg::temporary) {
                 Assert(0); // what to do here?
             }
         } break;
         case statement::block_final: {
-            if(s->node.first_child) {
+            if(s->first_child()) {
                 // we are returning a value
-                Arg er = expression(code, (Expr*)s->node.first_child);
+                Arg arg = expression(code, s->first_child<Expr>());
 
                 TAC* ret = add_tac(code->gen);
                 ret->op = tac::block_value;
-
-                ret->arg0 = er;
+                ret->arg0 = arg;
 
                 array::push(code->gen->tac, ret);
             } else {
@@ -287,12 +285,12 @@ block(Code* code, Block* e) {
     TAC* tac = add_tac(code->gen);
     tac->op = tac::block_start;
     array::push(code->gen->tac, tac);
-    for(TNode* n = e->node.first_child; n; n = n->next) {
-        statement(code, (Statement*)n);
+    for(auto n = e->first_child<Stmt>(); n; n = n->next<Stmt>()) {
+        statement(code, n);
     }
 
     if(array::read(code->gen->tac, -1)->op != tac::block_value) {
-         tac = add_tac(code->gen);
+        tac = add_tac(code->gen);
         tac->op = tac::block_end;
         array::push(code->gen->tac, tac);
     }
@@ -300,11 +298,11 @@ block(Code* code, Block* e) {
 
 void
 function(Code* code) {
-    auto l  = (Label*)code->parser->root;
-    auto f  = (Function*)l->entity;
+    auto l  = code->parser->root->as<Label>();
+    auto f  = l->entity->as<Function>();
     auto ft = f->type;
 
-    block(code, (Block*)l->node.last_child->last_child);
+    block(code, l->last_child()->last_child<Block>());
 
     // if(gr.local_space) {
     //     TAC* tac = add_tac(code->gen);
@@ -325,11 +323,12 @@ function(Code* code) {
 
 void
 label(Code* code, Label* l) {
-    switch(l->entity->node.kind) {
-        case node::function: {
+    switch(l->entity->kind) {
+        case entity::func: {
             function(code);
         } break;
-        case node::place: {
+        case entity::var: {
+            NotImplemented;
         } break;
     }
 }
@@ -345,8 +344,8 @@ b32
 start(Code* code) {
     switch(code->kind) {
         case code::source: {
-            for(TNode* n = code->node.first_child; n; n = n->next) {
-                if(!generate((Code*)n)) return false;
+            for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
+                if(!generate(n)) return false;
             }
         } break;
         case code::function: {
@@ -365,7 +364,7 @@ generate(Code* code) {
     if(!code->gen) code->gen = gen::create(code);
     if(!start(code)) return false;
 
-    util::println(code->name);
+    util::println(code->identifier);
     forI(code->gen->tac.count) {
         util::println(to_string(array::read(code->gen->tac, i)));
     }

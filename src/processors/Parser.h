@@ -13,7 +13,7 @@ namespace amu {
 struct Parser {
     Code* code;
 
-    TNode* root;
+    ASTNode* root;
 
     // labels collected at the highest scope of a parser
     LabelTable table;
@@ -24,8 +24,8 @@ struct Parser {
     Array<LabelTable*> table_stack;
     LabelTable* current_table;
 
-    Array<TNode*> stack;
-    TNode* last;
+    Array<ASTNode*> stack;
+    ASTNode* last;
 
     // array of Tokens representing identifiers that refer to something
     // unknown when we come across it in parsing 
@@ -46,7 +46,7 @@ parse(Code* code);
 namespace stack {
 
 void
-push(Code* c, TNode* node);
+push(Code* c, ASTNode* node);
 
 // NOTE(sushi) this is somewhat dangerous cause you can accidentally pass something like 
 //             a function pointer to this and it will work
@@ -54,12 +54,12 @@ push(Code* c, TNode* node);
 //             if our types inherited TNode, we could use std::is_base_of
 //             but i dont want to implement all of that rn
 template<typename T> FORCE_INLINE void
-push(Code* c, T* node) { push(c, (TNode*)node); }
+push(Code* c, T* node) { push(c, (ASTNode*)node); }
 
-TNode*
+ASTNode*
 pop(Code* c);
 
-TNode*
+ASTNode*
 last(Code* c);
 
 void

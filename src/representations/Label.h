@@ -14,13 +14,29 @@
 namespace amu{
 
 struct Token;
-struct Label {
-    TNode node;
-    // if this is 0, then what the Label points to must be resolved
-    // from node.first_child
+struct Label : public ASTNode {
     Entity* entity;
 
-    Label* aliased; // if this label is an alias of another label, this is the original
+    // if this label is an alias of another label, this is the original
+    Label* aliased; 
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static Label*
+    create();
+
+    Label*
+    base();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Label() : ASTNode(ast::label) {}
 };
 
 struct LabelTable {
@@ -31,19 +47,6 @@ struct LabelTable {
 
 namespace label {
 
-global Label*
-create();
-
-global void
-destroy();
-
-global Label*
-base(Label* l);
-
-// attempts to resolve a Label from a given Node
-// returns 0 if it can't find one 
-Label*
-resolve(TNode* n);
 
 // TODO(sushi) this same idea can be used for all the other things in amu,
 //             i just dont want to spend time on setting all of that up right now 

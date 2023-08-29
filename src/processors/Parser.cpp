@@ -20,7 +20,7 @@ create(Code* code) {
     out->current_module = 0;
     out->table_stack = array::init<LabelTable*>();
     out->current_table = 0;
-    out->stack = array::init<TNode*>();
+    out->stack = array::init<ASTNode*>();
     code->parser = out;
     return out;
 }
@@ -1854,19 +1854,19 @@ b32 access(Code* code, code::TokenIterator& token);
 b32 
 reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
     Expr* e = Expr::create(expr::literal);
-    e->node.start = e->node.end = token.current();
+    // e->node.start = e->node.end = token.current();
     switch(token.current_kind()) {
         case token::literal_character: {
-            e->type = &type::scalar::unsigned8;
+            e->type = &scalar::scalars[scalar::unsigned8];
         } break;
         case token::literal_float: {
-            e->type = &type::scalar::float64;
+            e->type = &scalar::scalars[scalar::float64];
         } break;
         case token::literal_integer: {
-            e->type = &type::scalar::signed64;
+            e->type = &scalar::scalars[scalar::signed64];
         } break;
         case token::literal_string: {
-            e->type = StaticArray::create(&type::scalar::unsigned8, token.current()->raw.count);
+            e->type = StaticArray::create(&scalar::scalars[scalar::unsigned8], token.current()->raw.count);
         } break;
     }
     stack::push(code, e);
@@ -1876,19 +1876,19 @@ reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
 b32 
 reduce_builtin_type_to_typeref_expression(Code* code, code::TokenIterator& token) { 
     Expr* e = Expr::create(expr::typeref);
-    e->node.start = e->node.end = token.current();
+    // e->node.start = e->node.end = token.current();
     switch(token.current_kind()) {
         case token::void_:      e->type = &type::void_; break; 
-        case token::unsigned8:  e->type = &type::scalar::unsigned8; break;
-        case token::unsigned16: e->type = &type::scalar::unsigned16; break;
-        case token::unsigned32: e->type = &type::scalar::unsigned32; break;
-        case token::unsigned64: e->type = &type::scalar::unsigned64; break;
-        case token::signed8:    e->type = &type::scalar::signed8; break;
-        case token::signed16:   e->type = &type::scalar::signed16; break;
-        case token::signed32:   e->type = &type::scalar::signed32; break;
-        case token::signed64:   e->type = &type::scalar::signed64; break;
-        case token::float32:    e->type = &type::scalar::float32; break;
-        case token::float64:    e->type = &type::scalar::float64; break;
+        case token::unsigned8:  e->type = &scalar::scalars[scalar::unsigned8]; break;
+        case token::unsigned16: e->type = &scalar::scalars[scalar::unsigned16]; break;
+        case token::unsigned32: e->type = &scalar::scalars[scalar::unsigned32]; break;
+        case token::unsigned64: e->type = &scalar::scalars[scalar::unsigned64]; break;
+        case token::signed8:    e->type = &scalar::scalars[scalar::signed8]; break;
+        case token::signed16:   e->type = &scalar::scalars[scalar::signed16]; break;
+        case token::signed32:   e->type = &scalar::scalars[scalar::signed32]; break;
+        case token::signed64:   e->type = &scalar::scalars[scalar::signed64]; break;
+        case token::float32:    e->type = &scalar::scalars[scalar::float32]; break;
+        case token::float64:    e->type = &scalar::scalars[scalar::float64]; break;
     }
     stack::push(code, e);
     return true;
@@ -1903,12 +1903,12 @@ typeref(Code* code, code::TokenIterator& token) {
             if(!expression(code, token)) return false;
 
             Expr* e = Expr::create(expr::binary_assignment);
-            e->node.start = start;
-            e->node.end = token.current();
+            // e->node.start = start;
+            // e->node.end = token.current();
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
             // always take the type of the lhs because it controls the type of the rhs expression
-            e->type = ((Expr*)e->node.first_child)->type;
+            e->type = e->first_child<Expr>()->type;
             stack::push(code, e);
         } break;
 
@@ -1934,8 +1934,8 @@ typeref(Code* code, code::TokenIterator& token) {
 b32
 block(Code* code, code::TokenIterator& token) {
     auto e = Block::create();
-    e->node.start = token.current();
-    e->table.last = stack::current_table(code);
+    // e->node.start = token.current();
+    // e->table.last = stack::current_table(code);
     stack::push_table(code, &e->table);
 
     token.increment();
@@ -1949,7 +1949,7 @@ block(Code* code, code::TokenIterator& token) {
             token.increment(); 
             continue; 
         }
-        Statement* s = statement::create();
+        auto s = Stmt::create();
         s->kind = statement::unknown;
 
         switch(token.current_kind()) {
@@ -1996,15 +1996,15 @@ block(Code* code, code::TokenIterator& token) {
             }
             count++;
             node::insert_first(s, stack::pop(code));
-            s->node.start = s->node.first_child->start;
-            s->node.end = token.current();
+            // s->node.start = s->node.first_child->start;
+            // s->node.end = token.current();
             s->kind = statement::block_final;
             stack::push(code, s);
             break;
         } else {
             node::insert_first(s, stack::pop(code));
-            s->node.start = s->node.first_child->start;
-            s->node.end = token.current();
+            // s->node.start = s->node.first_child->start;
+            // s->node.end = token.current();
 
             count++;
             stack::push(code, s);
@@ -2019,7 +2019,7 @@ block(Code* code, code::TokenIterator& token) {
     forI(count) {
         node::insert_first(e, stack::pop(code));
     }
-    e->node.end = token.current();
+    // e->node.end = token.current();
     token.increment();
     stack::push(code, e);
     stack::pop_table(code);
@@ -2037,26 +2037,26 @@ factor(Code* code, code::TokenIterator& token) {
                 return false;
             }
 
-            switch(l->entity->node.kind) {
-                case node::place: {
-                    auto e = PlaceRef::create();
-                    e->node.start = e->node.end = token.current();
-                    e->place = (Place*)l->entity;
+            switch(l->entity->kind) {
+                case entity::var: {
+                    auto e = VarRef::create();
+                    e->start = e->end = token.current();
+                    e->var = l->entity->as<Var>();
                     token.increment();
                     stack::push(code, e);
                 } break;
-                case node::function: {
+                case entity::func: {
                     if(token.next_is(token::open_paren)) {
                         // must be a function call
                         auto id = Expr::create(expr::identifier);
-                        id->node.start = id->node.end = token.current();
+                        id->start = id->end = token.current();
                         auto call = Call::create();
-                        call->node.start = token.current();
-                        call->callee = (Function*)l->entity;
+                        call->start = token.current();
+                        call->callee = l->entity->as<Function>();
                         token.increment();
                         if(!tuple(code, token)) return false;
-                        call->node.end = token.current();
-                        call->arguments = (Tuple*)stack::pop(code);
+                        call->end = token.current();
+                        call->arguments = stack::pop(code)->as<Tuple>();
                         node::insert_last(call, id);
                         node::insert_last(call, call->arguments);
                         stack::push(code, call);
@@ -2067,7 +2067,7 @@ factor(Code* code, code::TokenIterator& token) {
                 } break;
                 default: {
                     util::println(dstring::init(
-                        token.current(), "unhandled identifier reference: ", node::strings[l->entity->node.kind]));
+                        token.current(), "unhandled identifier reference: ", ast::strings[l->entity->kind]));
                 } break;
             }
 
@@ -2094,15 +2094,15 @@ factor(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::ampersand: {
-            Expr* e = Expr::create(expr::unary_reference);
-            e->node.start = token.current();
+            auto e = Expr::create(expr::unary_reference);
+            e->start = token.current();
 
             token.increment();
             if(!factor(code, token)) return false;
 
             node::insert_last(e, stack::pop(code));
-            e->type = Pointer::create(Type::resolve(e->node.last_child));
-            e->node.end = e->node.last_child->end;
+            e->type = Pointer::create(e->last_child()->resolve_type());
+            e->end = e->last_child()->end;
             stack::push(code, e);
         } break;
 
@@ -2125,7 +2125,7 @@ factor(Code* code, code::TokenIterator& token) {
 b32
 conditional(Code* code, code::TokenIterator& token) {
     Expr* e = Expr::create(expr::conditional);
-    e->node.start = token.current();
+    e->start = token.current();
 
     token.increment();
 
@@ -2160,7 +2160,7 @@ conditional(Code* code, code::TokenIterator& token) {
         node::insert_last(e, stack::pop(code));
     }
 
-    e->node.end = token.current();
+    e->end = token.current();
 
     return true;
 }
@@ -2181,14 +2181,12 @@ assignment(Code* code, code::TokenIterator& token) {
         if(!bit_or(code, token)) return false;
         if(!logi_and(code, token)) return false;
         if(!logi_or(code, token)) return false;
-
         Expr* e = Expr::create(expr::binary_assignment);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
-
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
 
         stack::push(code, e);
 
@@ -2218,9 +2216,8 @@ b32 logi_or(Code* code, code::TokenIterator& token) {
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
-
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
         stack::push(code, e);
 
         if(!logi_or(code, token)) return false;
@@ -2248,9 +2245,8 @@ b32 logi_and(Code* code, code::TokenIterator& token) {
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
-
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
         stack::push(code, e);
 
         if(!logi_and(code, token)) return false;
@@ -2277,9 +2273,8 @@ b32 bit_or(Code* code, code::TokenIterator& token) {
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
-
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
         stack::push(code, e);
 
         if(!bit_or(code, token)) return false;
@@ -2305,9 +2300,8 @@ b32 bit_xor(Code* code, code::TokenIterator& token) {
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
-
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
         stack::push(code, e);
 
         if(!bit_xor(code, token)) return false;
@@ -2333,9 +2327,8 @@ b32 bit_and(Code* code, code::TokenIterator& token) {
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
-
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
         stack::push(code, e);
 
         if(!bit_and(code, token)) return false;
@@ -2365,9 +2358,8 @@ b32 equality(Code* code, code::TokenIterator& token) {
 
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
-
-            e->node.start = e->node.first_child->start;
-            e->node.end = e->node.last_child->end;
+            e->start = e->first_child()->start;
+            e->end = e->last_child()->end;
             stack::push(code, e);
 
             if(!equality(code, token)) return false;
@@ -2403,9 +2395,8 @@ b32 relational(Code* code, code::TokenIterator& token) {
 
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
-
-            e->node.start = e->node.first_child->start;
-            e->node.end = e->node.last_child->end;
+            e->start = e->first_child()->start;
+            e->end = e->last_child()->end;
             stack::push(code, e);
 
             if(!relational(code, token)) return false;
@@ -2434,9 +2425,8 @@ b32 bit_shift(Code* code, code::TokenIterator& token) {
             
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
-
-            e->node.start = e->node.first_child->start;
-            e->node.end = e->node.last_child->end;
+            e->start = e->first_child()->start;
+            e->end = e->last_child()->end;
             stack::push(code, e);
 
             if(!bit_shift(code, token)) return false;
@@ -2464,9 +2454,8 @@ b32 additive(Code* code, code::TokenIterator& token) {
 
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
-
-            e->node.start = e->node.first_child->start;
-            e->node.end = e->node.last_child->end;
+            e->start = e->first_child()->start;
+            e->end = e->last_child()->end;
             stack::push(code, e);
 
             if(!additive(code, token)) return false;
@@ -2494,9 +2483,8 @@ b32 term(Code* code, code::TokenIterator& token) {
             
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
-
-            e->node.start = e->node.first_child->start;
-            e->node.end = e->node.last_child->end;
+            e->start = e->first_child()->start;
+            e->end = e->last_child()->end;
             stack::push(code, e);
 
             if(!term(code, token)) return false;
@@ -2521,11 +2509,11 @@ b32 access(Code* code, code::TokenIterator& token) {
         }
 
         auto id = Expr::create(expr::identifier);
-        id->node.start = id->node.end = token.current();
+        id->start = id->end = token.current();
 
         auto e = Expr::create(expr::binary_access);
-        node::insert_first((TNode*)e, stack::pop(code));
-        node::insert_first((TNode*)e, id);
+        node::insert_first(e, stack::pop(code));
+        node::insert_first(e, id);
         stack::push(code, e);
         token.increment();
         if(!access(code, token)) return false;
@@ -2538,28 +2526,28 @@ expression(Code* code, code::TokenIterator& token) {
     switch(token.current_kind()) {
         case token::equal: {
             auto e = Expr::create(expr::unary_assignment);
-            e->node.start = token.current();
+            e->start = token.current();
 
             token.increment();
             if(!expression(code, token)) return false;
 
             node::insert_first(e, stack::pop(code));
-            e->node.end = e->node.last_child->end;
+            e->end = e->last_child()->end;
 
             stack::push(code, e);
         } break;
 
         case token::colon: {
             auto e = Expr::create(expr::unary_comptime);
-            e->node.start = token.current();
+            e->start = token.current();
 
             token.increment();
 
             if(!expression(code, token)) return false;
 
             node::insert_first(e, stack::pop(code));
-            e->node.end = e->node.last_child->end;
-            e->type = ((Expr*)e->node.first_child)->type;
+            e->end = e->last_child()->end;
+            e->type = e->first_child<Expr>()->type;
 
             TODO("implement comptime code funneling");
 
@@ -2576,13 +2564,13 @@ expression(Code* code, code::TokenIterator& token) {
 
         case token::return_: {
             auto e = Expr::create(expr::return_);
-            e->node.start = token.current();
+            e->start = token.current();
 
             token.increment();
             if(!expression(code, token)) return false;
 
             node::insert_first(e, stack::pop(code));
-            e->node.end = e->node.last_child->end;
+            e->end = e->last_child()->end;
 
             stack::push(code, e);
         } break;
@@ -2633,8 +2621,8 @@ expression(Code* code, code::TokenIterator& token) {
 // the closing brace
 b32
 tuple(Code* code, code::TokenIterator& token) {
-    Tuple* tuple = tuple::create();
-    tuple->node.start = token.current();
+    Tuple* tuple = Tuple::create();
+    tuple->start = token.current();
 
     token.increment();
 
@@ -2682,7 +2670,7 @@ tuple(Code* code, code::TokenIterator& token) {
     forI(count) 
         node::insert_first(tuple, stack::pop(code));
 
-    tuple->node.end = token.current();
+    tuple->end = token.current();
 
     token.increment();
 
@@ -2710,7 +2698,7 @@ tuple(Code* code, code::TokenIterator& token) {
     Expr* e = Expr::create(expr::typeref);
 
     if(count > 1) {
-        Tuple* t = tuple::create();
+        Tuple* t = Tuple::create();
         t->kind = tuple::multireturn;
 
         ScopedArray<Type*> types = array::init<Type*>();
@@ -2723,8 +2711,8 @@ tuple(Code* code, code::TokenIterator& token) {
 
         node::insert_last(e, t);
 
-        t->node.start = t->node.first_child->start;
-        t->node.end = t->node.last_child->start;
+        t->start = t->first_child()->start;
+        t->end = t->last_child()->start;
     } else {
         auto t = (Type*)stack::pop(code);
         node::insert_first(e, t);
@@ -2746,14 +2734,14 @@ tuple(Code* code, code::TokenIterator& token) {
 
         node::insert_last(e, stack::pop(code));
 
-        e->node.start = e->node.first_child->start;
-        e->node.end = e->node.last_child->end;
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
     }
 
     auto ft = FunctionType::create();
-    ft->parameters = e->node.first_child;
-    ft->returns = e->node.first_child->next;
-    ft->return_type = Type::resolve(ft->returns); // kind of redundant 
+    ft->parameters = e->first_child();
+    ft->returns = e->first_child()->next();
+    ft->return_type = ft->returns->resolve_type(); // kind of redundant 
     e->type = (Type*)ft;
 
     stack::push(code, e);
@@ -2773,11 +2761,10 @@ label_after_colon(Code* code, code::TokenIterator& token) {
                 return false;
             }
 
-            switch(l->entity->node.kind) {
-                case node::type: {
-                    Expr* e = Expr::create(expr::typeref, (Type*)l->entity);
-                    e->node.start = e->node.end = token.current();
-                    stack::push(code, e);
+            switch(l->entity->kind) {
+                case entity::type: {
+                    auto e = Expr::create(expr::typeref, l->entity->as<Type>());
+                    e->start = e->end = token.current();
 
                     token.increment();
                     if(!typeref(code, token)) return false;
@@ -2811,39 +2798,39 @@ label_after_colon(Code* code, code::TokenIterator& token) {
 b32 
 label_group_after_comma(Code* code, code::TokenIterator& token) {
      while(1) {
-        if(token.current_kind() != token::identifier) break; 
-        Expr* expr = Expr::create(expr::identifier);
-        expr->node.start = expr->node.end = token.current();
+        if(!token.is(token::identifier)) break; 
+        auto expr = Expr::create(expr::identifier);
+        expr->start = expr->end = token.current();
         
-        TNode* last = stack::last(code);
-        if(last->kind == node::tuple) {
-            // a label group was already created, so just append to it
-            node::insert_last(last, (TNode*)expr);
+        ASTNode* last = stack::last(code);
+
+        if(last->is<Tuple>()) {
+            node::insert_last(last, expr);
             last->end = token.current();
         } else {
             // this is the second label, so the last must be another identifier
             // make the label group tuple
-            Tuple* group = tuple::create();
+            auto group = Tuple::create();
             group->kind = tuple::label_group;
-            node::insert_last((TNode*)group, stack::pop(code));
-            node::insert_last((TNode*)group, (TNode*)expr);
-            group->node.start = group->node.first_child->start;
-            group->node.end = group->node.last_child->end;
-            stack::push(code, (TNode*)group);
+            node::insert_last(group, stack::pop(code));
+            node::insert_last(group, expr);
+            group->start = group->first_child()->start;
+            group->end = group->last_child()->end;
+            stack::push(code, group);
         }
-        
+
         token.increment();
         
-        if(token.current_kind() == token::comma) token.increment(); 
+        if(token.is(token::comma)) token.increment(); 
         else break;
     }
 
-    if(token.prev_kind() == token::comma) {
+    if(token.prev_is(token::comma)) {
         diagnostic::parser::
             label_group_missing_id(token.current());
     }
 
-    if(token.current_kind() == token::colon) {
+    if(token.is(token::colon)) {
         if(!label_after_colon(code, token)) return false;
     } else {
         diagnostic::parser::
@@ -2868,9 +2855,8 @@ label_after_id(Code* code, code::TokenIterator& token) {
 // returns with the tokenator at the token following the colon
 b32 
 label_get(Code* code, code::TokenIterator& token) {
-    Expr* expr = Expr::create(expr::identifier);
-    expr->node.start = token.current();
-    expr->node.end = token.current();
+    auto expr = Expr::create(expr::identifier);
+    expr->start = expr->end = token.current();
     stack::push(code, (TNode*)expr);
 
     token.increment();
@@ -2886,8 +2872,8 @@ label_get(Code* code, code::TokenIterator& token) {
         } break;
     }
 
-    Label* l = label::create();
-    l->node.start = expr->node.start;
+    auto l = Label::create();
+    l->start = expr->start;
     node::insert_first(l, stack::pop(code));
     stack::push(code, l);
     token.increment();
@@ -2900,20 +2886,21 @@ label(Code* code, code::TokenIterator& token) {
     if(!label_get(code, token)) return false;
     
     Label* l = (Label*)stack::pop(code);
-    table::add(code, l->node.start->raw, l);
+    table::add(code, l->start->raw, l);
     
     if(!label_after_colon(code, token)) return false;
 
-    TNode* cand = stack::pop(code);
-    switch(cand->kind) {
-        case node::expression: {
-            auto expr = (Expr*)cand;
+    // TODO(sushi) all of this stuff should be condensed somehow 
+    ASTNode* cand = stack::pop(code);
+    if(cand->is<Entity>()) switch(cand->as<Entity>()->kind) {
+        case entity::expr: {
+            auto expr = cand->as<Expr>();
             switch(expr->kind) {
                 case expr::unary_assignment: {
-                    auto p = Place::create();
-                    p->label = l;
-                    p->type = expr->type;
-                    l->entity = (Entity*)p;
+                    auto v = Var::create();
+                    v->label = l;
+                    v->type = expr->type;
+                    l->entity = v->as<Entity>();
                     node::insert_last(l, cand);
                 } break;
                 case expr::unary_comptime: {
@@ -2922,17 +2909,17 @@ label(Code* code, code::TokenIterator& token) {
                         case type::kind::function: {
                             auto f = Function::create();
                             f->label = l;
-                            f->type = (FunctionType*)expr->type;
-                            f->node.start = f->type->parameters->start;
+                            f->type = expr->type->as<FunctionType>();
+                            f->start = f->type->parameters->start;
                             l->entity = (Entity*)f;
                             node::insert_last(l, cand);
                         } break;
                     }
                 } break;
                 case expr::binary_assignment: {
-                    auto p = Place::create();
-                    p->label = l;
-                    l->entity = (Entity*)p;
+                    auto v = Var::create();
+                    v->label = l;
+                    l->entity = v->as<Entity>();
                     node::insert_last(l, cand);
                 } break;
                 case expr::typeref: {
@@ -2940,19 +2927,12 @@ label(Code* code, code::TokenIterator& token) {
                     // <id> : <type> ;
                     Type* t = expr->type;
                     switch(t->kind) {
-                        case type::kind::scalar: {
-                            auto p = Place::create();
-                            p->label = l;
-                            p->type = t;
-                            l->entity = (Entity*)p;
-                            node::insert_last(l, cand);
-                        } break;
-
+                        case type::kind::scalar:
                         case type::kind::structured: {
-                            auto p = Place::create();
-                            p->label = l;
-                            p->type = t;
-                            l->entity = (Entity*)p;
+                            auto v = Var::create();
+                            v->label = l;
+                            v->type = t;
+                            l->entity = v->as<Entity>();
                             node::insert_last(l, cand);
                         } break;
 
@@ -2960,19 +2940,19 @@ label(Code* code, code::TokenIterator& token) {
                             // if the last child of the typeref is not a block, then
                             // we do not create a function entity, this is simply a variable
                             // representing a function
-                            if(cand->last_child->kind != node::expression || 
-                               ((Expr*)cand->last_child)->kind != expr::block) {
-                                auto p = Place::create();
-                                p->label = l;
-                                p->type = t;
-                                l->entity = (Entity*)p;
+
+                            if(!cand->last_child()->is<Block>()) {
+                                auto v = Var::create();
+                                v->label = l;
+                                v->type = t;
+                                l->entity = v->as<Entity>();
                                 node::insert_last(l, cand);
                             } else {
                                 auto f = Function::create();
                                 f->label = l;
-                                f->type = (FunctionType*)t;
-                                f->node.start = f->type->parameters->start;
-                                l->entity = (Entity*)f;
+                                f->type = t->as<FunctionType>();
+                                f->start = f->type->parameters->start;
+                                l->entity = f->as<Entity>();
                                 node::insert_last(l, cand);
                             }
                         } break;
@@ -2984,19 +2964,13 @@ label(Code* code, code::TokenIterator& token) {
                     return false;
                 }
             }
-        } break;
-        case node::statement: {
-            DebugBreakpoint;
-        } break;
-        default: {
-            util::println(
-                    dstring::init("unhandled label case: ", node::strings[cand->kind]));
-            return false;
         }
+    } else {    
+        Assert(0); // I don't think this should happen
     }
 
-    l->node.start = l->node.first_child->start;
-    l->node.end = l->node.last_child->end;
+    l->start = l->first_child()->start;
+    l->end = l->last_child()->end;
 
     stack::push(code, l);
     return true;
@@ -3044,7 +3018,7 @@ struct_decl(Code* code, code::TokenIterator& token) {
                 return false;
             }
             token.increment();
-            if(stack::last(code)->kind == node::function) {
+            if(stack::last(code)->is<Function>()) {
                 diagnostic::parser::
                     struct_member_functions_not_allowed(stack::last(code)->start);
                 return false;
@@ -3077,9 +3051,8 @@ prescanned_type(Code* code, code::TokenIterator& token) {
             stack::push_table(code, &s->table);
 
             auto e = (Expr*)stack::pop(code);
-            for(TNode* n = e->node.first_child; n; n = n->next) {
-                auto l = (Label*)e->node.first_child;
-                table::add(code, l->node.start->raw, l);
+            for(Label* n = e->first_child<Label>(); n; n = n->next<Label>()) {
+                table::add(code, n->start->raw, n);
             }
             // reuse the typeref to place in the AST 
             e->type = type;
@@ -3131,7 +3104,7 @@ prescanned_function(Code* code, code::TokenIterator& token) {
 
 b32
 statement(Code* code, code::TokenIterator& token) {
-    Statement* s = statement::create();
+    auto s = Stmt::create();
     switch(token.current_kind()) {
         case token::identifier: {
             if(token.next_kind() == token::colon) {
@@ -3165,13 +3138,12 @@ start(Code* code) {
             if(!prescanned_type(code, token)) return false;
         } break;
         case code::source: {
-            for(TNode* n = code->node.first_child; n; n = n->next) {
-                Code* c = (Code*)n;
+            for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
                 if(!start(c)) return false;
                 node::insert_last(code->parser->root, c->parser->root);
             }
             // when we're done, we need to join all of the children's nodes into the source's
-            
+            // maybe 
         } break;
     }
     return true;
@@ -3220,23 +3192,23 @@ label(Code* code, code::TokenIterator& token) {
                                         nu->kind = code::function;
 
                                         auto f = Function::create();
-                                        f->node.start = open_paren;
-                                        f->node.end = token.current();
+                                        f->start = open_paren;
+                                        f->end = token.current();
 
-                                        Label* l = label::create();
-                                        l->node.start = id;
-                                        l->node.end = token.current();
+                                        Label* l = Label::create();
+                                        l->start = id;
+                                        l->end = token.current();
 
                                         l->entity = (Entity*)f;
                                         f->label = l;
 
                                         auto e = Expr::create(expr::identifier);
-                                        e->node.start = e->node.end = id;
+                                        e->start = e->end = id;
 
                                         node::insert_first(l, e);
                                         
                                         nu->parser = parser::create(nu);
-                                        nu->parser->root = (TNode*)l;
+                                        nu->parser->root = l->as<ASTNode>();
 
                                         table::add(code, id->raw, l);
 
@@ -3260,28 +3232,26 @@ label(Code* code, code::TokenIterator& token) {
                             Code* nu = code::from(code, id, token.current());
                             nu->kind = code::typedef_;
 
-                            Label* l = label::create();
-                            l->node.start = id;
-                            l->node.end = token.current();
+                            Label* l = Label::create();
+                            l->start = id;
+                            l->end = token.current();
 
                             auto s = Structure::create();
-                            s->node.start = start;
-                            s->node.end = token.current();
 
                             auto stype = Structured::create(s);
-                            stype->node.start = s->node.start;
-                            stype->node.end = s->node.end;
+                            stype->start = start;
+                            stype->end =  token.current();
 
                             l->entity = (Entity*)stype;
                             stype->label = l;
 
                             auto e = Expr::create(expr::identifier);
-                            e->node.start = e->node.end = id;
+                            e->start = e->end = id;
 
                             node::insert_first(l, e);
 
                             nu->parser = parser::create(nu);
-                            nu->parser->root = (TNode*)l;
+                            nu->parser->root = l->as<ASTNode>();
 
                             table::add(code, id->raw, l);
 
@@ -3341,7 +3311,7 @@ source(Code* code, code::TokenIterator& token) {
     stack::push_table(code, &m->table);
     defer { stack::pop_table(code); };
 
-    code->parser->root = (TNode*)m;
+    code->parser->root = m->as<ASTNode>();
 
     while(1) {
         switch(token.current_kind()) {
@@ -3378,19 +3348,19 @@ start(Code* code) {
 namespace stack {
 
 void
-push(Code* c, TNode* node) {
+push(Code* c, ASTNode* node) {
     array::push(c->parser->stack, c->parser->last);
     c->parser->last = node;
 }
 
-TNode*
+ASTNode*
 pop(Code* c) {
-    TNode* out = c->parser->last;
+    ASTNode* out = c->parser->last;
     c->parser->last = array::pop(c->parser->stack);
     return out;
 }
 
-TNode*
+ASTNode*
 last(Code* c) {
     return c->parser->last;
 }
@@ -3414,10 +3384,10 @@ current_table(Code* c) {
 DString
 display(Code* c) {
     if(!c->parser->stack.count) return dstring::init("empty stack");
-    DString out = dstring::init("stack of ", c->name, ":\n");
+    DString out = dstring::init("stack of ", c->identifier, ":\n");
     forI(c->parser->stack.count) {
         if(!i) continue; // first element is always 0 due to storing the last element separate
-        TNode* n = array::read(c->parser->stack, i);
+        ASTNode* n = array::read(c->parser->stack, i);
         to_string(out, n, true);
         dstring::append(out, "\n");
     }
@@ -3461,36 +3431,12 @@ search(Code* code, u64 hashed_id) {
 
 void
 parse(Code* code) {
-    //util::Stopwatch parser_time = util::stopwatch::start();
-
-    // messenger::dispatch(message::attach_sender(code,
-    //     message::make_debug(message::verbosity::stages,
-    //         String("beginning syntactic analysis"))));
-
-    if(!code->parser) {
-        code->parser = create(code);
-    }
+    if(!code->parser) code->parser = create(code);
 
     descent::start(code); 
     ascent::start(code);
 
     util::println(node::util::print_tree(code->parser->root));
-
-    // internal::parser = code->parser;
-    // internal::push_module(code->source->module);
-    // internal::stack = array::init<TNode*>(32);
-    // internal::prescan();
-    // internal::curt = array::readptr(code::get_token_array(code), 0);
-    // internal::start();
-
-    // util::println(
-    //     node::util::print_tree<[](DString& c, TNode* n){to_string(c, n, true);}>(internal::stack.data[0]));
-    
-    // !Leak: a DString is generated by util::format_time, but messenger currently has no way to know 
-	//        if a String needs to be cleaned up or not 
-    // messenger::dispatch(message::attach_sender(code,
-    //     message::make_debug(message::verbosity::stages, 
-    //         String("syntactic analysis finished in "), String(util::format_time(util::stopwatch::peek(parser_time))))));
 }
 
 } // namespace parser

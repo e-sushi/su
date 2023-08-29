@@ -43,35 +43,12 @@ namespace node {
 //             and having to access what kind of Entity it is by first casting to Entity
 //             we just store Entity tags on the Node itself, since, so far, there has been
 //             no reason to access just the data held by Entity
-// @genstrings(data/node_strings.generated)
-enum kind {
-    null,
-    code,
-    label,
-    place,
-    structure,
-    function,
-    overloaded_function,
-    module,
-    statement,
-    expression,
-    tuple,
-    type,
-};
 
-#include "data/node_strings.generated"
 
 } // namespace node::type
 
 // a Node for trees 
 struct TNode {
-    //deshi::mutex lock;
-
-    node::kind kind;
-
-    Token* start;
-    Token* end;
-
     TNode* next;
     TNode* prev;
 	TNode* parent;

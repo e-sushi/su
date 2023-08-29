@@ -1,16 +1,12 @@
 namespace amu {
-namespace tuple {
 
-global Tuple*
+Tuple* Tuple::
 create() {
     Tuple* out = pool::add(compiler::instance.storage.tuples);
-    node::init(&out->node);
-    out->node.kind = node::tuple;
+    out->ASTNode::kind = ast::tuple;
     out->table = label::table::init((TNode*)out);
     return out;
 }
-
-} // namespace tuple
 
 void
 to_string(DString& start, Tuple* t) {

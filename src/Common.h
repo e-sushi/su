@@ -7,6 +7,9 @@
 
 */
 
+#ifndef AMU_COMMON_H
+#define AMU_COMMON_H
+
 ////////////////////////////////////////// compilers: COMPILER_CL, COMPILER_CLANG, COMPILER_GCC
 //// compiler, platform, architecture //// platforms: OS_WINDOWS. OS_LINUX, OS_MAC
 ////////////////////////////////////////// architectures: ARCH_X64, ARCH_X86, ARCH_ARM64, ARCH_ARM32
@@ -435,3 +438,5 @@ template <class F> deferrer<F> operator*(defer_dummy, F f) { return {f}; }
 #define ErrorFormat(str)   VTS_RedFg    str VTS_Default
 #define WarningFormat(str) VTS_YellowFg str VTS_Default
 #define SuccessFormat(str) VTS_GreenFg  str VTS_Default
+
+#endif // AMU_COMMON_H

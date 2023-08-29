@@ -94,6 +94,7 @@
 #define AMU_IMPLEMENTATION
 #include "basic/Memory.h"
 #include "basic/Node.h"
+#include "representations/AST.h"
 #include "storage/View.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
@@ -125,6 +126,7 @@
 
 #include "basic/Memory.cpp"
 #include "basic/Node.cpp"
+#include "representations/AST.cpp"
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
 #include "storage/SharedArray.cpp"

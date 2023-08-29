@@ -7,8 +7,8 @@ from(Source* source) {
     out->raw = source->buffer;
     out->source = source;
     out->kind = code::source;
-    out->node.kind = node::code;
-    out->name = source->name;
+    out->ASTNode::kind = ast::code;
+    out->identifier = source->name;
     return out;
 }
 
@@ -28,9 +28,9 @@ from(Code* code, Token* start, Token* end) {
     out->source = code->source;
     out->raw.str = start->raw.str;
     out->raw.count = end->raw.str - start->raw.str;
-    out->node.kind = node::code;
+    // out->node.kind = node::code;
 
-    out->name = dstring::init(code->name, ":subcode<", start, ",", end, ">");
+    out->identifier = dstring::init(code->identifier, ":subcode<", start, ",", end, ">");
 
     return out;
 }
@@ -344,7 +344,7 @@ void
 to_string(DString& current, Code* c) {
     if(code::is_virtual(c)) { // TODO(sushi) more info for virtual code whenever its actually used
         auto vc = (VirtualCode*)c;
-        dstring::append(current, "VirtualCode<'", vc->name, "'>");
+        dstring::append(current, "VirtualCode<'", vc->name(), "'>");
     } else {
         auto sc = (SourceCode*)c;
         dstring::append(current, "SourceCode<", code::strings[sc->kind], ">");

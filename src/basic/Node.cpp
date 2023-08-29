@@ -321,29 +321,29 @@ print_tree(TNode* root, b32 newlines) {
 
 void
 to_string(DString& start, TNode* n, b32 expand) {
-    if(expand) switch(n->kind) {
-		case node::place:      to_string(start, (Place*)n);      return;
-		case node::label:      to_string(start, (Label*)n);      return;
-		case node::expression: to_string(start, (Expr*)n); return;
-		case node::type:       to_string(start, (Type*)n);       return;
-		case node::function:   to_string(start, (Function*)n);   return;
-		case node::tuple:      to_string(start, (Tuple*)n);      return;
-		case node::module:     to_string(start, (Module*)n);     return;
-		case node::statement:  to_string(start, (Statement*)n);  return;
-		case node::structure:  to_string(start, (Structure*)n);  return;
-		case node::code:       to_string(start, (Code*)n);       return;
-		default: NotImplemented;
-	}
+    // if(expand) switch(n->kind) {
+	// 	case node::place:      to_string(start, (Place*)n);      return;
+	// 	case node::label:      to_string(start, (Label*)n);      return;
+	// 	case node::expression: to_string(start, (Expr*)n); return;
+	// 	case node::type:       to_string(start, (Type*)n);       return;
+	// 	case node::function:   to_string(start, (Function*)n);   return;
+	// 	case node::tuple:      to_string(start, (Tuple*)n);      return;
+	// 	case node::module:     to_string(start, (Module*)n);     return;
+	// 	case node::statement:  to_string(start, (Stmt*)n);  return;
+	// 	case node::structure:  to_string(start, (Structure*)n);  return;
+	// 	case node::code:       to_string(start, (Code*)n);       return;
+	// 	default: NotImplemented;
+	// }
     
-	dstring::append(start, "TNode<", node::strings[n->kind]);
+	// dstring::append(start, "TNode<", node::strings[n->kind]);
 
-	if(n->start) dstring::append(start, ":", n->start);
-	else dstring::append(start, ":null_start");
+	// if(n->start) dstring::append(start, ":", n->start);
+	// else dstring::append(start, ":null_start");
 
-	if(n->end) dstring::append(start, ":", n->end);
-	else dstring::append(start, ":null_end");
+	// if(n->end) dstring::append(start, ":", n->end);
+	// else dstring::append(start, ":null_end");
 
-	dstring::append(start, ">");
+	// dstring::append(start, ">");
 }
 
 DString

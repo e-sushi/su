@@ -20,18 +20,31 @@ struct TAC;
 struct Label;
 
 namespace entity {
-enum class kind {
+enum kind {
     expr,
     type,
     func,
+    var,
+    module,
 };
 } // namespace entity
 
-struct Entity {
+struct Entity : public ASTNode {
     entity::kind kind;
-    TNode node;
     Label* label; // the most recent label used to represent this entity, null if it is anonymous
+
+
+    Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
 };
+
+template<> inline b32 ASTNode::
+is<Entity>() { return ASTNode::kind == ast::entity; }
+
+template<> inline b32 ASTNode::
+is(entity::kind k) { return this->is<Entity>() && as<Entity>()->kind == k; }
+
+template<> inline b32 ASTNode::
+next_is<Entity>() { return next() && next()->is<Entity>(); }
 
 // a TemplateParameter denotes a position in an AST where we need to place a template argument 
 // when some parameter is filled in for an Entity

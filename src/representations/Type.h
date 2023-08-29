@@ -19,7 +19,7 @@ enum class kind {
     scalar,
     structured,
     pointer,
-    array,
+    static_array,
     function,
     tuple,
     meta,
@@ -41,20 +41,6 @@ struct Type : public Entity {
     b32
     can_cast_to(Type* to);
 
-    // returns a plain name to display to a user
-    String
-    name();
-
-    // returns the name of a given type with extra information about what
-    // kind of Type it is, for example:
-    //  Apple :: struct {}
-    //  ->  StructuredType<Apple>
-    //
-    //  Apple :: variant {}
-    //  ->  Variant<Apple>
-    String
-    debug_name();
-
     u64
     hash();
 
@@ -67,24 +53,43 @@ struct Type : public Entity {
     b32
     is_scalar() { return this->kind == type::kind::scalar; }
 
-    // attempts to resolve a Type from some TNode. If a type cannot 
-    // be resolved from the node or the node just doesn't have a Type
-    // 0 is returned.
-    static Type*
-    resolve(TNode* n);
-
     // attempts to find the size of a given Type in bytes
-    u64
-    size();
+    virtual u64
+    size() = 0;
 
+    String
+    name() = 0;
+
+    DString
+    debug_str() = 0;
+
+    Type(type::kind k) : kind(k), Entity(entity::type) {}
 };
 
-namespace type {
-global Type void_ = {.kind = type::kind::void_};
-} // namespace type 
+template<> inline b32 ASTNode::
+is<Type>() { return kind == ast::type; }
 
-namespace type::scalar {
-enum class kind {
+template<> inline b32 ASTNode::
+next_is<Type>() { return next() && next()->is<Type>(); }
+
+// type representing nothing 
+struct Void : public Type { 
+    Void() : Type(type::kind::void_) {} 
+
+    u64     size() { return 0; }
+    String  name() { return "void"; }
+    DString debug_str() { return dstring::init("Void<>"); }
+};
+
+template<> inline b32 ASTNode::
+is<Void>() { return is<Type>() && as<Type>()->kind == type::kind::void_; }
+
+namespace type{
+global Void void_;
+} // namespace type
+
+namespace scalar {
+enum kind {
     unsigned8,
     unsigned16,
     unsigned32,
@@ -99,33 +104,48 @@ enum class kind {
 } // namespace type::builtin
 
 // a numerical type
-struct ScalarType : public Type {
-    type::scalar::kind kind;
-    ScalarType(type::scalar::kind kind) {
-        Type::kind = type::kind::scalar;
+struct Scalar : public Type {
+    scalar::kind kind;
+    Scalar(scalar::kind kind) : Type(type::kind::scalar) {
         this->kind = kind;
     }
 
+
     // ~~~~~~ interface ~~~~~~~
+
 
     String
     name();
+
+    DString
+    debug_str();
 
     u64
     size();
 };
 
-namespace type::scalar {
-global ScalarType unsigned8  = {type::scalar::kind::unsigned8};
-global ScalarType unsigned16 = {type::scalar::kind::unsigned16};
-global ScalarType unsigned32 = {type::scalar::kind::unsigned32};
-global ScalarType unsigned64 = {type::scalar::kind::unsigned64};
-global ScalarType signed8    = {type::scalar::kind::signed8};
-global ScalarType signed16   = {type::scalar::kind::signed16};
-global ScalarType signed32   = {type::scalar::kind::signed32};
-global ScalarType signed64   = {type::scalar::kind::signed64};
-global ScalarType float32    = {type::scalar::kind::float32};
-global ScalarType float64    = {type::scalar::kind::float64};
+template<> b32 inline ASTNode::
+is<Scalar>() { return is<Type>() && as<Type>()->kind == type::kind::scalar; }
+
+template<> b32 inline ASTNode::
+next_is<Scalar>() { return next() && next()->is<Scalar>(); }
+
+template<> b32 inline ASTNode::
+is(scalar::kind k) { return is<Scalar>() && as<Scalar>()->kind == k; };
+
+namespace scalar {
+global Scalar scalars[] = {
+    {scalar::unsigned8},
+    {scalar::unsigned16},
+    {scalar::unsigned32},
+    {scalar::unsigned64},
+    {scalar::signed8},
+    {scalar::signed16},
+    {scalar::signed32},
+    {scalar::signed64},
+    {scalar::float32},
+    {scalar::float64},
+};
 } // namespace type::scalar
 
 
@@ -146,10 +166,17 @@ struct Structured : public Type {
     String
     name();
 
+    DString
+    debug_str();
+
     u64
     size();
+
+    Structured() : Type(type::kind::structured) {}
 };
 
+template<> inline b32 ASTNode::
+is<Structured>() { return is<Type>() && as<Type>()->kind == type::kind::structured; }
 
 // a Type representing an address in memory where a value of 'type' can be found 
 struct Pointer : public Type {
@@ -162,11 +189,16 @@ struct Pointer : public Type {
     static Pointer*
     create(Type* type);
 
-    Type*
-    dereference();
-
     String
     name();
+
+    DString
+    debug_str();
+
+    u64
+    size();
+
+    Pointer() : Type(type::kind::pointer) {}
 };
 
 namespace type::pointer {
@@ -191,8 +223,13 @@ struct StaticArray : public Type {
     String
     name();
 
+    DString
+    debug_str();
+
     u64
     size();
+
+    StaticArray() : Type(type::kind::static_array) {}
 };
 
 namespace type::array {
@@ -243,8 +280,8 @@ namespace type::variant {
 
 struct FunctionType : public Type {
     // pointers to the nodes that define these things
-    TNode* parameters;
-    TNode* returns;
+    ASTNode* parameters;
+    ASTNode* returns;
     Type* return_type;
 
 
@@ -256,6 +293,14 @@ struct FunctionType : public Type {
 
     String
     name();
+
+    DString
+    debug_str();
+
+    u64
+    size();
+
+    FunctionType() : Type(type::kind::function) {}
 };
 
 namespace type::function {
@@ -269,11 +314,25 @@ struct TupleType : public Type {
         LabelTable table;
     };
 
+    // ~~~~~~ interface ~~~~~~~
+
+
     // creates a Tuple type from an array of Type*
     // this takes ownership of the 'types' array
     // if the TupleType already exists, the array is deinitialized
     static TupleType*
     create(Array<Type*>& types);
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    u64
+    size();
+
+    TupleType() : Type(type::kind::tuple) {}
 };
 
 namespace type::tuple {

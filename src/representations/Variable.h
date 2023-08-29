@@ -9,26 +9,34 @@
 
 namespace amu {
 
-struct Place : public Entity {
+struct Var : public Entity {
     Type* type;
 
 
     // ~~~~~~ interface ~~~~~~ 
 
 
-    static Place*
+    static Var*
     create(Type* type = 0);
 
     void
     destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Var() : Entity(entity::var) {}
 };
 
 
 void
-to_string(DString& start, Place* p);
+to_string(DString& start, Var* p);
 
 DString
-to_string(Place* p) {
+to_string(Var* p) {
     DString out = dstring::init();
     to_string(out, p);
     return out;

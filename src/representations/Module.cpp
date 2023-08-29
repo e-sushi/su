@@ -3,10 +3,19 @@ namespace amu {
 Module*
 Module::create() {
     Module* out = pool::add(compiler::instance.storage.modules);
-    node::init(&out->node);
-    out->node.kind = node::module;
+    out->ASTNode::kind = ast::entity;
     out->table = label::table::init((TNode*)out);
     return out;
+}
+
+String Module::
+name() {
+    return label->name();
+}
+
+DString Module::
+debug_str() {
+    return dstring::init("Module<", label->name(), ">");
 }
 
 void

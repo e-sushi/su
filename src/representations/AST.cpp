@@ -1,0 +1,4 @@
+namespace amu {
+
+
+} // namespace amu

@@ -19,7 +19,7 @@
 
 namespace amu {
 
-struct Structure : public Entity {
+struct Structure {
     u64 size; // size of this structure in bytes
     LabelTable table;
 

@@ -24,6 +24,14 @@ struct Module : public Entity {
 
     Label*
     find_label(String s);
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Module() : Entity(entity::module) {}
 };
 
 void

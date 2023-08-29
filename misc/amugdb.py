@@ -276,16 +276,16 @@ class Tuple_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Tuple", r"^amu::Tuple$", Tuple_printer)
 
-class TNode_printer:
+class ASTNode_printer:
     def __init__(self, val): self.val = val
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call to_string((TNode*){val.address}, true)", to_string = True)
+            s = gdb.execute(f"call ((ASTNode*){val.address})->debug_str()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("TNode", r"^amu::TNode", TNode_printer)
+pp.add_printer("TNode", r"^amu::ASTNode", ASTNode_printer)
 
 class Expression_printer:
     def __init__(self, val): self.val = val

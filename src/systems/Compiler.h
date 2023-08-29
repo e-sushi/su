@@ -25,13 +25,6 @@ struct Compiler {
 
     FILE* log_file;
 
-    // in order to make cleaning up the compiler easy, storage of all things in amu 
-    // have their handle inside the compiler struct
-    // this way when the compiler needs to be deinitialized, it doesn't need to ask other
-    // things to clean up
-    //
-    // this is experimental and depending on how much state needs cleaned up in other 
-    // components of the compiler, I may just go back to storing this locally  
     struct {
         Pool<SourceCode>   source_code;
         Pool<VirtualCode>  virtual_code;
@@ -44,15 +37,14 @@ struct Compiler {
         Pool<Label>        labels;
         Pool<Structure>    structures;
         Pool<Function>     functions;
-        Pool<Statement>    statements;
+        Pool<Stmt>    statements;
         Pool<Expr>         expressions;
         Pool<Call>         calls;
         Pool<Block>        blocks; 
-        Pool<PlaceRef>     placerefs; 
-        Pool<Place>        places;
+        Pool<Var>          vars;
+        Pool<VarRef>       varrefs; 
         Pool<Tuple>        tuples;
-        Pool<Type>         types;
-        Pool<ScalarType>   builtin_types;
+        Pool<Scalar>       scalars;
         Pool<Structured>   structured_types;
         Pool<Pointer>      pointer_types;
         Pool<StaticArray>  array_types;
@@ -65,6 +57,7 @@ struct Compiler {
     Array<Diagnostic> diagnostics;
     
     // anything that is specified on the command line
+    // later on all of these things should be changable from within the language
     struct {
         String entry_path;
 
@@ -96,6 +89,8 @@ init();
 global void
 deinit();
 
+
+// the entry point of the compiler given a list of command line arguments
 global void
 begin(Array<String> args);
 

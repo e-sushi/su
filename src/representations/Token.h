@@ -156,7 +156,7 @@ struct Token {
 
 void
 to_string(DString& start, Token t) {
-    dstring::append(start, "Token<", t.code->name, ":", t.l0, ":", t.c0, " '", t.raw, "'>");
+    dstring::append(start, "Token<", t.code->identifier, ":", t.l0, ":", t.c0, " '", t.raw, "'>");
 }
 FORCE_INLINE void to_string(DString& start, Token* t) { return to_string(start, *t); }
 

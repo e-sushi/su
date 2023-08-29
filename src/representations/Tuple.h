@@ -52,8 +52,7 @@ enum kind : u32 {
 
 } // namespace tuple
 
-struct Tuple {
-    TNode node;
+struct Tuple : public ASTNode {
     tuple::kind kind;
     // if this tuple applies names to its elements, they are stored here
     LabelTable table;
@@ -61,12 +60,29 @@ struct Tuple {
     TupleType* type;
 
 
+    // ~~~~~~ interface ~~~~~~~
+
+
     static Tuple*
     create();
 
     void
     destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Tuple() : ASTNode(ast::tuple) {}
 };
+
+template<> inline b32 ASTNode::
+is<Tuple>() { return kind == ast::tuple; }
+
+template<> inline b32 ASTNode::
+next_is<Tuple>() { return next() && next()->is<Tuple>(); }
 
 void
 to_string(DString& start, Tuple* t);

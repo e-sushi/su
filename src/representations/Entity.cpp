@@ -77,68 +77,6 @@ Array<ExistantTupleType> set;
 
 } // namespace tuple
 
-Type*
-resolve(TNode* n) {
-    if(!n) return 0;
-    switch(n->kind) {
-        case node::label: {
-            return resolve((TNode*)((Label*)n)->entity);
-        } break;
-        case node::function: {
-            return ((Function*)((Label*)n)->entity)->type;
-        } break;
-        case node::module: return 0;
-        case node::statement: {
-            auto s = (Statement*)n;
-            switch(s->kind) {
-                case statement::defer_:
-                case statement::unknown: return 0;
-                case statement::label: 
-                case statement::block_final:
-                case statement::expression: return resolve(s->node.first_child);
-            }
-        } break;
-        case node::expression: return ((Expr*)n)->type;
-        case node::tuple: ((Tuple*)n)->type;
-        case node::place: return ((Place*)n)->type;
-    }
-    return 0;
-}  
-
-u64
-size(Type* t) {
-    switch(t->kind) {
-        case type::kind::array: {
-            return sizeof(void*) + sizeof(u64);
-        } break;
-        case type::kind::pointer: {
-            return sizeof(void*);
-        } break;
-        case type::kind::scalar: {
-            auto stype = (ScalarType*)t;
-            switch(stype->kind) {
-                case type::scalar::kind::signed8: return 1;
-                case type::scalar::kind::unsigned8: return 1;
-                case type::scalar::kind::signed16: 
-                case type::scalar::kind::unsigned16: return 2;
-                case type::scalar::kind::float32:
-                case type::scalar::kind::signed32:
-                case type::scalar::kind::unsigned32: return 4;
-                case type::scalar::kind::float64:
-                case type::scalar::kind::signed64:
-                case type::scalar::kind::unsigned64: return 8;
-            } 
-        } break;
-        case type::kind::structured: {
-            auto stype = (Structured*)t;
-            return stype->structure->size;
-        } break;
-    }
-    return 0;
-}
-
-
-
 Pointer* Pointer::
 create(Type* type) {
     auto [idx,found] = amu::array::util::
@@ -147,7 +85,7 @@ create(Type* type) {
     type::pointer::ExistantPointer* nu = amu::array::insert(type::pointer::set, idx);
     nu->ptype = pool::add(compiler::instance.storage.pointer_types);
     nu->ptype->kind = type::kind::pointer;
-    nu->ptype->node.kind = node::type;
+    //nu->ptype->node.kind = node::type;
     nu->ptype->type = type;
     nu->type = type;
     return nu->ptype;

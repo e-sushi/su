@@ -30,7 +30,7 @@ enum kind : u32 {
     entity_func,
     entity_module,    
     typeref,
-    placeref, // a reference to a variable 
+    varref, // a reference to a variable 
     call,
     
     block,
@@ -92,11 +92,23 @@ struct Expr : public Entity {
         } conditional;
     } flags;
 
+
+    // ~~~~~~ interface ~~~~~~~
+
+
     static Expr*
     create(expr::kind kind, Type* type = 0);
 
     void
     destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Expr() : Entity(entity::expr) {}
 };
 
 
@@ -104,16 +116,34 @@ struct Block : public Expr {
     LabelTable table;
 
 
+    // ~~~~~~ interface ~~~~~~~
+
+
     static Block*
     create();
 
     void
     destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
 };
+
+template<> inline b32 ASTNode::
+is<Block>() { return kind == ast::expression && as<Expr>()->kind == expr::block; }
+
+template<> inline b32 ASTNode::
+next_is<Block>() { return next() && next()->is<Block>(); }
 
 struct Call : public Expr {
     Function* callee;
     Tuple* arguments;
+
+
+    // ~~~~~~ interface ~~~~~~~
 
 
     static Call*
@@ -121,18 +151,39 @@ struct Call : public Expr {
 
     void
     destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
 };
 
-struct PlaceRef : public Expr {
-    Place* place;
+template<> inline b32 ASTNode::
+is<Call>() { return is<Expr>() && as<Expr>()->kind == expr::call; }
+
+struct VarRef : public Expr {
+    Var* var;
 
 
-    static PlaceRef*
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static VarRef*
     create();
 
     void
     destroy(); 
+
+    String
+    name();
+
+    DString
+    debug_str();
 };
+
+template<> inline b32 ASTNode::
+is<VarRef>() { return is<Expr>() && as<Expr>()->kind == expr::varref; }
 
 void
 to_string(DString& start, Expr* e);

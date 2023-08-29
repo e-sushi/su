@@ -16,7 +16,7 @@
 namespace amu {
 
 struct Function;
-struct Place;
+struct Var;
 
 struct TAC;
 
@@ -82,14 +82,14 @@ enum kind {
 struct Arg {
     arg::kind kind;
     union {
-        Place* place; // a Place in memory that this Arg is referring to
+        Var* place; // a Place in memory that this Arg is referring to
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
         u64 literal;
     };
 
     Arg() : kind(arg::none) {}
-    Arg(Place* p) : kind(arg::place), place(p) {}
+    Arg(Var* p) : kind(arg::place), place(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
     Arg(u64 l) : kind(arg::literal), literal(l) {}

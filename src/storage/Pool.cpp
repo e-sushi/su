@@ -72,6 +72,8 @@ add(Pool<T>& pool) {
     LNode* place = pool.free_blocks->next;
 
     T* out = (T*)(place + 1);
+    // because we use vtables now, we have to initialize things we allocate here
+    *out = T();
     node::remove(place);
     node::insert_before(pool.items, place);
     return out;

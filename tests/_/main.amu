@@ -1,4 +1,4 @@
-add :: (a:u32, b:u32) -> s32 {
+add :: (a:u32 #compiler_break , b:u32) -> s32 {
     a + b
 }
 

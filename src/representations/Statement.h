@@ -28,23 +28,33 @@ enum kind {
 
 } // namespace statement
 
-struct Statement {
-    TNode node;
+struct Stmt : public ASTNode {
     statement::kind kind;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static Stmt*
+    create();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Stmt() : ASTNode(ast::stmt) {}
 };
 
-namespace statement {
+template<> inline b32 ASTNode::
+is<Stmt>() { return this->kind == ast::stmt; }
 
-global Statement*
-create();
-
-global void
-destroy(Statement& s);
-
-} // namespace statement
+template<> inline b32 ASTNode::
+is(statement::kind k) { return this->is<Stmt>() && as<Stmt>()->kind == k; }
 
 void
-to_string(DString& start, Statement* s);
+to_string(DString& start, Stmt* s);
 
 } // namespace amu
 

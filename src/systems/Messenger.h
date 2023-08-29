@@ -72,7 +72,7 @@ struct MessagePart {
     union {
         String plain; // a plain String, path, or identifier
         Token* token; // a token, likely representing a source location
-        Place* place;
+        Var* place;
         Structure* structure;
         Function* function;
         Module* module;
@@ -87,7 +87,7 @@ struct MessagePart {
     MessagePart() {}
     MessagePart(String s) : plain(s) {kind = messagepart::plain;}
     MessagePart(Token* t) : token(t) {kind = messagepart::token;}
-    MessagePart(Place* p) : place(p) {kind = messagepart::place;}
+    MessagePart(Var* p) : place(p) {kind = messagepart::place;}
     MessagePart(Structure* s) : structure(s) {kind = messagepart::structure;}
     MessagePart(Function* f) : function(f) {kind = messagepart::function;}
     MessagePart(Module* m) : module(m) {kind = messagepart::module;}
