@@ -153,19 +153,8 @@ class Label_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            out = "label "
-            start = ""
-            end = ""
-            if val['node']['start']:
-                start = str(val['node']['start'].dereference())
-            else:
-                start = "<null start>"
-            if val['node']['end']:
-                end = str(val['node']['end'].dereference())
-            else:
-                end = "<null end>"
-            out += f"{start} -> {end}"
-            return out
+            s = gdb.execute(f"call ((Label*){val.address})->debug_str()", to_string=True)
+            return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Label", r"^amu::Label$", Label_printer)
@@ -492,26 +481,6 @@ class parser_track_stack(gdb.Command):
         dline = display_line()
         out = open("temp/track_stack", "w")
 
-        # we need to load the source's buffer manually, because gdb will attempt to 
-        # fold repeating things in arrays, including strings!
-        # bufferptr = int(gdb.parse_and_eval("parser->code->raw->str"))
-
-        # length = 0
-        # while 1:
-        #     byte = int.from_bytes(gdb.selected_inferior().read_memory(bufferptr+length, 1)[0])
-        #     if not byte:
-        #         break
-        #     length += 1
-
-        # buffer = gdb.selected_inferior().read_memory(bufferptr, length).tobytes().decode()
-        # lastln = 0
-        # lines = []
-        # for i,c in enumerate(buffer):
-        #     if c == '\n':
-        #         lines.append(buffer[lastln:i])
-        #         lastln = i+1
-        # lines.append(buffer[lastln:])
-
         while gdb.selected_inferior().connection_num != None:
             try:
                 curfunc = gdb.selected_frame().function()
@@ -520,34 +489,16 @@ class parser_track_stack(gdb.Command):
                     gdb.execute("c")
                     continue
                 if "push" in curfunc.name:
-                    out.write(f"push -------------------------------- {lastframe.function()} push\n")
+                    out.write(f"push -------------------------------- {lastframe.older().function()} push\n")
                     gdb.execute("finish")
                 if "pop" in curfunc.name:
                     out.write(f"pop -------------------------------- {lastframe.function()} pop\n")
                     lastframe.select()
 
-
                 stack = pps.invoke(None, False)
                 line = dline.invoke(None, False)
 
                 out.write(stack + "\n" + line + "\n")
-
-                # out.write(pps.invoke(None, False))
-                # curt = gdb.parse_and_eval('curt')
-                # line = lines[int(curt['l0'])-1]
-                # linenum = str(int(curt['l0']))
-                # col = int(curt['c0'])-1 + len(linenum) + 1
-                # second_line = None
-                # if curt['l0'] != len(lines):
-                #     second_line = lines[curt['l0']]
-                #     second_linenum = str(curt['l0']+1)
-                #     if len(second_linenum) > len(linenum):
-                #         linenum = linenum.rjust(len(second_linenum))
-                # out.write(" "*col+"v\n")
-                # out.write(linenum + " " + line + '\n')
-                # if second_line:
-                #     out.write(second_linenum + " " + second_line + '\n')
-                # out.write("\n\n")
                 gdb.execute("c")
             except Exception as e:
                 print(f"{self.__class__.__name__} error: {e}")
