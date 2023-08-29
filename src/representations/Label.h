@@ -36,13 +36,17 @@ struct Label : public ASTNode {
     DString
     debug_str();
 
+    // returns the type of the Label's expression
+    Type*
+    resolve_type();
+
     Label() : ASTNode(ast::label) {}
 };
 
 struct LabelTable {
     LabelTable* last;
     Map<String, Label*> map;
-    TNode* owner; // temp debug so I can figure out who these tables belong to 
+    ASTNode* owner; // temp debug so I can figure out who these tables belong to 
 };
 
 namespace label {
@@ -74,7 +78,7 @@ display(Label* l, Formatting format = Formatting(), b32 allow_color = true) {
 namespace table {
 
 LabelTable
-init(TNode* creator);
+init(ASTNode* creator);
 
 FORCE_INLINE void
 add(LabelTable* table, String id, Label* l);

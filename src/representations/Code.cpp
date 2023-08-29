@@ -1,4 +1,15 @@
 namespace amu {
+
+String SourceCode::
+name() {
+    return identifier;
+}
+
+DString SourceCode::
+debug_str() {
+    return dstring::init(name());
+}
+
 namespace code {
 
 SourceCode*
@@ -48,6 +59,8 @@ get_tokens(Code* code) {
         return ((SourceCode*)code)->tokens;
     }
 }
+
+
 
 
 Array<Token>&

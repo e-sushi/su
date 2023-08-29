@@ -69,16 +69,16 @@ DString Scalar::
 debug_str() {
     DString out = dstring::init("ScalarType<");
     switch(this->kind) {
-        case scalar::unsigned8:  dstring::append(out, "u8");
-        case scalar::unsigned16: dstring::append(out, "u16");
-        case scalar::unsigned32: dstring::append(out, "u32");
-        case scalar::unsigned64: dstring::append(out, "u64");
-        case scalar::signed8:    dstring::append(out, "s8");
-        case scalar::signed16:   dstring::append(out, "s16");
-        case scalar::signed32:   dstring::append(out, "s32");
-        case scalar::signed64:   dstring::append(out, "s64");
-        case scalar::float32:    dstring::append(out, "f32");
-        case scalar::float64:    dstring::append(out, "f64");
+        case scalar::unsigned8:  dstring::append(out, "u8");    break;
+        case scalar::unsigned16: dstring::append(out, "u16");   break;
+        case scalar::unsigned32: dstring::append(out, "u32");   break;
+        case scalar::unsigned64: dstring::append(out, "u64");   break;
+        case scalar::signed8:    dstring::append(out, "s8");    break;
+        case scalar::signed16:   dstring::append(out, "s16");   break;
+        case scalar::signed32:   dstring::append(out, "s32");   break;
+        case scalar::signed64:   dstring::append(out, "s64");   break;
+        case scalar::float32:    dstring::append(out, "f32");   break;
+        case scalar::float64:    dstring::append(out, "f64");   break;
     }
     dstring::append(out, ">");
     return out;

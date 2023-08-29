@@ -34,6 +34,9 @@ struct Module : public Entity {
     Module() : Entity(entity::module) {}
 };
 
+template<> inline b32 ASTNode::
+is<Module>() { return is<Entity>() && as<Entity>()-> kind == entity::module; }
+
 void
 to_string(DString& start, Module* m);
 

@@ -59,16 +59,16 @@ struct Code : public ASTNode {
     // if this Code was generated from another Code object, this points to that original
     // object. this is used when we generate Code from generic types and such and when we
     // perform formatting
-    Code* base;
+    Code* base = 0;
 
     // Source this code belongs to. if this is 0, then this is VirtualCode
-    Source* source;
+    Source* source = 0;
 
     // information from stages that this Code has been passed through
-    Lexer* lexer;
-    Parser* parser;
-    Sema* sema;
-    Gen* gen;
+    Lexer* lexer = 0;
+    Parser* parser = 0;
+    Sema* sema = 0;
+    Gen* gen = 0;
 
     
     // ~~~~~~ interface ~~~~~~~

@@ -1854,7 +1854,7 @@ b32 access(Code* code, code::TokenIterator& token);
 b32 
 reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
     Expr* e = Expr::create(expr::literal);
-    // e->node.start = e->node.end = token.current();
+    e->start = e->end = token.current();
     switch(token.current_kind()) {
         case token::literal_character: {
             e->type = &scalar::scalars[scalar::unsigned8];
@@ -1876,7 +1876,7 @@ reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
 b32 
 reduce_builtin_type_to_typeref_expression(Code* code, code::TokenIterator& token) { 
     Expr* e = Expr::create(expr::typeref);
-    // e->node.start = e->node.end = token.current();
+    e->start = e->end = token.current();
     switch(token.current_kind()) {
         case token::void_:      e->type = &type::void_; break; 
         case token::unsigned8:  e->type = &scalar::scalars[scalar::unsigned8]; break;
@@ -1903,8 +1903,8 @@ typeref(Code* code, code::TokenIterator& token) {
             if(!expression(code, token)) return false;
 
             Expr* e = Expr::create(expr::binary_assignment);
-            // e->node.start = start;
-            // e->node.end = token.current();
+            e->start = start;
+            e->end = token.current();
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
             // always take the type of the lhs because it controls the type of the rhs expression
@@ -1934,8 +1934,8 @@ typeref(Code* code, code::TokenIterator& token) {
 b32
 block(Code* code, code::TokenIterator& token) {
     auto e = Block::create();
-    // e->node.start = token.current();
-    // e->table.last = stack::current_table(code);
+    e->start = token.current();
+    e->table.last = stack::current_table(code);
     stack::push_table(code, &e->table);
 
     token.increment();
@@ -2019,7 +2019,7 @@ block(Code* code, code::TokenIterator& token) {
     forI(count) {
         node::insert_first(e, stack::pop(code));
     }
-    // e->node.end = token.current();
+    e->end = token.current();
     token.increment();
     stack::push(code, e);
     stack::pop_table(code);
@@ -2766,6 +2766,8 @@ label_after_colon(Code* code, code::TokenIterator& token) {
                     auto e = Expr::create(expr::typeref, l->entity->as<Type>());
                     e->start = e->end = token.current();
 
+                    stack::push(code, e);
+
                     token.increment();
                     if(!typeref(code, token)) return false;
                 } break;
@@ -2857,7 +2859,7 @@ b32
 label_get(Code* code, code::TokenIterator& token) {
     auto expr = Expr::create(expr::identifier);
     expr->start = expr->end = token.current();
-    stack::push(code, (TNode*)expr);
+    stack::push(code, expr);
 
     token.increment();
     switch(token.current_kind()) {
@@ -3132,6 +3134,8 @@ start(Code* code) {
         case code::function: {
             code::TokenIterator token(code);
             if(!prescanned_function(code, token)) return false;
+
+            util::println(code->parser->root->print_tree());
         } break;
         case code::typedef_: {
             code::TokenIterator token(code);
@@ -3139,7 +3143,9 @@ start(Code* code) {
         } break;
         case code::source: {
             for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
+                stack::push_table(c, &code->parser->root->as<Module>()->table);
                 if(!start(c)) return false;
+                stack::pop_table(c);
                 node::insert_last(code->parser->root, c->parser->root);
             }
             // when we're done, we need to join all of the children's nodes into the source's
@@ -3385,13 +3391,13 @@ DString
 display(Code* c) {
     if(!c->parser->stack.count) return dstring::init("empty stack");
     DString out = dstring::init("stack of ", c->identifier, ":\n");
+    dstring::append(out, "n elems: ", c->parser->stack.count, "\n");
     forI(c->parser->stack.count) {
         if(!i) continue; // first element is always 0 due to storing the last element separate
         ASTNode* n = array::read(c->parser->stack, i);
-        to_string(out, n, true);
-        dstring::append(out, "\n");
+        dstring::append(out, n->debug_str(), "\n");
     }
-    to_string(out, c->parser->last, true);
+    dstring::append(out, c->parser->last->debug_str());
     return out;
 }
 
@@ -3413,10 +3419,6 @@ search(Code* code, u64 hashed_id) {
     LabelTable* table = stack::current_table(code);
    
     while(table) {
-         forI(table->map.keys.count) {
-            u64 hash = array::read(table->map.keys, i).hash;
-            util::println(to_string(hash));
-        }
         auto [idx, found] = map::find(table->map, hashed_id);
         if(found) {
             return array::read(table->map.values, idx);
@@ -3436,7 +3438,7 @@ parse(Code* code) {
     descent::start(code); 
     ascent::start(code);
 
-    util::println(node::util::print_tree(code->parser->root));
+    util::println(code->parser->root->print_tree());
 }
 
 } // namespace parser

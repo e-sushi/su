@@ -68,7 +68,7 @@ block(Code* code, Block* e) { announce_stage(e);
     if(!last || last->kind != statement::block_final) {
         e->type = &type::void_;
     } else {
-        e->type = last->resolve_type();
+        e->type = last->first_child<Expr>()->type;
     }
     return true;
 }
@@ -278,7 +278,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
             if(!expr(code, rhs)) return false;
 
             if(lhs->type == rhs->type) { 
-                if(!lhs->type->is_scalar()) {
+                if(!lhs->type->is<Scalar>()) {
                     // NOTE(sushi) temp error until traits are implemented
                     Message m = message::init(String("cannot perform addition between non-scalar types yet!"));
                     m.kind = message::error;
@@ -287,15 +287,15 @@ expr(Code* code, Expr* e) { announce_stage(e);
                     return false;
                 }
                 e->type = lhs->type;
-            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
+            } else if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
                 // take the larger of the two, and prefer float > signed > unsigned
-                auto l = (Scalar*)lhs->type, 
-                     r = (Scalar*)rhs->type;
+                auto l = lhs->type->as<Scalar>(), 
+                     r = rhs->type->as<Scalar>();
                 
                 auto cast = Expr::create(expr::cast);
                 b32 take_left = l->kind > r->kind;
                 cast->type = (take_left? l : r);
-                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
+                node::insert_above((take_left? rhs : lhs), cast);
                 e->type = cast->type;
             } else {
                 diagnostic::sema::
@@ -474,9 +474,11 @@ module(Code* code, ASTNode* node) { announce_stage(node);
 
 b32 
 start(Code* code) {
-    switch(code->parser->root->kind) {
-        case ast::module: {
-            if(!module(code, code->parser->root)) return false;
+    if(code->parser->root->is<Module>()) {
+        if(!module(code, code->parser->root)) return false;
+    } else switch(code->parser->root->kind) {
+        case ast::entity: {
+            DebugBreakpoint;
         } break;
     }
     return true;

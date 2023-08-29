@@ -108,9 +108,14 @@ struct Expr : public Entity {
     DString
     debug_str();
 
+    Type*
+    resolve_type();
+
     Expr() : Entity(entity::expr) {}
 };
 
+template<> inline b32 ASTNode::
+is<Expr>() { return is<Entity>() && as<Entity>()->kind == entity::expr; }
 
 struct Block : public Expr {
     LabelTable table;
@@ -133,7 +138,7 @@ struct Block : public Expr {
 };
 
 template<> inline b32 ASTNode::
-is<Block>() { return kind == ast::expression && as<Expr>()->kind == expr::block; }
+is<Block>() { return is<Expr>() && as<Expr>()->kind == expr::block; }
 
 template<> inline b32 ASTNode::
 next_is<Block>() { return next() && next()->is<Block>(); }

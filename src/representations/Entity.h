@@ -38,10 +38,10 @@ struct Entity : public ASTNode {
 };
 
 template<> inline b32 ASTNode::
-is<Entity>() { return ASTNode::kind == ast::entity; }
+is<Entity>() { return kind == ast::entity; }
 
 template<> inline b32 ASTNode::
-is(entity::kind k) { return this->is<Entity>() && as<Entity>()->kind == k; }
+is(entity::kind k) { return is<Entity>() && as<Entity>()->kind == k; }
 
 template<> inline b32 ASTNode::
 next_is<Entity>() { return next() && next()->is<Entity>(); }

@@ -4,7 +4,6 @@ Expr*
 Expr::create(expr::kind kind, Type* type) {
     Expr* out = pool::add(compiler::instance.storage.expressions);
     // out->node.kind = node::expression;
-    *out = Expr(); // need to initialize so that vtables get setup 
     out->kind = kind;
     out->type = type;
     return out;
@@ -44,6 +43,11 @@ Expr::debug_str() {
     return out;
 }
 
+Type*
+Expr::resolve_type() {
+    return type;
+}
+
 
 Block* Block::
 create() {
@@ -51,8 +55,13 @@ create() {
     // node::init(&out->node);
     // out->node.kind = node::expression;
     out->kind = expr::block;
-    out->table = label::table::init((TNode*)out);
+    out->table = label::table::init(out->as<ASTNode>());
     return out;
+}
+
+String Block::
+name() { // !Leak TODO(sushi) get this to print something nicer
+    return debug_str();
 }
 
 DString Block::
@@ -69,6 +78,11 @@ Call::create() {
     return out;
 }
 
+String Call::
+name() { // !Leak TODO(sushi) get this to print something nicer
+    return debug_str();
+}
+
 DString Call::
 debug_str() {
     return dstring::init("Call<", 
@@ -83,6 +97,11 @@ create() {
     // out->node.kind = node::expression;
     out->kind = expr::varref;
     return out;
+}
+
+String VarRef::
+name() { // !Leak TODO(sushi) get this to print something nicer
+    return debug_str();
 }
 
 DString VarRef::

@@ -24,11 +24,17 @@ debug_str() {
     return dstring::init("Label<", start->raw, ">");
 }
 
+Type* Label::
+resolve_type() {
+    if(last_child()) return last_child<Expr>()->type;
+    return 0;
+}
+
 namespace label {
 namespace table {
 
 LabelTable
-init(TNode* creator) {
+init(ASTNode* creator) {
     LabelTable out;
     out.last = 0;
     out.map = map::init<String, Label*>();

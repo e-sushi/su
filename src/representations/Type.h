@@ -67,7 +67,7 @@ struct Type : public Entity {
 };
 
 template<> inline b32 ASTNode::
-is<Type>() { return kind == ast::type; }
+is<Type>() { return is<Entity>() && as<Entity>()->kind == entity::type; }
 
 template<> inline b32 ASTNode::
 next_is<Type>() { return next() && next()->is<Type>(); }

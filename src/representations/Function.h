@@ -32,6 +32,9 @@ struct Function : public Entity {
     Function() : Entity(entity::func) {}
 };
 
+template<> inline b32 ASTNode::
+is<Function>() { return is<Entity>() && as<Entity>()->kind == entity::func; }
+
 // when a label is assigned to a second function entity, this is created
 // and the label points at it instead of any of the Functions
 struct OverloadedFunction : public Entity {

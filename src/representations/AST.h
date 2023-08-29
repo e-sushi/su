@@ -22,15 +22,8 @@ enum kind {
     code,
     label,
     entity,
-    place,
-    structure,
-    function,
-    overloaded_function,
-    module,
     stmt,
-    expression,
     tuple,
-    type,
 };
 
 #include "data/astnode_strings.generated"
@@ -42,7 +35,9 @@ struct ASTNode : public TNode {
     ast::kind kind;
     Token* start,* end;
 
-    ASTNode(ast::kind k) : kind(k) {}
+    ASTNode(ast::kind k) : kind(k) {
+        memory::zero(this, sizeof(TNode));
+    }
 
     // a user-friendly name for whatever this ASTNode represents 
     virtual String
@@ -70,14 +65,18 @@ struct ASTNode : public TNode {
     // this base declaration is never implemented and children of ASTNode are 
     // expected to implement this for their types
     template<typename T> inline b32
-    is() { return false; }
+    is();
 
     template<typename T> inline b32
-    is(T x) { return false; }
+    is(T x);
 
     // attempts to resolve the AST node into a Type 
     // by default this returns 0, but children that 
-    // have some Type should define this to return it 
+    // have some Type or can discern a type from one 
+    // of its children should implement this 
+    // this is primarily for finding a Type when you don't care
+    // about what that Type comes from, like with printing
+    // This shouldn't be used in any real logic
     virtual Type*
     resolve_type() { return 0; }
 
@@ -109,7 +108,15 @@ struct ASTNode : public TNode {
     // optionally passing a type to cast to 
     template<typename T = ASTNode> inline T*
     last_child() { return (T*)TNode::last_child; }
+
+    template<void (*callback)(DString&, ASTNode*)> DString
+    print_tree(b32 newlines = true);
+
+    DString
+    print_tree(b32 newlines = true);
 };
+
+
 
 
 } // namespace amu

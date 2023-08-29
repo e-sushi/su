@@ -49,12 +49,12 @@ namespace node {
 
 // a Node for trees 
 struct TNode {
-    TNode* next;
-    TNode* prev;
-	TNode* parent;
-	TNode* first_child;
-	TNode* last_child;
-	u32   child_count;
+    TNode* next = 0;
+    TNode* prev = 0;
+	TNode* parent = 0;
+	TNode* first_child = 0;
+	TNode* last_child = 0;
+	u32    child_count = 0;
 };
 
 namespace node {
