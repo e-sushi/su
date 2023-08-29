@@ -1966,6 +1966,7 @@ block(Code* code, code::TokenIterator& token) {
                 } else {
                     if(!expression(code, token)) return false;
                     s->kind = statement::expression;
+                    // TODO(sushi) these rules are sketchy and i feel like they will break at some point 
                     if(token.prev_is(token::close_brace)) {
                         need_semicolon = false;
                         if(token.is(token::close_brace))
@@ -1980,6 +1981,7 @@ block(Code* code, code::TokenIterator& token) {
             default: {
                 if(!expression(code, token)) return false;
                 s->kind = statement::expression;
+                // TODO(sushi) these rules are sketchy and i feel like they will break at some point 
                 if(token.prev_is(token::close_brace)) {
                     need_semicolon = false;
                     if(token.is(token::close_brace))
@@ -2745,19 +2747,22 @@ tuple(Code* code, code::TokenIterator& token) {
     // push the argument tuple under the typeref we will be returning
     // and load its table onto the table stack for the block we're about to parse
     node::insert_first(e, tuple);
-    // the symbol table of the block will go through the tuple's symbol table, regardless of if
-    // it generated one or not 
-    tuple->table.last = stack::current_table(code);
-    stack::push_table(code, &tuple->table);
 
-    if(!block(code, token)) return false;
+    if(token.is(token::open_brace)) {
+        // the symbol table of the block will go through the tuple's symbol table, regardless of if
+        // it generated one or not 
+        tuple->table.last = stack::current_table(code);
+        stack::push_table(code, &tuple->table);
 
-    stack::pop_table(code);
+        if(!block(code, token)) return false;
 
-    node::insert_last(e, stack::pop(code));
+        stack::pop_table(code);
 
-    e->node.start = e->node.first_child->start;
-    e->node.end = e->node.last_child->end;
+        node::insert_last(e, stack::pop(code));
+
+        e->node.start = e->node.first_child->start;
+        e->node.end = e->node.last_child->end;
+    }
 
     FunctionType* ft = type::function::create();
     ft->parameters = e->node.first_child;
@@ -2782,12 +2787,27 @@ label_after_colon(Code* code, code::TokenIterator& token) {
                 return false;
             }
 
+            switch(l->entity->node.kind) {
+                case node::type: {
+                    Expression* e = expression::create();
+                    e->kind = expression::typeref;
+                    e->type = (Type*)l->entity;
+                    e->node.start = e->node.end = token.current();
+                    stack::push(code, e);
 
+                    token.increment();
+                    if(!typeref(code, token)) return false;
+                } break;
+            }
         } break;
 
         case token::colon:
         case token::equal: {
             if(!expression(code, token)) return false;
+        } break;
+
+        case token::open_paren: {
+            if(!tuple(code, token)) return false;
         } break;
 
         default: {
@@ -2946,16 +2966,33 @@ label(Code* code, code::TokenIterator& token) {
                             node::insert_last(l, cand);
                         } break;
 
-                        case type::kind::function: {
-                            // it's PROBABLY fine to create a function entity here
-                            // because the only case where it would already exist 
-                            // is prescanned functions but I am not sure :P
-                            Function* f = function::create();
-                            f->label = l;
-                            f->type = (FunctionType*)t;
-                            f->node.start = f->type->parameters->start;
-                            l->entity = (Entity*)f;
+                        case type::kind::structured: {
+                            Place* p = place::create();
+                            p->label = l;
+                            p->type = t;
+                            l->entity = (Entity*)p;
                             node::insert_last(l, cand);
+                        } break;
+
+                        case type::kind::function: {
+                            // if the last child of the typeref is not a block, then
+                            // we do not create a function entity, this is simply a variable
+                            // representing a function
+                            if(cand->last_child->kind != node::expression || 
+                               ((Expression*)cand->last_child)->kind != expression::block) {
+                                Place* p = place::create();
+                                p->label = l;
+                                p->type = t;
+                                l->entity = (Entity*)p;
+                                node::insert_last(l, cand);
+                            } else {
+                                Function* f = function::create();
+                                f->label = l;
+                                f->type = (FunctionType*)t;
+                                f->node.start = f->type->parameters->start;
+                                l->entity = (Entity*)f;
+                                node::insert_last(l, cand);
+                            }
                         } break;
                     }
                 } break;
@@ -2965,6 +3002,9 @@ label(Code* code, code::TokenIterator& token) {
                     return false;
                 }
             }
+        } break;
+        case node::statement: {
+            DebugBreakpoint;
         } break;
         default: {
             util::println(

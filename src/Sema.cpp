@@ -138,6 +138,10 @@ call(Code* code, CallExpression* e) {
     return true;
 } 
 
+
+// TODO(sushi) need to separate a function's definition from its Type
+//             really just need to not use the AST here and use the stuff on FunctionType
+//             instead
 b32
 typeref(Code* code, Expression* e) { announce_stage(e);
     switch(e->type->kind) {
