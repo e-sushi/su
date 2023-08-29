@@ -367,7 +367,7 @@ if config["use_pch"]:
     includes = list(filter(len, [a.strip().strip('"') for a in buff.split("#include")]))
     def regen_pch():
         for include in includes:
-            if os.path.getmtime(include) > pchlasttime:
+            if os.path.getmtime(f"src/{include}") > pchlasttime:
                 return True
         return False
     if os.path.getmtime("src/pch.h") > pchlasttime or regen_pch():
