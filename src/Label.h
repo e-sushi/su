@@ -46,6 +46,29 @@ base(Label* l);
 Label*
 resolve(TNode* n);
 
+// TODO(sushi) this same idea can be used for all the other things in amu,
+//             i just dont want to spend time on setting all of that up right now 
+//             plus I think there could be a better way to do it 
+struct Formatting {
+    // dont show the original label when printing an alias
+    b32 no_aka;
+    // if aka is enabled, print the entire chain of aliases
+    b32 full_aka;
+    u32 col;
+    String prefix, suffix;
+};
+
+// returns a formatted string representing the given Label
+void
+display(DString& current, Label* l, Formatting format = Formatting(), b32 allow_color = true);
+
+DString
+display(Label* l, Formatting format = Formatting(), b32 allow_color = true) {
+    DString out = dstring::init();
+    display(out, l, format);
+    return out;
+}
+
 namespace table {
 
 LabelTable
@@ -63,6 +86,13 @@ search(LabelTable* table, u64 hashed_id);
 
 global void
 to_string(DString& start, Label* l);
+
+DString
+to_string(Label* l) {
+    DString out = dstring::init();
+    to_string(out, l);
+    return out;
+}
 
 } //namespace amu
 

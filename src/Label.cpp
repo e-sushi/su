@@ -63,6 +63,39 @@ resolve(TNode* n) {
     return 0;
 }
 
+void
+display(DString& current, Label* l, Formatting format, b32 allow_color) {
+    auto append_label = [&](Label* l) {
+        DString temp = dstring::init(l->node.start->raw);
+        if(allow_color) {
+            util::wrap_color(temp, format.col);
+        }
+        dstring::prepend(temp, format.prefix);
+        dstring::append(current, temp, format.suffix);
+        dstring::deinit(temp);
+    };
+
+    append_label(l);
+
+    if(l->aliased && !format.no_aka) {
+        dstring::append(current, " (aka ");
+        if(format.full_aka) {
+            Label* step = l->aliased;
+            while(1) {
+                append_label(step);
+                step = step->aliased;
+                if(!step) break;
+                dstring::append(current, " aka ");
+            }
+        } else {
+            Label* step = l->aliased;
+            while(step->aliased) step = step->aliased;
+            append_label(step);
+        }
+        dstring::append(current, ')');
+    }
+}
+
 } // namespace label
 
 global void

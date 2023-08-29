@@ -179,14 +179,22 @@ struct MessageFormatting {
         String prefix = "'", suffix = "'";
     } identifier;
 
-    struct {
-        // dont show the original label when printing an alias
-        b32 no_aka;
-        // if aka is enabled, print the entire chain of aliases
-        b32 full_aka;
-        u32 col = message::color_green;
-        String prefix = "'", suffix = "'";
-    } label;
+    // struct {
+    //     // dont show the original label when printing an alias
+    //     b32 no_aka;
+    //     // if aka is enabled, print the entire chain of aliases
+    //     b32 full_aka;
+    //     u32 col = message::color_green;
+    //     String prefix = "'", suffix = "'";
+    // } label;
+
+    label::Formatting label = {
+        .no_aka = false,
+        .full_aka = false,
+        .col = message::color_green,
+        .prefix = "'",
+        .suffix = "'",
+    };
 
 };
 
