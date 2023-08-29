@@ -24,7 +24,7 @@
 #ifndef AMU_DSTRING_H
 #define AMU_DSTRING_H
 
-#include "Memory.h"
+#include "basic/Memory.h"
 #include "util.h"
 #include "storage/String.h"
 

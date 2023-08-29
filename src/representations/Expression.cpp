@@ -1,67 +1,53 @@
 namespace amu {
-namespace expression {
 
-global Expression*
-create() {
-    Expression* out = pool::add(compiler::instance.storage.expressions);
-    node::init(&out->node);
+Expr*
+Expr::create(expr::kind kind, Type* type) {
+    Expr* out = pool::add(compiler::instance.storage.expressions);
     out->node.kind = node::expression;
+    out->kind = kind;
+    out->type = type;
     return out;
 }
 
-} // namespace expression
-
-namespace block_expression {
-
-BlockExpression*
-create() {
-    BlockExpression* out = pool::add(compiler::instance.storage.block_expressions);
+Block*
+Block::create() {
+    Block* out = pool::add(compiler::instance.storage.blocks);
     node::init(&out->node);
     out->node.kind = node::expression;
-    out->kind = expression::block;
+    out->kind = expr::block;
     out->table = label::table::init((TNode*)out);
     return out;
 }
 
-} // namespace block_expression
-
-namespace call_expression {
-
-CallExpression*
-create() {
-    CallExpression* out = pool::add(compiler::instance.storage.call_expressions);
+Call*
+Call::create() {
+    Call* out = pool::add(compiler::instance.storage.calls);
     node::init(&out->node);
     out->node.kind = node::expression;
-    out->kind = expression::call;
+    out->kind = expr::call;
     return out;
 }
 
-} // namespace call_expression
-
-namespace placeref_expression {
-
-PlaceRefExpression*
-create() {
-    PlaceRefExpression* out = pool::add(compiler::instance.storage.placeref_expressions);
+PlaceRef*
+PlaceRef::create() {
+    PlaceRef* out = pool::add(compiler::instance.storage.placerefs);
     node::init(&out->node);
     out->node.kind = node::expression;
-    out->kind = expression::placeref;
+    out->kind = expr::placeref;
     return out;
 }
-
-} // namespace placeref_expression
 
 void
-to_string(DString& start, Expression* e) {
+to_string(DString& start, Expr* e) {
     dstring::append(start, "Expr<");
     switch(e->kind) {
-        case expression::typeref: {
+        case expr::typeref: {
             dstring::append(start, "typeref:", e->type);
         } break;
-        case expression::identifier: {
+        case expr::identifier: {
             dstring::append(start, "id:'", e->node.start->raw, "'");
         } break;
-        case expression::literal: {
+        case expr::literal: {
             switch(e->node.start->kind) {
                 case token::literal_character: dstring::append(start, "chr lit:'", e->node.start->raw, "'"); break;
                 case token::literal_float:     dstring::append(start, "flt lit:", e->node.start->f64_val); break;
@@ -69,11 +55,11 @@ to_string(DString& start, Expression* e) {
                 case token::literal_string:    dstring::append(start, "str lit:'", e->node.start->raw, "'"); break;
             }
         } break;
-        case expression::placeref: {
-            dstring::append(start, "placeref: ", ((PlaceRefExpression*)e)->place);
+        case expr::placeref: {
+            dstring::append(start, "placeref: ", ((PlaceRef*)e)->place);
         } break;
         default: {
-            dstring::append(start, expression::strings[e->kind]);
+            dstring::append(start, expr::strings[(u32)e->kind]);
         } break;
     }
 

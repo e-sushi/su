@@ -7,7 +7,7 @@
 #ifndef AMU_SOURCE_H
 #define AMU_SOURCE_H
 
-#include "Diagnostics.h"
+#include "systems/Diagnostics.h"
 
 namespace amu {
 

@@ -9,15 +9,14 @@
 #ifndef AMU_COMPILER_H
 #define AMU_COMPILER_H
 
-#include "Messenger.h"
+#include "systems/Messenger.h"
 #include "storage/Pool.h"
-#include "Entity.h"
-#include "Result.h"
-#include "Lexer.h"
-#include "Parser.h"
-#include "Sema.h"
-#include "Generator.h"
-#include "Code.h"
+#include "representations/Entity.h"
+#include "processors/Lexer.h"
+#include "processors/Parser.h"
+#include "processors/Sema.h"
+#include "processors/Generator.h"
+#include "representations/Code.h"
 
 namespace amu {
 
@@ -34,33 +33,33 @@ struct Compiler {
     // this is experimental and depending on how much state needs cleaned up in other 
     // components of the compiler, I may just go back to storing this locally  
     struct {
-        Pool<SourceCode>         source_code;
-        Pool<VirtualCode>        virtual_code;
-        Pool<Source>             sources;
-        Pool<Lexer>              lexers;
-        Pool<Parser>             parsers;
-        Pool<Sema>               semas;
-        Pool<Gen>                gens;
-        Pool<Module>             modules;
-        Pool<Label>              labels;
-        Pool<Structure>          structures;
-        Pool<Function>           functions;
-        Pool<Statement>          statements;
-        Pool<Expression>         expressions;
-        Pool<CallExpression>     call_expressions;
-        Pool<BlockExpression>    block_expressions; 
-        Pool<PlaceRefExpression> placeref_expressions; 
-        Pool<Place>              places;
-        Pool<Tuple>              tuples;
-        Pool<Type>               types;
-        Pool<ScalarType>         builtin_types;
-        Pool<StructuredType>     structured_types;
-        Pool<PointerType>        pointer_types;
-        Pool<ArrayType>          array_types;
-        Pool<VariantType>        variant_types;
-        Pool<FunctionType>       function_types;
-        Pool<TupleType>          tuple_types;
-        Pool<MetaType>           meta_types;
+        Pool<SourceCode>   source_code;
+        Pool<VirtualCode>  virtual_code;
+        Pool<Source>       sources;
+        Pool<Lexer>        lexers;
+        Pool<Parser>       parsers;
+        Pool<Sema>         semas;
+        Pool<Gen>          gens;
+        Pool<Module>       modules;
+        Pool<Label>        labels;
+        Pool<Structure>    structures;
+        Pool<Function>     functions;
+        Pool<Statement>    statements;
+        Pool<Expr>         expressions;
+        Pool<Call>         calls;
+        Pool<Block>        blocks; 
+        Pool<PlaceRef>     placerefs; 
+        Pool<Place>        places;
+        Pool<Tuple>        tuples;
+        Pool<Type>         types;
+        Pool<ScalarType>   builtin_types;
+        Pool<Structured>   structured_types;
+        Pool<Pointer>      pointer_types;
+        Pool<StaticArray>  array_types;
+        Pool<Variant>      variant_types;
+        Pool<FunctionType> function_types;
+        Pool<TupleType>    tuple_types;
+        Pool<MetaType>     meta_types;
     }storage;
 
     Array<Diagnostic> diagnostics;

@@ -15,33 +15,33 @@ init() {
 
     instance.log_file = fopen("temp/log", "w");
 
-    instance.storage.sources              = pool::init<Source>(32);
-    instance.storage.source_code          = pool::init<SourceCode>(32);
-    instance.storage.virtual_code         = pool::init<VirtualCode>(32);
-    instance.storage.lexers               = pool::init<Lexer>(32);
-    instance.storage.parsers              = pool::init<Parser>(32);
-    instance.storage.semas                = pool::init<Sema>(32);
-    instance.storage.gens                 = pool::init<Gen>(32);
-    instance.storage.modules              = pool::init<Module>(32);
-    instance.storage.labels               = pool::init<Label>(32);
-    instance.storage.structures           = pool::init<Structure>(32);
-    instance.storage.functions            = pool::init<Function>(32);
-    instance.storage.statements           = pool::init<Statement>(32);
-    instance.storage.expressions          = pool::init<Expression>(32);
-    instance.storage.call_expressions     = pool::init<CallExpression>(32);
-    instance.storage.block_expressions    = pool::init<BlockExpression>(32);
-    instance.storage.placeref_expressions = pool::init<PlaceRefExpression>(32);
-    instance.storage.places               = pool::init<Place>(32);
-    instance.storage.tuples               = pool::init<Tuple>(32);
-    instance.storage.types                = pool::init<Type>(32);
-    instance.storage.builtin_types        = pool::init<ScalarType>(32);
-    instance.storage.structured_types     = pool::init<StructuredType>(32);
-    instance.storage.pointer_types        = pool::init<PointerType>(32);
-    instance.storage.array_types          = pool::init<ArrayType>(32);
-    instance.storage.variant_types        = pool::init<VariantType>(32);
-    instance.storage.function_types       = pool::init<FunctionType>(32);
-    instance.storage.tuple_types          = pool::init<TupleType>(32);
-    instance.storage.meta_types           = pool::init<MetaType>(32);
+    instance.storage.sources          = pool::init<Source>(32);
+    instance.storage.source_code      = pool::init<SourceCode>(32);
+    instance.storage.virtual_code     = pool::init<VirtualCode>(32);
+    instance.storage.lexers           = pool::init<Lexer>(32);
+    instance.storage.parsers          = pool::init<Parser>(32);
+    instance.storage.semas            = pool::init<Sema>(32);
+    instance.storage.gens             = pool::init<Gen>(32);
+    instance.storage.modules          = pool::init<Module>(32);
+    instance.storage.labels           = pool::init<Label>(32);
+    instance.storage.structures       = pool::init<Structure>(32);
+    instance.storage.functions        = pool::init<Function>(32);
+    instance.storage.statements       = pool::init<Statement>(32);
+    instance.storage.expressions      = pool::init<Expr>(32);
+    instance.storage.calls            = pool::init<Call>(32);
+    instance.storage.blocks           = pool::init<Block>(32);
+    instance.storage.placerefs        = pool::init<PlaceRef>(32);
+    instance.storage.places           = pool::init<Place>(32);
+    instance.storage.tuples           = pool::init<Tuple>(32);
+    instance.storage.types            = pool::init<Type>(32);
+    instance.storage.builtin_types    = pool::init<ScalarType>(32);
+    instance.storage.structured_types = pool::init<Structured>(32);
+    instance.storage.pointer_types    = pool::init<Pointer>(32);
+    instance.storage.array_types      = pool::init<StaticArray>(32);
+    instance.storage.variant_types    = pool::init<Variant>(32);
+    instance.storage.function_types   = pool::init<FunctionType>(32);
+    instance.storage.tuple_types      = pool::init<TupleType>(32);
+    instance.storage.meta_types       = pool::init<MetaType>(32);
 
     instance.options.deliver_debug_immediately = true;
 
@@ -49,7 +49,7 @@ init() {
     array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
     array::push(messenger::instance.destinations, Destination(fopen("temp/log", "w"), false));
 
-    module = module::create();
+    module = Module::create();
 }
 
 global void

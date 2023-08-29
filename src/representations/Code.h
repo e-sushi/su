@@ -13,8 +13,8 @@
 #ifndef AMU_CODE_H
 #define AMU_CODE_H
 
-#include "Sema.h"
-#include "Generator.h"
+#include "processors/Sema.h"
+#include "processors/Generator.h"
 
 namespace amu {
 

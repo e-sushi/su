@@ -180,8 +180,8 @@ destroy(Parser* parser) {
 // void identifier_group() { announce_stage;
 //     while(1) {
 //         if(curt->kind != token::identifier) break; 
-//         Expression* expr = expression::create();
-//         expr->kind = expression::identifier;
+//         Expression* expr = Expr::create();
+//         expr->kind = expr::identifier;
 //         expr->node.start = expr->node.end = curt;
         
 //         TNode* last = array::read(stack, -1);
@@ -210,8 +210,8 @@ destroy(Parser* parser) {
 // // factor: ID *
 // // reduce ID -> expr:id
 // void reduce_identifier_to_identifier_expression() { announce_stage;
-//     Expression* e = expression::create();
-//     e->kind = expression::identifier;
+//     Expression* e = Expr::create();
+//     e->kind = expr::identifier;
 //     TNode* n = (TNode*)e;
 //     n->start = n->end = curt;
 //     stack_push(n);
@@ -224,8 +224,8 @@ destroy(Parser* parser) {
 //     TODO(sushi) this may only be used in one or two places so it can be removed if so 
 // */
 // void reduce_literal_to_literal_expression() { announce_stage;
-//     Expression* e = expression::create();
-//     e->kind = expression::literal;
+//     Expression* e = Expr::create();
+//     e->kind = expr::literal;
 //     TNode* n = (TNode*)e;
 //     n->start = n->end = curt;
 //     switch(curt->kind) {
@@ -253,8 +253,8 @@ destroy(Parser* parser) {
 //            | "f32" * | "f64" *
 // */
 // void reduce_builtin_type_to_typeref_expression() { announce_stage;
-//     Expression* e = expression::create();
-//     e->kind = expression::typeref;
+//     Expression* e = Expr::create();
+//     e->kind = expr::typeref;
 //     switch(curt->kind) {
 //         case token::void_:      e->type = &type::scalar::void_; break; 
 //         case token::unsigned8:  e->type = &type::scalar::unsigned8; break;
@@ -352,8 +352,8 @@ destroy(Parser* parser) {
 //             push_error();
 //         }
 
-//         Expression* e = expression::create();
-//         e->kind = expression::typeref;
+//         Expression* e = Expr::create();
+//         e->kind = expr::typeref;
 //         e->type = type::function::create();
 //         auto ft = (FunctionType*)e->type;
 
@@ -412,7 +412,7 @@ destroy(Parser* parser) {
 //     block: '{' { stmt } '}'
 // */
 // void block() {
-//     BlockExpression* e = block_expression::create();
+//     BlockExpression* e = block_Expr::create();
 //     e->node.start = curt-1;
 //     push_table(&e->table);
 
@@ -564,7 +564,7 @@ destroy(Parser* parser) {
 //         case node::expression: {
 //             Expression* expr = (Expression*)last;
 //             switch(expr->kind) {
-//                 case expression::binary_plus: {
+//                 case expr::binary_plus: {
                     
 //                 } break;
 //             }
@@ -585,8 +585,8 @@ destroy(Parser* parser) {
 //             advance_curt(); // assignment: typeref '=' * expr
 //             before_expr(); check_error;
 //             // now we reduce to binary assignment
-//             Expression* e = expression::create();
-//             e->kind = expression::binary_assignment;
+//             Expression* e = Expr::create();
+//             e->kind = expr::binary_assignment;
 //             e->node.start = save;
 //             e->node.end = curt;
 //             node::insert_first((TNode*)e, stack_pop());
@@ -597,7 +597,7 @@ destroy(Parser* parser) {
 //             set_start_end_from_children(e);
 
 //             // this is a place in memory, so we need to create a Place entity for it 
-//             Place* p = place::create();
+//             auto p = Place::create();
 //             p->node.start = e->node.start;
 //             p->node.end = e->node.end;
 //             p->type = e->type;
@@ -631,8 +631,8 @@ destroy(Parser* parser) {
 //         advance_curt();
 //         before_expr();
 
-//         Expression* loop = expression::create();
-//         loop->kind = expression::loop;
+//         Expression* loop = Expr::create();
+//         loop->kind = expr::loop;
 //         node::insert_last((TNode*)loop, stack_pop());
 //         set_start_end_from_children(loop);
 //         stack_push((TNode*)loop);
@@ -663,8 +663,8 @@ destroy(Parser* parser) {
 //     switch((curt+1)->kind) {
 //         case token::in:
 //         case token::comma: { // this is a list of identifiers that must be followed by 'in'
-//             Expression* expr = expression::create();
-//             expr->kind = expression::identifier;
+//             Expression* expr = Expr::create();
+//             expr->kind = expr::identifier;
 //             expr->node.start = curt;
 //             expr->node.end = curt;
 //             stack_push((TNode*)expr);
@@ -721,8 +721,8 @@ destroy(Parser* parser) {
 //     // we should be before some expression now 
 //     before_expr(); check_error;
 
-//     Expression* e = expression::create();
-//     e->kind = expression::for_;
+//     Expression* e = Expr::create();
+//     e->kind = expr::for_;
 
 //     node::insert_first((TNode*)e, stack_pop());
 //     node::insert_first((TNode*)e, stack_pop());
@@ -790,8 +790,8 @@ destroy(Parser* parser) {
 //         advance_curt();
 //         count++;
 
-//         Expression* e = expression::create();
-//         e->kind = expression::switch_case;
+//         Expression* e = Expr::create();
+//         e->kind = expr::switch_case;
         
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -807,8 +807,8 @@ destroy(Parser* parser) {
 //             switch_empty_body(curt);
 //     }
 
-//     Expression* e = expression::create();
-//     e->kind = expression::switch_expr;
+//     Expression* e = Expr::create();
+//     e->kind = expr::switch_expr;
 
 //     // reduce to switch expression
 //     forI(count+1){
@@ -847,8 +847,8 @@ destroy(Parser* parser) {
 
 //         before_expr();
 
-//         Expression* e = expression::create();
-//         e->kind = expression::conditional;
+//         Expression* e = Expr::create();
+//         e->kind = expr::conditional;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -881,8 +881,8 @@ destroy(Parser* parser) {
 //         bit_xor(); check_error;
 //         bit_or(); check_error;
 //         logi_and(); check_error;
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_assignment;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_assignment;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -912,8 +912,8 @@ destroy(Parser* parser) {
 //         bit_xor(); check_error;
 //         bit_or(); check_error;
 //         logi_and(); check_error;
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_or;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_or;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -942,8 +942,8 @@ destroy(Parser* parser) {
 //         bit_and(); check_error;
 //         bit_xor(); check_error;
 //         bit_or(); check_error;
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_and;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_and;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -971,8 +971,8 @@ destroy(Parser* parser) {
 //         equality(); check_error;
 //         bit_and(); check_error;
 //         bit_xor(); check_error;
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_bit_or;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_bit_or;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -999,8 +999,8 @@ destroy(Parser* parser) {
 //         relational(); check_error;
 //         equality(); check_error;
 //         bit_and(); check_error;
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_bit_xor;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_bit_xor;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -1027,8 +1027,8 @@ destroy(Parser* parser) {
 //         bit_shift(); check_error;
 //         relational(); check_error;
 //         equality(); check_error;
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_bit_and;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_bit_and;
 
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
@@ -1056,8 +1056,8 @@ destroy(Parser* parser) {
 //             additive(); check_error;
 //             bit_shift(); check_error;
 //             relational(); check_error;
-//             Expression* e = expression::create();
-//             e->kind = kind == token::double_equal ? expression::binary_equal : expression::binary_not_equal;
+//             Expression* e = Expr::create();
+//             e->kind = kind == token::double_equal ? expr::binary_equal : expr::binary_not_equal;
 
 //             node::insert_first((TNode*)e, stack_pop());
 //             node::insert_first((TNode*)e, stack_pop());
@@ -1087,14 +1087,14 @@ destroy(Parser* parser) {
 //             term(); check_error;
 //             additive(); check_error;
 //             bit_shift(); check_error;
-//             Expression* e = expression::create();
+//             Expression* e = Expr::create();
 //             e->kind = kind == token::less_than ?
-//                       expression::binary_less_than :
+//                       expr::binary_less_than :
 //                       kind == token::less_than_equal ? 
-//                       expression::binary_less_than_or_equal :
+//                       expr::binary_less_than_or_equal :
 //                       kind == token::greater_than ? 
-//                       expression::binary_greater_than :
-//                       expression::binary_greater_than_or_equal;
+//                       expr::binary_greater_than :
+//                       expr::binary_greater_than_or_equal;
 
 //             node::insert_first((TNode*)e, stack_pop());
 //             node::insert_first((TNode*)e, stack_pop());
@@ -1121,10 +1121,10 @@ destroy(Parser* parser) {
 //             access(); check_error;
 //             term(); check_error;
 //             additive(); check_error;
-//             Expression* e = expression::create();
+//             Expression* e = Expr::create();
 //             e->kind = kind == token::double_less_than ? 
-//                       expression::binary_bit_shift_left :
-//                       expression::binary_bit_shift_right;
+//                       expr::binary_bit_shift_left :
+//                       expr::binary_bit_shift_right;
             
 //             node::insert_first((TNode*)e, stack_pop());
 //             node::insert_first((TNode*)e, stack_pop());
@@ -1150,8 +1150,8 @@ destroy(Parser* parser) {
 //             factor(); check_error;
 //             access(); check_error;
 //             term(); check_error;
-//             Expression* e = expression::create();
-//             e->kind = kind == token::plus ? expression::binary_plus : expression::binary_minus;
+//             Expression* e = Expr::create();
+//             e->kind = kind == token::plus ? expr::binary_plus : expr::binary_minus;
 //             node::insert_first((TNode*)e, stack_pop());
 //             node::insert_first((TNode*)e, stack_pop());
 
@@ -1176,11 +1176,11 @@ destroy(Parser* parser) {
 //             advance_curt();
 //             factor(); check_error; 
 //             access(); check_error;
-//             Expression* e = expression::create();
+//             Expression* e = Expr::create();
 //             e->kind = 
-//                     kind == token::percent ? expression::binary_modulo 
-//                     : kind == token::solidus ? expression::binary_division
-//                     : expression::binary_multiply;
+//                     kind == token::percent ? expr::binary_modulo 
+//                     : kind == token::solidus ? expr::binary_division
+//                     : expr::binary_multiply;
             
 //             node::insert_first((TNode*)e, stack_pop());
 //             node::insert_first((TNode*)e, stack_pop());
@@ -1211,8 +1211,8 @@ destroy(Parser* parser) {
 
 //         reduce_identifier_to_identifier_expression();
 
-//         Expression* e = expression::create();
-//         e->kind = expression::binary_access;
+//         Expression* e = Expr::create();
+//         e->kind = expr::binary_access;
 //         node::insert_first((TNode*)e, stack_pop());
 //         node::insert_first((TNode*)e, stack_pop());
 //         set_start_end_from_children(e);
@@ -1244,8 +1244,8 @@ destroy(Parser* parser) {
 //                 case node::function: {
 //                     if(lookahead(1)->kind == token::open_paren) {
 //                         // must be a function call
-//                         CallExpression* e = call_expression::create();
-//                         e->kind = expression::call;
+//                         Call* e = call_Expr::create();
+//                         e->kind = expr::call;
 //                         e->node.start = curt;
 //                         e->callee = (Function*)label->entity;
 //                         advance_curt(); advance_curt();
@@ -1260,21 +1260,21 @@ destroy(Parser* parser) {
 //                         NotImplemented;
 //                         // // probably just a reference to a function entity
 //                         // Expression* last = (Expression*)array::read(stack, -1);
-//                         // last->kind = expression::entity_func;
+//                         // last->kind = expr::entity_func;
 //                         // last->entity = label->entity;
 //                         // advance_curt();
 //                     }
 //                 } break;
 //                 case node::structure: {
 //                     Expression* last = (Expression*)array::read(stack, -1);
-//                     last->kind = expression::typeref;
+//                     last->kind = expr::typeref;
 //                     last->type = (Type*)label->entity;
 //                     advance_curt();
 //                     after_typeref(); check_error;
 //                 } break;
 //                 case node::place: {
 //                     Expression* last = (Expression*)array::read(stack, -1);
-//                     last->kind = expression::identifier;
+//                     last->kind = expr::identifier;
 //                     last->type = ((Place*)label->entity)->type;
 //                     advance_curt();
 //                 } break;
@@ -1286,8 +1286,8 @@ destroy(Parser* parser) {
 //         case token::for_:       for_(); break;
 //         case token::open_brace: advance_curt(); block(); break;
 //         case token::ampersand: {
-//             Expression* ref = expression::create();
-//             ref->kind = expression::unary_reference;
+//             Expression* ref = Expr::create();
+//             ref->kind = expr::unary_reference;
 //             ref->node.start = curt;
 
 //             advance_curt();
@@ -1362,7 +1362,7 @@ destroy(Parser* parser) {
 //         node::insert_first((TNode*)s, stack_pop());
 //     }
 
-//     StructuredType* t = type::structured::create(s);
+//     Structured* t = type::structured::create(s);
 
 
 //     stack_push((TNode*)t);
@@ -1396,8 +1396,8 @@ destroy(Parser* parser) {
 //             advance_curt();
 //             before_expr(); check_error;
 
-//             Expression* e = expression::create();
-//             e->kind = expression::unary_assignment;
+//             Expression* e = Expr::create();
+//             e->kind = expr::unary_assignment;
 
 //             Expression* last = (Expression*)stack_pop();
 
@@ -1406,7 +1406,7 @@ destroy(Parser* parser) {
 //             e->node.end = e->node.last_child->end;
 //             e->type = last->type;
 
-//             Place* p = place::create();
+//             auto p = Place::create();
 //             p->type = last->type;
 
 //             stack_push((TNode*)p);
@@ -1417,8 +1417,8 @@ destroy(Parser* parser) {
 //             advance_curt();
 //             before_expr(); check_error;
 
-//             Expression* e = expression::create();
-//             e->kind = expression::unary_comptime;
+//             Expression* e = Expr::create();
+//             e->kind = expr::unary_comptime;
 
 //             node::insert_first((TNode*)e, stack_pop());
 //             e->node.start = save;
@@ -1440,8 +1440,8 @@ destroy(Parser* parser) {
 //             advance_curt();
 //             before_expr();
 
-//             Expression* e = expression::create();
-//             e->kind = expression::return_;
+//             Expression* e = Expr::create();
+//             e->kind = expr::return_;
 
 //             node::insert_first((TNode*)e, stack_pop());
 //             e->node.start = save;
@@ -1451,8 +1451,8 @@ destroy(Parser* parser) {
 //         }break;
 //         case token::using_: {
 //             // this should just be an alias
-//             Expression* e = expression::create();
-//             e->kind = expression::using_;
+//             Expression* e = Expr::create();
+//             e->kind = expr::using_;
 //             e->node.start = curt;
 
 //             // TODO(sushi) this needs to be changed to take in an expression that may result in an identifier
@@ -1464,8 +1464,8 @@ destroy(Parser* parser) {
 
 //             e->node.end = curt;
 
-//             Expression* i = expression::create();
-//             i->kind = expression::identifier;
+//             Expression* i = Expr::create();
+//             i->kind = expr::identifier;
 //             i->node.start = i->node.end = curt;
 
 //             node::insert_last((TNode*)e, (TNode*)i);
@@ -1526,7 +1526,7 @@ destroy(Parser* parser) {
 //             switch(label->entity->node.kind) {
 //                 case node::type: {
 //                     Expression* last = (Expression*)array::read(stack, -1);
-//                     last->kind = expression::typeref;
+//                     last->kind = expr::typeref;
 //                     last->type = (Type*)label->entity;
 //                     advance_curt();
 //                     after_typeref(); check_error;
@@ -1534,10 +1534,10 @@ destroy(Parser* parser) {
 //                     last = (Expression*)array::read(stack, -1);
 
 //                     // // in this case, 'after_typeref' will have already made a place in memory for this 
-//                     if(last->kind == expression::binary_assignment) break;
+//                     if(last->kind == expr::binary_assignment) break;
 
 //                     // this is a place in memory
-//                     Place* p = place::create();
+//                     auto p = Place::create();
 //                     p->type = last->type;
 //                     p->label = label;
 //                     TNode* save = stack_pop();
@@ -1557,7 +1557,7 @@ destroy(Parser* parser) {
 //                 reduce_builtin_type_to_typeref_expression();
 //                 // this will be a typed place in memory
 //                 auto last = (Expression*)stack_pop();
-//                 Place* p = place::create();
+//                 auto p = Place::create();
 //                 p->type = last->type;
 
 //                 stack_push((TNode*)p);
@@ -1579,7 +1579,7 @@ destroy(Parser* parser) {
 //         case node::expression: {
 //             Expression* expr = (Expression*)last;
 //             switch(expr->kind) {
-//                 case expression::typeref: after_typeref(); check_error; break;
+//                 case expr::typeref: after_typeref(); check_error; break;
 //             }
 //         } break;
 //     }
@@ -1624,8 +1624,8 @@ destroy(Parser* parser) {
 // }
 
 // void label() {
-//     Expression* expr = expression::create();
-//     expr->kind = expression::identifier;
+//     Expression* expr = Expr::create();
+//     expr->kind = expr::identifier;
 //     expr->node.start = curt;
 //     expr->node.end = curt;
 //     stack_push((TNode*)expr);
@@ -1746,7 +1746,7 @@ destroy(Parser* parser) {
 //                             } else if(curt->kind == token::semicolon || curt->kind == token::equal) {
 //                                 // this is probably a variable pointing to a function
 //                                 // if '=' is found, then it's the same, only it is being initialized
-//                                 Place* p = place::create();
+//                                 auto p = Place::create();
 //                                 l->entity = p;
 //                                 goto label_finished;
 //                             }
@@ -1755,7 +1755,7 @@ destroy(Parser* parser) {
 //                     case token::equal:
 //                     case token::semicolon: {
 //                         // this must be a label representing a variable of some tuple type
-//                         Place* p = place::create();
+//                         auto p = Place::create();
 //                         l->entity = p;
 //                         goto label_finished;
 //                     } break;
@@ -1774,7 +1774,7 @@ destroy(Parser* parser) {
 //                     case token::structdecl: {
 //                         Structure* s = structure::create();
 //                         s->label = l;
-//                         StructuredType* t = type::structured::create(s);
+//                         Structured* t = type::structured::create(s);
 //                         l->entity = (Entity*)t;
 //                         t->label = l;
 //                         goto label_finished;
@@ -1806,7 +1806,7 @@ destroy(Parser* parser) {
 //             } break;
 //             default: {
 //                 // in any other case, this is probably just a compile time variable declaration
-//                 Place* p = place::create();
+//                 auto p = Place::create();
 //                 l->entity = p;
 //                 goto label_finished;
 //             } break;
@@ -1853,8 +1853,7 @@ b32 access(Code* code, code::TokenIterator& token);
 
 b32 
 reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
-    Expression* e = expression::create();
-    e->kind = expression::literal;
+    Expr* e = Expr::create(expr::literal);
     e->node.start = e->node.end = token.current();
     switch(token.current_kind()) {
         case token::literal_character: {
@@ -1867,7 +1866,7 @@ reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
             e->type = &type::scalar::signed64;
         } break;
         case token::literal_string: {
-            e->type = type::array::create(&type::scalar::unsigned8, token.current()->raw.count);
+            e->type = StaticArray::create(&type::scalar::unsigned8, token.current()->raw.count);
         } break;
     }
     stack::push(code, e);
@@ -1876,8 +1875,7 @@ reduce_literal_to_literal_expression(Code* code, code::TokenIterator& token) {
 
 b32 
 reduce_builtin_type_to_typeref_expression(Code* code, code::TokenIterator& token) { 
-    Expression* e = expression::create();
-    e->kind = expression::typeref;
+    Expr* e = Expr::create(expr::typeref);
     e->node.start = e->node.end = token.current();
     switch(token.current_kind()) {
         case token::void_:      e->type = &type::void_; break; 
@@ -1904,14 +1902,13 @@ typeref(Code* code, code::TokenIterator& token) {
             token.increment();
             if(!expression(code, token)) return false;
 
-            Expression* e = expression::create();
-            e->kind = expression::binary_assignment;
+            Expr* e = Expr::create(expr::binary_assignment);
             e->node.start = start;
             e->node.end = token.current();
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
             // always take the type of the lhs because it controls the type of the rhs expression
-            e->type = ((Expression*)e->node.first_child)->type;
+            e->type = ((Expr*)e->node.first_child)->type;
             stack::push(code, e);
         } break;
 
@@ -1920,8 +1917,8 @@ typeref(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::asterisk: {
-            auto last = (Expression*)stack::last(code);
-            last->type = type::pointer::create(last->type);
+            auto last = (Expr*)stack::last(code);
+            last->type = Pointer::create(last->type);
             token.increment();
             if(!typeref(code, token)) return false;
         } break;
@@ -1936,7 +1933,7 @@ typeref(Code* code, code::TokenIterator& token) {
 //             to allow omitting semicolons after labels that end with blocks 
 b32
 block(Code* code, code::TokenIterator& token) {
-    BlockExpression* e = block_expression::create();
+    auto e = Block::create();
     e->node.start = token.current();
     e->table.last = stack::current_table(code);
     stack::push_table(code, &e->table);
@@ -2042,7 +2039,7 @@ factor(Code* code, code::TokenIterator& token) {
 
             switch(l->entity->node.kind) {
                 case node::place: {
-                    PlaceRefExpression* e = placeref_expression::create();
+                    auto e = PlaceRef::create();
                     e->node.start = e->node.end = token.current();
                     e->place = (Place*)l->entity;
                     token.increment();
@@ -2051,19 +2048,18 @@ factor(Code* code, code::TokenIterator& token) {
                 case node::function: {
                     if(token.next_is(token::open_paren)) {
                         // must be a function call
-                        Expression* id = expression::create();
-                        id->kind = expression::identifier;
+                        auto id = Expr::create(expr::identifier);
                         id->node.start = id->node.end = token.current();
-                        CallExpression* e = call_expression::create();
-                        e->node.start = token.current();
-                        e->callee = (Function*)l->entity;
+                        auto call = Call::create();
+                        call->node.start = token.current();
+                        call->callee = (Function*)l->entity;
                         token.increment();
                         if(!tuple(code, token)) return false;
-                        e->node.end = token.current();
-                        e->arguments = (Tuple*)stack::pop(code);
-                        node::insert_last(e, id);
-                        node::insert_last(e, e->arguments);
-                        stack::push(code, e);
+                        call->node.end = token.current();
+                        call->arguments = (Tuple*)stack::pop(code);
+                        node::insert_last(call, id);
+                        node::insert_last(call, call->arguments);
+                        stack::push(code, call);
                     } else {
                         TODO("plain function reference");
                         NotImplemented;
@@ -2098,15 +2094,14 @@ factor(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::ampersand: {
-            Expression* e = expression::create();
-            e->kind = expression::unary_reference;
+            Expr* e = Expr::create(expr::unary_reference);
             e->node.start = token.current();
 
             token.increment();
             if(!factor(code, token)) return false;
 
             node::insert_last(e, stack::pop(code));
-            e->type = type::pointer::create(type::resolve(e->node.last_child));
+            e->type = Pointer::create(Type::resolve(e->node.last_child));
             e->node.end = e->node.last_child->end;
             stack::push(code, e);
         } break;
@@ -2129,8 +2124,7 @@ factor(Code* code, code::TokenIterator& token) {
 
 b32
 conditional(Code* code, code::TokenIterator& token) {
-    Expression* e = expression::create();
-    e->kind = expression::conditional;
+    Expr* e = Expr::create(expr::conditional);
     e->node.start = token.current();
 
     token.increment();
@@ -2188,8 +2182,7 @@ assignment(Code* code, code::TokenIterator& token) {
         if(!logi_and(code, token)) return false;
         if(!logi_or(code, token)) return false;
 
-        Expression* e = expression::create();
-        e->kind = expression::binary_assignment;
+        Expr* e = Expr::create(expr::binary_assignment);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
@@ -2221,8 +2214,7 @@ b32 logi_or(Code* code, code::TokenIterator& token) {
         if(!bit_xor(code, token)) return false;
         if(!bit_or(code, token)) return false;
         if(!logi_and(code, token)) return false;
-        Expression* e = expression::create();
-        e->kind = expression::binary_or;
+        auto e = Expr::create(expr::binary_or);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
@@ -2252,8 +2244,7 @@ b32 logi_and(Code* code, code::TokenIterator& token) {
         if(!bit_and(code, token)) return false;
         if(!bit_xor(code, token)) return false;
         if(!bit_or(code, token)) return false;
-        Expression* e = expression::create();
-        e->kind = expression::binary_and;
+        auto e = Expr::create(expr::binary_and);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
@@ -2282,8 +2273,7 @@ b32 bit_or(Code* code, code::TokenIterator& token) {
         if(!equality(code, token)) return false;
         if(!bit_and(code, token)) return false;
         if(!bit_xor(code, token)) return false;
-        Expression* e = expression::create();
-        e->kind = expression::binary_bit_or;
+        auto e = Expr::create(expr::binary_bit_or);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
@@ -2311,8 +2301,7 @@ b32 bit_xor(Code* code, code::TokenIterator& token) {
         if(!relational(code, token)) return false;
         if(!equality(code, token)) return false;
         if(!bit_and(code, token)) return false;
-        Expression* e = expression::create();
-        e->kind = expression::binary_bit_xor;
+        auto e = Expr::create(expr::binary_bit_xor);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
@@ -2340,8 +2329,7 @@ b32 bit_and(Code* code, code::TokenIterator& token) {
         if(!bit_shift(code, token)) return false;
         if(!relational(code, token)) return false;
         if(!equality(code, token)) return false;
-        Expression* e = expression::create();
-        e->kind = expression::binary_bit_and;
+        auto e = Expr::create(expr::binary_bit_and);
 
         node::insert_first(e, stack::pop(code));
         node::insert_first(e, stack::pop(code));
@@ -2370,8 +2358,10 @@ b32 equality(Code* code, code::TokenIterator& token) {
             if(!additive(code, token)) return false;
             if(!bit_shift(code, token)) return false;
             if(!relational(code, token)) return false;
-            Expression* e = expression::create();
-            e->kind = kind == token::double_equal ? expression::binary_equal : expression::binary_not_equal;
+            auto e = Expr::create(
+                kind == token::double_equal 
+                    ? expr::binary_equal 
+                    : expr::binary_not_equal);
 
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
@@ -2402,14 +2392,14 @@ b32 relational(Code* code, code::TokenIterator& token) {
             if(!term(code, token)) return false;
             if(!additive(code, token)) return false;
             if(!bit_shift(code, token)) return false;
-            Expression* e = expression::create();
-            e->kind = kind == token::less_than ?
-                      expression::binary_less_than :
+            auto e = Expr::create(
+                kind == token::less_than ?
+                      expr::binary_less_than :
                       kind == token::less_than_equal ? 
-                      expression::binary_less_than_or_equal :
+                      expr::binary_less_than_or_equal :
                       kind == token::greater_than ? 
-                      expression::binary_greater_than :
-                      expression::binary_greater_than_or_equal;
+                      expr::binary_greater_than :
+                      expr::binary_greater_than_or_equal);
 
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
@@ -2437,10 +2427,10 @@ b32 bit_shift(Code* code, code::TokenIterator& token) {
             if(!access(code, token)) return false;
             if(!term(code, token)) return false;
             if(!additive(code, token)) return false;
-            Expression* e = expression::create();
-            e->kind = kind == token::double_less_than ? 
-                      expression::binary_bit_shift_left :
-                      expression::binary_bit_shift_right;
+            auto e = Expr::create(
+                kind == token::double_less_than ? 
+                      expr::binary_bit_shift_left :
+                      expr::binary_bit_shift_right);
             
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
@@ -2467,8 +2457,11 @@ b32 additive(Code* code, code::TokenIterator& token) {
             if(!factor(code, token)) return false;
             if(!access(code, token)) return false;
             if(!term(code, token)) return false;
-            Expression* e = expression::create();
-            e->kind = kind == token::plus ? expression::binary_plus : expression::binary_minus;
+            auto e = Expr::create(
+                kind == token::plus 
+                    ? expr::binary_plus 
+                    : expr::binary_minus);
+
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
 
@@ -2494,11 +2487,10 @@ b32 term(Code* code, code::TokenIterator& token) {
             token.increment();
             if(!factor(code, token)) return false;
             if(!access(code, token)) return false;
-            Expression* e = expression::create();
-            e->kind = 
-                    kind == token::percent ? expression::binary_modulo 
-                    : kind == token::solidus ? expression::binary_division
-                    : expression::binary_multiply;
+            auto e = Expr::create(
+                kind == token::percent ? expr::binary_modulo : 
+                kind == token::solidus ? expr::binary_division : 
+                    expr::binary_multiply);
             
             node::insert_first(e, stack::pop(code));
             node::insert_first(e, stack::pop(code));
@@ -2528,12 +2520,10 @@ b32 access(Code* code, code::TokenIterator& token) {
             return false;
         }
 
-        Expression* id = expression::create();
-        id->kind = expression::identifier;
+        auto id = Expr::create(expr::identifier);
         id->node.start = id->node.end = token.current();
 
-        Expression* e = expression::create();
-        e->kind = expression::binary_access;
+        auto e = Expr::create(expr::binary_access);
         node::insert_first((TNode*)e, stack::pop(code));
         node::insert_first((TNode*)e, id);
         stack::push(code, e);
@@ -2547,8 +2537,7 @@ b32
 expression(Code* code, code::TokenIterator& token) {
     switch(token.current_kind()) {
         case token::equal: {
-            Expression* e = expression::create();
-            e->kind = expression::unary_assignment;
+            auto e = Expr::create(expr::unary_assignment);
             e->node.start = token.current();
 
             token.increment();
@@ -2561,8 +2550,7 @@ expression(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::colon: {
-            Expression* e = expression::create();
-            e->kind = expression::unary_comptime;
+            auto e = Expr::create(expr::unary_comptime);
             e->node.start = token.current();
 
             token.increment();
@@ -2571,7 +2559,7 @@ expression(Code* code, code::TokenIterator& token) {
 
             node::insert_first(e, stack::pop(code));
             e->node.end = e->node.last_child->end;
-            e->type = ((Expression*)e->node.first_child)->type;
+            e->type = ((Expr*)e->node.first_child)->type;
 
             TODO("implement comptime code funneling");
 
@@ -2587,8 +2575,7 @@ expression(Code* code, code::TokenIterator& token) {
         } break;
 
         case token::return_: {
-            Expression* e = expression::create();
-            e->kind = expression::return_;
+            auto e = Expr::create(expr::return_);
             e->node.start = token.current();
 
             token.increment();
@@ -2720,8 +2707,7 @@ tuple(Code* code, code::TokenIterator& token) {
         return false;
     }
 
-    Expression* e = expression::create();
-    e->kind = expression::typeref;
+    Expr* e = Expr::create(expr::typeref);
 
     if(count > 1) {
         Tuple* t = tuple::create();
@@ -2764,10 +2750,10 @@ tuple(Code* code, code::TokenIterator& token) {
         e->node.end = e->node.last_child->end;
     }
 
-    FunctionType* ft = type::function::create();
+    auto ft = FunctionType::create();
     ft->parameters = e->node.first_child;
     ft->returns = e->node.first_child->next;
-    ft->return_type = type::resolve(ft->returns); // kind of redundant 
+    ft->return_type = Type::resolve(ft->returns); // kind of redundant 
     e->type = (Type*)ft;
 
     stack::push(code, e);
@@ -2789,9 +2775,7 @@ label_after_colon(Code* code, code::TokenIterator& token) {
 
             switch(l->entity->node.kind) {
                 case node::type: {
-                    Expression* e = expression::create();
-                    e->kind = expression::typeref;
-                    e->type = (Type*)l->entity;
+                    Expr* e = Expr::create(expr::typeref, (Type*)l->entity);
                     e->node.start = e->node.end = token.current();
                     stack::push(code, e);
 
@@ -2828,8 +2812,7 @@ b32
 label_group_after_comma(Code* code, code::TokenIterator& token) {
      while(1) {
         if(token.current_kind() != token::identifier) break; 
-        Expression* expr = expression::create();
-        expr->kind = expression::identifier;
+        Expr* expr = Expr::create(expr::identifier);
         expr->node.start = expr->node.end = token.current();
         
         TNode* last = stack::last(code);
@@ -2885,8 +2868,7 @@ label_after_id(Code* code, code::TokenIterator& token) {
 // returns with the tokenator at the token following the colon
 b32 
 label_get(Code* code, code::TokenIterator& token) {
-    Expression* expr = expression::create();
-    expr->kind = expression::identifier;
+    Expr* expr = Expr::create(expr::identifier);
     expr->node.start = token.current();
     expr->node.end = token.current();
     stack::push(code, (TNode*)expr);
@@ -2925,20 +2907,20 @@ label(Code* code, code::TokenIterator& token) {
     TNode* cand = stack::pop(code);
     switch(cand->kind) {
         case node::expression: {
-            auto expr = (Expression*)cand;
+            auto expr = (Expr*)cand;
             switch(expr->kind) {
-                case expression::unary_assignment: {
-                    Place* p = place::create();
+                case expr::unary_assignment: {
+                    auto p = Place::create();
                     p->label = l;
                     p->type = expr->type;
                     l->entity = (Entity*)p;
                     node::insert_last(l, cand);
                 } break;
-                case expression::unary_comptime: {
+                case expr::unary_comptime: {
                     // it's possible this a function def
                     switch(expr->type->kind) {
                         case type::kind::function: {
-                            Function* f = function::create();
+                            auto f = Function::create();
                             f->label = l;
                             f->type = (FunctionType*)expr->type;
                             f->node.start = f->type->parameters->start;
@@ -2947,19 +2929,19 @@ label(Code* code, code::TokenIterator& token) {
                         } break;
                     }
                 } break;
-                case expression::binary_assignment: {
-                    Place* p = place::create();
+                case expr::binary_assignment: {
+                    auto p = Place::create();
                     p->label = l;
                     l->entity = (Entity*)p;
                     node::insert_last(l, cand);
                 } break;
-                case expression::typeref: {
+                case expr::typeref: {
                     // this is probably when we have 
                     // <id> : <type> ;
                     Type* t = expr->type;
                     switch(t->kind) {
                         case type::kind::scalar: {
-                            Place* p = place::create();
+                            auto p = Place::create();
                             p->label = l;
                             p->type = t;
                             l->entity = (Entity*)p;
@@ -2967,7 +2949,7 @@ label(Code* code, code::TokenIterator& token) {
                         } break;
 
                         case type::kind::structured: {
-                            Place* p = place::create();
+                            auto p = Place::create();
                             p->label = l;
                             p->type = t;
                             l->entity = (Entity*)p;
@@ -2979,14 +2961,14 @@ label(Code* code, code::TokenIterator& token) {
                             // we do not create a function entity, this is simply a variable
                             // representing a function
                             if(cand->last_child->kind != node::expression || 
-                               ((Expression*)cand->last_child)->kind != expression::block) {
-                                Place* p = place::create();
+                               ((Expr*)cand->last_child)->kind != expr::block) {
+                                auto p = Place::create();
                                 p->label = l;
                                 p->type = t;
                                 l->entity = (Entity*)p;
                                 node::insert_last(l, cand);
                             } else {
-                                Function* f = function::create();
+                                auto f = Function::create();
                                 f->label = l;
                                 f->type = (FunctionType*)t;
                                 f->node.start = f->type->parameters->start;
@@ -2998,7 +2980,7 @@ label(Code* code, code::TokenIterator& token) {
                 } break;
                 default: {
                     util::println(
-                        dstring::init("unhandled label case: ", expression::strings[expr->kind]));
+                        dstring::init("unhandled label case: ", expr::strings[expr->kind]));
                     return false;
                 }
             }
@@ -3050,8 +3032,7 @@ struct_decl(Code* code, code::TokenIterator& token) {
 
     token.increment();
 
-    Expression* e = expression::create();
-    e->kind = expression::typeref;
+    auto e = Expr::create(expr::typeref);
     
     while(1) {
         if(token.is(token::close_brace)) break;
@@ -3087,7 +3068,7 @@ prescanned_type(Code* code, code::TokenIterator& token) {
 
     switch(type->kind) {
         case type::kind::structured: {
-            auto stype = (StructuredType*)type;
+            auto stype = (Structured*)type;
             Structure* s = stype->structure;
             
             token.skip_until(token::structdecl);
@@ -3095,7 +3076,7 @@ prescanned_type(Code* code, code::TokenIterator& token) {
 
             stack::push_table(code, &s->table);
 
-            auto e = (Expression*)stack::pop(code);
+            auto e = (Expr*)stack::pop(code);
             for(TNode* n = e->node.first_child; n; n = n->next) {
                 auto l = (Label*)e->node.first_child;
                 table::add(code, l->node.start->raw, l);
@@ -3133,17 +3114,13 @@ prescanned_function(Code* code, code::TokenIterator& token) {
     Label* l = (Label*)code->parser->root;
     Function* f = (Function*)l->entity;
 
-    f->type = type::function::create();
+    f->type = FunctionType::create();
 
     token.skip_until(token::open_paren);
 
-    stack::push_table(code, &f->table);
-
     if(!tuple(code, token)) return false;
 
-    stack::pop_table(code);
-
-    auto e = (Expression*)stack::pop(code);
+    auto e = (Expr*)stack::pop(code);
 
     f->type = (FunctionType*)e->type;
 
@@ -3242,10 +3219,9 @@ label(Code* code, code::TokenIterator& token) {
                                         Code* nu = code::from(code, id, token.current());
                                         nu->kind = code::function;
 
-                                        Function* f = function::create();
+                                        auto f = Function::create();
                                         f->node.start = open_paren;
                                         f->node.end = token.current();
-                                        f->table.last = stack::current_table(code);
 
                                         Label* l = label::create();
                                         l->node.start = id;
@@ -3254,8 +3230,7 @@ label(Code* code, code::TokenIterator& token) {
                                         l->entity = (Entity*)f;
                                         f->label = l;
 
-                                        Expression* e = expression::create();
-                                        e->kind = expression::identifier;
+                                        auto e = Expr::create(expr::identifier);
                                         e->node.start = e->node.end = id;
 
                                         node::insert_first(l, e);
@@ -3289,19 +3264,18 @@ label(Code* code, code::TokenIterator& token) {
                             l->node.start = id;
                             l->node.end = token.current();
 
-                            Structure* s = structure::create();
+                            auto s = Structure::create();
                             s->node.start = start;
                             s->node.end = token.current();
 
-                            StructuredType* stype = type::structured::create(s);
+                            auto stype = Structured::create(s);
                             stype->node.start = s->node.start;
                             stype->node.end = s->node.end;
 
                             l->entity = (Entity*)stype;
                             stype->label = l;
 
-                            Expression* e = expression::create();
-                            e->kind = expression::identifier;
+                            auto e = Expr::create(expr::identifier);
                             e->node.start = e->node.end = id;
 
                             node::insert_first(l, e);
@@ -3347,7 +3321,7 @@ label(Code* code, code::TokenIterator& token) {
 
 b32 
 module(Code* code, code::TokenIterator& token) {
-    Module* m = module::create();
+    auto m = Module::create();
     m->table.last = code->parser->current_table;
     stack::push_table(code, &m->table);
     defer { stack::pop_table(code); };
@@ -3363,7 +3337,7 @@ module(Code* code, code::TokenIterator& token) {
 b32
 source(Code* code, code::TokenIterator& token) {
     // all source files are modules, so we create one for it here
-    Module* m = module::create();
+    auto m = Module::create();
     stack::push_table(code, &m->table);
     defer { stack::pop_table(code); };
 

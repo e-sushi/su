@@ -13,7 +13,6 @@
 
 namespace amu{
 
-struct Entity;
 struct Token;
 struct Label {
     TNode node;

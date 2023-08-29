@@ -324,7 +324,7 @@ to_string(DString& start, TNode* n, b32 expand) {
     if(expand) switch(n->kind) {
 		case node::place:      to_string(start, (Place*)n);      return;
 		case node::label:      to_string(start, (Label*)n);      return;
-		case node::expression: to_string(start, (Expression*)n); return;
+		case node::expression: to_string(start, (Expr*)n); return;
 		case node::type:       to_string(start, (Type*)n);       return;
 		case node::function:   to_string(start, (Function*)n);   return;
 		case node::tuple:      to_string(start, (Tuple*)n);      return;

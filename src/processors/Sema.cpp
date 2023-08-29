@@ -45,20 +45,20 @@ u64 layers = 0;
 // }
 
 b32 label(Code* code, TNode* node);
-b32 expr(Code* code, Expression* e);
+b32 expr(Code* code, Expr* e);
 
 b32
 statement(Code* code, Statement* s) { announce_stage(s);
     switch(s->kind) {
         case statement::label: return label(code, s->node.first_child);
         case statement::block_final:
-        case statement::expression: return expr(code, (Expression*)s->node.first_child);
+        case statement::expression: return expr(code, (Expr*)s->node.first_child);
     }
     return false;
 }
 
 b32
-block(Code* code, BlockExpression* e) { announce_stage(e);
+block(Code* code, Block* e) { announce_stage(e);
     //push_table(&e->table);
     for(TNode* n = e->node.first_child; n; n = n->next) {
         if(!statement(code, (Statement*)n)) return false;
@@ -69,7 +69,7 @@ block(Code* code, BlockExpression* e) { announce_stage(e);
     if(!last || last->kind != statement::block_final) {
         e->type = &type::void_;
     } else {
-        e->type = type::resolve((TNode*)last);
+        e->type = Type::resolve((TNode*)last);
     }
     //`pop_table();
     return true;
@@ -80,8 +80,8 @@ func_ret(Code* code, TNode* n) { announce_stage(n);
     if(n->kind == node::tuple) {
 
     }else if(n->kind == node::expression) {
-        auto e = (Expression*)n;
-        if(e->kind != expression::typeref) {
+        auto e = (Expr*)n;
+        if(e->kind != expr::typeref) {
             diagnostic::sema::
                 func_ret_expected_typeref(e->node.start);
             return false;
@@ -96,7 +96,7 @@ func_arg_tuple(Code* code, Tuple* t) { announce_stage(t);
     if(!t->node.child_count) return true;
     for(TNode* n = t->node.first_child; n; n = n->next) {
         if(n->kind == node::expression) {
-            if(!expr(code, (Expression*)n)) return false;
+            if(!expr(code, (Expr*)n)) return false;
         } else {
             if(!label(code, n)) return false;
         }
@@ -105,7 +105,7 @@ func_arg_tuple(Code* code, Tuple* t) { announce_stage(t);
 }
 
 b32 
-call(Code* code, CallExpression* e) {
+call(Code* code, Call* e) {
     FunctionType* f = e->callee->type;
     if(e->arguments->node.child_count > f->parameters->child_count) {
         diagnostic::sema::
@@ -122,11 +122,11 @@ call(Code* code, CallExpression* e) {
     TNode* func_arg = f->parameters->first_child;
     TNode* call_arg = e->arguments->node.first_child ;
     while(func_arg && call_arg) {
-        if(!type::can_coerce(type::resolve(func_arg), type::resolve(call_arg))) {
+        if(!Type::resolve(func_arg)->can_cast_to(Type::resolve(call_arg))) {
             diagnostic::sema::
                 mismatch_argument_type(call_arg->start, 
-                    type::resolve(call_arg), 
-                    type::resolve(func_arg), 
+                    Type::resolve(call_arg), 
+                    Type::resolve(func_arg), 
                     label::resolve(func_arg)->node.start->raw, 
                     e->callee->label->node.start->raw);
             return false;
@@ -143,7 +143,7 @@ call(Code* code, CallExpression* e) {
 //             really just need to not use the AST here and use the stuff on FunctionType
 //             instead
 b32
-typeref(Code* code, Expression* e) { announce_stage(e);
+typeref(Code* code, Expr* e) { announce_stage(e);
     switch(e->type->kind) {
         case type::kind::scalar: {
         } break;
@@ -151,9 +151,9 @@ typeref(Code* code, Expression* e) { announce_stage(e);
             auto type = (FunctionType*)e->type;
             if(!func_arg_tuple(code, (Tuple*)type->parameters) ||
                !func_ret(code, type->returns) || 
-               !block(code, (BlockExpression*)e->node.last_child)) return false;
-            auto be = (BlockExpression*)e->node.last_child;
-            if(!type::can_coerce(type->return_type, be->type)) {
+               !block(code, (Block*)e->node.last_child)) return false;
+            auto be = (Block*)e->node.last_child;
+            if(!type->return_type->can_cast_to(be->type)) {
                 diagnostic::sema::
                     return_value_of_func_block_cannot_be_coerced_to_func_return_type(
                         be->node.last_child->start, type->return_type, be->type);
@@ -169,7 +169,7 @@ typeref(Code* code, Expression* e) { announce_stage(e);
 }
 
 b32 
-access(Code* code, Expression* e, Expression* lhs, Type* lhs_type, Expression* rhs) {
+access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
     switch(lhs_type->kind) {
         case type::kind::scalar: {
             diagnostic::sema::
@@ -193,7 +193,7 @@ access(Code* code, Expression* e, Expression* lhs, Type* lhs_type, Expression* r
             return false;
         } break;
         case type::kind::pointer: {
-            auto ptype = (PointerType*)lhs_type;
+            auto ptype = (Pointer*)lhs_type;
             if(ptype->type->kind == type::kind::pointer) {
                 diagnostic::sema::
                     too_many_levels_of_indirection_for_access(lhs->node.start);
@@ -205,7 +205,7 @@ access(Code* code, Expression* e, Expression* lhs, Type* lhs_type, Expression* r
             NotImplemented;
         } break;
         case type::kind::structured: {
-            auto stype = (StructuredType*)lhs_type;
+            auto stype = (Structured*)lhs_type;
             auto [idx, found] = map::find(stype->structure->table.map, rhs->node.start->raw);
             if(!found) {
                 diagnostic::sema::
@@ -213,7 +213,7 @@ access(Code* code, Expression* e, Expression* lhs, Type* lhs_type, Expression* r
                 return false;
             }
             Label* l = array::read(stype->structure->table.map.values, idx);
-            e->type = type::resolve((TNode*)l->entity);
+            e->type = Type::resolve((TNode*)l->entity);
             return true;
         } break;
     }
@@ -221,32 +221,32 @@ access(Code* code, Expression* e, Expression* lhs, Type* lhs_type, Expression* r
 }
 
 b32 
-expr(Code* code, Expression* e) { announce_stage(e);
+expr(Code* code, Expr* e) { announce_stage(e);
     switch(e->kind) {
-        case expression::unary_comptime: return expr(code, (Expression*)e->node.first_child);
-        case expression::unary_assignment: {
-            if(!expr(code, (Expression*)e->node.first_child)) return false;
-            e->type = type::resolve(e->node.first_child);
+        case expr::unary_comptime: return expr(code, (Expr*)e->node.first_child);
+        case expr::unary_assignment: {
+            if(!expr(code, (Expr*)e->node.first_child)) return false;
+            e->type = Type::resolve(e->node.first_child);
             return true;
         } break;
-        case expression::block: {
-            return block(code, (BlockExpression*)e);
+        case expr::block: {
+            return block(code, (Block*)e);
         } break;
-        case expression::unary_reference: {
+        case expr::unary_reference: {
             return false;
         } break;
-        case expression::call: {
-            return call(code, (CallExpression*)e);
+        case expr::call: {
+            return call(code, (Call*)e);
         } break;
-        case expression::typeref: return typeref(code, e);
-        case expression::binary_assignment: {
-            auto lhs = (Expression*)e->node.first_child;
-            auto rhs = (Expression*)e->node.last_child;
+        case expr::typeref: return typeref(code, e);
+        case expr::binary_assignment: {
+            auto lhs = (Expr*)e->node.first_child;
+            auto rhs = (Expr*)e->node.last_child;
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
             // TODO(sushi) type coersion
-            if(!type::can_coerce(lhs->type, rhs->type)) {
+            if(!lhs->type->can_cast_to(rhs->type)) {
                 diagnostic::sema::
                     cannot_implict_coerce(lhs->node.start, rhs->type, lhs->type);
                 return false;
@@ -255,11 +255,11 @@ expr(Code* code, Expression* e) { announce_stage(e);
             return true;
         } break;
 
-        case expression::binary_access: {
-            auto lhs = (Expression*)e->node.first_child;
-            auto rhs = (Expression*)e->node.last_child;
+        case expr::binary_access: {
+            auto lhs = (Expr*)e->node.first_child;
+            auto rhs = (Expr*)e->node.last_child;
             if(!expr(code, lhs)) return false;
-            Type* lhs_type = type::resolve((TNode*)lhs);
+            auto lhs_type = Type::resolve((TNode*)lhs);
             if(!lhs_type) {
                  diagnostic::sema::
                     invalid_type_lhs_access(lhs->node.start);
@@ -269,14 +269,14 @@ expr(Code* code, Expression* e) { announce_stage(e);
             return access(code, e, lhs, lhs_type, rhs);
         } break;
 
-        case expression::binary_plus: {
-            auto lhs = (Expression*)e->node.first_child;
-            auto rhs = (Expression*)e->node.last_child;
+        case expr::binary_plus: {
+            auto lhs = (Expr*)e->node.first_child;
+            auto rhs = (Expr*)e->node.last_child;
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
             if(lhs->type == rhs->type) { 
-                if(!type::is_scalar(lhs->type)) {
+                if(!lhs->type->is_scalar()) {
                     // NOTE(sushi) temp error until traits are implemented
                     Message m = message::init(String("cannot perform addition between non-scalar types yet!"));
                     m.kind = message::error;
@@ -285,13 +285,12 @@ expr(Code* code, Expression* e) { announce_stage(e);
                     return false;
                 }
                 e->type = lhs->type;
-            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
                 // take the larger of the two, and prefer float > signed > unsigned
                 auto l = (ScalarType*)lhs->type, 
                      r = (ScalarType*)rhs->type;
                 
-                Expression* cast = expression::create();
-                cast->kind = expression::cast;
+                auto cast = Expr::create(expr::cast);
                 b32 take_left = l->kind > r->kind;
                 cast->type = (take_left? l : r);
                 node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
@@ -306,14 +305,14 @@ expr(Code* code, Expression* e) { announce_stage(e);
             // TODO(sushi) Add trait implemented here
         } break;
 
-        case expression::binary_minus: {
-            auto lhs = (Expression*)e->node.first_child;
-            auto rhs = (Expression*)e->node.last_child;
+        case expr::binary_minus: {
+            auto lhs = (Expr*)e->node.first_child;
+            auto rhs = (Expr*)e->node.last_child;
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
             if(lhs->type == rhs->type) { 
-                if(!type::is_scalar(lhs->type)) {
+                if(!lhs->type->is_scalar()) {
                     // NOTE(sushi) temp error until traits are implemented
                     Message m = message::init(String("cannot perform subtraction between non-scalar types yet!"));
                     m.kind = message::error;
@@ -322,13 +321,12 @@ expr(Code* code, Expression* e) { announce_stage(e);
                     return false;
                 }
                 e->type = lhs->type;
-            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
                 // take the larger of the two, and prefer float > signed > unsigned
                 auto l = (ScalarType*)lhs->type, 
                      r = (ScalarType*)rhs->type;
                 
-                Expression* cast = expression::create();
-                cast->kind = expression::cast;
+                Expr* cast = Expr::create(expr::cast);
                 b32 take_left = l->kind > r->kind;
                 cast->type = (take_left? l : r);
                 node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
@@ -341,14 +339,14 @@ expr(Code* code, Expression* e) { announce_stage(e);
             return true;
         } break;
 
-        case expression::binary_multiply: {
-            auto lhs = (Expression*)e->node.first_child;
-            auto rhs = (Expression*)e->node.last_child;
+        case expr::binary_multiply: {
+            auto lhs = (Expr*)e->node.first_child;
+            auto rhs = (Expr*)e->node.last_child;
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
             if(lhs->type == rhs->type) { 
-                if(!type::is_scalar(lhs->type)) {
+                if(!lhs->type->is_scalar()) {
                     // NOTE(sushi) temp error until traits are implemented
                     Message m = message::init(String("cannot perform multiplication between non-scalar types yet!"));
                     m.kind = message::error;
@@ -357,13 +355,12 @@ expr(Code* code, Expression* e) { announce_stage(e);
                     return false;
                 }
                 e->type = lhs->type;
-            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
                 // take the larger of the two, and prefer float > signed > unsigned
                 auto l = (ScalarType*)lhs->type, 
                      r = (ScalarType*)rhs->type;
                 
-                Expression* cast = expression::create();
-                cast->kind = expression::cast;
+                Expr* cast = Expr::create(expr::cast);
                 b32 take_left = l->kind > r->kind;
                 cast->type = (take_left? l : r);
                 node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
@@ -376,14 +373,14 @@ expr(Code* code, Expression* e) { announce_stage(e);
             return true;
         } break;
 
-        case expression::binary_division: {
-            auto lhs = (Expression*)e->node.first_child;
-            auto rhs = (Expression*)e->node.last_child;
+        case expr::binary_division: {
+            auto lhs = (Expr*)e->node.first_child;
+            auto rhs = (Expr*)e->node.last_child;
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
             if(lhs->type == rhs->type) { 
-                if(!type::is_scalar(lhs->type)) {
+                if(!lhs->type->is_scalar()) {
                     // NOTE(sushi) temp error until traits are implemented
                     Message m = message::init(String("cannot perform division between non-scalar types yet!"));
                     m.kind = message::error;
@@ -392,13 +389,12 @@ expr(Code* code, Expression* e) { announce_stage(e);
                     return false;
                 }
                 e->type = lhs->type;
-            } else if(type::is_scalar(lhs->type) && type::is_scalar(rhs->type)) {
+            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
                 // take the larger of the two, and prefer float > signed > unsigned
                 auto l = (ScalarType*)lhs->type, 
                      r = (ScalarType*)rhs->type;
                 
-                Expression* cast = expression::create();
-                cast->kind = expression::cast;
+                Expr* cast = Expr::create(expr::cast);
                 b32 take_left = l->kind > r->kind;
                 cast->type = (take_left? l : r);
                 node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
@@ -411,26 +407,26 @@ expr(Code* code, Expression* e) { announce_stage(e);
             return true;
         } break;
 
-        case expression::literal: {
+        case expr::literal: {
             return true;
         } break;
 
-        case expression::placeref: {
-            auto pr = (PlaceRefExpression*)e;
+        case expr::placeref: {
+            auto pr = (PlaceRef*)e;
             e->type = pr->place->type;
             return true;
         } break;
 
-        case expression::conditional: {
-            if(!expr(code, (Expression*)e->node.first_child)) return false;
+        case expr::conditional: {
+            if(!expr(code, (Expr*)e->node.first_child)) return false;
             
             Type* first_type = 0;
             for(TNode* n = e->node.first_child->next; n; n = n->next) {
-                auto branch = (Expression*)n;
+                auto branch = (Expr*)n;
                 if(!expr(code, branch)) return false;
                 if(!first_type) first_type = branch->type;
                 else {
-                    if(!type::can_coerce(first_type, branch->type)) {
+                    if(!first_type->can_cast_to(branch->type)) {
                         diagnostic::sema::
                             if_mismatched_types_cannot_coerce(branch->node.start, branch->type, first_type);
                         return false;
@@ -450,13 +446,13 @@ expr(Code* code, Expression* e) { announce_stage(e);
 
 b32
 label(Code* code, TNode* node) { announce_stage(node);
-    if(!expr(code, (Expression*)node->last_child)) return false;
+    if(!expr(code, (Expr*)node->last_child)) return false;
 
     auto l = (Label*)node;
     switch(l->entity->node.kind) {
         case node::place: {
             auto p = (Place*)l->entity;
-            p->type = type::resolve(l->node.last_child);
+            p->type = Type::resolve(l->node.last_child);
             if(p->type == &type::void_) {
                 diagnostic::sema::cannot_have_a_variable_of_void_type(l->node.last_child->start);
             }

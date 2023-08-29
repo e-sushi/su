@@ -14,9 +14,9 @@
 
 #include "storage/Array.h"
 #include "storage/DString.h"
-#include "Source.h"
-#include "Entity.h"
-#include "Token.h"
+#include "representations/Source.h"
+#include "representations/Entity.h"
+#include "representations/Token.h"
 
 namespace amu {
 

@@ -1,12 +1,12 @@
 #ifndef AMU_PARSER_H
 #define AMU_PARSER_H
 
-#include "Label.h"
 #include "storage/Map.h"
 #include "storage/Array.h"
 #include "storage/SharedArray.h"
 #include "storage/String.h"
-#include "Code.h"
+#include "representations/Label.h"
+#include "representations/Code.h"
 
 namespace amu {
 

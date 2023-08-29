@@ -20,7 +20,7 @@ struct Type;
 struct Function;
 struct Tuple;
 
-namespace expression {
+namespace expr {
 // @genstrings(data/expression_strings.generated)
 enum kind : u32 {
     null,
@@ -77,11 +77,11 @@ enum kind : u32 {
 
 #include "data/expression_strings.generated"
 
-} // namespace expression
+} // namespace expr
 
 
-struct Expression : public Entity {
-    expression::kind kind;
+struct Expr : public Entity {
+    expr::kind kind;
 
     Type* type; // the semantic type of this expression
 
@@ -92,54 +92,50 @@ struct Expression : public Entity {
         } conditional;
     } flags;
 
+    static Expr*
+    create(expr::kind kind, Type* type = 0);
+
+    void
+    destroy();
 };
 
-namespace expression {
 
-global Expression*
-create();
-
-global void
-destroy(Expression& e);
-
-} // namespace expression
-
-struct BlockExpression : public Expression {
+struct Block : public Expr {
     LabelTable table;
+
+
+    static Block*
+    create();
+
+    void
+    destroy();
 };
 
-namespace block_expression {
-
-BlockExpression*
-create();
-
-} // namespace block_expression
-
-struct CallExpression : public Expression {
+struct Call : public Expr {
     Function* callee;
     Tuple* arguments;
+
+
+    static Call*
+    create();
+
+    void
+    destroy();
 };
 
-namespace call_expression {
-
-CallExpression*
-create();
-
-} // namespace call_expression
-
-struct PlaceRefExpression : public Expression {
+struct PlaceRef : public Expr {
     Place* place;
+
+
+    static PlaceRef*
+    create();
+
+    void
+    destroy(); 
 };
-
-namespace placeref_expression {
-
-PlaceRefExpression*
-create();
-
-} // namespace placeref_expression
 
 void
-to_string(DString& start, Expression* e);
+to_string(DString& start, Expr* e);
 
 } // namespace amu
 

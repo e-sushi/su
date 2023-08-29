@@ -59,17 +59,14 @@ struct Tuple {
     LabelTable table;
     // when this is a valued Tuple, this points to the underlying type
     TupleType* type;
+
+
+    static Tuple*
+    create();
+
+    void
+    destroy();
 };
-
-namespace tuple {
-
-global Tuple*
-create();
-
-global void
-destroy(Tuple& t);
-
-} // namespace tuple
 
 void
 to_string(DString& start, Tuple* t);

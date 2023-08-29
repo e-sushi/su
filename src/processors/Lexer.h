@@ -5,8 +5,8 @@
 #ifndef AMU_LEXER_H
 #define AMU_LEXER_H
 
-#include "Token.h"
-#include "Source.h"
+#include "representations/Token.h"
+#include "representations/Source.h"
 #include "storage/Array.h"
 
 namespace amu {

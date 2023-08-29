@@ -14,6 +14,10 @@
      for example Pool<T> cannot just memzfree all of its arenas, because they would contain 
      Nodes with initialized mutexes!
 
+
+    Nodes that actually represent pieces of the AST are implemented in AST.h/cpp
+    and provide an interface for interacting with the AST beyond what is given here.
+
 */
 
 

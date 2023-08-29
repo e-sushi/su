@@ -95,7 +95,7 @@ process_part(DString& current, const MessagePart& part) {
         } break;
         case messagepart::type: {
             Type* step = part.type;
-            dstring::append(current, type::name(step));
+            dstring::append(current, step->name());
         } break;
     }
 }
