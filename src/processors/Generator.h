@@ -115,7 +115,22 @@ struct TAC {
 namespace air {
 
 enum class opcode {
+    copy, // copy from B to A
 
+    add, // add B to A and store in A
+    sub, // sub B from A and store in A
+    mul, // multiply B by A and store in A
+    div, // divide B from A and store in A
+
+    call, // jump to a routine
+    ret,  // return from a routine
+
+    // jump to a position, A,  relative to current instruction
+    jump, 
+
+    // jump to a position, B, relative to current instruction 
+    // if A is not zero
+    jump_not_zero,  
 };
 
 b32
@@ -123,8 +138,46 @@ generate(Code* code);
 
 } // namespace air
 
-struct AIR {
-    air::opcode instr;
+// something a bytecode is acting on 
+// I believe this will more or less represent a position on the 
+// Machine's stack and a bytecode will refer to that position.
+struct Register {
+    union {
+        u8* ptr;
+
+        u64 _u64;
+        u32 _u32;
+        u16 _u16;
+        u8  _u8;
+
+        s64 _s64;
+        s32 _s32;
+        s16 _s16;
+        s8  _s8;
+
+        f64 _f64;
+        f32 _f32;
+    };
+};
+
+// representation of an AIR bytecode
+struct BC {
+    air::opcode instr : 6;
+
+    struct {
+        b32 left_is_const : 1  = false;
+        b32 left_is_big : 1    = false;
+        b32 right_is_const : 1 = false;
+        b32 right_is_big : 1   = false;
+    } flags;
+
+    union{
+        struct {
+            u32 offset_a;
+            u32 offset_b;
+        };
+        u64 constant;
+    };
 };
 
 /*
@@ -143,7 +196,8 @@ struct Gen {
     Pool<TAC> tac_pool;
     Array<TAC*> tac;
 
-    Array<u8> air;
+    Array<BC> air;
+    Array<Register> registers;
 };
 
 namespace gen {
@@ -171,6 +225,16 @@ DString
 to_string(TAC* tac) { 
     DString out = dstring::init();
     to_string(out, tac);
+    return out;
+}
+
+void
+to_string(DString& current, BC* bc);
+
+DString
+to_string(BC* bc) {
+    DString out = dstring::init();
+    to_string(out, bc);
     return out;
 }
 
