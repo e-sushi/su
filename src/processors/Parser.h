@@ -86,7 +86,6 @@ private:
     b32 struct_decl();
     b32 label();
     b32 label_get();
-    b32 label_after_id();
     b32 label_group_after_comma();
     b32 label_after_colon();
     b32 tuple();
@@ -109,8 +108,6 @@ private:
     b32 typeref();
     b32 reduce_builtin_type_to_typeref_expression();
     b32 reduce_literal_to_literal_expression();
-
-
 };
 
 namespace parser {
