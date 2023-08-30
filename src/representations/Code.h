@@ -15,6 +15,7 @@
 
 #include "processors/Sema.h"
 #include "processors/Generator.h"
+#include "systems/Machine.h"
 
 namespace amu {
 
@@ -69,6 +70,7 @@ struct Code : public ASTNode {
     Parser* parser = 0;
     Sema* sema = 0;
     Gen* gen = 0;
+    Machine* machine = 0;
 
     
     // ~~~~~~ interface ~~~~~~~

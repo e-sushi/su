@@ -9,9 +9,14 @@
 
 namespace amu {
 
+struct Register;
+
 struct Var : public Entity {
     Type* type;
-
+    // the Register offset representing this Var
+    // not set until TAC generation
+    // TODO(sushi) look into a better place to put this if any
+    u32 reg_offset;
 
     // ~~~~~~ interface ~~~~~~ 
 

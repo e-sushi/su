@@ -45,8 +45,8 @@ conditional(Code* code, Expr* cond, ConditionalState* state) {
     {
         TAC* assign = add_tac(code->gen);
         assign->op = tac::assignment;
-        assign->arg0.kind = arg::place;
-        assign->arg0.place = state->temp;
+        assign->arg0.kind = arg::var;
+        assign->arg0.var = state->temp;
         assign->arg1 = f;
         array::push(code->gen->tac, assign);
     }
@@ -70,8 +70,8 @@ conditional(Code* code, Expr* cond, ConditionalState* state) {
             s = expression(code, second);
             TAC* assign = add_tac(code->gen);
             assign->op = tac::assignment;
-            assign->arg0.kind = arg::place;
-            assign->arg0.place = state->temp;
+            assign->arg0.kind = arg::var;
+            assign->arg0.var = state->temp;
             assign->arg1 = s;
             array::push(code->gen->tac, assign);
         }
@@ -237,30 +237,12 @@ expression(Code* code, Expr* e) {
 
             state.result = add_tac(code->gen);
             state.result->op = tac::temp;
-            state.result->arg0.kind = tac::arg::place;
-            state.result->arg0.place = state.temp;
+            state.result->arg0.kind = tac::arg::var;
+            state.result->arg0.var = state.temp;
 
             array::push(code->gen->tac, state.result);
             
             return conditional(code, e, &state);
-
-            // // keep a list of TAC that needs to be back filled once we resolve where its jump should be 
-            // Array<TAC*> backfills 
-            
-            // ScopedArray<Expr*> conditional_stack = array::init<Expr*>();
-            // Expr* current_conditional = 0;
-
-            // array::push(conditional_stack, current_conditional);
-            // current_conditional = e;
-
-            // b32 is_returning = current_conditional->flags.conditional.returning;
-
-            // // a TAC where the result of a returning if chain will be stored 
-            // TAC* result 
-
-            // array::push(code->gen->tac, result);
-
-            
         } break;
     }
 
@@ -275,7 +257,6 @@ statement(Code* code, Stmt* s) {
     switch(s->kind) {
         case statement::label: {
             auto l = s->first_child<Label>();
-            
             switch(l->entity->kind) {
                 case entity::var: {
                     auto v = l->entity->as<Var>();
@@ -283,8 +264,16 @@ statement(Code* code, Stmt* s) {
 
                     TAC* tac = add_tac(code->gen);
                     tac->op = tac::assignment;
-                    tac->arg0.kind = tac::arg::place;
-                    tac->arg0.place = v;
+                    tac->arg0.kind = tac::arg::var;
+                    tac->arg0.var = v;
+
+                    v->reg_offset = code->gen->registers.count;
+#if BUILD_SLOW
+                    Register* r = array::push(code->gen->registers);
+                    r->v = v;
+#else
+                    array::push(code->gen->registers);
+#endif
 
                     tac->arg1 = arg;
 
@@ -386,7 +375,7 @@ start(Code* code) {
 
 b32
 generate(Code* code) {
-    if(!code->gen) code->gen = gen::create(code);
+    if(!code->gen) code->gen = Gen::create(code);
     if(!start(code)) return false;
 
     util::println(code->identifier);
@@ -406,9 +395,6 @@ function(Code* code) {
     // TODO(sushi) would it be worth caching this for large sequences?
     auto tacseq = code->gen->tac;
 
-    code->gen->air = array::init<BC>();
-    code->gen->registers = array::init<Register>();
-
     // this probably shouldn't be how this is done, just 
     // doing it in a quick and dirty way for now 
     // it would probably be better to just make a new pair type of TAC and u32
@@ -424,12 +410,14 @@ function(Code* code) {
 
             case tac::temp: {
                 map::add(offset_map, tac, (u32)code->gen->registers.count);
-                array::push(code->gen->registers);
+                Register* r = array::push(code->gen->registers);
+                r->idx = code->gen->registers.count - 1;
             } break;
 
             case tac::addition: {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
+                r->idx = dest_offset;
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->instr = opcode::add;
@@ -442,6 +430,9 @@ function(Code* code) {
                     case tac::arg::literal: {
                         bc0->flags.right_is_const = true;
                         bc0->offset_b = tac->arg0.literal;
+                    } break;
+                    case tac::arg::var: {
+                        bc0->offset_b = tac->arg0.var->reg_offset; 
                     } break;
                 }
 
@@ -457,6 +448,9 @@ function(Code* code) {
                         bc1->flags.right_is_const = true;
                         bc1->offset_b = tac->arg1.literal;
                     } break;
+                    case tac::arg::var: {
+                        bc1->offset_b = tac->arg1.var->reg_offset; 
+                    } break;
                 }
 
                 map::add(offset_map, tac, dest_offset);
@@ -465,6 +459,7 @@ function(Code* code) {
             case tac::subtraction: {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
+                r->idx = dest_offset;
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->instr = opcode::add;
@@ -477,6 +472,9 @@ function(Code* code) {
                     case tac::arg::literal: {
                         bc0->flags.right_is_const = true;
                         bc0->offset_b = tac->arg0.literal;
+                    } break;
+                    case tac::arg::var: {
+                        bc0->offset_b = tac->arg0.var->reg_offset;
                     } break;
                 }
 
@@ -492,6 +490,9 @@ function(Code* code) {
                         bc1->flags.right_is_const = true;
                         bc1->offset_b = tac->arg1.literal;
                     } break;
+                    case tac::arg::var: {
+                        bc1->offset_b = tac->arg1.var->reg_offset;
+                    } break;
                 }
 
                 map::add(offset_map, tac, dest_offset);
@@ -500,6 +501,7 @@ function(Code* code) {
             case tac::multiplication: {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
+                r->idx = dest_offset;
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->instr = opcode::add;
@@ -512,6 +514,9 @@ function(Code* code) {
                     case tac::arg::literal: {
                         bc0->flags.right_is_const = true;
                         bc0->offset_b = tac->arg0.literal;
+                    } break;
+                    case tac::arg::var: {
+                        bc0->offset_b = tac->arg0.var->reg_offset;
                     } break;
                 }
 
@@ -527,6 +532,9 @@ function(Code* code) {
                         bc1->flags.right_is_const = true;
                         bc1->offset_b = tac->arg1.literal;
                     } break;
+                    case tac::arg::var: {
+                        bc1->offset_b = tac->arg1.var->reg_offset;
+                    } break;
                 }
 
                 map::add(offset_map, tac, dest_offset);
@@ -535,6 +543,7 @@ function(Code* code) {
             case tac::division: {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
+                r->idx = dest_offset;
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->instr = opcode::add;
@@ -547,6 +556,9 @@ function(Code* code) {
                     case tac::arg::literal: {
                         bc0->flags.right_is_const = true;
                         bc0->offset_b = tac->arg0.literal;
+                    } break;
+                    case tac::arg::var: {
+                        bc0->offset_b = tac->arg0.var->reg_offset;
                     } break;
                 }
 
@@ -562,9 +574,63 @@ function(Code* code) {
                         bc1->flags.right_is_const = true;
                         bc1->offset_b = tac->arg1.literal;
                     } break;
+                    case tac::arg::var: {
+                        bc1->offset_b = tac->arg1.var->reg_offset;
+                    } break;
                 }
 
                 map::add(offset_map, tac, dest_offset);
+            } break;
+
+            case tac::assignment: {
+                BC* bc = array::push(code->gen->air);
+                bc->instr = opcode::copy;
+
+                switch(tac->arg0.kind) {
+                    case tac::arg::temporary: {
+                        bc->offset_a = array::read(offset_map.values, map::find(offset_map, tac->arg0.temporary).index);
+                    } break;
+                    case tac::arg::var: {
+                        bc->offset_a = tac->arg0.var->reg_offset;
+                    } break;
+                }
+
+                switch(tac->arg1.kind) {
+                    case tac::arg::temporary: {
+                        bc->offset_b = array::read(offset_map.values, map::find(offset_map, tac->arg1.temporary).index);
+                    } break;
+                    case tac::arg::var: {
+                        bc->offset_b = tac->arg1.var->reg_offset;
+                    } break;
+                    case tac::arg::literal: {
+                        bc->flags.right_is_const = true;
+                        bc->offset_b = tac->arg1.literal;
+                    } break;
+                }
+            } break;
+
+            case tac::block_value: {
+                u32 offset = (u32)code->gen->registers.count;
+                map::add(offset_map, tac, offset);
+                Register* r = array::push(code->gen->registers);
+                r->idx = offset;
+
+                BC* bc = array::push(code->gen->air);
+                bc->instr = opcode::copy;
+
+                bc->offset_a = offset;
+                switch(tac->arg0.kind) {
+                    case tac::arg::temporary: {
+                        bc->offset_b = array::read(offset_map.values, map::find(offset_map, tac->arg0.temporary).index);
+                    } break;
+                    case tac::arg::var: {
+                        bc->offset_b = tac->arg0.var->reg_offset;
+                    } break;
+                    case tac::arg::literal: {
+                        bc->flags.right_is_const = true;
+                        bc->offset_b = tac->arg0.literal;
+                    } break;
+                }
             } break;
         }
     }
@@ -590,37 +656,29 @@ start(Code* code) {
     return true;
 }
 
-
 b32
 generate(Code* code) {
     if(!start(code)) return false;
 
     util::println(code->identifier);
     forI(code->gen->air.count) {
-        util::println(to_string(array::readptr(code->gen->air, i)));
+        util::println(to_string(array::readptr(code->gen->air, i), code));
     }
 
     return true;
 }
-
-
-
 } // namespace air
 
-namespace gen {
-
-Gen*
+Gen* Gen::
 create(Code* code) {
     Gen* out = pool::add(compiler::instance.storage.gens);
     out->tac_pool = pool::init<TAC>(128);
     out->tac = array::init<TAC*>();
+    out->registers = array::init<Register>();
+    out->air = array::init<BC>();
     code->gen = out;
     return out;
 }
-
-
-} // namespace gen
-
 
 void
 to_string(DString& current, tac::Arg arg) {
@@ -628,8 +686,8 @@ to_string(DString& current, tac::Arg arg) {
         case tac::arg::literal: {
             dstring::append(current, arg.literal);
         } break;
-        case tac::arg::place: {
-            dstring::append(current, arg.place->name());
+        case tac::arg::var: {
+            dstring::append(current, arg.var->name());
         } break;
         case tac::arg::func: {
             dstring::append(current, arg.func->name());
@@ -713,44 +771,66 @@ to_string(DString& current, TAC* tac) {
 }
 
 void
-to_string(DString& current, BC* bc) {
+to_string(DString& current, BC* bc, Code* c) {
     switch(bc->instr) {
         case air::opcode::add: {
-            dstring::append(current, "add r", bc->offset_a, " ");
+            dstring::append(current, "add ", array::read(c->gen->registers, bc->offset_a), " ");
             if(bc->flags.right_is_const) {
                 dstring::append(current, bc->offset_b);
             } else {
-                dstring::append(current, "r", bc->offset_b);
+                dstring::append(current, array::read(c->gen->registers, bc->offset_b));
             }
         } break;
 
         case air::opcode::sub: {
-            dstring::append(current, "sub r", bc->offset_a, " ");
+            dstring::append(current, "sub ", array::read(c->gen->registers, bc->offset_a), " ");
             if(bc->flags.right_is_const) {
                 dstring::append(current, bc->offset_b);
             } else {
-                dstring::append(current, "r", bc->offset_b);
+                dstring::append(current, array::read(c->gen->registers, bc->offset_b));
             }
         } break;
 
         case air::opcode::mul: {
-            dstring::append(current, "mul r", bc->offset_a, " ");
+            dstring::append(current, "mul ", array::read(c->gen->registers, bc->offset_a), " ");
             if(bc->flags.right_is_const) {
                 dstring::append(current, bc->offset_b);
             } else {
-                dstring::append(current, "r", bc->offset_b);
+                dstring::append(current, array::read(c->gen->registers, bc->offset_b));
             }
         } break;
 
         case air::opcode::div: {
-            dstring::append(current, "div r", bc->offset_a, " ");
+            dstring::append(current, "div ", array::read(c->gen->registers, bc->offset_a), " ");
             if(bc->flags.right_is_const) {
                 dstring::append(current, bc->offset_b);
             } else {
-                dstring::append(current, "r", bc->offset_b);
+                dstring::append(current, array::read(c->gen->registers, bc->offset_b));
+            }
+        } break;
+
+        case air::opcode::copy: {
+            dstring::append(current, "copy ", array::read(c->gen->registers, bc->offset_a), " ");
+            if(bc->flags.right_is_const) {
+                dstring::append(current, bc->offset_b);
+            } else {
+                dstring::append(current, array::read(c->gen->registers, bc->offset_b));
             }
         } break;
     }
+}
+
+void
+to_string(DString& current, Register r) {
+#if BUILD_SLOW
+    if(r.v) {
+        dstring::append(current, "r", r.idx, " (", r.v->name(), ")");
+    } else {
+        dstring::append(current, "r", r.idx);
+    }
+#else
+    dstring::append(current, "r", index);
+#endif
 }
 
 } // namespace amu

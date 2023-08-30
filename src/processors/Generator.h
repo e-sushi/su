@@ -72,7 +72,7 @@ enum op {
 namespace arg {
 enum kind {
     none,
-    place,
+    var,
     func,
     temporary,
     literal,
@@ -82,14 +82,14 @@ enum kind {
 struct Arg {
     arg::kind kind;
     union {
-        Var* place; // a Place in memory that this Arg is referring to
+        Var* var; // a Place in memory that this Arg is referring to
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
         u64 literal;
     };
 
     Arg() : kind(arg::none) {}
-    Arg(Var* p) : kind(arg::place), place(p) {}
+    Arg(Var* p) : kind(arg::var), var(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
     Arg(u64 l) : kind(arg::literal), literal(l) {}
@@ -158,6 +158,11 @@ struct Register {
         f64 _f64;
         f32 _f32;
     };
+
+#if BUILD_SLOW
+    Var* v; // if this register represents a Var, this points to it 
+    u32 idx;
+#endif
 };
 
 // representation of an AIR bytecode
@@ -178,6 +183,10 @@ struct BC {
         };
         u64 constant;
     };
+
+#if BUILD_SLOW
+    Code* code;
+#endif
 };
 
 /*
@@ -196,16 +205,17 @@ struct Gen {
     Pool<TAC> tac_pool;
     Array<TAC*> tac;
 
-    Array<BC> air;
+    // filled out by both TAC generation and AIR generation
+    // TAC emplaces local variables while AIR fills out temp registers
+    // used by TAC
     Array<Register> registers;
+
+    Array<BC> air;
+
+    static Gen*
+    create(Code* code);
 };
 
-namespace gen {
-
-Gen*
-create(Code* code);
-
-} // namespace gen
 
 void
 to_string(DString& current, tac::Arg arg);
@@ -229,12 +239,22 @@ to_string(TAC* tac) {
 }
 
 void
-to_string(DString& current, BC* bc);
+to_string(DString& current, BC* bc, Code* c);
 
 DString
-to_string(BC* bc) {
+to_string(BC* bc, Code* c) {
     DString out = dstring::init();
-    to_string(out, bc);
+    to_string(out, bc, c);
+    return out;
+}
+
+void
+to_string(DString& current, Register r);
+
+DString
+to_string(Register r) {
+    DString out = dstring::init();
+    to_string(out, r);
     return out;
 }
 

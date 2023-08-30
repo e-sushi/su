@@ -11,17 +11,20 @@
 namespace amu {
 
 struct Machine {
-    // the arbitrary memory used by the machine
+    Code* code;
+    
+    Array<Register> registers; // currently loaded registers
 
+
+    // ~~~~~~~ interface ~~~~~~~
+
+
+    static Machine*
+    create(Code* code); 
+
+    void
+    run();
 };
-
-
-namespace machine {
-
-void
-run(Code* code);
-
-} // namespace machine 
 
 } // namespace amu
 

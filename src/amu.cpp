@@ -117,6 +117,7 @@
 #include "processors/Parser.cpp"
 #include "processors/Sema.cpp"
 #include "processors/Generator.cpp"
+#include "systems/Machine.cpp"
 
 
 int main(int argc, char* argv[]){

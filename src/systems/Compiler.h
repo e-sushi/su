@@ -17,6 +17,7 @@
 #include "processors/Sema.h"
 #include "processors/Generator.h"
 #include "representations/Code.h"
+#include "systems/Machine.h"
 
 namespace amu {
 
@@ -33,11 +34,12 @@ struct Compiler {
         Pool<Parser>       parsers;
         Pool<Sema>         semas;
         Pool<Gen>          gens;
+        Pool<Machine>      machines;
         Pool<Module>       modules;
         Pool<Label>        labels;
         Pool<Structure>    structures;
         Pool<Function>     functions;
-        Pool<Stmt>    statements;
+        Pool<Stmt>         statements;
         Pool<Expr>         expressions;
         Pool<Call>         calls;
         Pool<Block>        blocks; 
