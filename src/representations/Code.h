@@ -181,15 +181,16 @@ add_diagnostic(Code* code, Diagnostic d);
 Code*
 split(Code* code, Token* point);
 
-struct TokenIteratorData {
-    Code* code; // code we are iterating
+struct TokenIterator {
+    Code*  code; // code we are iterating
     Token* curt; // current token
     Token* stop; // stop token 
-};
 
-class TokenIterator : public TokenIteratorData {
-public:
-    TokenIterator(Code* code);
+
+    // ~~~~~~ interface ~~~~~~~
+
+    TokenIterator() {}
+    TokenIterator(Code* c);
 
     // returns the current token
     FORCE_INLINE Token* 

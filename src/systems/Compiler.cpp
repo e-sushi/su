@@ -197,6 +197,8 @@ global void
 begin(Array<String> args) {
     internal::parse_arguments(args);
 
+    // if we happen to exit early, we still want whatever is queued in the messenger
+    // to be delivered
     defer {messenger::deliver();};
 
     if(!instance.options.entry_path.str){
@@ -226,7 +228,7 @@ begin(Array<String> args) {
 
     messenger::deliver();
 
-    parser::parse(entry_source->code);
+    if(!Parser::create(entry_source->code)->parse()) return;
     
     messenger::deliver();
 
