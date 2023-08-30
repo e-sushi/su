@@ -29,7 +29,7 @@ parse() {
     if(!prescan_start()) return false;
     if(!start()) return false;
 
-    util::println(code->parser->root->print_tree());
+    // util::println(code->parser->root->print_tree());
 
     return true;
 }
@@ -235,7 +235,7 @@ start() {
             code::TokenIterator token(code);
             if(!prescanned_function()) return false;
 
-            util::println(code->parser->root->print_tree());
+            //util::println(code->parser->root->print_tree());
         } break;
         case code::typedef_: {
             code::TokenIterator token(code);
@@ -1423,15 +1423,15 @@ block() {
             }
             count++;
             node::insert_first(s, node.pop());
-            // s->node.start = s->node.first_child->start;
-            // s->node.end = token.current();
+            s->start = s->first_child()->start;
+            s->end = token.current();
             s->kind = statement::block_final;
             node.push(s);
             break;
         } else {
             node::insert_first(s, node.pop());
-            // s->node.start = s->node.first_child->start;
-            // s->node.end = token.current();
+            s->start = s->first_child()->start;
+            s->end = token.current();
 
             count++;
             node.push(s);
