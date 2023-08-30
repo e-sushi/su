@@ -333,10 +333,18 @@ class Arg_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Arg", r"^amu::Arg", Arg_printer)
 
+class BC_printer: 
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            s = gdb.execute(f"call to_string((BC*){val.address})", to_string = True)
+            return s[s.find('=')+2:-1]
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("BC", r"^amu::BC", BC_printer)
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
-
-
-
 
 # commands
 
@@ -443,7 +451,7 @@ class parser_print_stack(gdb.Command):
     
     def invoke(self, args, tty):
         try:
-            s = gdb.execute("call parser::stack::display(code)", to_string=True)
+            s = gdb.execute("call display_stack()", to_string=True)
             
             if tty:
                 print(s[s.find('=')+2:-1].replace("\\n", "\n"))

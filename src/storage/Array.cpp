@@ -31,7 +31,7 @@ deinit(Array<T>& arr) {
 template<typename T> T* 
 push(Array<T>& arr) {
     internal::grow_if_needed(arr);
-    T* out = arr.data + arr.count;
+    T* out = new (arr.data + arr.count) T();
     arr.count += 1;
 
     return out;

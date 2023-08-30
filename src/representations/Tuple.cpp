@@ -8,6 +8,12 @@ create() {
     return out;
 }
 
+void Tuple::
+destroy() {
+    map::deinit(table.map);
+    pool::remove(compiler::instance.storage.tuples, this); 
+}
+
 String Tuple::
 name() { 
     return debug_str();

@@ -238,6 +238,8 @@ begin(Array<String> args) {
 
     tac::generate(entry_source->code);
 
+    air::generate(entry_source->code);
+
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
     }
