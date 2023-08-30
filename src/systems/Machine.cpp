@@ -17,12 +17,15 @@ run() {
         array::push(registers, array::read(code->gen->registers, i));
     }
 
-    forI(code->gen->air.count) {
-        BC bc = array::read(code->gen->air, i);
+    u32 pc = 0;
+
+    while(pc < code->gen->air.count) {
+        util::println(dstring::init("----------------------- ", pc));
+        BC bc = array::read(code->gen->air, pc);
         util::println(to_string(&bc, code));
-        Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
         switch(bc.instr) {
             case air::opcode::copy: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 = bc.offset_b;
                 } else {
@@ -32,6 +35,7 @@ run() {
             } break;
 
             case air::opcode::add: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 += bc.offset_b;
                 } else {
@@ -41,6 +45,7 @@ run() {
             } break;
 
             case air::opcode::sub: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 -= bc.offset_b;
                 } else {
@@ -50,6 +55,7 @@ run() {
             } break;
 
             case air::opcode::mul: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 *= bc.offset_b;
                 } else {
@@ -59,6 +65,7 @@ run() {
             } break;
 
             case air::opcode::div: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 /= bc.offset_b;
                 } else {
@@ -66,12 +73,32 @@ run() {
                     dst->_u32 /= src->_u32;
                 }
             } break;
+
+            case air::opcode::jump_zero: {
+                if(bc.flags.left_is_const) {
+                    if(!bc.offset_a) pc += bc.offset_b - 1;
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_a - 1);
+                    if(!src->_u32) {
+                        pc += bc.offset_b - 1;
+                    }
+                }
+            } break;
+
+            case air::opcode::jump: {
+                pc += bc.offset_a - 1;
+            } break;
         }
         forI(registers.count) {
             Register r = array::read(registers, i);
             util::println(dstring::init(r, " ", r._u32));
         }
-        util::println("-----------------------");
+        pc += 1;
+    } 
+
+
+    forI(code->gen->air.count) {
+        
     }
 
     

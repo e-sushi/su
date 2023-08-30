@@ -129,8 +129,8 @@ enum class opcode {
     jump, 
 
     // jump to a position, B, relative to current instruction 
-    // if A is not zero
-    jump_not_zero,  
+    // if A is zero
+    jump_zero,  
 };
 
 b32
@@ -216,7 +216,6 @@ struct Gen {
     create(Code* code);
 };
 
-
 void
 to_string(DString& current, tac::Arg arg);
 
@@ -226,8 +225,6 @@ to_string(tac::Arg arg) {
     to_string(out, arg);
     return out;
 }
-
-
 void
 to_string(DString& current, TAC* tac);
 

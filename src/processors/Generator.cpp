@@ -108,8 +108,8 @@ conditional(Code* code, Expr* cond, ConditionalState* state) {
     
 
     Arg out = {};
-    out.kind = arg::temporary;
-    out.temporary = state->result;
+    out.kind = arg::var;
+    out.var = state->temp;
     return out;
 }
 
@@ -239,6 +239,9 @@ expression(Code* code, Expr* e) {
             state.result->op = tac::temp;
             state.result->arg0.kind = tac::arg::var;
             state.result->arg0.var = state.temp;
+            state.result->arg0.var->reg_offset = code->gen->registers.count;
+            Register* r = array::push(code->gen->registers);
+            r->idx = state.result->arg0.var->reg_offset;
 
             array::push(code->gen->tac, state.result);
             
@@ -402,11 +405,57 @@ function(Code* code) {
     // Keeps track of Register offsets for TAC that generates Registers 
     auto offset_map = map::init<TAC*, u32>();
 
+    auto false_jumps = array::init<u32>();
+    auto true_jumps = array::init<Array<u32>>();
+
     forI(tacseq.count) {
         TAC* tac = array::read(tacseq, i);
 
         switch(tac->op) {
-            case tac::nop: {} break;
+            case tac::nop: {
+                Array<u32> last = array::pop(true_jumps);
+                forI(last.count) {
+                    BC* j = array::readptr(code->gen->air, array::read(last, i));
+                    j->offset_a = code->gen->air.data+code->gen->air.count - j;
+                }
+                BC* cj = array::readptr(code->gen->air, array::pop(false_jumps));
+                cj->offset_b = code->gen->air.data+code->gen->air.count - cj - 1;
+
+                array::deinit(last);
+            } break;
+
+            case tac::conditional_jump: {
+                if(false_jumps.count && array::read(true_jumps, -1).count) {
+                    BC* bc = array::readptr(code->gen->air, array::pop(false_jumps));
+                    bc->offset_b = code->gen->air.count - (bc - code->gen->air.data);
+                }
+                
+                BC* bc = array::push(code->gen->air);
+                bc->instr = opcode::jump_zero;
+                switch(tac->arg0.kind) {
+                    case tac::arg::temporary: {
+                        bc->offset_a = array::read(offset_map.values, map::find(offset_map, tac->arg0.temporary).index);
+                    } break;
+                    case tac::arg::literal: {
+                        bc->flags.left_is_const = true;
+                        bc->offset_a = tac->arg0.literal;
+                    } break;
+                    case tac::arg::var: {
+                        bc->offset_a = tac->arg0.var->reg_offset; 
+                    } break;
+                }
+
+                array::push(false_jumps, u32(code->gen->air.count-1));
+                if(!true_jumps.count || !array::read(true_jumps, -1).count)
+                    array::push(true_jumps, array::init<u32>());
+
+            } break;
+
+            case tac::jump: {
+                BC* bc = array::push(code->gen->air);
+                bc->instr = opcode::jump;
+                array::push(array::readref(true_jumps, -1), u32(code->gen->air.count-1));
+            } break;
 
             case tac::temp: {
                 map::add(offset_map, tac, (u32)code->gen->registers.count);
@@ -816,6 +865,20 @@ to_string(DString& current, BC* bc, Code* c) {
             } else {
                 dstring::append(current, array::read(c->gen->registers, bc->offset_b));
             }
+        } break;
+
+        case air::opcode::jump: {
+            dstring::append(current, "jmp ", bc->offset_a, " ");
+        } break;
+
+        case air::opcode::jump_zero: {
+            dstring::append(current, "jz ");
+            if(bc->flags.left_is_const) {
+                dstring::append(current, bc->offset_a, " ");
+            }else{
+                dstring::append(current, array::read(c->gen->registers, bc->offset_a), " ");
+            }
+            dstring::append(current, bc->offset_b);
         } break;
     }
 }

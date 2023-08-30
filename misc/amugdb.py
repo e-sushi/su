@@ -338,7 +338,7 @@ class BC_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call to_string((BC*){val.address})", to_string = True)
+            s = gdb.execute(f"call to_string((BC*){val.address}, code)", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
