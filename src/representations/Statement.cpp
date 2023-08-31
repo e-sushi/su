@@ -6,6 +6,11 @@ create() {
     return out;
 }
 
+void Stmt::
+destroy() {
+    pool::remove(compiler::instance.storage.statements, this);
+}
+
 String Stmt::
 name() { 
     return "Statement(TODO)";
@@ -13,12 +18,12 @@ name() {
 
 DString Stmt::
 debug_str() {
-    return dstring::init("Stmt<", statement::strings[kind], ">");
+    return dstring::init("Stmt<", stmt::strings[kind], ">");
 }
 
 void
 to_string(DString& start, Stmt* s) {
-    dstring::append(start, "Stmt<", statement::strings[s->kind], ">");
+    dstring::append(start, "Stmt<", stmt::strings[s->kind], ">");
 }
 
 } // namespace amu

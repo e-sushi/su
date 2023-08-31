@@ -14,7 +14,7 @@
 
 namespace amu {
 
-namespace statement{
+namespace stmt{
 // @genstrings(data/statement_strings.generated)
 enum kind {
     unknown,
@@ -29,7 +29,7 @@ enum kind {
 } // namespace statement
 
 struct Stmt : public ASTNode {
-    statement::kind kind;
+    stmt::kind kind;
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -37,6 +37,9 @@ struct Stmt : public ASTNode {
 
     static Stmt*
     create();
+
+    void
+    destroy();
 
     String
     name();
@@ -51,7 +54,7 @@ template<> inline b32 ASTNode::
 is<Stmt>() { return this->kind == ast::stmt; }
 
 template<> inline b32 ASTNode::
-is(statement::kind k) { return this->is<Stmt>() && as<Stmt>()->kind == k; }
+is(stmt::kind k) { return this->is<Stmt>() && as<Stmt>()->kind == k; }
 
 void
 to_string(DString& start, Stmt* s);
