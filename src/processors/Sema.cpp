@@ -229,7 +229,6 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::unary_assignment: {
             if(!expr(code, e->first_child<Expr>())) return false;
             e->type = e->first_child()->resolve_type();
-            return true;
         } break;
         case expr::block: {
             return block(code, (Block*)e);
@@ -256,7 +255,6 @@ expr(Code* code, Expr* e) { announce_stage(e);
 
             e->type = lhs->type;
 
-            return true;
         } break;
 
         case expr::binary_access: {
@@ -324,18 +322,15 @@ expr(Code* code, Expr* e) { announce_stage(e);
                                                                        lhs->type, rhs->type);
                 return false;
             }
-            return true;
 
             // TODO(sushi) Add trait implemented here
         } break;
 
         case expr::literal: {
-            return true;
         } break;
 
         case expr::varref: {
             e->type = e->as<VarRef>()->var->type;
-            return true;
         } break;
 
         case expr::conditional: {
@@ -362,13 +357,17 @@ expr(Code* code, Expr* e) { announce_stage(e);
             }
 
             e->type = first_type;
+        } break;
 
-            return true;
+        case expr::loop: {
+            if(!expr(code, e->first_child<Expr>())) return false;
+
+            e->type = e->first_child<Expr>()->type;
         } break;
         
     }
 
-    return false;
+    return true;
 }
 
 b32

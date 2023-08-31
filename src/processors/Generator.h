@@ -193,8 +193,8 @@ struct BC {
 
     union{
         struct {
-            u32 offset_a;
-            u32 offset_b;
+            s32 offset_a;
+            s32 offset_b;
         };
         u64 constant;
     };

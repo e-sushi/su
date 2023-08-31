@@ -1,11 +1,4 @@
-main :: () -> s32 {
+main :: () -> void {
     a := 0;
-
-    if(a == 0) {
-
-    } else if(a == 1) {
-
-    } else if(a == 2) {
-        
-    }
+    loop a = a + 1;
 }

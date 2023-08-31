@@ -103,6 +103,7 @@ private:
     b32 logi_or();
     b32 assignment();
     b32 conditional();
+    b32 loop();
     b32 factor();
     b32 block();
     b32 typeref();

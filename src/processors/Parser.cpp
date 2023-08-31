@@ -1256,6 +1256,23 @@ conditional() {
 }
 
 b32 Parser::
+loop() {
+    auto e = Expr::create(expr::loop);
+    e->start = token.current();
+
+    token.increment();
+
+    if(!expression()) return false;
+    e->end = token.current();
+
+    node::insert_last(e, node.pop());
+
+    node.push(e);
+
+    return true;
+}
+
+b32 Parser::
 factor() {
     switch(token.current_kind()) {
         case token::identifier: {
@@ -1319,6 +1336,10 @@ factor() {
 
         case token::if_: {
             if(!conditional()) return false;
+        } break;
+
+        case token::loop: {
+            if(!loop()) return false;
         } break;
 
         case token::switch_: {

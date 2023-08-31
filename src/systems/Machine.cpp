@@ -20,9 +20,9 @@ run() {
     u32 pc = 0;
 
     while(pc < code->gen->air.count) {
-        util::println(dstring::init("----------------------- ", pc));
+        //util::println(dstring::init("----------------------- ", pc));
         BC bc = array::read(code->gen->air, pc);
-        util::println(to_string(&bc, code));
+        //util::println(to_string(&bc, code));
         switch(bc.instr) {
             case air::op::copy: {
                 Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
@@ -149,10 +149,10 @@ run() {
                 }
             } break;
         }
-        forI(registers.count) {
-            Register r = array::read(registers, i);
-            util::println(dstring::init(r, " ", r._u32));
-        }
+        // forI(registers.count) {
+        //     Register r = array::read(registers, i);
+        //     util::println(dstring::init(r, " ", r._u32));
+        // }
         pc += 1;
     } 
 } 

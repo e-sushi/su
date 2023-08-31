@@ -61,7 +61,7 @@ conditional(Code* code, Expr* cond, ConditionalState* state) {
         u64 next_index = code->gen->tac.count;
 
         array::push(state->truelist, jump);
-        jump->node = first;
+        jump->node = second;
         
         Arg s;
         if(second->kind == expr::conditional) s = conditional(code, second, state);
@@ -242,6 +242,25 @@ expression(Code* code, Expr* e) {
             
             return conditional(code, e, &state);
         } break;
+
+        case expr::loop: {
+            u32 count = code->gen->tac.count;
+            TAC* nop = add_tac(code->gen);
+            nop->node = e;
+            array::push(code->gen->tac, nop);
+
+            Arg arg = expression(code, e->first_child<Expr>());
+
+            TAC* tac = add_tac(code->gen);
+            tac->op = tac::jump;
+            tac->arg0.kind = tac::arg::temporary;
+            tac->arg0.temporary = array::read(code->gen->tac, count);
+            tac->node = e;
+
+            array::push(code->gen->tac, tac);
+
+            return Arg();
+        } break;
     }
 
     // an expression didn't return anything or this is a
@@ -302,7 +321,7 @@ statement(Code* code, Stmt* s) {
                     TAC* ret = add_tac(code->gen);
                     ret->op = tac::block_value;
                     ret->arg0 = arg;
-                    ret->node = s;
+                    ret->node = s->first_child();
                     array::push(code->gen->tac, ret);
                 }
             } else {
@@ -429,6 +448,8 @@ function(Code* code) {
     auto cond_backpatches = array::init<Backpatch>();
     auto jump_backpatches = array::init<Backpatch>();
 
+    auto block_registers = array::init<Array<u32>>();
+
     forI(tacseq.count) {
         TAC* tac = array::read(tacseq, i);
         if(tac->node->flags.break_air_gen) DebugBreakpoint;
@@ -452,24 +473,27 @@ function(Code* code) {
         }
         switch(tac->op) {
             case tac::nop: {
-                // Array<u32> last = array::pop(true_jumps);
-                // forI(last.count) {
-                //     BC* j = array::readptr(code->gen->air, array::read(last, i));
-                //     j->offset_a = code->gen->air.data+code->gen->air.count - j;
-                // }
-                // BC* cj = array::readptr(code->gen->air, array::pop(false_jumps));
-                // BC* last_last = array::readptr(code->gen->air, array::read(last, -1));
-                // cj->offset_b = last_last - cj + 1;
+                map::add(offset_map, tac, (u32)code->gen->air.count);
+            } break;
 
-                // array::deinit(last);
+            case tac::block_start: {
+                auto br = array::init<u32>();
+                array::push(block_registers, br);
+            } break;
+
+            case tac::block_end: {
+                auto registers = array::pop(block_registers);
+                forI(registers.count) {
+                    BC* reset = array::push(code->gen->air);
+                    reset->instr = op::copy;
+                    reset->offset_a = array::read(registers, i);
+                    reset->offset_b = 0;
+                    reset->flags.right_is_const = true;
+                    reset->node = tac->node;
+                }
             } break;
 
             case tac::conditional_jump: {
-                // if(false_jumps.count && array::read(true_jumps, -1).count) {
-                //     BC* bc = array::readptr(code->gen->air, array::pop(false_jumps));
-                //     bc->offset_b = code->gen->air.count - (bc - code->gen->air.data);
-                // }
-
                 BC* bc = array::push(code->gen->air);
                 bc->node = tac->node;
                 bc->instr = op::jump_zero;
@@ -489,29 +513,28 @@ function(Code* code) {
                 Backpatch* bp = array::push(cond_backpatches);
                 bp->to_be_patched = code->gen->air.count-1;
                 bp->patcher = tac->arg1.temporary;
-
-                // array::push(false_jumps, u32(code->gen->air.count-1));
-                // if(!true_jumps.count || !array::read(true_jumps, -1).count)
-                //     array::push(true_jumps, array::init<u32>());
-
             } break;
 
             case tac::jump: {
                 BC* bc = array::push(code->gen->air);
                 bc->node = tac->node;
                 bc->instr = op::jump;
+                auto [idx, found] = map::find(offset_map, tac->arg0.temporary);
 
-                Backpatch* bp = array::push(jump_backpatches);
-                bp->to_be_patched = code->gen->air.count-1;
-                bp->patcher = tac->arg0.temporary;
-
-                //array::push(array::readref(true_jumps, -1), u32(code->gen->air.count-1));
+                if(found) {
+                    bc->offset_a = array::read(offset_map.values, idx) - code->gen->air.count + 1;
+                } else {
+                    Backpatch* bp = array::push(jump_backpatches);
+                    bp->to_be_patched = code->gen->air.count-1;
+                    bp->patcher = tac->arg0.temporary;
+                }
             } break;
 
             case tac::temp: {
                 map::add(offset_map, tac, (u32)code->gen->registers.count);
                 Register* r = array::push(code->gen->registers);
                 r->idx = code->gen->registers.count - 1;
+                array::push(array::readref(block_registers, -1), r->idx);
             } break;
 
             case tac::addition:
@@ -521,6 +544,7 @@ function(Code* code) {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
                 r->idx = dest_offset;
+                array::push(array::readref(block_registers, -1), r->idx);
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->node = tac->node;
@@ -574,6 +598,7 @@ function(Code* code) {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
                 r->idx = dest_offset;
+                array::push(array::readref(block_registers, -1), r->idx);
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->node = tac->node;
@@ -653,6 +678,7 @@ function(Code* code) {
                 map::add(offset_map, tac, offset);
                 Register* r = array::push(code->gen->registers);
                 r->idx = offset;
+                array::push(array::readref(block_registers, -1), r->idx);
 
                 BC* bc = array::push(code->gen->air);
                 bc->node= tac->node;
