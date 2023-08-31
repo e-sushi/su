@@ -474,6 +474,20 @@ group sema {
             en: "function return type declared as %type:func_type% but block returns %type:block_type% and $1$ does not define ImplicitCast to $0$";
         }
     }
+
+    diagnostic break_outside_of_loop {
+        type: error;
+        message: {
+            en: "break expressions must be used in loops";
+        }
+    }
+
+    diagnostic cant_use_whatever_as_value {
+        type: error;
+        message: {
+            en: "type Whatever cannot be used as a value";
+        }
+    }
 }
 
 group internal {
