@@ -24,7 +24,7 @@ run() {
         BC bc = array::read(code->gen->air, pc);
         util::println(to_string(&bc, code));
         switch(bc.instr) {
-            case air::opcode::copy: {
+            case air::op::copy: {
                 Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 = bc.offset_b;
@@ -34,7 +34,7 @@ run() {
                 }
             } break;
 
-            case air::opcode::add: {
+            case air::op::add: {
                 Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 += bc.offset_b;
@@ -44,7 +44,7 @@ run() {
                 }
             } break;
 
-            case air::opcode::sub: {
+            case air::op::sub: {
                 Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 -= bc.offset_b;
@@ -54,7 +54,7 @@ run() {
                 }
             } break;
 
-            case air::opcode::mul: {
+            case air::op::mul: {
                 Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 *= bc.offset_b;
@@ -64,7 +64,7 @@ run() {
                 }
             } break;
 
-            case air::opcode::div: {
+            case air::op::div: {
                 Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
                 if(bc.flags.right_is_const) {
                     dst->_u32 /= bc.offset_b;
@@ -74,7 +74,7 @@ run() {
                 }
             } break;
 
-            case air::opcode::jump_zero: {
+            case air::op::jump_zero: {
                 if(bc.flags.left_is_const) {
                     if(!bc.offset_a) pc += bc.offset_b - 1;
                 } else {
@@ -85,8 +85,68 @@ run() {
                 }
             } break;
 
-            case air::opcode::jump: {
+            case air::op::jump: {
                 pc += bc.offset_a - 1;
+            } break;
+
+            case air::op::eq: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
+                if(bc.flags.right_is_const) {
+                    dst->_u32 = dst->_u32 == bc.offset_b;    
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_b - 1);
+                    dst->_u32 = dst->_u32 == src->_u32;
+                }
+            } break;
+
+            case air::op::neq: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
+                if(bc.flags.right_is_const) {
+                    dst->_u32 = dst->_u32 != bc.offset_b;    
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_b - 1);
+                    dst->_u32 = dst->_u32 != src->_u32;
+                }
+            } break;
+
+            case air::op::lt: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
+                if(bc.flags.right_is_const) {
+                    dst->_u32 = dst->_u32 < bc.offset_b;    
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_b - 1);
+                    dst->_u32 = dst->_u32 < src->_u32;
+                }
+            } break;
+
+            case air::op::gt: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
+                if(bc.flags.right_is_const) {
+                    dst->_u32 = dst->_u32 > bc.offset_b;    
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_b - 1);
+                    dst->_u32 = dst->_u32 > src->_u32;
+                }
+            } break;
+
+            case air::op::le: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
+                if(bc.flags.right_is_const) {
+                    dst->_u32 = dst->_u32 <= bc.offset_b;    
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_b - 1);
+                    dst->_u32 = dst->_u32 <= src->_u32;
+                }
+            } break;
+
+            case air::op::ge: {
+                Register* dst = array::readptr(registers, -(s32)bc.offset_a - 1);
+                if(bc.flags.right_is_const) {
+                    dst->_u32 = dst->_u32 >= bc.offset_b;    
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_b - 1);
+                    dst->_u32 = dst->_u32 >= src->_u32;
+                }
             } break;
         }
         forI(registers.count) {
@@ -95,13 +155,6 @@ run() {
         }
         pc += 1;
     } 
-
-
-    forI(code->gen->air.count) {
-        
-    }
-
-    
 } 
 
 } // namespace amu
