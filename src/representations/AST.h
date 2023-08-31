@@ -35,6 +35,10 @@ struct ASTNode : public TNode {
     ast::kind kind;
     Token* start,* end;
 
+    struct {
+        b32 break_air_gen : 1 = false;
+    } flags;
+
     ASTNode(ast::kind k) : kind(k) {
         memory::zero(this, sizeof(TNode));
     }
@@ -68,7 +72,13 @@ struct ASTNode : public TNode {
     is();
 
     template<typename T> inline b32
+    is_not() { return !is<T>(); }
+
+    template<typename T> inline b32
     is(T x);
+
+    template<typename T> inline b32
+    is_not(T x) { return !is(x); }
 
     // attempts to resolve the AST node into a Type 
     // by default this returns 0, but children that 
@@ -116,6 +126,22 @@ struct ASTNode : public TNode {
 
     DString
     print_tree(b32 newlines = true);
+
+    // returns a String encompassing the first line
+    // this this node covers
+    String
+    first_line(b32 line_numbers = false, b32 remove_leading_whitespace = false);
+
+    // returns a String encompassing all the lines that 
+    // this node and its children cover 
+    String
+    lines();
+
+    // returns a DString of the line representing the current node
+    // as well as an underline of the contents of the node
+    // TODO(sushi) this currenly only works with space indentation
+    DString
+    underline();
 };
 
 
