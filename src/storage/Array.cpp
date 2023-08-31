@@ -64,7 +64,8 @@ insert(Array<T>& arr, spt idx) {
 
     internal::grow_if_needed(arr);
 
-    memory::move(arr.data + idx + 1, arr.data + idx + 2, sizeof(T) * (arr.count - idx));
+    memory::move(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
+    memory::zero(arr.data + idx, sizeof(T));
     arr.count += 1;
     return arr.data + idx;
 }
@@ -79,6 +80,7 @@ insert(Array<T>& arr, spt idx, const T& val) {
         array::push(arr, val);
     } else {
         memory::move(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
+        memory::zero(arr.data + idx, sizeof(T));
         arr.count += 1;
         *(arr.data + idx) = val;
     }

@@ -130,6 +130,7 @@ enum kind : u32 {
     directive_compiler_break,
     directive_print_type,
     directive_print_meta_type,
+    directive_compiler_break_air_gen,
 };
 
 #include "data/token_strings.generated"

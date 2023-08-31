@@ -88,7 +88,7 @@ struct Expr : public Entity {
     // assortment of flags for each expression type that hint towards certain things 
     struct {
         struct {
-            b32 returning : 1;
+            b32 returning : 1 = 0;
         } conditional;
     } flags;
 
@@ -116,6 +116,9 @@ struct Expr : public Entity {
 
 template<> inline b32 ASTNode::
 is<Expr>() { return is<Entity>() && as<Entity>()->kind == entity::expr; }
+
+template<> inline b32 ASTNode::
+is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
 
 struct Block : public Expr {
     LabelTable table;
