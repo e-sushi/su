@@ -277,7 +277,7 @@ todo(String s, String file, u64 line) {
 }
 
 // for todos that should be resolved quickly 
-#define TODO(s) util::todo(s, __FILE__, __LINE__)
+#define TODO(s) // util::todo(s, __FILE__, __LINE__)
 }
 
 } // namespace amu

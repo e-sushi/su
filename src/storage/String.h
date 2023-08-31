@@ -397,6 +397,16 @@ skip_until_last(String a, u32 c) {
 	return b;
 }
 
+inline String
+skip_whitespace(String a) {
+	String out = a;
+	while(a){
+		if(!isspace(*out.str)) break;
+		advance(out);
+	}
+	return out;
+}
+
 // eats and returns a line
 String
 eat_line(String s) {
@@ -474,12 +484,13 @@ template<> FORCE_INLINE u64 hash(String* s) {return string::hash(*s);}
 
 void 
 print(String s) {
-	fprintf(stdout, "%s", s.str);
+	fwrite(s.str, s.count, 1, stdout);
 }
 
 void
 println(String s) {
-	fprintf(stdout, "%s\n", s.str);
+	print(s);
+	print("\n");
 }
 
 

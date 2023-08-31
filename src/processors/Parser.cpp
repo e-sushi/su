@@ -29,7 +29,7 @@ parse() {
     if(!prescan_start()) return false;
     if(!start()) return false;
 
-    // util::println(code->parser->root->print_tree());
+    util::println(code->parser->root->print_tree());
 
     return true;
 }
@@ -1221,6 +1221,8 @@ conditional() {
 
     if(!expression()) return false;
 
+    node::insert_last(e, node.pop());
+
     if(!token.is(token::close_paren)) {
         diagnostic::parser::
             if_missing_close_paren(token.current());
@@ -1231,8 +1233,14 @@ conditional() {
 
     if(!expression()) return false;
 
-    node::insert_first(e, node.pop());
-    node::insert_first(e, node.pop());
+    node::insert_last(e, node.pop());
+
+    // check if the body of this if is returning something
+    auto body = e->first_child<Expr>();
+    if( !body->is<Block>() ||
+        body->child_count && body->last_child()->is(stmt::block_final)) {
+        e->flags.conditional.returning = true;
+    }
 
     node.push(e);
 
@@ -1367,6 +1375,8 @@ block() {
 
     token.increment();
 
+    b32 break_air_gen = false;
+
     u32 count = 0;
     while(1) {
         b32 need_semicolon = true;
@@ -1377,19 +1387,23 @@ block() {
             continue; 
         }
         auto s = Stmt::create();
-        s->kind = statement::unknown;
+        s->kind = stmt::unknown;
+        if(break_air_gen) {
+            s->flags.break_air_gen = true;
+            break_air_gen = false;
+        }
 
         switch(token.current_kind()) {
             case token::identifier: {
                 if(token.next_kind() == token::colon) {
                     if(!label()) return false;
-                    s->kind = statement::label;
+                    s->kind = stmt::label;
                     if(token.prev_is(token::close_brace)) {
                         need_semicolon = false;
                     }
                 } else {
                     if(!expression()) return false;
-                    s->kind = statement::expression;
+                    s->kind = stmt::expression;
                     // TODO(sushi) these rules are sketchy and i feel like they will break at some point 
                     if(token.prev_is(token::close_brace)) {
                         need_semicolon = false;
@@ -1413,7 +1427,7 @@ block() {
             } break;
             default: {
                 if(!expression()) return false;
-                s->kind = statement::expression;
+                s->kind = stmt::expression;
                 // TODO(sushi) these rules are sketchy and i feel like they will break at some point 
                 if(token.prev_is(token::close_brace)) {
                     need_semicolon = false;
@@ -1434,7 +1448,7 @@ block() {
             node::insert_first(s, node.pop());
             s->start = s->first_child()->start;
             s->end = token.current();
-            s->kind = statement::block_final;
+            s->kind = stmt::block_final;
             node.push(s);
             break;
         } else {
@@ -1446,7 +1460,7 @@ block() {
             node.push(s);
             
             if(last_expr) {
-                s->kind = statement::block_final;
+                s->kind = stmt::block_final;
                 break;
             } else if(need_semicolon) token.increment();
         }
@@ -1461,8 +1475,6 @@ block() {
     table.pop();
     return true;
 }
-
-
 
 b32 Parser::
 typeref() {

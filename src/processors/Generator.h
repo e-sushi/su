@@ -33,11 +33,17 @@ enum op {
     stack_push, // N bytes to push
     stack_pop,  // N bytes to pop
 
-    // arithmetic, always makes a temporary
     addition,
     multiplication,
     subtraction,
     division,
+
+    equal,
+    not_equal,
+    less_than,
+    less_than_or_equal,
+    greater_than,
+    greater_than_or_equal,
 
     // assignment between 2 things
     assignment, 
@@ -65,8 +71,6 @@ enum op {
     // jumps used by conditional expressions
     // first argument is a condition, second is a TAC to jump to 
     conditional_jump,
-
-    
 };
 
 namespace arg {
@@ -110,17 +114,28 @@ struct TAC {
     // for debug purposes, when a TAC is created its id is the number of TAC created
     // before it. need to move this somewhere better eventually 
     u64 id; 
+
+    // the node the information of this TAC was retrieved from
+    ASTNode* node;
 };
 
 namespace air {
 
-enum class opcode {
+enum class op {
     copy, // copy from B to A
 
     add, // add B to A and store in A
     sub, // sub B from A and store in A
     mul, // multiply B by A and store in A
     div, // divide B from A and store in A
+
+    // TODO(sushi) consider replacing this 
+    eq,  // sets A to one if A == B
+    neq, // sets A to one if A != B
+    lt,  // sets A to one if A < B
+    gt,  // sets A to one if A > B
+    le,  // sets A to one if A <= B
+    ge,  // sets A to one if A >= B
 
     call, // jump to a routine
     ret,  // return from a routine
@@ -167,7 +182,7 @@ struct Register {
 
 // representation of an AIR bytecode
 struct BC {
-    air::opcode instr : 6;
+    air::op instr : 6;
 
     struct {
         b32 left_is_const : 1  = false;
@@ -186,6 +201,7 @@ struct BC {
 
 #if BUILD_SLOW
     Code* code;
+    ASTNode* node;
 #endif
 };
 

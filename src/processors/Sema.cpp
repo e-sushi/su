@@ -25,12 +25,12 @@ namespace internal {
 
 u64 layers = 0;
 
-#define announce_stage(n) \
-    DString indentation = dstring::init(); \
-    forI(layers) dstring::append(indentation, " "); \
-    messenger::dispatch(message::make_debug(message::verbosity::debug, String(indentation), String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true))); \
-    layers++; \
-    defer { layers--; }
+#define announce_stage(n) 
+    // DString indentation = dstring::init(); \
+    // forI(layers) dstring::append(indentation, " "); \
+    // messenger::dispatch(message::make_debug(message::verbosity::debug, String(indentation), String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true))); \
+    // layers++; \
+    // defer { layers--; }
 
 // Array<LabelTable*> table_stack = array::init<LabelTable*>();
 // LabelTable* current_table = 0;
@@ -50,9 +50,9 @@ b32 expr(Code* code, Expr* e);
 b32
 statement(Code* code, Stmt* s) { announce_stage(s);
     switch(s->kind) {
-        case statement::label: return label(code, s->first_child<Label>());
-        case statement::block_final:
-        case statement::expression: return expr(code, s->first_child<Expr>());
+        case stmt::label: return label(code, s->first_child<Label>());
+        case stmt::block_final:
+        case stmt::expression: return expr(code, s->first_child<Expr>());
     }
     return false;
 }
@@ -65,7 +65,7 @@ block(Code* code, Block* e) { announce_stage(e);
 
     // resolve the type of this block
     auto last = e->last_child<Stmt>();
-    if(!last || last->kind != statement::block_final) {
+    if(!last || last->kind != stmt::block_final) {
         e->type = &type::void_;
     } else {
         e->type = last->first_child<Expr>()->type;
@@ -76,7 +76,7 @@ block(Code* code, Block* e) { announce_stage(e);
 b32 
 func_ret(Code* code, ASTNode* n) { announce_stage(n);
     if(n->is<Tuple>()) {
-        if(n->is(statement::label)) {
+        if(n->is(stmt::label)) {
 
         }
     }else if(n->is<Expr>()) {
@@ -254,6 +254,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 return false;
             }
 
+            e->type = lhs->type;
+
             return true;
         } break;
 
@@ -271,7 +273,16 @@ expr(Code* code, Expr* e) { announce_stage(e);
             return access(code, e, lhs, lhs_type, rhs);
         } break;
 
-        case expr::binary_plus: {
+        case expr::binary_plus:
+        case expr::binary_minus:
+        case expr::binary_division: 
+        case expr::binary_multiply:
+        case expr::binary_equal: 
+        case expr::binary_not_equal: 
+        case expr::binary_less_than:
+        case expr::binary_less_than_or_equal:
+        case expr::binary_greater_than:
+        case expr::binary_greater_than_or_equal:  {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
             if(!expr(code, lhs)) return false;
@@ -280,7 +291,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
             if(lhs->type == rhs->type) { 
                 if(!lhs->type->is<Scalar>()) {
                     // NOTE(sushi) temp error until traits are implemented
-                    Message m = message::init(String("cannot perform addition between non-scalar types yet!"));
+                    Message m = message::init(String("cannot perform arithmetic between non-scalar types yet!"));
                     m.kind = message::error;
                     m = message::attach_sender(e->start, m);
                     messenger::dispatch(m);
@@ -299,114 +310,23 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 e->type = cast->type;
             } else {
                 diagnostic::sema::
-                    cant_find_binop_trait(e->start, "Add", lhs->type, rhs->type);
+                    cant_find_binop_trait(e->start, // C++ IS SO GARBAGE
+                      (e->kind == expr::binary_plus                  ? string::init("Add") :
+                       e->kind == expr::binary_minus                 ? string::init("Sub") :
+                       e->kind == expr::binary_multiply              ? string::init("Mul") :
+                       e->kind == expr::binary_division              ? string::init("Div") :
+                       e->kind == expr::binary_equal                 ? string::init("Equal") : 
+                       e->kind == expr::binary_not_equal             ? string::init("NotEqual") :
+                       e->kind == expr::binary_less_than             ? string::init("LessThan") :
+                       e->kind == expr::binary_less_than_or_equal    ? string::init("LessThanOrEqual") :
+                       e->kind == expr::binary_greater_than          ? string::init("GreaterThan") :
+                                                                       string::init("GreaterThanOrEqual")), 
+                                                                       lhs->type, rhs->type);
                 return false;
             }
             return true;
 
             // TODO(sushi) Add trait implemented here
-        } break;
-
-        case expr::binary_minus: {
-            auto lhs = e->first_child<Expr>();
-            auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
-
-            if(lhs->type == rhs->type) { 
-                if(!lhs->type->is_scalar()) {
-                    // NOTE(sushi) temp error until traits are implemented
-                    Message m = message::init(String("cannot perform subtraction between non-scalar types yet!"));
-                    m.kind = message::error;
-                    m = message::attach_sender(e->start, m);
-                    messenger::dispatch(m);
-                    return false;
-                }
-                e->type = lhs->type;
-            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
-                // take the larger of the two, and prefer float > signed > unsigned
-                auto l = (Scalar*)lhs->type, 
-                     r = (Scalar*)rhs->type;
-                
-                Expr* cast = Expr::create(expr::cast);
-                b32 take_left = l->kind > r->kind;
-                cast->type = (take_left? l : r);
-                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
-                e->type = cast->type;
-            } else {
-                diagnostic::sema::
-                    cant_find_binop_trait(e->start, "Sub", lhs->type, rhs->type);
-                return false;
-            }
-            return true;
-        } break;
-
-        case expr::binary_multiply: {
-            auto lhs = e->first_child<Expr>();
-            auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
-
-            if(lhs->type == rhs->type) { 
-                if(!lhs->type->is_scalar()) {
-                    // NOTE(sushi) temp error until traits are implemented
-                    Message m = message::init(String("cannot perform multiplication between non-scalar types yet!"));
-                    m.kind = message::error;
-                    m = message::attach_sender(e->start, m);
-                    messenger::dispatch(m);
-                    return false;
-                }
-                e->type = lhs->type;
-            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
-                // take the larger of the two, and prefer float > signed > unsigned
-                auto l = (Scalar*)lhs->type, 
-                     r = (Scalar*)rhs->type;
-                
-                Expr* cast = Expr::create(expr::cast);
-                b32 take_left = l->kind > r->kind;
-                cast->type = (take_left? l : r);
-                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
-                e->type = cast->type;
-            } else {
-                diagnostic::sema::
-                    cant_find_binop_trait(e->start, "Mul", lhs->type, rhs->type);
-                return false;
-            }
-            return true;
-        } break;
-
-        case expr::binary_division: {
-            auto lhs = e->first_child<Expr>();
-            auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
-
-            if(lhs->type == rhs->type) { 
-                if(!lhs->type->is_scalar()) {
-                    // NOTE(sushi) temp error until traits are implemented
-                    Message m = message::init(String("cannot perform division between non-scalar types yet!"));
-                    m.kind = message::error;
-                    m = message::attach_sender(e->start, m);
-                    messenger::dispatch(m);
-                    return false;
-                }
-                e->type = lhs->type;
-            } else if(lhs->type->is_scalar() && rhs->type->is_scalar()) {
-                // take the larger of the two, and prefer float > signed > unsigned
-                auto l = (Scalar*)lhs->type, 
-                     r = (Scalar*)rhs->type;
-                
-                Expr* cast = Expr::create(expr::cast);
-                b32 take_left = l->kind > r->kind;
-                cast->type = (take_left? l : r);
-                node::insert_above((take_left? (TNode*)rhs : (TNode*)lhs), (TNode*)cast);
-                e->type = cast->type;
-            } else {
-                diagnostic::sema::
-                    cant_find_binop_trait(e->start, "Div", lhs->type, rhs->type);
-                return false;
-            }
-            return true;
         } break;
 
         case expr::literal: {
@@ -420,13 +340,20 @@ expr(Code* code, Expr* e) { announce_stage(e);
 
         case expr::conditional: {
             if(!expr(code, e->first_child<Expr>())) return false;
-            
+
             Type* first_type = 0;
             for(auto branch = e->first_child()->next<Expr>(); branch; branch = branch->next<Expr>()) {
                 if(!expr(code, branch)) return false;
                 if(!first_type) first_type = branch->type;
                 else {
                     if(!first_type->can_cast_to(branch->type)) {
+                        // we need to check if the first type is a block returning void
+                        // and if this is an else that is not a block
+                        // this occurs in a case like 
+                        // if(...) {...} else ...;
+                        // which should behave like it does in C when the first branch isn't returning anything 
+                        if(first_type->is<Void>() && e->first_child()->next()->is<Block>() && !branch->is<Block>()) 
+                            continue;
                         diagnostic::sema::
                             if_mismatched_types_cannot_coerce(branch->start, branch->type, first_type);
                         return false;
