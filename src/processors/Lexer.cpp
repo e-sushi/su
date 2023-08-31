@@ -43,12 +43,13 @@ token_is_keyword_or_identifier(String raw) {
 local token::kind
 token_is_directive_or_identifier(String raw) {
     switch(string::hash(raw)) {
-        strcase("import"):          return token::directive_import;
-		strcase("internal"):        return token::directive_internal;
-		strcase("run"):             return token::directive_run;
-		strcase("compiler_break"):  return token::directive_compiler_break;
-		strcase("print_type"):      return token::directive_print_type;
-		strcase("print_meta_type"): return token::directive_print_meta_type;
+        strcase("import"):                 return token::directive_import;
+		strcase("internal"):               return token::directive_internal;
+		strcase("run"):                    return token::directive_run;
+		strcase("compiler_break"):         return token::directive_compiler_break;
+		strcase("print_type"):             return token::directive_print_type;
+		strcase("print_meta_type"):        return token::directive_print_meta_type;
+		strcase("compiler_break_air_gen"): return token::directive_compiler_break_air_gen;
     }
 
     return token::identifier;

@@ -1401,7 +1401,16 @@ block() {
                     }
                 }
             } break;
-
+            case token::directive_compiler_break_air_gen: {
+                break_air_gen = true;
+                s->destroy();
+                token.increment();
+                if(!token.is(token::semicolon)) {
+                    diagnostic::parser::missing_semicolon(token.current());
+                    return false;
+                }
+                continue;
+            } break;
             default: {
                 if(!expression()) return false;
                 s->kind = statement::expression;
