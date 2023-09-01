@@ -246,6 +246,11 @@ expr(Code* code, Expr* e) { announce_stage(e);
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
+            if(rhs->type->is<Whatever>()) {
+                diagnostic::sema::cant_use_whatever_as_value(rhs->start);
+                return false;
+            }
+
             // TODO(sushi) type coersion
             if(!lhs->type->can_cast_to(rhs->type)) {
                 diagnostic::sema::
@@ -285,6 +290,16 @@ expr(Code* code, Expr* e) { announce_stage(e);
             auto rhs = e->last_child<Expr>();
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
+
+            if(lhs->type->is<Whatever>()) {
+                diagnostic::sema::cant_use_whatever_as_value(lhs->start);
+                return false;
+            }
+
+            if(rhs->type->is<Whatever>()) {
+                diagnostic::sema::cant_use_whatever_as_value(rhs->start);
+                return false;
+            }
 
             if(lhs->type == rhs->type) { 
                 if(!lhs->type->is<Scalar>()) {
@@ -326,6 +341,50 @@ expr(Code* code, Expr* e) { announce_stage(e);
             // TODO(sushi) Add trait implemented here
         } break;
 
+
+        case expr::binary_or: 
+        case expr::binary_and: {
+            auto lhs = e->first_child<Expr>();
+            auto rhs = e->last_child<Expr>();
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
+
+            // control statements can only appear on the very right
+            if(lhs->type->is<Whatever>()) {
+                diagnostic::sema::
+                    control_expressions_can_only_be_used_at_the_end_of_logical_operators(lhs->start);
+                return false;
+            }
+
+            if(lhs->type == rhs->type) { 
+                if(!lhs->type->is<Scalar>()) {
+                    // NOTE(sushi) temp error until traits are implemented
+                    Message m = message::init(String("cannot perform arithmetic between non-scalar types yet!"));
+                    m.kind = message::error;
+                    m = message::attach_sender(e->start, m);
+                    messenger::dispatch(m);
+                    return false;
+                }
+                e->type = lhs->type;
+            } else if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
+                // take the larger of the two, and prefer float > signed > unsigned
+                auto l = lhs->type->as<Scalar>(), 
+                     r = rhs->type->as<Scalar>();
+                
+                auto cast = Expr::create(expr::cast);
+                b32 take_left = l->kind > r->kind;
+                cast->type = (take_left? l : r);
+                node::insert_above((take_left? rhs : lhs), cast);
+                e->type = cast->type;
+            } else if(rhs->type->is_not<Whatever>()) {
+                diagnostic::sema::
+                    cant_find_binop_trait(e->start, "Or", lhs->type, rhs->type);
+                return false;
+            } else {
+                e->type = lhs->type;
+            }
+        } break;
+
         case expr::literal: {
         } break;
 
@@ -335,6 +394,11 @@ expr(Code* code, Expr* e) { announce_stage(e);
 
         case expr::conditional: {
             if(!expr(code, e->first_child<Expr>())) return false;
+
+            if(e->first_child<Expr>()->type->is<Whatever>()) {
+                diagnostic::sema::cant_use_whatever_as_value(e->first_child()->start);
+                return false;
+            }
 
             Type* first_type = 0;
             for(auto branch = e->first_child()->next<Expr>(); branch; branch = branch->next<Expr>()) {
@@ -355,7 +419,6 @@ expr(Code* code, Expr* e) { announce_stage(e);
                     }
                 }
             }
-
             e->type = first_type;
         } break;
 
@@ -365,6 +428,21 @@ expr(Code* code, Expr* e) { announce_stage(e);
             e->type = e->first_child<Expr>()->type;
         } break;
         
+        case expr::break_: {
+            auto iter = e->parent();
+            e->type = &type::whatever;
+            while(1) {
+                if(iter->is(expr::loop)) {
+                    return true;
+                } else {
+                    iter = iter->parent();
+                    if(!iter) {
+                        diagnostic::sema::break_outside_of_loop(e->start);
+                        return false;
+                    }
+                }
+            }
+        } break;
     }
 
     return true;

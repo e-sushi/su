@@ -1,4 +1,6 @@
-main :: () -> void {
+main :: () -> void { 
     a := 0;
-    loop a = a + 1;
+    loop {
+        a > 1000 && a = a + 1 || break;
+    }
 }

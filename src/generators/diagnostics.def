@@ -488,6 +488,13 @@ group sema {
             en: "type Whatever cannot be used as a value";
         }
     }
+
+    diagnostic control_expressions_can_only_be_used_at_the_end_of_logical_operators {
+        type: error;
+        message: {
+            en: "control expressions can only be used at the very right of logical operators";
+        }
+    }
 }
 
 group internal {

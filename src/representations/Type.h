@@ -16,6 +16,7 @@ namespace amu {
 namespace type {
 enum class kind {
     void_, // the type representing nothing 
+    whatever, // when we might need a type but we don't care what it would be 
     scalar,
     structured,
     pointer,
@@ -86,6 +87,30 @@ is<Void>() { return is<Type>() && as<Type>()->kind == type::kind::void_; }
 
 namespace type{
 global Void void_;
+} // namespace type
+
+// i dont know if this is particularly useful, I'm only using it to solve
+// a specific case:
+// if(...) break else ...
+// 'break' is an expression, and needs a type, so I just say it is Whatever
+// because it isn't going to actually return anything, it just controls flow
+// Any type may implicitly convert to this, so it's really just a wildcard
+// Though it is an error if you try to use this as a value in any way
+// This is extremely experimental and I figure it will be confusing
+// so it will probably be removed eventually 
+struct Whatever : public Type {
+    Whatever() : Type(type::kind::whatever) {}
+
+    u64 size() { return 0; }
+    String name() { return "whatever"; }
+    DString debug_str() { return dstring::init("Whatever<>"); }
+};
+
+template<> inline b32 ASTNode::
+is<Whatever>() { return is<Type>() && as<Type>()->kind == type::kind::whatever; }
+
+namespace type{
+global Whatever whatever;
 } // namespace type
 
 namespace scalar {

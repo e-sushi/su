@@ -45,6 +45,9 @@ enum op {
     greater_than,
     greater_than_or_equal,
 
+    logical_and,
+    logical_or,
+
     // assignment between 2 things
     assignment, 
 
@@ -68,9 +71,9 @@ enum op {
     // a jump to another TAC
     jump,
 
-    // jumps used by conditional expressions
-    // first argument is a condition, second is a TAC to jump to 
-    conditional_jump,
+    // conditional jumps
+    jump_zero,
+    jump_not_zero,
 };
 
 namespace arg {
@@ -111,12 +114,24 @@ generate(Code* code);
 struct TAC {
     tac::op op;
     tac::Arg arg0, arg1;
+
+    // a list of TAC that jump to this TAC 
+    Array<TAC*> jump_from;
+    // a TAC that this TAC jumps to  
+    TAC* jump_to;
+
+    u32 bc_offset;
+
     // for debug purposes, when a TAC is created its id is the number of TAC created
     // before it. need to move this somewhere better eventually 
     u64 id; 
 
     // the node the information of this TAC was retrieved from
     ASTNode* node;
+
+
+    static TAC*
+    create();
 };
 
 namespace air {
@@ -146,6 +161,10 @@ enum class op {
     // jump to a position, B, relative to current instruction 
     // if A is zero
     jump_zero,  
+
+    // jump to position, B, relative to current instruction
+    // if A is non_zero
+    jump_not_zero,
 };
 
 b32
@@ -206,24 +225,32 @@ struct BC {
 };
 
 /*
-    A Generator stores the actual array of TAC triples used throughout whatever is generating them.
-    Triples store arrays of references to this TAC. This may not be efficient and we may want to consider
-    using quadruples instead.
+    A Generator stores the actual array of TAC triples used throughout whatever
+    is generating them. Triples store arrays of references to this TAC. This may
+    not be efficient and we may want to consider using quadruples instead.
 
     With this it stores the final TAC sequence, 'fin'.
 
-    The reason we store these things separately is because it's possible for us to want to modify the TAC
-    sequence and individual TAC later on, so in order to prevent needing to readjust TAC, we just store pointers
-    to stationary TAC.
+    The reason we store these things separately is because it's possible for us
+    to want to modify the TAC sequence and individual TAC later on, so in order
+    to prevent needing to readjust TAC, we just store pointers to stationary
+    TAC.
 */
 struct Gen {
     u64 tac_count;
     Pool<TAC> tac_pool;
     Array<TAC*> tac;
 
-    // filled out by both TAC generation and AIR generation
-    // TAC emplaces local variables while AIR fills out temp registers
-    // used by TAC
+    // incremented by 1 every time the loop stage ends, indicating to 'add_tac'
+    // that it needs to resolve the breaks in break_stacks to the TAC that is
+    // about to be created
+    u32 resolve_breaks;
+    // stacks of jump TAC representing breaks, to be resolved 
+    // when a loop's expression returns 
+    Array<Array<TAC*>> break_stacks;
+
+    // filled out by both TAC generation and AIR generation TAC emplaces local
+    // variables while AIR fills out temp registers used by TAC
     Array<Register> registers;
 
     Array<BC> air;

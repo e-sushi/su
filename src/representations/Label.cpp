@@ -30,6 +30,23 @@ resolve_type() {
     return 0;
 }
 
+VirtualLabel* VirtualLabel::
+create(DString name) {
+    VirtualLabel* out = pool::add(compiler::instance.storage.virtual_labels);
+    out->id = name;
+    return out;
+}
+
+String VirtualLabel::
+name() {
+    return id;
+}
+
+DString VirtualLabel::
+debug_str() {
+    return dstring::init("VirtualLabel<", id, ">");
+}
+
 namespace label {
 namespace table {
 

@@ -33,6 +33,7 @@ init() {
     instance.storage.machines         = pool::init<Machine>(32);
     instance.storage.modules          = pool::init<Module>(32);
     instance.storage.labels           = pool::init<Label>(32);
+    instance.storage.virtual_labels   = pool::init<VirtualLabel>(32);
     instance.storage.structures       = pool::init<Structure>(32);
     instance.storage.functions        = pool::init<Function>(32);
     instance.storage.statements       = pool::init<Stmt>(32);
@@ -241,8 +242,8 @@ begin(Array<String> args) {
 
     air::generate(entry_source->code);
 
-    Machine::create(entry_source->code->first_child<Code>())
-        ->run();
+    // Machine::create(entry_source->code->first_child<Code>())
+    //     ->run();
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;

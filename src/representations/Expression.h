@@ -41,6 +41,7 @@ enum kind : u32 {
     conditional,
     return_,
     using_,
+    break_,
 
     unary_bit_comp,
     unary_logi_not,
@@ -73,6 +74,7 @@ enum kind : u32 {
 
     cast,
     reinterpret,
+
 };
 
 #include "data/expression_strings.generated"
@@ -91,6 +93,10 @@ struct Expr : public Entity {
             b32 returning : 1 = 0;
         } conditional;
     } flags;
+
+    // a list of TAC that need to jump to this Expr
+    // for whatever reason 
+    Array<TAC*> jumps_to_me;
 
 
     // ~~~~~~ interface ~~~~~~~

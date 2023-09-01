@@ -4,6 +4,13 @@ b32 Type::
 can_cast_to(Type* to)  { 
     if(this == to) return true;
 
+    // the Whatever type is a wildcard that anything can cast to
+    // but you cannot use something of this type, and checks for that
+    // are handled elsewhere
+    if(this->is<Whatever>() || to->is<Whatever>()) 
+        return true;
+    
+
     // all scalar types may coerce to each other
     // TODO(sushi) this should probably not allow float <-> int coercion in implicit cases, though
     if(to->kind == type::kind::scalar && this->kind == type::kind::scalar)

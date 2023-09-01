@@ -20,6 +20,7 @@ struct Label : public ASTNode {
     // if this label is an alias of another label, this is the original
     Label* aliased; 
 
+    b32 is_virtual;
 
     // ~~~~~~ interface ~~~~~~~
 
@@ -40,13 +41,37 @@ struct Label : public ASTNode {
     Type*
     resolve_type();
 
-    Label() : ASTNode(ast::label) {}
+    Label() : ASTNode(ast::label), is_virtual(false) {}
+    Label(b32 is_virt) : ASTNode(ast::label), is_virtual(is_virt) {}
 };
 
 struct LabelTable {
     LabelTable* last;
     Map<String, Label*> map;
     ASTNode* owner; // temp debug so I can figure out who these tables belong to 
+};
+
+// a Label created internally 
+struct VirtualLabel : public Label {
+    DString id;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static VirtualLabel*
+    create(DString name);
+
+    void
+    destroy();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    VirtualLabel() : Label(true) {} 
 };
 
 namespace label {

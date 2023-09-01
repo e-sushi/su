@@ -99,6 +99,11 @@
         "semaphore": "cpp",
         "cinttypes": "cpp",
         "variant": "cpp",
-        "source_location": "cpp"
+        "source_location": "cpp",
+        "cassert": "cpp",
+        "cerrno": "cpp",
+        "cfloat": "cpp",
+        "climits": "cpp",
+        "cstdbool": "cpp"
     }
 }

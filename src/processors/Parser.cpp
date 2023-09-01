@@ -1190,7 +1190,7 @@ assignment() {
         if(!bit_or()) return false;
         if(!logi_and()) return false;
         if(!logi_or()) return false;
-        Expr* e = Expr::create(expr::binary_assignment);
+        auto e = Expr::create(expr::binary_assignment);
 
         node::insert_first(e, node.pop());
         node::insert_first(e, node.pop());
@@ -1340,6 +1340,13 @@ factor() {
 
         case token::loop: {
             if(!loop()) return false;
+        } break;
+
+        case token::break_: {
+            auto e = Expr::create(expr::break_);
+            e->start = e->end = token.current();
+            node.push(e);
+            token.increment();
         } break;
 
         case token::switch_: {

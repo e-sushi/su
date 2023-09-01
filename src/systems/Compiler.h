@@ -37,6 +37,7 @@ struct Compiler {
         Pool<Machine>      machines;
         Pool<Module>       modules;
         Pool<Label>        labels;
+        Pool<VirtualLabel> virtual_labels;
         Pool<Structure>    structures;
         Pool<Function>     functions;
         Pool<Stmt>         statements;
