@@ -83,6 +83,7 @@ enum kind {
     func,
     temporary,
     literal,
+    reg,
 };
 } // namespace arg
 
@@ -93,6 +94,7 @@ struct Arg {
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
         u64 literal;
+        u64 reg_offset;
     };
 
     Arg() : kind(arg::none) {}
@@ -115,12 +117,11 @@ struct TAC {
     tac::op op;
     tac::Arg arg0, arg1;
 
-    // a list of TAC that jump to this TAC 
-    Array<TAC*> jump_from;
-    // a TAC that this TAC jumps to  
-    TAC* jump_to;
+    TAC* from;
+    TAC* next;
+    TAC* to;
 
-    u32 bc_offset;
+    u64 bc_offset;
 
     // for debug purposes, when a TAC is created its id is the number of TAC created
     // before it. need to move this somewhere better eventually 
@@ -248,6 +249,8 @@ struct Gen {
     // stacks of jump TAC representing breaks, to be resolved 
     // when a loop's expression returns 
     Array<Array<TAC*>> break_stacks;
+
+    Array<TAC*> loop_stack;
 
     // filled out by both TAC generation and AIR generation TAC emplaces local
     // variables while AIR fills out temp registers used by TAC

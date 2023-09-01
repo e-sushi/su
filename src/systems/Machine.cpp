@@ -19,7 +19,10 @@ run() {
 
     u32 pc = 0;
 
+    // return;
+
     while(pc < code->gen->air.count) {
+        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         util::println(dstring::init("----------------------- ", pc));
         BC bc = array::read(code->gen->air, pc);
         util::println(to_string(&bc, code));
@@ -80,6 +83,17 @@ run() {
                 } else {
                     Register* src = array::readptr(registers, -(s32)bc.offset_a - 1);
                     if(!src->_u32) {
+                        pc += bc.offset_b - 1;
+                    }
+                }
+            } break;
+
+            case air::op::jump_not_zero: {
+                if(bc.flags.left_is_const) {
+                    if(bc.offset_a) pc += bc.offset_b - 1;
+                } else {
+                    Register* src = array::readptr(registers, -(s32)bc.offset_a - 1);
+                    if(src->_u32) {
                         pc += bc.offset_b - 1;
                     }
                 }

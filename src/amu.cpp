@@ -90,6 +90,9 @@
 #include "processors/Gen.h"
 #include "systems/Machine.h"
 
+#include <thread>
+#include <chrono>
+
 #include "basic/Memory.cpp"
 #include "basic/Node.cpp"
 #include "representations/AST.cpp"
@@ -133,3 +136,4 @@ int main(int argc, char* argv[]){
 	}
 	return 0;
 }
+

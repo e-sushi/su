@@ -242,8 +242,8 @@ begin(Array<String> args) {
 
     air::generate(entry_source->code);
 
-    // Machine::create(entry_source->code->first_child<Code>())
-    //     ->run();
+    Machine::create(entry_source->code->first_child<Code>())
+        ->run();
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;

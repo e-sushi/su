@@ -80,6 +80,9 @@ struct ASTNode : public TNode {
     template<typename T> inline b32
     is(T x);
 
+    template<typename... T> inline b32
+    is_any(T... x) { return (is(x) || ...); }
+
     template<typename T> inline b32
     is_not(T x) { return !is(x); }
 

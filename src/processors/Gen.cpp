@@ -7,21 +7,35 @@ namespace tac {
 //             so that jumps actually jump to the next instruction
 TAC*
 add_tac(Gen* gen) {
-    TAC* out = pool::add(gen->tac_pool);
-    out->id = gen->tac_count++;
-    out->bc_offset = -1;
+    TAC* out = 0;
+        
+    if(gen->tac.count) {
+        TAC* last = array::read(gen->tac, -1);
+        if(last->op == tac::nop)
+            out = last;
+    } 
+    if(!out) {
+        out = pool::add(gen->tac_pool);
+        out->id = gen->tac_count++;
+        out->bc_offset = -1;
+        array::push(gen->tac, out);
+    }
 
-    if(gen->resolve_breaks)
-        out->jump_from = array::init<TAC*>();
+    TAC* last_break = 0;
     forI(gen->resolve_breaks) {
         Array<TAC*> stack = array::pop(gen->break_stacks);
         forI(stack.count) {
             TAC* t = array::read(stack, i);
+            if(last_break) last_break->next = t;
             t->arg0 = out;
-            array::push(out->jump_from, t);
+            t->to = out;
+            last_break = t;
         }
         array::deinit(stack);
     }
+
+    if(last_break)
+        out->from = last_break;
 
     gen->resolve_breaks = 0;
 
@@ -36,111 +50,111 @@ Arg expression(Code* code, Expr* e);
 //             we dont need an array of TAC for 'falselist', we just need to store the last cond_jump
 struct ConditionalState {
     Array<TAC*> truelist; // list of cond_jumps that need to be backpatched with a TAC to jump to
-    Array<TAC*> falselist; // list of plain jumps that need to be backpatched with a TAC To jump to
+    Array<TAC*> falseqlist; // list of plain jumps that need to be backpatched with a TAC To jump to
     Var* temp;
 };
 
 Arg
 conditional(Code* code, Expr* cond, ConditionalState* state) {
-    Arg condition = expression(code, cond->first_child<Expr>());
+    // Arg condition = expression(code, cond->first_child<Expr>());
 
-    TAC* cond_jump = add_tac(code->gen);
-    cond_jump->op = tac::jump_zero;
-    cond_jump->arg0 = condition;
+    // TAC* cond_jump = add_tac(code->gen);
+    // cond_jump->op = tac::jump_zero;
+    // cond_jump->arg0 = condition;
 
-    array::push(state->falselist, cond_jump);
-    array::push(code->gen->tac, cond_jump);
+    // array::push(state->falselist, cond_jump);
+    // array::push(code->gen->tac, cond_jump);
 
-    cond_jump->node = cond;
+    // cond_jump->node = cond;
 
-    Expr* first = cond->first_child()->next<Expr>();
-    Expr* second = cond->last_child<Expr>();
+    // Expr* first = cond->first_child()->next<Expr>();
+    // Expr* second = cond->last_child<Expr>();
 
-    Arg f = expression(code, first);
-    if(state->temp) {
-        TAC* assign = add_tac(code->gen);
-        assign->op = tac::assignment;
-        assign->arg0.kind = arg::var;
-        assign->arg0.var = state->temp;
-        assign->arg1 = f;
-        assign->node = first;
-        array::push(code->gen->tac, assign);
-    }
+    // Arg f = expression(code, first);
+    // if(state->temp) {
+    //     TAC* assign = add_tac(code->gen);
+    //     assign->op = tac::assignment;
+    //     assign->arg0.kind = arg::var;
+    //     assign->arg0.var = state->temp;
+    //     assign->arg1 = f;
+    //     assign->node = first;
+    //     array::push(code->gen->tac, assign);
+    // }
 
-    if(second != first) {
-        // add the if/else exit jump
-        TAC* jump = add_tac(code->gen);
-        jump->op = tac::jump;
+    // if(second != first) {
+    //     // add the if/else exit jump
+    //     TAC* jump = add_tac(code->gen);
+    //     jump->op = tac::jump;
 
-        array::push(code->gen->tac, jump);
+    //     array::push(code->gen->tac, jump);
 
-        // the last cond_jump can be resolved to the instruction following the jump 
-        TAC* resolved = array::pop(state->falselist);
-        u64 next_index = code->gen->tac.count;
+    //     // the last cond_jump can be resolved to the instruction following the jump 
+    //     TAC* resolved = array::pop(state->falselist);
+    //     u64 next_index = code->gen->tac.count;
 
-        array::push(state->truelist, jump);
-        jump->node = second;
+    //     array::push(state->truelist, jump);
+    //     jump->node = second;
         
-        Arg s;
-        if(second->kind == expr::conditional) s = conditional(code, second, state);
-        else {
-            s = expression(code, second);
-            if(state->temp) {
-                TAC* assign = add_tac(code->gen);
-                assign->op = tac::assignment;
-                assign->arg0.kind = arg::var;
-                assign->arg0.var = state->temp;
-                assign->arg1 = s;
-                assign->node = second;
-                array::push(code->gen->tac, assign);
-            }
-        }
+    //     Arg s;
+    //     if(second->kind == expr::conditional) s = conditional(code, second, state);
+    //     else {
+    //         s = expression(code, second);
+    //         if(state->temp) {
+    //             TAC* assign = add_tac(code->gen);
+    //             assign->op = tac::assignment;
+    //             assign->arg0.kind = arg::var;
+    //             assign->arg0.var = state->temp;
+    //             assign->arg1 = s;
+    //             assign->node = second;
+    //             array::push(code->gen->tac, assign);
+    //         }
+    //     }
 
-        TAC* resolver = array::read(code->gen->tac, next_index);
-        resolved->arg1.temporary = resolver;
-        resolved->arg1.kind = arg::kind::temporary;
-        resolver->jump_from = array::init<TAC*>();
-        array::push(resolver->jump_from, resolved);
+    //     TAC* resolver = array::read(code->gen->tac, next_index);
+    //     resolved->arg1.temporary = resolver;
+    //     resolved->arg1.kind = arg::kind::temporary;
+    //     resolver->jump_from = array::init<TAC*>();
+    //     array::push(resolver->jump_from, resolved);
 
-        // we've reached the end of an if/else ladder
-        // so we can fill out the true body jumps
-        if(second->kind != expr::conditional) {
-            // we make a label TAC for the jumps, because we dont know yet
-            // what the next instruction is actually going to be
-            // this should be cleaned up eventually, ideally removing the need for making this at all
-            TAC* end = add_tac(code->gen);
-            end->op = tac::nop;
-            end->jump_from = array::init<TAC*>();
-            array::push(code->gen->tac, end);
-            forI(state->truelist.count) {
-                TAC* resolve = array::read(state->truelist, i);
-                resolve->arg0 = end;
-                array::push(end->jump_from, resolve);
-            }
-            end->node = second;
-        }
-    } else {
-        // we're at the end, so we don't need a jump and we can backfill all previous jumps
-        // and the hanging cond_jump
-        TAC* end = add_tac(code->gen);
-        end->op = tac::nop;
-        end->jump_from = array::init<TAC*>();
-        array::push(code->gen->tac, end);
-        forI(state->truelist.count) {
-            TAC* resolve = array::read(state->truelist, i);
-            resolve->arg0 = end;            
-            array::push(end->jump_from, resolve);
-        }
-        array::pop(state->falselist)->arg1 = end;
-        end->node = first;
-    }
+    //     // we've reached the end of an if/else ladder
+    //     // so we can fill out the true body jumps
+    //     if(second->kind != expr::conditional) {
+    //         // we make a label TAC for the jumps, because we dont know yet
+    //         // what the next instruction is actually going to be
+    //         // this should be cleaned up eventually, ideally removing the need for making this at all
+    //         TAC* end = add_tac(code->gen);
+    //         end->op = tac::nop;
+    //         end->jump_from = array::init<TAC*>();
+    //         array::push(code->gen->tac, end);
+    //         forI(state->truelist.count) {
+    //             TAC* resolve = array::read(state->truelist, i);
+    //             resolve->arg0 = end;
+    //             array::push(end->jump_from, resolve);
+    //         }
+    //         end->node = second;
+    //     }
+    // } else {
+    //     // we're at the end, so we don't need a jump and we can backfill all previous jumps
+    //     // and the hanging cond_jump
+    //     TAC* end = add_tac(code->gen);
+    //     end->op = tac::nop;
+    //     end->jump_from = array::init<TAC*>();
+    //     array::push(code->gen->tac, end);
+    //     forI(state->truelist.count) {
+    //         TAC* resolve = array::read(state->truelist, i);
+    //         resolve->arg0 = end;            
+    //         array::push(end->jump_from, resolve);
+    //     }
+    //     array::pop(state->falselist)->arg1 = end;
+    //     end->node = first;
+    // }
 
-    Arg out = {};
-    if(state->temp) {
-        out.kind = arg::var;
-        out.var = state->temp;
-    }
-    return out;
+    // Arg out = {};
+    // if(state->temp) {
+    //     out.kind = arg::var;
+    //     out.var = state->temp;
+    // }
+    // return out;
 }
 
 Arg
@@ -177,7 +191,7 @@ expression(Code* code, Expr* e) {
             add->arg0 = lhs;
             add->arg1 = rhs;
 
-            array::push(code->gen->tac, add);
+            // array::push(code->gen->tac, add);
             add->node = e;
             return add;
         } break;
@@ -198,7 +212,7 @@ expression(Code* code, Expr* e) {
             tac->arg0 = lhs;
             tac->arg1 = rhs;
 
-            array::push(code->gen->tac, tac);
+            // array::push(code->gen->tac, tac);
 
             tac->node = e;
 
@@ -217,13 +231,13 @@ expression(Code* code, Expr* e) {
             }
 
             forI(returns.count) {
+                Arg ret = array::read(returns, i);
                 TAC* tac = add_tac(code->gen);
                 tac->op = tac::param;
-                Arg ret = array::read(returns, i);
 
                 tac->arg0 = ret;
 
-                array::push(code->gen->tac, tac);
+                //array::push(code->gen->tac, tac);
             }
 
             TAC* tac = add_tac(code->gen);
@@ -231,7 +245,7 @@ expression(Code* code, Expr* e) {
             tac->arg0.kind = tac::arg::func;
             tac->arg0.func = ce->callee;
 
-            array::push(code->gen->tac, tac);
+           // array::push(code->gen->tac, tac);
 
             tac->node = e;
 
@@ -242,41 +256,139 @@ expression(Code* code, Expr* e) {
             return array::read(code->gen->tac, -1);
         } break;
         case expr::conditional: {
-            ConditionalState state = {};
+            // ConditionalState state = {};
             
-            state.truelist = array::init<TAC*>();
-            state.falselist = array::init<TAC*>();
+            // state.truelist = array::init<TAC*>();
+            // state.falselist = array::init<TAC*>();
             
+            // if(!e->first_child()->next<Expr>()
+            //      ->type->is_any<Void, Whatever>()) {
+            //     state.temp = Var::create();
+            //     state.temp->type = e->type;
+
+            //     TAC* result = add_tac(code->gen);
+            //     result->op = tac::temp;
+            //     result->arg0.kind = tac::arg::var;
+            //     result->arg0.var = state.temp;
+            //     result->arg0.var->reg_offset = code->gen->registers.count;
+            //     Register* r = array::push(code->gen->registers);
+            //     r->idx = result->arg0.var->reg_offset;
+
+            //     state.temp->label = 
+            //         VirtualLabel::create(
+            //                 dstring::init("cond_temp(", code->gen->tac.count, ")"));
+
+            //     result->node = e;
+
+            //     array::push(code->gen->tac, result);
+            // }
+            
+            // return conditional(code, e, &state);
+
+            Var* temp = 0;
+
             if(!e->first_child()->next<Expr>()
-                 ->type->is_any<Void, Whatever>()) {
-                state.temp = Var::create();
-                state.temp->type = e->type;
-
-                TAC* result = add_tac(code->gen);
-                result->op = tac::temp;
-                result->arg0.kind = tac::arg::var;
-                result->arg0.var = state.temp;
-                result->arg0.var->reg_offset = code->gen->registers.count;
-                Register* r = array::push(code->gen->registers);
-                r->idx = result->arg0.var->reg_offset;
-
-                state.temp->label = 
-                    VirtualLabel::create(
-                            dstring::init("cond_temp(", code->gen->tac.count, ")"));
-
-                result->node = e;
-
-                array::push(code->gen->tac, result);
-            }
+                 ->type->is_any<Void,Whatever>()) {
+                temp = Var::create(e->type);
+                temp->label = VirtualLabel::create(dstring::init(
+                                "cond_temp(", code->gen->tac.count, ")"));
+                temp->reg_offset = code->gen->registers.count;
+                TAC* temp_tac = add_tac(code->gen);
+                temp_tac->op = tac::temp;
+                temp_tac->arg0.kind = tac::arg::var;
+                temp_tac->arg0.var = temp;
+                temp_tac->node = e;
+            }   
             
-            return conditional(code, e, &state);
+            Expr* curr = e;
+
+            TAC* last_condjump = 0;
+            auto truejumps = array::init<TAC*>();
+
+            while(1) {
+                auto cond       = curr->first_child<Expr>();
+                auto true_body  = curr->first_child()->next<Expr>();;
+                auto false_body = curr->last_child<Expr>();
+
+                Arg cond_eval = expression(code, cond);
+
+                // create a conditional jump 
+                TAC* condjump = add_tac(code->gen);
+                condjump->op = tac::jump_zero;
+                condjump->arg0 = cond_eval;
+                condjump->node = cond;
+
+                // generate code for true body
+                Arg true_eval = expression(code, true_body); 
+
+                // generate the jump out of the true body
+                TAC* truejump = add_tac(code->gen);
+                truejump->op = tac::jump;
+                truejump->node = (true_body->last_child()? true_body->last_child() : true_body);
+                array::push(truejumps, truejump);
+
+                TAC* placeholder = add_tac(code->gen);
+                placeholder->op = tac::nop;
+                placeholder->from = condjump;
+
+                condjump->arg1.kind = tac::arg::temporary;
+                condjump->arg1.temporary = placeholder;
+
+                if(true_body == false_body) { // there is no false body
+                    
+                    if(!truejumps.count) break;
+
+                    TAC* last_jump = array::pop(truejumps);
+                    last_jump->arg0.temporary = placeholder;
+                    last_jump->arg0.kind = tac::arg::temporary;
+                    placeholder->from->next = last_jump;
+
+                    while(truejumps.count) {
+                        TAC* j = array::pop(truejumps);
+                        j->arg0.temporary = placeholder;
+                        j->arg0.kind = tac::arg::temporary;
+                        last_jump->next = j;
+                        last_jump = j;
+                    }
+                    if(temp) return temp;
+                    return {};
+                }
+
+                if(false_body->is(expr::conditional)) {
+                    curr = false_body;
+                    continue;
+                } 
+
+                // we've reached an else with no following if
+
+                Arg false_eval = expression(code, false_body);
+
+                placeholder = add_tac(code->gen);
+                placeholder->op = tac::nop;
+
+                TAC* last_jump = array::pop(truejumps);
+                last_jump->arg0.kind = tac::arg::temporary;
+                last_jump->arg0.temporary = placeholder;
+                placeholder->from = last_jump;
+
+                while(truejumps.count) {
+                    TAC* j = array::pop(truejumps);
+                    j->arg0.kind = tac::arg::temporary;
+                    j->arg0.temporary = placeholder;
+                    last_jump->next = j;
+                    last_jump = j;
+                }
+
+                if(temp) return temp;
+                return {};
+            }
         } break;
 
         case expr::loop: {
             u32 count = code->gen->tac.count;
             TAC* nop = add_tac(code->gen);
             nop->node = e;
-            array::push(code->gen->tac, nop);
+            // array::push(code->gen->tac, nop);
             array::push(code->gen->break_stacks, array::init<TAC*>());
 
             Arg arg = expression(code, e->first_child<Expr>());
@@ -285,11 +397,31 @@ expression(Code* code, Expr* e) {
             tac->op = tac::jump;
             tac->arg0.kind = tac::arg::temporary;
             tac->arg0.temporary = array::read(code->gen->tac, count);
+            tac->to = nop;
             tac->node = e;
 
-            code->gen->resolve_breaks++;
+            auto break_stack = array::pop(code->gen->break_stacks);
+            if(break_stack.count) {
+                TAC* nop = add_tac(code->gen);
+                nop->node = e;
 
-            array::push(code->gen->tac, tac);
+                TAC* last_break = array::pop(break_stack);
+                last_break->arg0.kind = arg::temporary;
+                last_break->arg0.temporary = nop;
+                nop->from = last_break;
+
+                while(break_stack.count) {
+                    TAC* b = array::pop(break_stack);
+                    b->arg0.kind = arg::temporary;
+                    b->arg0.temporary = nop;
+                    last_break->next = b;
+                    last_break = b;
+                }
+            }
+            
+
+
+            // array::push(code->gen->tac, tac);
 
             return Arg();
         } break;
@@ -299,7 +431,7 @@ expression(Code* code, Expr* e) {
             jump->op = tac::jump;
             jump->node = e;
             array::push(array::readref(code->gen->break_stacks, -1), jump);
-            array::push(code->gen->tac, jump);
+            // array::push(code->gen->tac, jump);
 
             return jump;
         } break;
@@ -310,18 +442,9 @@ expression(Code* code, Expr* e) {
             // but later on I want to set it up to return the first true 
             // value so that we can do things like 
             // a := func() || other_func() || return;
-            Var* v = Var::create();
-            v->type = e->type;
-            v->label = VirtualLabel::create(
-                    dstring::init("or_temp(", code->gen->tac.count, ")"));
-            
             TAC* temp = add_tac(code->gen);
             temp->op = tac::temp;
-            temp->arg0.kind = arg::var;
-            temp->arg0.var = v;
             temp->node = e;
-
-            array::push(code->gen->tac, temp);
 
             auto jump_stack = array::init<TAC*>();
 
@@ -344,74 +467,73 @@ expression(Code* code, Expr* e) {
             TAC* ljump = add_tac(code->gen);
             ljump->op = tac::jump_not_zero;
             ljump->arg0 = lhs;
+            ljump->node = e;
 
             array::push(jump_stack, ljump);
-            array::push(code->gen->tac, ljump);
+
+            b32 user_exit = 0;
 
             // gather the rhs of each level
             while(1) {
                 Arg rhs = expression(code, left->last_child<Expr>());
+
+                // the user has already setup the exit for us 
+                if(left->last_child()->is_any(expr::break_, expr::return_)) {
+                    user_exit = true;
+                    break;
+                }   
+
                 TAC* rjump = add_tac(code->gen);
                 rjump->op = tac::jump_not_zero;
                 rjump->arg0 = rhs;
                 rjump->node = e;
 
-                array::push(code->gen->tac, rjump);
                 array::push(jump_stack, rjump);
 
                 if(!left_stack.count) break;
                 left = array::pop(left_stack);
             }
 
-            // TODO(sushi) this isn't necessary cause everything inits to 0
-            // PROBABLY
-            TAC* fail = add_tac(code->gen);
-            fail->op = tac::assignment;
-            fail->arg0.kind = tac::arg::var;
-            fail->arg0.var = v;
-            fail->arg1.kind = tac::arg::literal;
-            fail->arg1.literal = 0;
-            fail->node = e;
-
-            array::push(code->gen->tac, fail);
-
-            TAC* fail_jump = add_tac(code->gen);
-            fail_jump->op = tac::jump;
-            fail_jump->node = e;
-
-            array::push(code->gen->tac, fail_jump);
+            TAC* fail_jump = 0; 
+            if(!user_exit) {
+                fail_jump = add_tac(code->gen);
+                fail_jump->op = tac::jump;
+                fail_jump->node = e;
+            }
 
             TAC* success = add_tac(code->gen);
             success->op = tac::assignment;
-            success->arg0.kind = tac::arg::var;
-            success->arg0.var = v;
+            success->arg0.kind = tac::arg::temporary;
+            success->arg0.temporary = temp;
             success->arg1.kind = tac::arg::literal;
             success->arg1.literal = 1;
             success->node = e;
-            success->jump_from = array::init<TAC*>();
 
-            array::push(code->gen->tac, success);
+            if(fail_jump) {
+                TAC* fin = add_tac(code->gen);
+                fin->op = tac::nop;
+                fin->node = e;
+                fin->from = fail_jump;
 
-            // TODO(sushi) replace with a different backfilling system
-            TAC* fin = add_tac(code->gen);
-            fin->op = tac::nop;
-            fin->node = e;
-            fin->jump_from = array::init<TAC*>();
-            array::push(fin->jump_from, fail_jump);
-
-            array::push(code->gen->tac, fin);
-
-            fail_jump->arg0.kind = tac::arg::temporary;
-            fail_jump->arg0.temporary = fin;
-
-            while(jump_stack.count) {
-                TAC* resolved = array::pop(jump_stack);
-                resolved->arg1.kind = tac::arg::temporary;
-                resolved->arg1.temporary = success;
-                resolved->node = e;
-                array::push(success->jump_from, resolved);
+                fail_jump->arg0.kind = tac::arg::temporary;
+                fail_jump->arg0.temporary = fin;
             }
-            
+
+
+            if(jump_stack.count) {
+                TAC* last_jump = array::pop(jump_stack);
+                success->from = last_jump;
+                last_jump->arg1.kind = tac::arg::temporary;
+                last_jump->arg1.temporary = success;
+
+                while(jump_stack.count) {
+                    TAC* b = array::pop(jump_stack);
+                    b->arg1.kind = arg::temporary;
+                    b->arg1.temporary = success;
+                    last_jump->next = b;
+                    last_jump = b;
+                }
+            }
             return temp;
         } break;
 
@@ -426,16 +548,83 @@ expression(Code* code, Expr* e) {
             // a := func?() && other_func?() && another_func?() && return;
             // if any func failed, a will have its value, otherwise the function
             // will have returned
-            Arg lhs = expression(code, e->first_child<Expr>());
-            Arg rhs = expression(code, e->last_child<Expr>());
+            TAC* temp = add_tac(code->gen);
+            temp->op = tac::temp;
+            temp->node = e;
 
-            TAC* tac = add_tac(code->gen);
-            tac->op = tac::logical_or;
-            tac->arg0 = lhs;
-            tac->arg1 = rhs;
-            tac->node = e;
-            array::push(code->gen->tac, tac);
-            return tac;
+            auto jump_stack = array::init<TAC*>();
+
+            auto left_stack = array::init<Expr*>();
+            array::push(left_stack, e);
+            auto left = e->first_child<Expr>();
+            while(1) {
+                if(left->is_not(expr::binary_and)) break;
+                array::push(left_stack, left);
+                left = left->first_child<Expr>();
+            }
+
+            Arg left_result;
+
+            left = array::pop(left_stack);
+
+            // get deepest lhs expression result 
+            Arg lhs = expression(code, left->first_child<Expr>());
+
+            TAC* ljump = add_tac(code->gen);
+            ljump->op = tac::jump_zero;
+            ljump->arg0 = lhs;
+            ljump->node = e;
+
+            array::push(jump_stack, ljump);
+
+            b32 user_exit = 0;
+
+            // gather the rhs of each level
+            while(1) {
+                Arg rhs = expression(code, left->last_child<Expr>());
+
+                // the user has already setup the exit for us 
+                if(left->last_child()->is_any(expr::break_, expr::return_)) {
+                    user_exit = true;
+                    break;
+                }   
+
+                TAC* rjump = add_tac(code->gen);
+                rjump->op = tac::jump_zero;
+                rjump->arg0 = rhs;
+                rjump->node = e;
+
+                array::push(jump_stack, rjump);
+
+                if(!left_stack.count) break;
+                left = array::pop(left_stack);
+            }
+
+            TAC* success = add_tac(code->gen);
+            success->op = tac::assignment;
+            success->arg0.kind = tac::arg::temporary;
+            success->arg0.temporary = temp;
+            success->arg1.kind = tac::arg::literal;
+            success->arg1.literal = 1;
+            success->node = e;
+
+            TAC* fail_jump = add_tac(code->gen);
+
+            if(jump_stack.count) {
+                TAC* last_jump = array::pop(jump_stack);
+                fail_jump->from = last_jump;
+                last_jump->arg1.kind = tac::arg::temporary;
+                last_jump->arg1.temporary = fail_jump;
+
+                while(jump_stack.count) {
+                    TAC* b = array::pop(jump_stack);
+                    b->arg1.kind = arg::temporary;
+                    b->arg1.temporary = fail_jump;
+                    last_jump->next = b;
+                    last_jump = b;
+                }
+            }
+            return temp;
         } break;
     }
 
@@ -471,7 +660,7 @@ statement(Code* code, Stmt* s) {
                     tac->arg1 = arg;
                     tac->node = s;
 
-                    array::push(code->gen->tac, tac);
+                    // array::push(code->gen->tac, tac);
                 } break;
                 default: {
                     Assert(0); // unhandled label kind 
@@ -498,14 +687,14 @@ statement(Code* code, Stmt* s) {
                     ret->op = tac::block_value;
                     ret->arg0 = arg;
                     ret->node = s->first_child();
-                    array::push(code->gen->tac, ret);
+                    // array::push(code->gen->tac, ret);
                 }
             } else {
                 // we are just returning from the function
                 TAC* ret = add_tac(code->gen);
                 ret->op = tac::op::ret;
                 ret->node = s;
-                array::push(code->gen->tac, ret);
+                // array::push(code->gen->tac, ret);
             }
         } break;
     }
@@ -515,7 +704,7 @@ void
 block(Code* code, Block* e) {
     TAC* tac = add_tac(code->gen);
     tac->op = tac::block_start;
-    array::push(code->gen->tac, tac);
+    // array::push(code->gen->tac, tac);
     for(auto n = e->first_child<Stmt>(); n; n = n->next<Stmt>()) {
         statement(code, n);
     }
@@ -525,7 +714,7 @@ block(Code* code, Block* e) {
         tac = add_tac(code->gen);
         tac->op = tac::block_end;
         tac->node = e;
-        array::push(code->gen->tac, tac);
+        // array::push(code->gen->tac, tac);
     }
 }
 
@@ -629,66 +818,39 @@ function(Code* code) {
     forI(tacseq.count) {
         TAC* tac = array::read(tacseq, i);
         if(tac->node->flags.break_air_gen) DebugBreakpoint;
+        tac->bc_offset = code->gen->air.count;
 
-        forI(tac->jump_from.count) {
-            TAC* fill = array::read(tac->jump_from, i);
-            if(fill->bc_offset < code->gen->air.count) {
-                BC* bc = array::readptr(code->gen->air, fill->bc_offset);
-                switch(bc->instr) {
-                    case op::jump_zero:
-                    case op::jump_not_zero: {
-                        bc->offset_b = code->gen->air.count - fill->bc_offset;
-                    } break;
-
-                    case op::jump: {
-                        bc->offset_a = code->gen->air.count - fill->bc_offset;
-                    } break;
+        if(tac->from) {
+            TAC* from = tac->from;
+            while(from) {
+                if(from->bc_offset != -1) {
+                    BC* bc = array::readptr(code->gen->air, from->bc_offset);
+                    if(bc->instr == op::jump) {
+                        bc->offset_a = code->gen->air.count - from->bc_offset;
+                    } else {
+                        bc->offset_b = code->gen->air.count - from->bc_offset;
+                    }
                 }
+                from = from->next;
             }
         }
 
-        // if(cond_backpatches.count) {
-        //     Backpatch bp = array::read(cond_backpatches, -1);
-        //     while(bp.patcher == tac) {
-        //         array::pop(cond_backpatches);
-        //         array::readref(code->gen->air, bp.to_be_patched).offset_b = code->gen->air.count - bp.to_be_patched;
-        //         if(!cond_backpatches.count) break;
-        //         bp = array::read(cond_backpatches, -1);
-        //     }
-        // }
-
-        // if(jump_backpatches.count) {
-        //     Backpatch bp = array::read(jump_backpatches, -1);
-        //     while(bp.patcher == tac) {
-        //         array::pop(jump_backpatches);
-        //         array::readref(code->gen->air, bp.to_be_patched).offset_a = code->gen->air.count - bp.to_be_patched;
-        //         if(!jump_backpatches.count) break;
-        //         bp = array::read(jump_backpatches, -1);
-        //     }
-        // }
         switch(tac->op) {
             case tac::nop: {
                 map::add(offset_map, tac, (u32)code->gen->air.count);
             } break;
 
             case tac::block_start: {
-                auto br = array::init<u32>();
-                array::push(block_registers, br);
+                // auto br = array::init<u32>();
+                // array::push(block_registers, br);
+                tac->bc_offset = code->gen->air.count;
             } break;
 
             case tac::block_end: {
-                auto registers = array::pop(block_registers);
-                forI(registers.count) {
-                    BC* reset = array::push(code->gen->air);
-                    reset->instr = op::copy;
-                    reset->offset_a = array::read(registers, i);
-                    reset->offset_b = 0;
-                    reset->flags.right_is_const = true;
-                    reset->node = tac->node;
-                }
             } break;
 
             case tac::jump_zero: {
+                // tac->bc_offset = code->gen->air.count;
                 BC* bc = array::push(code->gen->air);
                 bc->node = tac->node;
                 bc->instr = op::jump_zero;
@@ -705,10 +867,10 @@ function(Code* code) {
                     } break;
                 }
 
-                tac->bc_offset = code->gen->air.count-1;
             } break;
 
             case tac::jump_not_zero: {
+                // tac->bc_offset = code->gen->air.count;
                 BC* bc = array::push(code->gen->air);
                 bc->node = tac->node;
                 bc->instr = op::jump_not_zero;
@@ -725,31 +887,26 @@ function(Code* code) {
                     } break;
                 }
 
-                tac->bc_offset = code->gen->air.count-1;
             } break;
 
             case tac::jump: {
+                // tac->bc_offset = code->gen->air.count;
                 BC* bc = array::push(code->gen->air);
                 bc->node = tac->node;
                 bc->instr = op::jump;
-                auto [idx, found] = map::find(offset_map, tac->arg0.temporary);
+                if(tac->to && tac->to->bc_offset != -1) {
+                    bc->offset_a = tac->to->bc_offset - code->gen->air.count + 1;
+                }
 
-                if(found) {
-                    bc->offset_a = array::read(offset_map.values, idx) - code->gen->air.count + 1;
-                } 
-                //     Backpatch* bp = array::insert(jump_backpatches, 0);
-                //     bp->to_be_patched = code->gen->air.count-1;
-                //     bp->patcher = tac->arg0.temporary;
-                // }
-
-                tac->bc_offset = code->gen->air.count-1;
             } break;
 
             case tac::temp: {
                 map::add(offset_map, tac, (u32)code->gen->registers.count);
+                tac->arg0.kind = tac::arg::reg;
+                tac->arg0.reg_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
                 r->idx = code->gen->registers.count - 1;
-                array::push(array::readref(block_registers, -1), r->idx);
+                // tac->bc_offset = code->gen->air.count;
             } break;
 
             case tac::addition:
@@ -759,11 +916,11 @@ function(Code* code) {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
                 r->idx = dest_offset;
-                array::push(array::readref(block_registers, -1), r->idx);
+                // tac->bc_offset = code->gen->air.count;
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->node = tac->node;
-                bc0->instr = op::add;
+                bc0->instr = op::copy;
                 bc0->offset_a = dest_offset;
 
                 switch(tac->arg0.kind) {
@@ -776,6 +933,9 @@ function(Code* code) {
                     } break;
                     case tac::arg::var: {
                         bc0->offset_b = tac->arg0.var->reg_offset; 
+                    } break;
+                    case tac::arg::reg: {
+                        bc0->offset_b = tac->arg0.reg_offset;
                     } break;
                 }
 
@@ -799,6 +959,9 @@ function(Code* code) {
                     case tac::arg::var: {
                         bc1->offset_b = tac->arg1.var->reg_offset; 
                     } break;
+                    case tac::arg::reg: {
+                        bc1->offset_b = tac->arg1.reg_offset;
+                    } break;
                 }
 
                 map::add(offset_map, tac, dest_offset);
@@ -813,11 +976,11 @@ function(Code* code) {
                 u32 dest_offset = code->gen->registers.count;
                 Register* r = array::push(code->gen->registers);
                 r->idx = dest_offset;
-                array::push(array::readref(block_registers, -1), r->idx);
+                // tac->bc_offset = code->gen->air.count;
 
                 BC* bc0 = array::push(code->gen->air);
                 bc0->node = tac->node;
-                bc0->instr = op::add;
+                bc0->instr = op::copy;
                 bc0->offset_a = dest_offset;
 
                 switch(tac->arg0.kind) {
@@ -830,6 +993,9 @@ function(Code* code) {
                     } break;
                     case tac::arg::var: {
                         bc0->offset_b = tac->arg0.var->reg_offset; 
+                    } break;
+                    case tac::arg::reg: {
+                        bc0->offset_b = tac->arg0.reg_offset;
                     } break;
                 }
 
@@ -846,7 +1012,8 @@ function(Code* code) {
 
                 switch(tac->arg1.kind) {
                     case tac::arg::temporary: {
-                        bc1->offset_b = array::read(offset_map.values, map::find(offset_map, tac->arg1.temporary).index);
+                        bc1->offset_b = tac->arg0.reg_offset;
+                        // bc1->offset_b = array::read(offset_map.values, map::find(offset_map, tac->arg1.temporary).index);
                     } break;
                     case tac::arg::literal: {
                         bc1->flags.right_is_const = true;
@@ -854,6 +1021,9 @@ function(Code* code) {
                     } break;
                     case tac::arg::var: {
                         bc1->offset_b = tac->arg1.var->reg_offset; 
+                    } break;
+                    case tac::arg::reg: {
+                        bc1->offset_b = tac->arg1.reg_offset;
                     } break;
                 }
 
@@ -865,22 +1035,31 @@ function(Code* code) {
             } break;
 
             case tac::assignment: {
+                // tac->bc_offset = code->gen->air.count;
+                
                 BC* bc = array::push(code->gen->air);
                 bc->node = tac->node;
                 bc->instr = op::copy;
 
                 switch(tac->arg0.kind) {
                     case tac::arg::temporary: {
-                        bc->offset_a = array::read(offset_map.values, map::find(offset_map, tac->arg0.temporary).index);
+                        bc->offset_a = tac->arg0.temporary->arg0.reg_offset;
+
+                        //bc->offset_a = array::read(offset_map.values, map::find(offset_map, tac->arg0.temporary).index);
                     } break;
                     case tac::arg::var: {
                         bc->offset_a = tac->arg0.var->reg_offset;
+                    } break;
+                    case tac::arg::reg: {
+                        bc->offset_a = tac->arg0.reg_offset;
                     } break;
                 }
 
                 switch(tac->arg1.kind) {
                     case tac::arg::temporary: {
-                        bc->offset_b = array::read(offset_map.values, map::find(offset_map, tac->arg1.temporary).index);
+                        bc->offset_b = tac->arg1.temporary->arg0.reg_offset;
+
+                        // bc->offset_b = array::read(offset_map.values, map::find(offset_map, tac->arg1.temporary).index);
                     } break;
                     case tac::arg::var: {
                         bc->offset_b = tac->arg1.var->reg_offset;
@@ -888,6 +1067,9 @@ function(Code* code) {
                     case tac::arg::literal: {
                         bc->flags.right_is_const = true;
                         bc->offset_b = tac->arg1.literal;
+                    } break;
+                    case tac::arg::reg: {
+                        bc->offset_b = tac->arg1.reg_offset;
                     } break;
                 }
             } break;
@@ -897,7 +1079,7 @@ function(Code* code) {
                 map::add(offset_map, tac, offset);
                 Register* r = array::push(code->gen->registers);
                 r->idx = offset;
-                array::push(array::readref(block_registers, -1), r->idx);
+                // tac->bc_offset = code->gen->air.count;
 
                 BC* bc = array::push(code->gen->air);
                 bc->node= tac->node;
@@ -914,6 +1096,9 @@ function(Code* code) {
                     case tac::arg::literal: {
                         bc->flags.right_is_const = true;
                         bc->offset_b = tac->arg0.literal;
+                    } break;
+                    case tac::arg::reg: {
+                        bc->offset_b = tac->arg0.reg_offset;
                     } break;
                 }
             } break;
@@ -950,7 +1135,7 @@ generate(Code* code) {
     forI(code->gen->air.count) {
         BC* bc = array::readptr(code->gen->air, i);
         if(last_line_num == -1 || last_line_num != bc->node->start->l0) {
-            util::println(bc->node->first_line(true, true));
+            // util::println(bc->node->first_line(true, true));
             last_line_num = bc->node->start->l0;
         }
         util::println(to_string(bc, code));
