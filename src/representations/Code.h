@@ -14,7 +14,7 @@
 #define AMU_CODE_H
 
 #include "processors/Sema.h"
-#include "processors/Generator.h"
+#include "processors/Gen.h"
 #include "systems/Machine.h"
 
 namespace amu {

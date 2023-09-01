@@ -15,7 +15,7 @@
 #include "processors/Lexer.h"
 #include "processors/Parser.h"
 #include "processors/Sema.h"
-#include "processors/Generator.h"
+#include "processors/Gen.h"
 #include "representations/Code.h"
 #include "systems/Machine.h"
 
