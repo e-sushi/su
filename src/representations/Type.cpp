@@ -91,6 +91,8 @@ debug_str() {
     return out;
 }
 
+Array<Pointer*> Pointer::set = array::init<Pointer*>();
+
 String Pointer::
 name() { // !Leak
     return dstring::init(type->name(), "*");
@@ -104,6 +106,27 @@ debug_str() {
 u64 Pointer::
 size() {
     return sizeof(void*);
+}
+
+Array<StaticArray*> StaticArray::set = array::init<StaticArray*>();
+
+
+// NOTE(sushi) I am VERY sorry to whoever reads or needs to fix the following functions 
+//             I am not interested in trying to setup a concrete implementation of storing 
+//             and accessing unique types yet, so the following code is stupidly scuffed
+StaticArray* StaticArray::
+create(Type* type, u64 count) {
+    u64 hash = (u64(type) << count) * 1234;
+    auto [idx, found] = amu::array::util:: // this suuuuuuuucks
+        search<StaticArray*, u64>(StaticArray::set, hash, 
+            [](StaticArray* a){ return (u64(a->type) << a->count) * 1234; });
+
+    if(found) return amu::array::read(StaticArray::set, idx);
+    StaticArray* nu = pool::add(compiler::instance.storage.static_array_types);
+    nu->type = type;
+    nu->count = count;
+    amu::array::insert(StaticArray::set, idx, nu);
+    return nu;
 }
 
 String StaticArray::
@@ -121,21 +144,66 @@ size() {
     return sizeof(void*) + sizeof(u64);
 }
 
-StaticArray* StaticArray::
-create(Type* type, u64 count) {
+Array<ViewArray*> ViewArray::set = array::init<ViewArray*>();
+
+ViewArray* ViewArray::
+create(Type* type) {
     u64 hash = (u64)type;
     auto [idx, found] = amu::array::util::
-        search<type::array::ExistantArray, u64>(type::array::set, hash, [](type::array::ExistantArray& a){return a.hash;});
+        search<ViewArray*, u64>(ViewArray::set, hash, [](ViewArray* a){return u64(a->type);});
 
-    if(found) return amu::array::read(type::array::set, idx).atype;
-    type::array::ExistantArray* nu = amu::array::insert(type::array::set, idx);
-    nu->hash = hash;
-    nu->atype = pool::add(compiler::instance.storage.array_types);
-    nu->atype->count = count;
-    nu->atype->type = type;
-    nu->atype->kind = type::kind::static_array;
-    nu->atype->ASTNode::kind = ast::entity;
-    return nu->atype;
+    if(found) return amu::array::read(ViewArray::set, idx);
+
+    ViewArray* nu = pool::add(compiler::instance.storage.view_array_types);
+    nu->type = type;
+    amu::array::insert(ViewArray::set, idx, nu);
+    return nu;
+}
+
+String ViewArray::
+name() {
+    return dstring::init(this->type->name(), "[]");
+}
+
+DString ViewArray::
+debug_str() {
+    return dstring::init(name());
+}
+
+u64 ViewArray::
+size() {
+    return sizeof(void*) + sizeof(u64);
+}
+
+Array<DynamicArray*> DynamicArray::set = array::init<DynamicArray*>();
+
+DynamicArray* DynamicArray::
+create(Type* type) {
+    u64 hash = (u64)type;
+    auto [idx, found] = amu::array::util::
+        search<DynamicArray*, u64>(DynamicArray::set, hash, [](DynamicArray* a){return u64(a->type);});
+
+    if(found) return amu::array::read(DynamicArray::set, idx);
+
+    DynamicArray* nu = pool::add(compiler::instance.storage.dynamic_array_types);
+    nu->type = type;
+    amu::array::insert(DynamicArray::set, idx, nu);
+    return nu;
+}
+
+String DynamicArray::
+name() {
+    return dstring::init(this->type->name(), "[..]");
+}
+
+DString DynamicArray::
+debug_str() {
+    return dstring::init(name());
+}
+
+u64 DynamicArray::
+size() { // TODO(sushi) size of Allocators when they are implemented
+    return sizeof(void*) + sizeof(u64) + sizeof(u64);
 }
 
 // FunctionType does not try to be unique for now
@@ -172,27 +240,31 @@ size() {
     return sizeof(void*); // treated as pointers for now 
 }
 
+Array<TupleType*> TupleType::set = array::init<TupleType*>();
 
 TupleType* TupleType::
 create(Array<Type*>& types) {
+    // extremely bad, awful, no good
     u64 hash = 1212515131534;
     forI(types.count) {
         hash <<= (u64)amu::array::read(types, i) * 167272723;
     }
     auto [idx, found] = amu::array::util::
-        search<type::tuple::ExistantTupleType, u64>(type::tuple::set, hash, [](type::tuple::ExistantTupleType& t){return t.hash;});
+        search<TupleType*, u64>(TupleType::set, hash, [](TupleType* t){
+            u64 hash = 1212515131534;
+            forI(t->types.count) {
+                hash <<= (u64)amu::array::read(t->types, i) * 167272723;
+            }
+            return hash;
+        });
     
     if(found) {
         amu::array::deinit(types);
-        return amu::array::read(type::tuple::set, idx).ttype;
+        return amu::array::read(TupleType::set, idx);
     } 
-    type::tuple::ExistantTupleType* nu = amu::array::insert(type::tuple::set, idx);
-    nu->hash = hash;
-    nu->ttype = pool::add(compiler::instance.storage.tuple_types);
-    nu->ttype->types = types;
-    nu->ttype->kind = type::kind::tuple;
-    // nu->ttype->node.kind = node::type;
-    return nu->ttype;
+    TupleType* nu = pool::add(compiler::instance.storage.tuple_types);
+    nu->types = types;
+    return nu;
 }
 
 String TupleType::

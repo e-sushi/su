@@ -194,7 +194,7 @@ namespace util {
 
 
 template<typename T, typename I> SearchResult
-search(Array<T>& arr, I element, I (*get)(T&)) {
+search(Array<T>& arr, I element, I (*get)(T)) {
     s64 index = -1;
     s64 middle = -1;
     if(arr.count) {
@@ -202,7 +202,7 @@ search(Array<T>& arr, I element, I (*get)(T&)) {
         s64 right = arr.count - 1;
         while(left <= right) {
             middle = left+(right-left)/2;
-            I elem = get(array::readref(arr,middle));
+            I elem = get(array::read(arr,middle));
             if(elem == element) {
                 index = middle;
                 break;

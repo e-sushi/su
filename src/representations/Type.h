@@ -13,6 +13,8 @@
 
 namespace amu {
 
+struct Function;
+
 namespace type {
 enum class kind {
     void_, // the type representing nothing 
@@ -21,6 +23,8 @@ enum class kind {
     structured,
     pointer,
     static_array,
+    dynamic_array,
+    view_array,
     function,
     tuple,
     meta,
@@ -32,6 +36,12 @@ struct Type : public Entity {
     type::kind kind;
     // set of traits applied to this Type
     Array<Trait*> traits;
+
+    // Function objects that define this type as its first parameter
+    Array<Function*> methods;
+
+    // Function objects that define a typeref to this Type as its first parameter
+    Array<Function*> static_methods;
 
 
     // ~~~~~~ interface ~~~~~~ 
@@ -207,6 +217,8 @@ is<Structured>() { return is<Type>() && as<Type>()->kind == type::kind::structur
 struct Pointer : public Type {
     Type* type;
 
+    static Array<Pointer*> set;
+
 
     // ~~~~~~ interface ~~~~~~~
 
@@ -234,12 +246,21 @@ struct ExistantPointer {
 extern Array<ExistantPointer> set;
 } // namespace type::pointer
 
+
+// a StaticArray is an array of the form
+//      T[N]
+// where N is some integer. A StaticArray is allocated onto the stack
+// and its data pointer and count cannot be changed
 struct StaticArray : public Type {
     Type* type;
     // NOTE(sushi) the size of an StaticArray does not matter when it comes to type checking
     //             and unique storage of StaticArray, it is used to keep track of what size 
     //             a static array was declared with 
     u64   count;
+
+    static Array<StaticArray*> set;
+
+    // ~~~~~~ interface ~~~~~~~
 
 
     static StaticArray*
@@ -256,6 +277,75 @@ struct StaticArray : public Type {
 
     StaticArray() : Type(type::kind::static_array) {}
 };
+
+template<> b32 inline ASTNode::
+is<StaticArray>() { return is<Type>() && as<Type>()->kind == type::kind::static_array; }
+
+// a DynamicArray is an array of the form
+//      T[..]
+// it stores the members: 
+//      data: T*
+//      count: u64
+//      space: u64
+//      allocater: $allocator // TODO(sushi)
+struct DynamicArray : public Type {
+    Type* type;
+
+    static Array<DynamicArray*> set;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static DynamicArray*
+    create(Type* type);
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    u64
+    size();
+
+    DynamicArray() : Type(type::kind::dynamic_array) {}
+};
+
+template<> b32 inline ASTNode::
+is<DynamicArray>() { return is<Type>() && as<Type>()->kind == type::kind::dynamic_array; }
+
+// a ViewArray is the same as a StaticArray, except that it does not 
+// allocate anything onto the stack and its count and data pointer 
+// can be changed at runtime
+// it is of the form
+//      T[]
+struct ViewArray : public Type {
+    Type* type;
+
+    static Array<ViewArray*> set;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static ViewArray*
+    create(Type* type);
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    u64
+    size();
+
+    ViewArray() : Type(type::kind::view_array) {}
+};
+
+template<> b32 inline ASTNode::
+is<ViewArray>() { return is<Type>() && as<Type>()->kind == type::kind::view_array; }
 
 namespace type::array {
 struct ExistantArray {
@@ -338,6 +428,9 @@ struct TupleType : public Type {
         Array<Type*> types;
         LabelTable table;
     };
+
+    static Array<TupleType*> set;
+
 
     // ~~~~~~ interface ~~~~~~~
 
