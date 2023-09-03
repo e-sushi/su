@@ -10,20 +10,36 @@
 
 namespace amu {
 
+struct CallFrame {
+    BC* ip;
+    Register* fp;
+    Function* f;
+}; 
+
 struct Machine {
-    Code* code;
-    
-    Array<Register> registers; // currently loaded registers
+    // representation of the stack as an unlimited amount of registers
+    Array<Register> registers;
+
+    Array<CallFrame> frames;
+    CallFrame frame;
+
+    Register* stack_top;
 
 
     // ~~~~~~~ interface ~~~~~~~
 
 
+    // creates a machine with some entry Code object
+    // places the instruction pointer at the start of the code's AIR
     static Machine*
-    create(Code* code); 
+    create(Code* entry); 
 
+    // begins execution of the code 
     void
     run();
+
+    void
+    print_stack();
 };
 
 } // namespace amu
