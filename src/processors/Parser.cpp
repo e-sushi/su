@@ -120,6 +120,7 @@ prescan_label() {
                                         auto f = Function::create();
                                         f->start = open_paren;
                                         f->end = token.current();
+                                        f->code = nu;
 
                                         Label* l = Label::create();
                                         l->start = id;
@@ -243,9 +244,9 @@ start() {
         } break;
         case code::source: {
             for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
-                table.push(&code->parser->root->as<Module>()->table);
+                c->parser->table.push(&code->parser->root->as<Module>()->table);
                 if(!c->parser->parse()) return false;
-                table.pop();
+                c->parser->table.pop();
                 node::insert_last(code->parser->root, c->parser->root);
             }
             // when we're done, we need to join all of the children's nodes into the source's

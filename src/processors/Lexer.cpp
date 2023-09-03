@@ -35,6 +35,9 @@ token_is_keyword_or_identifier(String raw) {
 		strcase("any"):       return token::any;
 		strcase("using"):     return token::using_;
 		strcase("in"):        return token::in;
+		strcase("and"):       return token::double_ampersand;
+		strcase("or"):        return token::logi_or;
+		strcase("then"):      return token::then;
     }
     return token::identifier;
 }

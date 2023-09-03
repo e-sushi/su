@@ -14,6 +14,9 @@
 
 */
 
+#ifndef AMU_STRUCTURE_H
+#define AMU_STRUCTURE_H
+
 #include "Label.h"
 #include "Type.h"
 
@@ -45,3 +48,5 @@ to_string(Structure* s) {
 }
 
 } // namespace amu 
+
+#endif // AMU_STRUCTURE_H

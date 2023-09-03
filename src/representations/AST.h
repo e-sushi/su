@@ -43,6 +43,11 @@ struct ASTNode : public TNode {
         memory::zero(this, sizeof(TNode));
     }
 
+    // NOTE(sushi)
+    //     all of the following functionality should probably be moved elsewhere
+    //     I've created Base.h as an idea for how this stuff could be abstracted out
+    //     but it only seems to really apply to AST stuff, so idk 
+
     // a user-friendly name for whatever this ASTNode represents 
     virtual String
     name() = 0;

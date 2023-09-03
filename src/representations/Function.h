@@ -17,6 +17,14 @@ struct FunctionType;
 struct Function : public Entity {
     FunctionType* type;
 
+    // total size on stack needed for this function
+    // (eventually in bytes, but in units of size(Register) for now)
+    u64 stack_size;
+    // where on the stack local variables start 
+    u64 local_start;
+    u64 local_size;
+    u64 return_start;
+
     static Function*
     create(FunctionType* type = 0);
 

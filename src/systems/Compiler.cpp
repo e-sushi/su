@@ -29,7 +29,8 @@ init() {
     instance.storage.lexers           = pool::init<Lexer>(32);
     instance.storage.parsers          = pool::init<Parser>(32);
     instance.storage.semas            = pool::init<Sema>(32);
-    instance.storage.gens             = pool::init<Gen>(32);
+    instance.storage.tac_gens         = pool::init<GenTAC>(32);
+    instance.storage.air_gens         = pool::init<GenAIR>(32);
     instance.storage.machines         = pool::init<Machine>(32);
     instance.storage.modules          = pool::init<Module>(32);
     instance.storage.labels           = pool::init<Label>(32);
@@ -237,12 +238,11 @@ begin(Array<String> args) {
     if(!sema::analyze(entry_source->code)) return;
 
     messenger::deliver();
+    
+    GenTAC::create(entry_source->code)->generate();
+    GenAIR::create(entry_source->code)->generate();
 
-    tac::generate(entry_source->code);
-
-    air::generate(entry_source->code);
-
-    Machine::create(entry_source->code->first_child<Code>())
+    Machine::create(entry_source->code->last_child<Code>())
         ->run();
 
     if(instance.options.dump_diagnostics.path.str) {

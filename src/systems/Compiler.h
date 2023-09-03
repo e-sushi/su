@@ -33,7 +33,8 @@ struct Compiler {
         Pool<Lexer>        lexers;
         Pool<Parser>       parsers;
         Pool<Sema>         semas;
-        Pool<Gen>          gens;
+        Pool<GenTAC>       tac_gens;
+        Pool<GenAIR>       air_gens;
         Pool<Machine>      machines;
         Pool<Module>       modules;
         Pool<Label>        labels;

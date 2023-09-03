@@ -60,7 +60,6 @@
 #define AMU_IMPLEMENTATION
 #include "basic/Memory.h"
 #include "basic/Node.h"
-#include "representations/AST.h"
 #include "storage/View.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
@@ -68,6 +67,8 @@
 #include "storage/String.h"
 #include "storage/DString.h"
 #include "storage/Map.h"
+#include "Base.h"
+#include "representations/AST.h"
 #include "representations/Token.h"
 #include "representations/Source.h"
 #include "representations/Entity.h"
@@ -80,6 +81,8 @@
 #include "representations/Expr.h"
 #include "representations/Stmt.h"
 #include "representations/Tuple.h"
+#include "representations/TAC.h"
+#include "representations/AIR.h"
 #include "representations/Code.h"
 #include "systems/Diagnostics.h"
 #include "systems/Messenger.h"
@@ -87,7 +90,8 @@
 #include "processors/Lexer.h"
 #include "processors/Parser.h"
 #include "processors/Sema.h"
-#include "processors/Gen.h"
+#include "processors/GenTAC.h"
+#include "processors/GenAIR.h"
 #include "systems/Machine.h"
 
 #include <thread>
@@ -119,7 +123,8 @@
 #include "processors/Lexer.cpp"
 #include "processors/Parser.cpp"
 #include "processors/Sema.cpp"
-#include "processors/Gen.cpp"
+#include "processors/GenTAC.cpp"
+#include "processors/GenAIR.cpp"
 #include "systems/Machine.cpp"
 
 

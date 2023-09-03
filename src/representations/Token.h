@@ -63,10 +63,10 @@ enum kind : u32 {
     tilde_assignment,           // ~=
     ampersand,                  // &
     ampersand_assignment,       // &=
-    double_ampersand,           // &&
+    double_ampersand,           // && or 'and'
     vertical_line,              // |
     vertical_line_equals,       // |=
-    logi_or,                    // ||
+    logi_or,                    // || or 'or'
     caret,                      // ^
     caret_equal,                // ^=
     double_less_than,           // <<
@@ -102,6 +102,7 @@ enum kind : u32 {
     switch_,                 // switch
     loop,                    // loop
     in,                      // in
+    then,                    // then
     
     //// types  ////
     group_type,
@@ -155,19 +156,11 @@ struct Token {
     };
 };
 
-void
-to_string(DString& start, Token t) {
-    dstring::append(start, "Token<", t.code->identifier, ":", t.l0, ":", t.c0, " '", t.raw, "'>");
+FORCE_INLINE void to_string(DString& start, Token* t) { 
+    dstring::append(start, "Token<", t->code->identifier, ":", t->l0, ":", t->c0, " '", t->raw, "'>");
 }
-FORCE_INLINE void to_string(DString& start, Token* t) { return to_string(start, *t); }
 
-DString
-to_string(Token t) {
-    DString out = dstring::init();
-    to_string(out, t);
-    return out;
-}
-DString to_string(Token* t) { return to_string(*t); }
+DString to_string(Token* t) { return (t? to_string(*t) : dstring::init("null token")); }
 
 } // namespace amu
 

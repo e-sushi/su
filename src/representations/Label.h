@@ -45,6 +45,9 @@ struct Label : public ASTNode {
     Label(b32 is_virt) : ASTNode(ast::label), is_virtual(is_virt) {}
 };
 
+template<> b32 inline ASTNode::
+is<Label>() { return kind == ast::label; }
+
 struct LabelTable {
     LabelTable* last;
     Map<String, Label*> map;

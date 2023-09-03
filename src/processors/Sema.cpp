@@ -122,6 +122,7 @@ call(Code* code, Call* e) {
     ASTNode* func_arg = f->parameters->first_child();
     ASTNode* call_arg = e->arguments->first_child();
     while(func_arg && call_arg) {
+        if(!expr(code, call_arg->as<Expr>())) return false;
         auto func_arg_t = func_arg->resolve_type();
         auto call_arg_t = call_arg->resolve_type();
         if(!func_arg_t->can_cast_to(call_arg_t)) {

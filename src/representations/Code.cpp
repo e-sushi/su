@@ -28,6 +28,7 @@ from(Code* code, Token* start, Token* end) {
     Code* out;
     if(code->source) {
         SourceCode* sc = pool::add(compiler::instance.storage.source_code);
+        sc->source = code->source;
         sc->tokens.data = start;
         sc->tokens.count = end-start+1;
         out = (Code*)sc;
@@ -36,10 +37,14 @@ from(Code* code, Token* start, Token* end) {
         VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
         vc->tokens = array::copy(c->tokens, start-c->tokens.data, end-start+1);
     }
+
+    // TODO(sushi) find a better way to track what Code Tokens belong to or just get rid of them storing Code entirely
+
     out->source = code->source;
     out->raw.str = start->raw.str;
     out->raw.count = end->raw.str - start->raw.str;
-    // out->node.kind = node::code;
+
+    if(end->kind == token::end_of_file) end--;
 
     out->identifier = dstring::init(code->identifier, ":subcode<", start, ",", end, ">");
 

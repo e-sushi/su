@@ -13,11 +13,14 @@
 #ifndef AMU_CODE_H
 #define AMU_CODE_H
 
-#include "processors/Sema.h"
-#include "processors/Gen.h"
-#include "systems/Machine.h"
-
 namespace amu {
+
+struct Lexer;
+struct Parser;
+struct Sema;
+struct GenTAC;
+struct GenAIR;
+struct Machine;
 
 namespace token {
 enum kind : u32;
@@ -69,7 +72,8 @@ struct Code : public ASTNode {
     Lexer* lexer = 0;
     Parser* parser = 0;
     Sema* sema = 0;
-    Gen* gen = 0;
+    GenTAC* tac_gen = 0;
+    GenAIR* air_gen = 0;
     Machine* machine = 0;
 
     

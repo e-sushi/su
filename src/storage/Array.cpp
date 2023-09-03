@@ -6,6 +6,7 @@ namespace internal {
 template<typename T> void 
 grow_if_needed(Array<T>& arr) {
     if(arr.count >= arr.space) {
+        if(!arr.space) arr.space = 4;
         arr.space = arr.space * 2;
         arr.data = (T*)memory::reallocate(arr.data, arr.space * sizeof(T));
     }

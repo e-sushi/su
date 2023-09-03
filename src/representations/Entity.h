@@ -32,6 +32,7 @@ enum kind {
 struct Entity : public ASTNode {
     entity::kind kind;
     Label* label; // the most recent label used to represent this entity, null if it is anonymous
+    Code* code; // the Code object this Entity belongs to 
 
 
     Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
@@ -56,7 +57,6 @@ struct TemplateParameter {
 struct TemplatedEntity : public Entity {
     Array<TemplateParameter> parameters;
 };
-
 
 struct Trait : public Entity {
 
