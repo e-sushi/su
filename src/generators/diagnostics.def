@@ -152,7 +152,7 @@ group parser {
     diagnostic unknown_identifier {
         type: error;
         message: {
-            en: "reference to unknown identifier.";
+            en: "reference to unknown identifier: %token%";
         }
     }
 

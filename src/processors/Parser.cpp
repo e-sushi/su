@@ -582,7 +582,7 @@ label_after_colon() {
             Label* l = table.search(token.current()->hash);
             if(!l) {
                 diagnostic::parser::
-                    unknown_identifier(token.current());
+                    unknown_identifier(token.current(), token.current());
                 return false;
             }
 
@@ -1313,7 +1313,7 @@ factor() {
         case token::identifier: {
             Label* l = table.search(token.current()->hash);
             if(!l) {
-                diagnostic::parser::unknown_identifier(token.current());
+                diagnostic::parser::unknown_identifier(token.current(), token.current());
                 return false;
             }
 
