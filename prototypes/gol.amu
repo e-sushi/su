@@ -1,0 +1,66 @@
+import std;
+// extract print from std
+using std.print;
+
+// possible implementation of std.array.zero
+// a compile time function
+// due to the colon --------,
+//                          v
+zero :: (a: ?T[?N]) -> void : for i in 0..N do a[i] = T();
+
+// possible implementation of std.array.random
+// fills each slot of an array with a random element
+// from a given tuple of choices
+random :: (a: ?T[?N], choices: (T,...)) -> void =
+    for i in 0..N do
+        a[i] = choices[std.randint(0,choices$.count)];
+
+// constant (compile time) values for setting the size of the board
+width  :: 5;
+height :: 5;
+area   :: width*height;
+
+// create two zero initialized boards, one for evaluation 
+// and one for the next generation
+board_a :: u8[area].random((0,1));
+board_b :: u8[area].zero;
+
+active := 0;
+current :: () -> u8[area] = board_b if active else board_a; 
+next    :: () -> u8[area] = board_a if active else board_b;
+
+// a generator for the cross product of the two given ranges
+// eg.
+//   (0,0), (1,0), (2, 0) ... (width-1, 0), (0, 1), ...
+positions :: std.range.cross(0..width, 0..height);
+
+main :: () -> void {
+    // funky syntax idek if this would work
+    // 'loop' would encompass the entire expression following it, eg everything until this semicolon
+    loop for pos in positions.new {            //                                        |
+        if pos.access {                        //                                        |
+            if pos.count_neighbors == 3 then   //                                        |
+                pos.live;                      //                                        |
+        } else switch pos.count_neighbors {    //                                        |
+            4..8 => pos.die;                   //                                        |
+            _ => pos.live;                     //                                        |
+        }                                      //                                        ,
+    } then active = !active and print_board(); // <--------------------------------------
+}       
+
+count_neighbors :: (x, y, u32) -> u32 = 
+    (x-1,y  ).access + 
+    (x+1,y  ).access + 
+    (x  ,y+1).access + 
+    (x  ,y-1).access + 
+    (x-1,y+1).access + 
+    (x+1,y+1).access + 
+    (x-1,y-1).access + 
+    (x+1,y-1).access;
+
+live :: (x, y: u32) -> u32 = next[(x % width) * width + (y % height)] = 1;
+die  :: (x, y: u32) -> u32 = next[(x % width) * width + (y % height)] = 0;
+
+print_board :: () -> void =
+    for pos in positions.new do
+        pos.access.print("\n" if x == width else " ");
