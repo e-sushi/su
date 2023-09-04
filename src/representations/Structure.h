@@ -67,6 +67,9 @@ struct Structure {
 
     Member*
     add_member(String id);
+
+    void
+    add_member(String id, Member* m);
 };
 
 } // namespace amu 

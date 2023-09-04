@@ -37,4 +37,9 @@ add_member(String id) {
     return out;
 }
 
+void Structure::
+add_member(String id, Member* m) {
+    map::add(members, id, m);
+}
+
 } // namespace amu

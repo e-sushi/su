@@ -297,6 +297,16 @@ prescanned_type() {
             u64 offset = 0;
 
             auto e = (Expr*)node.pop();
+            for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
+                if(s->find_member(m->start->raw)) {
+                    diagnostic::parser::struct_duplicate_member_name(m->start, m->start);
+                    return false;
+                }
+                s->add_member(m->label->name(), m);
+            }
+
+            stype->def = e;
+
             // for(Label* n = e->first_child<Label>(); n; n = n->next<Label>()) {
             //     if(Member* m = s->find_member(n->start->raw); m) { // TODO(sushi) show where it was already defined 
             //         diagnostic::parser::struct_duplicate_member_name(n->start, m->label->start);

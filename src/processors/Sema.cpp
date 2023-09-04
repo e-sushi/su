@@ -163,13 +163,11 @@ typedef_(Code* code, Expr* e) {
     switch(e->type->kind) {
         case type::kind::structured: {
             auto s = e->type->as<Structured>()->structure;
-            for(Label* l = e->first_child<Label>(); l; l = l->next<Label>()) {
-                if(!label(code, l)) return false;
-                auto mem = s->add_member(l->name());
-                mem->type = l->entity->resolve_type();
-                mem->inherited = false;
-                mem->offset = s->size;
-                s->size += l->last_child<Expr>()->type->size();
+            for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
+                if(!expr(code, m->last_child<Expr>())) return false;
+                m->type = m->last_child<Expr>()->type;
+                m->offset = s->size;
+                s->size += m->type->size();
             }
         } break;
     }
@@ -207,7 +205,7 @@ access(Code* code, Access* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
         } break;
         case type::kind::pointer: {
             auto ptype = (Pointer*)lhs_type;
-            if(ptype->type->kind == type::kind::pointer) {
+            if(ptype->type->is<Pointer>()) {
                 diagnostic::sema::
                     too_many_levels_of_indirection_for_access(lhs->start);
             }

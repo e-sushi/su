@@ -1,3 +1,22 @@
+vec2 :: struct {
+    x: f64;
+    y: f64;
+}
+
+add :: (a: vec2, b: vec2) -> vec2 {
+    out: vec2;
+    out.x = a.x + b.x;
+    out.y = a.y + b.y;
+    out
+}
+
 main :: () -> void {
-    
+    a: vec2;
+    b: vec2;
+    a.x = 1.2;
+    b.x = 1.2;
+    a.y = 3.2;
+    b.y = 3.2;
+
+    add(a, b);
 }

@@ -15,6 +15,7 @@ namespace amu {
 
 struct Function;
 struct Member;
+struct Expr;
 
 namespace type {
 enum class kind {
@@ -32,6 +33,9 @@ enum class kind {
 // base structure of all types, though this is not meant to be created directly
 struct Type : public Entity {
     type::kind kind;
+
+    // pointer to the expression that defines this type 
+    Expr* def;
     // set of traits applied to this Type
     Array<Trait*> traits;
 
