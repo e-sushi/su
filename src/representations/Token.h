@@ -160,7 +160,11 @@ FORCE_INLINE void to_string(DString& start, Token* t) {
     dstring::append(start, "Token<", t->code->identifier, ":", t->l0, ":", t->c0, " '", t->raw, "'>");
 }
 
-DString to_string(Token* t) { return (t? to_string(*t) : dstring::init("null token")); }
+DString to_string(Token* t) { 
+    DString out = dstring::init();
+    to_string(out, t);
+    return out; 
+}
 
 } // namespace amu
 

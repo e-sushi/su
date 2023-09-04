@@ -107,6 +107,7 @@ struct BC {
     struct {
         b32 left_is_const : 1 = false; // offset_a is actually representing a constant value 
         b32 right_is_const : 1 = false; // offset_b is actually representing a constant value 
+        b32 float_op : 1 = false; // this instr is acting on float values
     } flags;
 
     union{

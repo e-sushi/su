@@ -17,6 +17,7 @@ struct Var : public Entity {
     // not set until TAC generation
     // TODO(sushi) look into a better place to put this if any
     u32 reg_offset;
+    
 
     // ~~~~~~ interface ~~~~~~ 
 
@@ -32,6 +33,9 @@ struct Var : public Entity {
 
     DString
     debug_str();
+
+    Type*
+    resolve_type() { return type; }
 
     Var() : Entity(entity::var) {}
 };

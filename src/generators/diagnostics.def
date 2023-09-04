@@ -365,6 +365,27 @@ group parser {
             en: "unexpected token in module, only labels and directives are allowed";
         }
     }
+
+    diagnostic array_missing_close_square {
+        type: error;
+        message: {
+            en: "missing ']' to close array type";
+        }
+    }
+
+    diagnostic runtime_structures_not_allowed {
+        type: error;
+        message: {
+            en: "structure types cannot be defined in runtime memory (did you forget a ':'?)";
+        }
+    }
+
+    diagnostic struct_duplicate_member_name {
+        type:error;
+        message: {
+            en: "member %token% already defined.";
+        }
+    }
 }
 
 group sema {

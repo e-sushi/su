@@ -81,12 +81,12 @@ body() {
             } break;
 
             case tac::func_start: {
-                stack_offset = tac->arg0.literal;
+                stack_offset = tac->arg0._u64;
                 BC* bc = array::push(seq);
                 bc->instr = air::pushn;
                 bc->offset_a = stack_offset;
                 bc->comment = "push function's local stack";
-                // ret_start = tac->arg1.literal;
+                // ret_start = tac->arg1._u64;
             } break;
 
             case tac::jump_zero: {
@@ -96,9 +96,9 @@ body() {
                     case arg::temporary: {
                         bc->offset_a = tac->arg0.temporary->temp_pos;
                     } break;
-                    case arg::literal: {
+                    case arg::literal_u64: {
                         bc->flags.left_is_const = true;
-                        bc->offset_a = tac->arg0.literal;
+                        bc->offset_a = tac->arg0._u64;
                     } break;
                     case arg::var: {
                         bc->offset_a = tac->arg0.var->reg_offset; 
@@ -113,9 +113,9 @@ body() {
                     case arg::temporary: {
                         bc->offset_a = tac->arg0.temporary->temp_pos;
                     } break;
-                    case arg::literal: {
+                    case arg::literal_u64: {
                         bc->flags.left_is_const = true;
-                        bc->offset_a = tac->arg0.literal;
+                        bc->offset_a = tac->arg0._u64;
                     } break;
                     case arg::var: {
                         bc->offset_a = tac->arg0.var->reg_offset; 
@@ -158,9 +158,9 @@ body() {
                     case arg::temporary: {
                         bc1->offset_b = tac->arg1.temporary->temp_pos;
                     } break;
-                    case arg::literal: {
+                    case arg::literal_u64: {
                         bc1->flags.right_is_const = true;
-                        bc1->offset_b = tac->arg1.literal;
+                        bc1->offset_b = tac->arg1._u64;
                     } break;
                     case arg::var: {
                         bc1->offset_b = tac->arg1.var->reg_offset; 
@@ -193,9 +193,9 @@ body() {
                     case arg::temporary: {
                         bc1->offset_b = tac->arg1.temporary->temp_pos;
                     } break;
-                    case arg::literal: {
+                    case arg::literal_u64: {
                         bc1->flags.right_is_const = true;
-                        bc1->offset_b = tac->arg1.literal;
+                        bc1->offset_b = tac->arg1._u64;
                     } break;
                     case arg::var: {
                         bc1->offset_b = tac->arg1.var->reg_offset; 
@@ -233,9 +233,9 @@ body() {
                     case arg::var: {
                         bc->offset_b = tac->arg1.var->reg_offset;
                     } break;
-                    case arg::literal: {
+                    case arg::literal_u64: {
                         bc->flags.right_is_const = true;
-                        bc->offset_b = tac->arg1.literal;
+                        bc->offset_b = tac->arg1._u64;
                     } break;
                     case arg::reg: {
                         bc->offset_b = tac->arg1.reg_offset;
@@ -258,9 +258,9 @@ body() {
                     case arg::var: {
                         bc->offset_b = tac->arg0.var->reg_offset;
                     } break;
-                    case arg::literal: {
+                    case arg::literal_u64: {
                         bc->flags.right_is_const = true;
-                        bc->offset_b = tac->arg0.literal;
+                        bc->offset_b = tac->arg0._u64;
                     } break;
                     case arg::reg: {
                         bc->offset_b = tac->arg0.reg_offset;
@@ -276,7 +276,7 @@ body() {
                 BC* bc = array::push(seq);
                 bc->instr = air::call;
                 bc->f = tac->arg0.func;
-                bc->n_params = tac->arg1.literal;
+                bc->n_params = tac->arg1._u64;
                 stack_offset = stack_offset - bc->n_params + tac->temp_size;
                 tac->temp_pos = stack_offset - tac->temp_size;
                 // manually remove argument temps because they are cleared when
@@ -294,9 +294,9 @@ body() {
                     bc->offset_a = 0;
                     
                     switch(tac->arg0.kind) {
-                        case arg::literal: {
+                        case arg::literal_u64: {
                             bc->flags.right_is_const = true;
-                            bc->offset_b = tac->arg0.literal;
+                            bc->offset_b = tac->arg0._u64;
                             ret_size = 1;
                         } break;
 
@@ -345,9 +345,9 @@ push_temp(TAC* tac) {
         case arg::temporary: {
             out->offset_a = tac->arg0.temporary->temp_pos;
         } break;
-        case arg::literal: {
+        case arg::literal_u64: {
             out->flags.left_is_const = true;
-            out->offset_a = tac->arg0.literal;
+            out->offset_a = tac->arg0._u64;
         } break;
         case arg::var: {
             out->offset_a = tac->arg0.var->reg_offset; 

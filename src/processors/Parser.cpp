@@ -202,6 +202,10 @@ prescan_label() {
                         } break;
                     }
                 } break;
+                case token::structdecl: {
+                    diagnostic::parser::runtime_structures_not_allowed(token.current());
+                    return false;
+                } break;
                 case token::open_paren: {
                     // TODO(sushi) segment function variables
                     NotImplemented;
@@ -256,24 +260,6 @@ start() {
     return true;
 }
 
-
-// parses a function definition, a function type followed by a block
-// expects to be started at the opening parenthesis of the parameter tuple
-// and returns with the token after the block's close brace
-// leaves a typeref expression on the stack with the form:
-// (expr:typeref
-//      tuple         -- function parameters
-//      tuple/typeref -- return information
-//      block)        -- definition
-// b32
-// function(Code* code, code::TokenIterator& token) {
-//     if(!tuple()) return false;
-    
-   
-
-//     return true;
-// }
-
 // this function is called from ascent::start, so it only parses functions that 
 // have been prescanned by the first stage of parsing. A Function entity and Label
 // will have already been created
@@ -282,15 +268,13 @@ prescanned_function() {
     Label* l = (Label*)code->parser->root;
     Function* f = (Function*)l->entity;
 
-    f->type = FunctionType::create();
-
     token.skip_until(token::open_paren);
 
     if(!tuple()) return false;
 
     auto e = node.pop()->as<Expr>();
 
-    f->type = (FunctionType*)e->type;
+    f->type = e->first_child<Expr>()->type->as<FunctionType>();
 
     node::insert_last(l, e);
 
@@ -310,13 +294,21 @@ prescanned_type() {
             token.skip_until(token::structdecl);
             if(!struct_decl()) return false;
 
-            table.push(&s->table);
+            u64 offset = 0;
 
             auto e = (Expr*)node.pop();
-            for(Label* n = e->first_child<Label>(); n; n = n->next<Label>()) {
-                table.add(n->start->raw, n);
-            }
-            // reuse the typeref to place in the AST 
+            // for(Label* n = e->first_child<Label>(); n; n = n->next<Label>()) {
+            //     if(Member* m = s->find_member(n->start->raw); m) { // TODO(sushi) show where it was already defined 
+            //         diagnostic::parser::struct_duplicate_member_name(n->start, m->label->start);
+            //         return false;
+            //     }
+            //     s->add_member(l->name(), {
+            //         .label = l,
+            //         .inherited = false,
+            //         .offset = offset, 
+            //     });
+            // }
+            // reuse the typedef to place in the AST 
             e->type = type;
             node::insert_last(l, e);
         } break;
@@ -337,7 +329,7 @@ prescanned_type() {
 
     will leave
 
-    (expr:typeref
+    (expr:typedef
         (label<'a'> ...)
         (label<'b'> ...))
 
@@ -355,29 +347,53 @@ struct_decl() {
 
     token.increment();
 
-    auto e = Expr::create(expr::typeref);
-    
+    auto e = Expr::create(expr::typedef_);
+
+    // structures do sort of special parsing, because we want to make Members, not Labels pointing to Vars
+    // since the content of a structure does not exist in memory yet (what a Var represents)
     while(1) {
         if(token.is(token::close_brace)) break;
         if(token.is(token::identifier)) {
-            if(!label()) return false;
+            auto mem = Member::create();
+
+            // just retrieve the label
+            if(!label_get()) return false;
+
+            auto l = node.pop()->as<Label>();
+            mem->label = l;
+            l->entity = mem;
+
+            node::insert_last(mem, l);
+
+            if(!expression()) return false;
+
+            auto expr = node.pop()->as<Expr>();
+            mem->type = expr->type;
+
+            node::insert_last(mem, expr);
+
             if(!token.is(token::semicolon)) {
                 diagnostic::parser::
                     missing_semicolon(token.current());
                 return false;
             }
             token.increment();
-            if(node.current->is<Function>()) {
+
+            if(expr->is(expr::func_def)) {
                 diagnostic::parser::
-                    struct_member_functions_not_allowed(node.current->start);
+                    struct_member_functions_not_allowed(l->start);
                 return false;
             }
+
+            mem->start = mem->first_child()->start;
+            mem->end = mem->last_child()->end;
+
+            node::insert_last(e, mem);
         } else {
             diagnostic::parser::
                 struct_only_labels_allowed(token.current());
             return false;
         }
-        node::insert_last(e, node.pop());
     }
 
     node.push(e);
@@ -441,7 +457,6 @@ label() {
                             l->entity = v->as<Entity>();
                             node::insert_last(l, cand);
                         } break;
-
                         case type::kind::function: {
                             // if the last child of the typeref is not a block, then
                             // we do not create a function entity, this is simply a variable
@@ -471,8 +486,8 @@ label() {
                 }
             }
         }
-    } else {    
-        Assert(0); // I don't think this should happen
+    } else {   
+        TODO("a label returned to a node that is not an Entity"); 
     }
 
     l->start = l->first_child()->start;
@@ -483,7 +498,7 @@ label() {
 }
 
 // just parses <id> { "," <id> } : and pushes a label on the stack representing it 
-// returns with the tokenator at the token following the colon
+// returns with the iterator at the token following the colon
 b32 Parser::
 label_get() {
     auto expr = Expr::create(expr::identifier);
@@ -505,6 +520,7 @@ label_get() {
 
     auto l = Label::create();
     l->start = expr->start;
+    l->end = token.current();
     node::insert_first(l, node.pop());
     node.push(l);
     token.increment();
@@ -590,6 +606,11 @@ label_after_colon() {
 
         case token::open_paren: {
             if(!tuple()) return false;
+        } break;
+
+        case token::structdecl: {
+            diagnostic::parser::runtime_structures_not_allowed(token.current());
+            return false;
         } break;
 
         default: {
@@ -716,6 +737,12 @@ tuple() {
     // and load its table onto the table stack for the block we're about to parse
     node::insert_first(e, tuple);
 
+    auto ft = FunctionType::create();
+    ft->parameters = e->first_child();
+    ft->returns = e->first_child()->next();
+    ft->return_type = ft->returns->resolve_type(); // kind of redundant 
+    e->type = (Type*)ft;
+
     if(token.is(token::open_brace)) {
         // the symbol table of the block will go through the tuple's symbol table, regardless of if
         // it generated one or not 
@@ -725,21 +752,19 @@ tuple() {
         if(!block()) return false;
 
         table.pop();
+        
+        auto fd = Expr::create(expr::func_def);
+        node::insert_last(fd, e);
+        node::insert_last(fd, node.pop());
 
-        node::insert_last(e, node.pop());
+        fd->start = fd->first_child()->start;
+        fd->end = fd->last_child()->end;
+        fd->type = e->type;
 
-        e->start = e->first_child()->start;
-        e->end = e->last_child()->end;
+        node.push(fd);
+    } else {
+        node.push(e);
     }
-
-    auto ft = FunctionType::create();
-    ft->parameters = e->first_child();
-    ft->returns = e->first_child()->next();
-    ft->return_type = ft->returns->resolve_type(); // kind of redundant 
-    e->type = (Type*)ft;
-
-    node.push(e);
-
     return true;
 }
 
@@ -761,12 +786,19 @@ expression() {
         } break;
 
         case token::colon: {
+            Token* save = token.current();
+
+            token.increment();
+            if(!expression()) return false;
+
+            if(node.current->is(expr::func_def)) {
+                // when this is a function def we just let it consume this colon
+                return true;
+            }
+
             auto e = Expr::create(expr::unary_comptime);
             e->start = token.current();
 
-            token.increment();
-
-            if(!expression()) return false;
 
             node::insert_first(e, node.pop());
             e->end = e->last_child()->end;
@@ -856,11 +888,13 @@ access() {
         auto id = Expr::create(expr::identifier);
         id->start = id->end = token.current();
 
-        auto e = Expr::create(expr::binary_access);
-        node::insert_first(e, node.pop());
-        node::insert_first(e, id);
+        auto e = Access::create();
+        node::insert_last(e, node.pop());
+        node::insert_last(e, id);
         node.push(e);
         token.increment();
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->end;
         if(!access()) return false;
     }
     return true;
@@ -1311,9 +1345,15 @@ factor() {
                         NotImplemented;
                     }
                 } break;
+                case entity::type: {
+                    auto e = Expr::create(expr::typeref, l->entity->as<Type>());
+                    e->start = e->end = token.current();
+                    token.increment();
+                    node.push(e);
+                } break;
                 default: {
                     util::println(dstring::init(
-                        token.current(), "unhandled identifier reference: ", ast::strings[l->entity->kind]));
+                        token.current(), " unhandled identifier reference: ", entity::strings[l->entity->kind]));
                 } break;
             }
 
@@ -1530,6 +1570,39 @@ typeref() {
         case token::asterisk: {
             auto last = node.current->as<Expr>();
             last->type = Pointer::create(last->type);
+            token.increment();
+            if(!typeref()) return false;
+        } break;
+
+        case token::open_square: {
+            auto last = node.current->as<Expr>();
+            token.increment();
+            switch(token.current_kind()) {
+                case token::close_square: {
+                    // this is a ViewArray
+                    last->type = ViewArray::create(last->type);
+                } break;
+                // TODO(sushi) support more complex expressions to size arrays, such as compile time stuff
+                case token::literal_integer: {
+                    // this is a StaticArray
+                    u64 size = token.current()->s64_val;
+                    last->type = StaticArray::create(last->type, size);
+                    token.increment();
+                    if(!token.is(token::close_square)) {
+                        diagnostic::parser::array_missing_close_square(token.current());
+                        return false;
+                    }
+                } break;
+                case token::range: {
+                    // dynamic array
+                    last->type = DynamicArray::create(last->type);
+                    token.increment();
+                    if(!token.is(token::close_square)) {
+                        diagnostic::parser::array_missing_close_square(token.current());
+                        return false;
+                    }
+                } break;
+            }
             token.increment();
             if(!typeref()) return false;
         } break;

@@ -77,7 +77,7 @@ b32
 func_ret(Code* code, ASTNode* n) { announce_stage(n);
     if(n->is<Tuple>()) {
         if(n->is(stmt::label)) {
-
+            
         }
     }else if(n->is<Expr>()) {
         auto e = n->as<Expr>();
@@ -100,6 +100,23 @@ func_arg_tuple(Code* code, Tuple* t) { announce_stage(t);
         } else {
             if(!label(code, n->as<Label>())) return false;
         }
+    }
+    return true;
+}
+
+b32
+funcdef(Code* code, Expr* e) {
+    auto typeref = e->first_child<Expr>();
+    auto type = typeref->type->as<FunctionType>();
+    auto be = e->last_child<Block>();
+    if(!func_arg_tuple(code, type->parameters->as<Tuple>()) ||
+        !func_ret(code, type->returns) || 
+        !block(code, be)) return false;
+    if(!type->return_type->can_cast_to(be->type)) {
+        diagnostic::sema::
+            return_value_of_func_block_cannot_be_coerced_to_func_return_type(
+                be->last_child()->start, type->return_type, be->type);
+        return false;
     }
     return true;
 }
@@ -130,7 +147,7 @@ call(Code* code, Call* e) {
                 mismatch_argument_type(call_arg->start, 
                     call_arg_t, 
                     func_arg_t, 
-                    label::resolve(func_arg)->start->raw, 
+                    func_arg->name(), 
                     e->callee->label->start->raw);
             return false;
         }
@@ -141,27 +158,31 @@ call(Code* code, Call* e) {
     return true;
 } 
 
+b32
+typedef_(Code* code, Expr* e) {
+    switch(e->type->kind) {
+        case type::kind::structured: {
+            auto s = e->type->as<Structured>()->structure;
+            for(Label* l = e->first_child<Label>(); l; l = l->next<Label>()) {
+                if(!label(code, l)) return false;
+                auto mem = s->add_member(l->name());
+                mem->type = l->entity->resolve_type();
+                mem->inherited = false;
+                mem->offset = s->size;
+                s->size += l->last_child<Expr>()->type->size();
+            }
+        } break;
+    }
+    return true;
+}
 
-// TODO(sushi) need to separate a function's definition from its Type
-//             really just need to not use the AST here and use the stuff on FunctionType
-//             instead
+// I honestly don't know what this function should do :/
 b32
 typeref(Code* code, Expr* e) { announce_stage(e);
     switch(e->type->kind) {
         case type::kind::scalar: {
         } break;
         case type::kind::function: {
-            auto type = (FunctionType*)e->type;
-            auto be = e->last_child<Block>();
-            if(!func_arg_tuple(code, (Tuple*)type->parameters) ||
-               !func_ret(code, type->returns) || 
-               !block(code, be)) return false;
-            if(!type->return_type->can_cast_to(be->type)) {
-                diagnostic::sema::
-                    return_value_of_func_block_cannot_be_coerced_to_func_return_type(
-                        be->last_child()->start, type->return_type, be->type);
-                return false;
-            }
         } break;
         case type::kind::structured: {
         } break;
@@ -172,23 +193,12 @@ typeref(Code* code, Expr* e) { announce_stage(e);
 }
 
 b32 
-access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
+access(Code* code, Access* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
     switch(lhs_type->kind) {
         case type::kind::scalar: {
             diagnostic::sema::
                 cannot_access_members_scalar_type(lhs->start);
             return false;
-        } break;
-        case type::kind::static_array: {
-            switch(rhs->start->hash) {
-                case string::static_hash("ptr"):
-                case string::static_hash("count"): return true;
-                default: {
-                    diagnostic::sema::
-                        array_types_dont_have_member(rhs->start, rhs->start->raw);
-                    return false;
-                }
-            }
         } break;
         case type::kind::function: {
             diagnostic::sema::
@@ -208,15 +218,15 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
             NotImplemented;
         } break;
         case type::kind::structured: {
-            auto stype = (Structured*)lhs_type;
-            auto [idx, found] = map::find(stype->structure->table.map, rhs->start->raw);
-            if(!found) {
+            auto stype = lhs_type->as<Structured>();
+            Member* m = stype->structure->find_member(rhs->start->raw);
+            if(!m) {
                 diagnostic::sema::
                     unknown_member(rhs->start, stype, rhs->start->raw);
                 return false;
             }
-            Label* l = array::read(stype->structure->table.map.values, idx);
-            e->type = l->entity->resolve_type();
+            e->type = m->type;
+            e->offset = m->offset;
             return true;
         } break;
     }
@@ -241,6 +251,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
             return call(code, (Call*)e);
         } break;
         case expr::typeref: return typeref(code, e);
+        case expr::func_def: return funcdef(code, e);
+        case expr::typedef_: return typedef_(code, e);
         case expr::binary_assignment: {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
@@ -274,7 +286,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 return false;
             }
 
-            return access(code, e, lhs, lhs_type, rhs);
+            return access(code, e->as<Access>(), lhs, lhs_type, rhs);
         } break;
 
         case expr::binary_plus:
@@ -444,6 +456,10 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 }
             }
         } break;
+
+        default: {
+            TODO(dstring::init("unhandled expression kind: ", expr::strings[e->kind]));
+        } break;    
     }
 
     return true;

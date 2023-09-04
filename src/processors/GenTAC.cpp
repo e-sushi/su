@@ -53,7 +53,7 @@ label(Label* l) {
             function();
         } break;
         case entity::var: {
-            NotImplemented;
+            TODO("var label");
         } break;
     }
 }
@@ -77,7 +77,7 @@ function() {
             auto v = n->as<Label>()->entity->as<Var>();
             v->reg_offset = register_offset;
             register_offset += util::Max(1, v->type->size() / sizeof(Register));
-        } else NotImplemented;
+        } else TODO("non-Label function parameters");
     }
 
     TAC* t = make_and_place();
@@ -126,28 +126,66 @@ statement(Stmt* s) {
             switch(l->entity->kind) {
                 case entity::var: {
                     auto v = l->entity->as<Var>();
-                    Arg arg;
-                    if(l->last_child()->is(expr::binary_assignment)) {
-                        // we need to manually extract the rhs to avoid dealing with the typeref
-                        // that will be on the left
-                        arg = expression(l->last_child()->last_child<Expr>());
-                    } else {
-                        arg = expression(l->last_child<Expr>());
+                    switch(v->type->kind) {
+                        case type::kind::scalar: {
+                            Arg arg;
+                            if(l->last_child()->is(expr::binary_assignment)) {
+                                // we need to manually extract the rhs to avoid dealing with the typeref
+                                // that will be on the left
+                                arg = expression(l->last_child()->last_child<Expr>());
+                            } else if(l->last_child()->is(expr::typeref)) {
+                                // this is a variable decl of the form
+                                //     <id> : <type> ;
+                                // so we just 0 fill it 
+                                arg = u64(0);
+                            } else {
+                                arg = expression(l->last_child<Expr>());
+                            }
+
+                            TAC* tac = make_and_place();
+                            tac->op = tac::assignment;
+                            tac->arg0.kind = arg::var;
+                            tac->arg0.var = v;
+
+                            v->reg_offset = register_offset;
+                            register_offset += util::Max(1, v->type->size() / sizeof(Register));
+
+                            tac->arg1 = arg;
+                            tac->node = s;
+                        } break;
+                        case type::kind::structured: {
+                            auto stype = v->type->as<Structured>();
+                            if(stype->kind == structured::user) {
+                                u64 offset = 0;
+
+                                // auto s = stype->structure;
+                                // forI(s->ordered_members.count) {
+                                //     Member* m = array::read(s->ordered_members, i);
+
+                                // }
+                            } else switch(stype->kind) {
+                                case structured::static_array: {
+                                    TODO("array types");
+                                } break;
+                                case structured::view_array: {
+                                    TODO("array types");
+                                } break;
+                                case structured::dynamic_array: {
+                                    TODO("array types");
+                                } break;    
+                            }
+                            
+                        } break;
                     }
 
-                    TAC* tac = make_and_place();
-                    tac->op = tac::assignment;
-                    tac->arg0.kind = arg::var;
-                    tac->arg0.var = v;
+                    
 
-                    v->reg_offset = register_offset;
-                    register_offset += util::Max(1, v->type->size() / sizeof(Register));
+                    
 
-                    tac->arg1 = arg;
-                    tac->node = s;
+                       
                 } break;
                 default: {
-                    Assert(0); // unhandled label kind 
+                    TODO("unhandled label kind"); // unhandled label kind 
                 } break;
             }
         } break;
@@ -223,12 +261,34 @@ expression(Expr* e) {
             return add;
         } break;
 
+        case expr::binary_access: {
+            Arg lhs = expression(e->first_child<Expr>());
+
+        } break;    
+
         case expr::cast: {
             return expression(e->first_child<Expr>());
         } break;
         case expr::literal: {
             TODO("handle literals other than unsigned ints");
-            return e->start->u64_val;
+            switch(e->type->kind) {
+                case type::kind::scalar: {
+                    switch(e->type->as<Scalar>()->kind) {
+                        case scalar::signed64: {
+                            return e->start->u64_val;
+                        } break;
+                        case scalar::float64: {
+                            return e->start->f64_val;
+                        } break;
+                        default: {
+                            TODO("unhandled literal type");
+                        } break;
+                    }
+                } break;
+                default: {
+                    TODO("unhandled literal type");
+                } break;
+            }
         } break;
         case expr::binary_assignment: {
             Arg lhs = expression(e->first_child<Expr>());
@@ -530,8 +590,8 @@ expression(Expr* e) {
             success->op = tac::assignment;
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
-            success->arg1.kind = arg::literal;
-            success->arg1.literal = 1;
+            success->arg1.kind = arg::literal_u64;
+            success->arg1._u64 = 1;
             success->node = e;
 
             if(fail_jump) {
@@ -630,8 +690,8 @@ expression(Expr* e) {
             success->op = tac::assignment;
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
-            success->arg1.kind = arg::literal;
-            success->arg1.literal = 1;
+            success->arg1.kind = arg::literal_u64;
+            success->arg1._u64 = 1;
             success->node = e;
 
             TAC* fail_jump = make_and_place();
@@ -656,7 +716,7 @@ expression(Expr* e) {
 
     // an expression didn't return anything or this is a
     // completely unhandled expression kind
-    Assert(0); 
+    TODO(dstring::init("unhandled expression kind: ", expr::strings[e->kind]));
     return {};
 }
 

@@ -30,6 +30,8 @@ enum kind : u32 {
     entity_func,
     entity_module,    
     typeref,
+    typedef_,
+    func_def,
     varref, // a reference to a variable 
     call,
     
@@ -118,6 +120,8 @@ struct Expr : public Entity {
     resolve_type();
 
     Expr() : Entity(entity::expr) {}
+
+    Expr(expr::kind k) : kind(k), Entity(entity::expr) {}
 };
 
 template<> inline b32 ASTNode::
@@ -144,6 +148,8 @@ struct Block : public Expr {
 
     DString
     debug_str();
+
+    Block() : Expr(expr::block) {}
 };
 
 template<> inline b32 ASTNode::
@@ -171,6 +177,8 @@ struct Call : public Expr {
 
     DString
     debug_str();
+
+    Call() : Expr(expr::call) {}
 };
 
 template<> inline b32 ASTNode::
@@ -194,13 +202,35 @@ struct VarRef : public Expr {
 
     DString
     debug_str();
+
+    VarRef() : Expr(expr::varref) {}
 };
 
 template<> inline b32 ASTNode::
 is<VarRef>() { return is<Expr>() && as<Expr>()->kind == expr::varref; }
 
-void
-to_string(DString& start, Expr* e);
+// special so we can store what the offset of the access is 
+struct Access : public Expr {
+    u64 offset; // the offset from the start of base to reach var
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static Access*
+    create();
+
+    void
+    destroy(); 
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Access() : Expr(expr::binary_access) {}
+};
 
 } // namespace amu
 

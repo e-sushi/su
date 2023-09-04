@@ -13,17 +13,18 @@ can_cast_to(Type* to)  {
 
     // all scalar types may coerce to each other
     // TODO(sushi) this should probably not allow float <-> int coercion in implicit cases, though
-    if(to->kind == type::kind::scalar && this->kind == type::kind::scalar)
+    if(to->is<Scalar>() && this->is<Scalar>())
         return true;
 
     // pointers may coerce freely
     // TODO(sushi) stronger rules may be safer, though
-    if(to->kind == type::kind::pointer && this->kind == type::kind::pointer)
+    // TODO(sushi) this is NOT safe
+    if(to->is<Pointer>() && this->is<Pointer>())
         return true;
 
     // arrays can coerce between each other as long as a conversion exists
     // between their underlying types
-    if(to->kind == type::kind::static_array && this->kind == type::kind::static_array) {
+    if(to->is<StaticArray>() && this->is<StaticArray>()) {
         auto ato = (StaticArray*)to;
         auto athis = (StaticArray*)this;
         if(ato->type->can_cast_to(athis->type)) return true;
@@ -31,9 +32,9 @@ can_cast_to(Type* to)  {
 
     // allow implicit coercion of an array to its data pointer
     // this may not be a good idea either
-    if(to->kind == type::kind::pointer && this->kind == type::kind::static_array) {
-        auto pto = (Pointer*)to;
-        auto pthis = (StaticArray*)this;
+    if(to->is<Pointer>() && this->is<StaticArray>()) {
+        auto pto = to->as<Pointer>();
+        auto pthis = this->as<StaticArray>();
         return pto->type == pthis->type;
     }
 
@@ -93,6 +94,17 @@ debug_str() {
 
 Array<Pointer*> Pointer::set = array::init<Pointer*>();
 
+Pointer* Pointer::
+create(Type* type) {
+    auto [idx,found] = amu::array::util::
+        search<Pointer*, Type*>(Pointer::set, type, [](Pointer* p){ return p->type; });
+    if(found) return amu::array::read(Pointer::set, idx);
+    Pointer* nu = pool::add(compiler::instance.storage.pointer_types);
+    nu->type = type;
+    amu::array::insert(Pointer::set, idx, nu);
+    return nu;
+}
+
 String Pointer::
 name() { // !Leak
     return dstring::init(type->name(), "*");
@@ -100,7 +112,7 @@ name() { // !Leak
 
 DString Pointer::
 debug_str() {
-    return dstring::init(type->name());
+    return dstring::init(type->name(), "*");
 }
 
 u64 Pointer::
@@ -126,6 +138,21 @@ create(Type* type, u64 count) {
     nu->type = type;
     nu->count = count;
     amu::array::insert(StaticArray::set, idx, nu);
+
+    auto s = Structure::create();
+    
+    auto data = s->add_member("data");
+    data->type = Pointer::create(type);
+    data->inherited = false;
+    data->offset = 0;
+
+    auto count_ = s->add_member("count");
+    count_->type = &scalar::scalars[scalar::unsigned64];
+    count_->inherited = false;
+    count_->offset = data->type->size();
+
+    nu->structure = s;
+
     return nu;
 }
 
@@ -157,6 +184,21 @@ create(Type* type) {
     ViewArray* nu = pool::add(compiler::instance.storage.view_array_types);
     nu->type = type;
     amu::array::insert(ViewArray::set, idx, nu);
+
+    auto s = Structure::create();
+
+    auto data = s->add_member("data"); 
+    data->type = Pointer::create(type);
+    data->inherited = false;
+    data->offset = 0;
+
+    auto count = s->add_member("count");
+    count->type = &scalar::scalars[scalar::unsigned64];
+    count->inherited = false;
+    count->offset = data->type->size();
+
+    nu->structure = s;
+
     return nu;
 }
 
@@ -188,6 +230,26 @@ create(Type* type) {
     DynamicArray* nu = pool::add(compiler::instance.storage.dynamic_array_types);
     nu->type = type;
     amu::array::insert(DynamicArray::set, idx, nu);
+
+    auto s = Structure::create();
+
+    auto data = s->add_member("data");
+    data->type = Pointer::create(type);
+    data->inherited = false;
+    data->offset = 0;
+
+    auto count = s->add_member("count");
+    count->type = &scalar::scalars[scalar::unsigned64];
+    count->inherited = false;
+    count->offset = data->type->size();
+    
+    auto space = s->add_member("space");
+    space->type = &scalar::scalars[scalar::unsigned64];
+    space->inherited = false;
+    space->offset = data->type->size() + count->type->size();
+
+    nu->structure = s;
+
     return nu;
 }
 
@@ -307,18 +369,13 @@ size() {
 Structured* Structured::
 create(Structure* s) {
     auto out = pool::add(compiler::instance.storage.structured_types);
-    out->kind = type::kind::structured;
-    // out->node.kind = node::type;
     out->structure = s;
     return out;
 }
 
-Label* Structured::
+Member* Structured::
 find_member(String id) {
-    Structure* s = this->structure;
-    auto [idx, found] = map::find(s->table.map, id);
-    if(!found) return 0;
-    return amu::array::read(s->table.map.values, idx);
+    return structure->find_member(id);
 }
 
 String Structured::
@@ -335,6 +392,8 @@ u64 Structured::
 size() {
     return structure->size;
 }
+
+
 
 } // namespace amu
 

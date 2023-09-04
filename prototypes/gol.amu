@@ -6,12 +6,12 @@ using std.print;
 // a compile time function
 // due to the colon --------,
 //                          v
-zero :: (a: ?T[?N]) -> void : for i in 0..N do a[i] = T();
+zero :: (a: ?T[?N]) -> void: for i in 0..N do a[i] = T();
 
 // possible implementation of std.array.random
 // fills each slot of an array with a random element
 // from a given tuple of choices
-random :: (a: ?T[?N], choices: (T,...)) -> void =
+random :: (a: ?T[?N], choices: (T,...)) -> void:
     for i in 0..N do
         a[i] = choices[std.randint(0,choices$.count)];
 

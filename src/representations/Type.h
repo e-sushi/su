@@ -14,6 +14,7 @@
 namespace amu {
 
 struct Function;
+struct Member;
 
 namespace type {
 enum class kind {
@@ -22,9 +23,6 @@ enum class kind {
     scalar,
     structured,
     pointer,
-    static_array,
-    dynamic_array,
-    view_array,
     function,
     tuple,
     meta,
@@ -183,9 +181,19 @@ global Scalar scalars[] = {
 };
 } // namespace type::scalar
 
+namespace structured {
+enum kind {
+    user, // a user defined Structured Type
+    static_array,
+    view_array,
+    dynamic_array,
+};
+} // namespace structured
 
 // a Type which is defined by a user-defined structure
 struct Structured : public Type {
+    structured::kind kind;
+
     Structure* structure;
 
 
@@ -195,7 +203,7 @@ struct Structured : public Type {
     static Structured*
     create(Structure* structure);
 
-    Label*
+    Member*
     find_member(String id);
 
     String
@@ -208,10 +216,15 @@ struct Structured : public Type {
     size();
 
     Structured() : Type(type::kind::structured) {}
+
+    Structured(structured::kind k) : kind(k), Type(type::kind::structured) {}
 };
 
 template<> inline b32 ASTNode::
 is<Structured>() { return is<Type>() && as<Type>()->kind == type::kind::structured; }
+
+template<> inline b32 ASTNode::
+is(structured::kind k) { return is<Structured>() && as<Structured>()->kind == k; }
 
 // a Type representing an address in memory where a value of 'type' can be found 
 struct Pointer : public Type {
@@ -238,20 +251,17 @@ struct Pointer : public Type {
     Pointer() : Type(type::kind::pointer) {}
 };
 
-namespace type::pointer {
-struct ExistantPointer {
-    Type* type;
-    Pointer* ptype;
-};
-extern Array<ExistantPointer> set;
-} // namespace type::pointer
+template<> b32 inline ASTNode::
+is<Pointer>() { return is<Type>() && as<Type>()->kind == type::kind::pointer; }
 
+// NOTE(sushi) the following array types inherit from Structured, because they have
+//             accessible members and thus need some Structure
 
 // a StaticArray is an array of the form
 //      T[N]
 // where N is some integer. A StaticArray is allocated onto the stack
 // and its data pointer and count cannot be changed
-struct StaticArray : public Type {
+struct StaticArray : public Structured {
     Type* type;
     // NOTE(sushi) the size of an StaticArray does not matter when it comes to type checking
     //             and unique storage of StaticArray, it is used to keep track of what size 
@@ -275,11 +285,11 @@ struct StaticArray : public Type {
     u64
     size();
 
-    StaticArray() : Type(type::kind::static_array) {}
+    StaticArray() : Structured(structured::static_array) {}
 };
 
 template<> b32 inline ASTNode::
-is<StaticArray>() { return is<Type>() && as<Type>()->kind == type::kind::static_array; }
+is<StaticArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array; }
 
 // a DynamicArray is an array of the form
 //      T[..]
@@ -288,7 +298,7 @@ is<StaticArray>() { return is<Type>() && as<Type>()->kind == type::kind::static_
 //      count: u64
 //      space: u64
 //      allocater: $allocator // TODO(sushi)
-struct DynamicArray : public Type {
+struct DynamicArray : public Structured {
     Type* type;
 
     static Array<DynamicArray*> set;
@@ -309,18 +319,18 @@ struct DynamicArray : public Type {
     u64
     size();
 
-    DynamicArray() : Type(type::kind::dynamic_array) {}
+    DynamicArray() : Structured(structured::dynamic_array) {}
 };
 
 template<> b32 inline ASTNode::
-is<DynamicArray>() { return is<Type>() && as<Type>()->kind == type::kind::dynamic_array; }
+is<DynamicArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
 
 // a ViewArray is the same as a StaticArray, except that it does not 
 // allocate anything onto the stack and its count and data pointer 
 // can be changed at runtime
 // it is of the form
 //      T[]
-struct ViewArray : public Type {
+struct ViewArray : public Structured {
     Type* type;
 
     static Array<ViewArray*> set;
@@ -341,11 +351,11 @@ struct ViewArray : public Type {
     u64
     size();
 
-    ViewArray() : Type(type::kind::view_array) {}
+    ViewArray() : Structured(structured::view_array) {}
 };
 
 template<> b32 inline ASTNode::
-is<ViewArray>() { return is<Type>() && as<Type>()->kind == type::kind::view_array; }
+is<ViewArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
 
 namespace type::array {
 struct ExistantArray {

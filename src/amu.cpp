@@ -46,6 +46,34 @@
 					   I tried experimenting with an ownership/reference counting system, but it was just too complicated
 					   and took too much time away from what I needed to be working on at the time. 
 
+	[!!!, *, 23/09/03] I started experimenting with OOP stuff in the compiler some time ago and have gone so far as liberally 
+					   using inheritance in the Type system. This seems to work well internally, but when it comes to the language
+					   trying to reference this information we'll probably start to run into trouble. The biggest thing being 
+					   the fact that I'm not using vtables, which amu will not support (natively), which will probably make 
+					   working with things internally not work like I wanted. If it causes trouble, we'll have to refactor
+					   a lot of stuff to not using OOP style, unfortunately.
+
+	Types
+	------------------------
+	[!!!, **, 23/09/03] The type system needs to uniquely store Types. As in, a u32[] used in two different places 
+	                    needs to point to the same Type object. Currently the system just does some arbitrary hashing
+						of the stuff that exists on the Type, but for QOL sake we'll probably want to setup a generic
+						hashing system that just takes any type and spits out a hash for it. Clang has an interesting 
+						way of doing this (though I would not like to have a system as complicated). See FoldingSet.h
+						in LLVM. The thing I like about it is that you define what each part of the data you are hashing
+						is. For instance
+							struct {
+								int a;
+								Array<Thing> things;
+								...
+							};
+						You would setup hashing for this by writing something like 
+							FoldingSetNodeID ID;
+							ID.AddInteger(a);
+							ID.AddArray(things);
+							...
+						In any case, the logic for creating Types is a big mess that needs cleaned up bad.
+
 
 */
 

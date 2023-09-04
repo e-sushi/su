@@ -20,13 +20,16 @@ struct TAC;
 struct Label;
 
 namespace entity {
+// @genstrings(data/entity_strings.generated)
 enum kind {
     expr,
     type,
     func,
     var,
     module,
+    member,
 };
+#include "data/entity_strings.generated"
 } // namespace entity
 
 struct Entity : public ASTNode {

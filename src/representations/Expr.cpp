@@ -109,6 +109,25 @@ debug_str() {
     return dstring::init("VarRef<", (var? var->name() : "null var"), ">");
 }
 
+Access* Access::
+create() {
+    Access* out = pool::add(compiler::instance.storage.accesses);
+    return out;
+}
+
+// void Access::
+// destroy(); 
+
+String Access::
+name() {
+    return dstring::init(this->first_child()->name(), ".", this->last_child()->name());
+}
+
+DString Access::
+debug_str() {
+    return dstring::init("Access<", this->first_child()->debug_str(), " => ", this->last_child()->debug_str());
+}
+
 void
 to_string(DString& start, Expr* e) {
     dstring::append(start, "Expr<");

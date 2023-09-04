@@ -100,7 +100,8 @@ enum kind {
     var,
     func,
     temporary,
-    literal,
+    literal_u64,
+    literal_f64,
     reg,
 };
 } // namespace arg
@@ -111,7 +112,10 @@ struct Arg {
         Var* var; // a Var in memory that this Arg is referring to, aka an lvalue
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
-        u64 literal;
+        union{
+            u64 _u64;
+            f64 _f64;
+        };
         u64 reg_offset;
     };
 
@@ -119,7 +123,8 @@ struct Arg {
     Arg(Var* p) : kind(arg::var), var(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
-    Arg(u64 l) : kind(arg::literal), literal(l) {}
+    Arg(u64 l) : kind(arg::literal_u64), _u64(l) {}
+    Arg(f64 l) : kind(arg::literal_f64), _f64(l) {}
 };
 
 struct TAC {
@@ -163,8 +168,11 @@ struct TAC {
 void
 to_string(DString& current, Arg arg) {
     switch(arg.kind) {
-        case arg::literal: {
-            dstring::append(current, arg.literal);
+        case arg::literal_u64: {
+            dstring::append(current, arg._u64);
+        } break;
+        case arg::literal_f64: {
+            dstring::append(current, arg._f64);
         } break;
         case arg::var: {
             if(!arg.var) {

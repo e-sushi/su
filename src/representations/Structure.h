@@ -22,9 +22,35 @@
 
 namespace amu {
 
+struct Expr;
+
+const u64 MEMBER_OFFSET_UNKNOWN = -1;
+
+// NOTE(sushi) Members are ordered by their appearance in the AST 
+//             next() is the next member in the order they are defined
+//             in the structure
+struct Member : public Entity {
+    Type* type = 0;
+    // if this member is inherited into the structure
+    b32 inherited = false; 
+    // offset in bytes from the start of the structure
+    u64 offset = MEMBER_OFFSET_UNKNOWN; 
+
+    static Member*
+    create();
+
+    String
+    name();
+
+    DString
+    debug_str();
+
+    Member() : Entity(entity::member) {}
+};
+
 struct Structure {
     u64 size; // size of this structure in bytes
-    LabelTable table;
+    Map<String, Member*> members;
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -35,17 +61,13 @@ struct Structure {
 
     void
     destroy();
+
+    Member*
+    find_member(String s);
+
+    Member*
+    add_member(String id);
 };
-
-void
-to_string(DString& start, Structure* s);
-
-DString
-to_string(Structure* s) {
-    DString out = dstring::init();
-    to_string(out, s);
-    return out;
-}
 
 } // namespace amu 
 

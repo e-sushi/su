@@ -1,20 +1,40 @@
 namespace amu {
 
-Structure*
-Structure::create() {
-    Structure* out = pool::add(compiler::instance.storage.structures);
-    out->table = label::table::init(0);
+Member* Member::
+create() {
+    auto out = pool::add(compiler::instance.storage.members);
     return out;
 }
 
+String Member::
+name() {
+    return label->name();
+}
 
+DString Member::
+debug_str() {
+    return dstring::init("Member<", label->name(), ">");
+}
 
+Structure*
+Structure::create() {
+    Structure* out = pool::add(compiler::instance.storage.structures);
+    out->members = map::init<String, Member*>();
+    return out;
+}
 
+Member* Structure::
+find_member(String s) {
+    auto [idx, found] = map::find(members, s);
+    if(!found) return 0;
+    return amu::array::read(members.values, idx);
+}
 
-
-void
-to_string(DString& start, Structure* s) {
-    dstring::append(start, "Structure");
+Member* Structure::
+add_member(String id) {
+    auto out = pool::add(compiler::instance.storage.members); 
+    map::add(members, id, out);
+    return out;
 }
 
 } // namespace amu

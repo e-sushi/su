@@ -55,41 +55,6 @@ base(Type* t);
 
 
 
-namespace type::pointer {
-Array<ExistantPointer> set = amu::array::init<ExistantPointer>();
-} // namespace pointer
-
-
-namespace type::array {
-Array<ExistantArray> set = amu::array::init<ExistantArray>();
-
-
-} // namespace array
-
-namespace function {
-
-
-
-} // namespace function
-
-namespace type::tuple {
-Array<ExistantTupleType> set;
-
-} // namespace tuple
-
-Pointer* Pointer::
-create(Type* type) {
-    auto [idx,found] = amu::array::util::
-        search<type::pointer::ExistantPointer, Type*>(type::pointer::set, type, [](type::pointer::ExistantPointer& p){ return p.type; });
-    if(found) return amu::array::read(type::pointer::set, idx).ptype;
-    type::pointer::ExistantPointer* nu = amu::array::insert(type::pointer::set, idx);
-    nu->ptype = pool::add(compiler::instance.storage.pointer_types);
-    nu->ptype->kind = type::kind::pointer;
-    //nu->ptype->node.kind = node::type;
-    nu->ptype->type = type;
-    nu->type = type;
-    return nu->ptype;
-}
 
 void
 to_string(DString& start, Type* t) {

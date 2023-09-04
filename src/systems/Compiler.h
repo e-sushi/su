@@ -15,7 +15,8 @@
 #include "processors/Lexer.h"
 #include "processors/Parser.h"
 #include "processors/Sema.h"
-#include "processors/Gen.h"
+#include "processors/GenTAC.h"
+#include "processors/GenAIR.h"
 #include "representations/Code.h"
 #include "systems/Machine.h"
 
@@ -39,19 +40,23 @@ struct Compiler {
         Pool<Module>       modules;
         Pool<Label>        labels;
         Pool<VirtualLabel> virtual_labels;
+        Pool<Member>       members;
         Pool<Structure>    structures;
         Pool<Function>     functions;
         Pool<Stmt>         statements;
         Pool<Expr>         expressions;
         Pool<Call>         calls;
         Pool<Block>        blocks; 
-        Pool<Var>          vars;
         Pool<VarRef>       varrefs; 
+        Pool<Access>       accesses;
+        Pool<Var>          vars;
         Pool<Tuple>        tuples;
         Pool<Scalar>       scalars;
         Pool<Structured>   structured_types;
         Pool<Pointer>      pointer_types;
-        Pool<StaticArray>  array_types;
+        Pool<StaticArray>  static_array_types;
+        Pool<ViewArray>    view_array_types;
+        Pool<DynamicArray> dynamic_array_types;
         Pool<Variant>      variant_types;
         Pool<FunctionType> function_types;
         Pool<TupleType>    tuple_types;
