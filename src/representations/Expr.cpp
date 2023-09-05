@@ -9,34 +9,34 @@ create(expr::kind kind, Type* type) {
     return out;
 }
 
-DString* Expr::
+DString Expr::
 name() { // TODO(sushi) switch on expr kind
-    return DString::create("Expression");
+    return dstring::init("Expression");
 }
 
-DString* Expr::
+DString Expr::
 dump() {
-    DString* out = DString::create("Expr<");
+    DString out = dstring::init("Expr<");
 
     switch(this->kind) {
         case expr::typeref: {
-            out->append("typeref:", this->type);
+            dstring::append(out, "typeref:", this->type);
         } break;
         case expr::identifier: {
-            out->append("id:'", this->start->raw, "'");
+            dstring::append(out, "id:'", this->start->raw, "'");
         } break;
         case expr::literal: {
-            out->append(literal.dump());
+            dstring::append(out, literal.dump());
         } break;
         case expr::cast: {
-            out->append("cast to ", this->type);
+            dstring::append(out, "cast to ", this->type);
         } break;
         default: {
-            out->append(expr::strings[(u32)this->kind]);
+            dstring::append(out, expr::strings[(u32)this->kind]);
         } break;
     }
 
-    out->append(">");
+    dstring::append(out, ">");
 
     return out;
 }
@@ -92,14 +92,14 @@ create() {
     return out;
 }
 
-DString* Block::
+DString Block::
 name() { // !Leak TODO(sushi) get this to print something nicer
     return dump();
 }
 
-DString* Block::
+DString Block::
 dump() {
-    return DString::create("Block<", (type? type->name() : DString::create("unknown type")), ">");
+    return dstring::init("Block<", (type? type->name() : dstring::init("unknown type")), ">");
 }
 
 Call*
@@ -111,14 +111,14 @@ Call::create() {
     return out;
 }
 
-DString* Call::
+DString Call::
 name() { // !Leak TODO(sushi) get this to print something nicer
     return dump();
 }
 
-DString* Call::
+DString Call::
 dump() {
-    return DString::create("Call<", 
+    return dstring::init("Call<", 
                 (callee? callee->name().fin : "null callee"), ", ", 
                 (arguments? arguments->name().fin : "null args"), ">");
 }
@@ -132,45 +132,45 @@ create() {
     return out;
 }
 
-DString* VarRef::
+DString VarRef::
 name() { // !Leak TODO(sushi) get this to print something nicer
     return dump();
 }
 
-DString* VarRef::
+DString VarRef::
 dump() {
-    return DString::create("VarRef<", (var? var->name() : DString::create("null var")), ">");
+    return dstring::init("VarRef<", (var? var->name() : dstring::init("null var")), ">");
 }
 
 void
-to_string(DString*& start, Expr* e) {
-    start->append("Expr<");
+to_string(DString& start, Expr* e) {
+    dstring::append(start, "Expr<");
     // switch(e->kind) {
     //     case expr::typeref: {
-    //         start->append("typeref:", e->type);
+    //         dstring::append(start, "typeref:", e->type);
     //     } break;
     //     case expr::identifier: {
-    //         start->append("id:'", e->node.start->raw, "'");
+    //         dstring::append(start, "id:'", e->node.start->raw, "'");
     //     } break;
     //     case expr::literal: {
     //         switch(e->node.start->kind) {
-    //             case token::literal_character: start->append("chr lit:'", e->node.start->raw, "'"); break;
-    //             case token::literal_float:     start->append("flt lit:", e->node.start->f64_val); break;
-    //             case token::literal_integer:   start->append("int lit:", e->node.start->s64_val); break;
-    //             case token::literal_string:    start->append("str lit:'", e->node.start->raw, "'"); break;
+    //             case token::literal_character: dstring::append(start, "chr lit:'", e->node.start->raw, "'"); break;
+    //             case token::literal_float:     dstring::append(start, "flt lit:", e->node.start->f64_val); break;
+    //             case token::literal_integer:   dstring::append(start, "int lit:", e->node.start->s64_val); break;
+    //             case token::literal_string:    dstring::append(start, "str lit:'", e->node.start->raw, "'"); break;
     //         }
     //     } break;
     //     case expr::varref: {
-    //         start->append("varref: ", ((VarRef*)e)->place);
+    //         dstring::append(start, "varref: ", ((VarRef*)e)->place);
     //     } break;
     //     default: {
-    //         start->append(expr::strings[(u32)e->kind]);
+    //         dstring::append(start, expr::strings[(u32)e->kind]);
     //     } break;
     // }
 
     auto a = &start;
 
-    start->append(">");
+    dstring::append(start, ">");
 }
 
 } // namespace amu

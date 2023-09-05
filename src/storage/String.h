@@ -10,7 +10,7 @@
     in lexing, so once the compiler is somewhat stable, it may be worth seeing if this is still true
     and removing stuff that's not necessary.
 
-    A DString* may implicitly be convered to a String, so a constructor is provided
+    A DString may implicitly be convered to a String, so a constructor is provided
     for that.
 */
 
@@ -32,8 +32,8 @@ struct String {
 
 
     String(){str=0;count=0;} // i wish i could avoid this
-	// NOTE(sushi) this results in a weak reference to the given DString*
-	//             eg. the DString* does not care if this String is still using it !
+	// NOTE(sushi) this results in a weak reference to the given DString
+	//             eg. the DString does not care if this String is still using it !
     String(const DString* dstr);
     String(const char* s, s64 count) : str((u8*)s), count(count) {}
     String(u8* s, s64 count) : str(s), count(count) {}

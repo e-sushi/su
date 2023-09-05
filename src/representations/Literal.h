@@ -61,10 +61,10 @@ struct Literal : public Base {
         StaticArray* array;
     };
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     

@@ -1,46 +1,46 @@
 namespace amu {
 
-DString* Literal::
+DString Literal::
 name() {
     switch(this->kind) {
-        case literal::_u64: return DString::create(_u64); 
-        case literal::_u32: return DString::create(_u32); 
-        case literal::_u16: return DString::create(_u16); 
-        case literal::_u8: return DString::create(_u8); 
-        case literal::_s64: return DString::create(_s64); 
-        case literal::_s32: return DString::create(_s32); 
-        case literal::_s16: return DString::create(_s16); 
-        case literal::_s8: return DString::create(_s8); 
-        case literal::_f64: return DString::create(_f64); 
-        case literal::_f32: return DString::create(_f32); 
-        case literal::string: return DString::create(str); 
-        case literal::chr: return DString::create("'", (char)chr, "'"); 
+        case literal::_u64: return dstring::init(_u64); 
+        case literal::_u32: return dstring::init(_u32); 
+        case literal::_u16: return dstring::init(_u16); 
+        case literal::_u8: return dstring::init(_u8); 
+        case literal::_s64: return dstring::init(_s64); 
+        case literal::_s32: return dstring::init(_s32); 
+        case literal::_s16: return dstring::init(_s16); 
+        case literal::_s8: return dstring::init(_s8); 
+        case literal::_f64: return dstring::init(_f64); 
+        case literal::_f32: return dstring::init(_f32); 
+        case literal::string: return dstring::init(str); 
+        case literal::chr: return dstring::init("'", (char)chr, "'"); 
         case literal::array: return array->name();
         case literal::tuple: return tuple->name(); 
     }
-    return DString::create("bad literal");
+    return dstring::init("bad literal");
 }
 
-DString* Literal::
+DString Literal::
 dump() {
-    DString* out = DString::create("Literal<");
+    DString out = dstring::init("Literal<");
     switch(kind) {
-        case literal::_u64: out->append("u64: ", _u64); break;
-        case literal::_u32: out->append("u32: ", _u32); break;
-        case literal::_u16: out->append("u16: ", _u16); break;
-        case literal::_u8: out->append("u8: ", _u8); break;
-        case literal::_s64: out->append("s64: ", _s64); break;
-        case literal::_s32: out->append("s32: ", _s32); break;
-        case literal::_s16: out->append("s16: ", _s16); break;
-        case literal::_s8: out->append("s8: ", _s8); break;
-        case literal::_f64: out->append("f64: ", _f64); break;
-        case literal::_f32: out->append("f32: ", _f32); break;
-        case literal::string: out->append("\"", str, "\""); break;
-        case literal::chr: out->append("'", (char)chr, "'"); break;
-        case literal::array: out->append(array->name()); break;
-        case literal::tuple: out->append(tuple->name()); break;
+        case literal::_u64: dstring::append(out, "u64: ", _u64); break;
+        case literal::_u32: dstring::append(out, "u32: ", _u32); break;
+        case literal::_u16: dstring::append(out, "u16: ", _u16); break;
+        case literal::_u8: dstring::append(out, "u8: ", _u8); break;
+        case literal::_s64: dstring::append(out, "s64: ", _s64); break;
+        case literal::_s32: dstring::append(out, "s32: ", _s32); break;
+        case literal::_s16: dstring::append(out, "s16: ", _s16); break;
+        case literal::_s8: dstring::append(out, "s8: ", _s8); break;
+        case literal::_f64: dstring::append(out, "f64: ", _f64); break;
+        case literal::_f32: dstring::append(out, "f32: ", _f32); break;
+        case literal::string: dstring::append(out, "\"", str, "\""); break;
+        case literal::chr: dstring::append(out, "'", (char)chr, "'"); break;
+        case literal::array: dstring::append(out, array->name()); break;
+        case literal::tuple: dstring::append(out, tuple->name()); break;
     }
-    out->append(">");
+    dstring::append(out, ">");
     return out;
 }
 

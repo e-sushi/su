@@ -14,14 +14,14 @@ base() {
     return scan;
 }
 
-DString* Label::
+DString Label::
 name() {
-    return DString::create(start->raw);
+    return dstring::init(start->raw);
 }
 
-DString* Label::
+DString Label::
 dump() {
-    return DString::create("Label<", start->raw, ">");
+    return dstring::init("Label<", start->raw, ">");
 }
 
 Type* Label::
@@ -31,20 +31,20 @@ resolve_type() {
 }
 
 VirtualLabel* VirtualLabel::
-create(DString* name) {
+create(DString name) {
     VirtualLabel* out = pool::add(compiler::instance.storage.virtual_labels);
     out->id = name;
     return out;
 }
 
-DString* VirtualLabel::
+DString VirtualLabel::
 name() {
     return id;
 }
 
-DString* VirtualLabel::
+DString VirtualLabel::
 debug_str() {
-    return DString::create("VirtualLabel<", id, ">");
+    return dstring::init("VirtualLabel<", id, ">");
 }
 
 namespace label {
@@ -98,65 +98,65 @@ resolve(TNode* n) {
 }
 
 void
-display(DString*& current, Label* l, Formatting format, b32 allow_color) {
+display(DString& current, Label* l, Formatting format, b32 allow_color) {
     // auto append_label = [&](Label* l) {
-    //     DString* temp = DString::create(l->node.start->raw);
+    //     DString temp = dstring::init(l->node.start->raw);
     //     if(allow_color) {
     //         util::wrap_color(temp, format.col);
     //     }
     //     dstring::prepend(temp, format.prefix);
-    //     current->append(temp, format.suffix);
+    //     dstring::append(current, temp, format.suffix);
     //     dstring::deinit(temp);
     // };
 
     // append_label(l);
 
     // if(l->aliased && !format.no_aka) {
-    //     current->append(" (aka ");
+    //     dstring::append(current, " (aka ");
     //     if(format.full_aka) {
     //         Label* step = l->aliased;
     //         while(1) {
     //             append_label(step);
     //             step = step->aliased;
     //             if(!step) break;
-    //             current->append(" aka ");
+    //             dstring::append(current, " aka ");
     //         }
     //     } else {
     //         Label* step = l->aliased;
     //         while(step->aliased) step = step->aliased;
     //         append_label(step);
     //     }
-    //     current->append(')');
+    //     dstring::append(current, ')');
     // }
 }
 
 } // namespace label
 
 global void
-to_string(DString*& start, Label* l) {
-    // start->append("Label<");
+to_string(DString& start, Label* l) {
+    // dstring::append(start, "Label<");
 
-    // if(!l || !l->node.start) return start->append("unknown>");
+    // if(!l || !l->node.start) return dstring::append(start, "unknown>");
     
-    // start->append("'", l->node.start->raw, "'");
+    // dstring::append(start, "'", l->node.start->raw, "'");
 
     // if(l->aliased)
-    //     start->append(" (aka ", label::base(l)->node.start->raw, ")");
+    //     dstring::append(start, " (aka ", label::base(l)->node.start->raw, ")");
  
     // // TODO(sushi) add option to enable this somehow 
     // // if(l->node.end) {
-    // //     start->append(l->node.start->code->name, ":", 
+    // //     dstring::append(start, l->node.start->code->name, ":", 
     // //             l->node.start->l0, ",", l->node.start->c0, ":",
     // //             l->node.end->l0, ",", l->node.end->c0,
     // //         ">");
     // // } else {
-    // //     start->append(l->node.start->code->name, ":", 
+    // //     dstring::append(start, l->node.start->code->name, ":", 
     // //             l->node.start->l0, ",", l->node.start->c0, ":",
     // //             "?,?",
     // //         ">");
     // // }
 
-    // start->append(">");
+    // dstring::append(start, ">");
     
 }
 

@@ -8,19 +8,19 @@ create(Type* type) {
     return out;
 }
 
-DString* Var::
+DString Var::
 name() {
-    return (label? label->name() : DString::create("anon/temp var"));
+    return (label? label->name() : dstring::init("anon/temp var"));
 }
 
-DString* Var::
+DString Var::
 dump() {
-    return DString::create("Var<", name(), ">");
+    return dstring::init("Var<", name(), ">");
 }
 
 void
-to_string(DString*& start, Var* p) {
-    start->append("Place<'", p->label, "' type:", p->type, ">");
+to_string(DString& start, Var* p) {
+    dstring::append(start, "Place<'", p->label, "' type:", p->type, ">");
 }
 
 } // namespace amu

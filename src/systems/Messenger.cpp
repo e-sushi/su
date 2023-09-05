@@ -16,63 +16,63 @@ namespace internal {
 
 Destination* current_dest;
 
-// wraps a DString* in ANSI terminal color
+// wraps a DString in ANSI terminal color
 // TODO(sushi) need to setup using the 8 original colors so that terminal themes work properly
 void
-wrap_color(DString*& current, u32 color) {
-    DString* temp = DString::create("\e[", color, "m");
+wrap_color(DString& current, u32 color) {
+    DString temp = dstring::init("\e[", color, "m");
     dstring::prepend(current, temp);
-    current->append("\e[0m");
+    dstring::append(current, "\e[0m");
     dstring::deinit(temp);
 }
 
 void
-process_part(DString*& current, const MessagePart& part) {
+process_part(DString& current, const MessagePart& part) {
     MessageFormatting& formatting = array::readref(instance.formatting_stack, -1);
     switch(part.kind) {
         case messagepart::plain: {
-            DString* temp = DString::create(part.plain);
+            DString temp = dstring::init(part.plain);
             if(current_dest->allow_color && formatting.plain.col) {
                 wrap_color(temp, (part.col? part.col : formatting.plain.col));
             }
             dstring::prepend(temp, formatting.plain.prefix);
-            temp->append(formatting.plain.suffix);
-            current->append(temp);
+            dstring::append(temp, formatting.plain.suffix);
+            dstring::append(current, temp);
             dstring::deinit(temp);
         } break;
         case messagepart::path: {
-            DString* temp = DString::create(part.plain);
+            DString temp = dstring::init(part.plain);
             // TODO(sushi) implement fancy path formatting
             if(current_dest->allow_color) {
                 wrap_color(temp, (part.col? part.col : formatting.path.col.directory));
             }
             dstring::prepend(temp, formatting.path.prefix);
-            temp->append(formatting.path.suffix);
-            current->append(temp);
+            dstring::append(temp, formatting.path.suffix);
+            dstring::append(current, temp);
             dstring::deinit(temp);
 
         } break;
         case messagepart::token: {
-            DString* temp = DString::create(part.token->raw);
+            DString temp = dstring::init(part.token->raw);
             if(current_dest->allow_color) {
                 wrap_color(temp, formatting.token.col);
             }
             dstring::prepend(temp, formatting.token.prefix);
             if(formatting.token.show_code_loc) {
-                temp->append("(", part.token->l0, ",", part.token->c0, ")");
+                dstring::append(temp, "(", part.token->l0, ",", part.token->c0, ")");
             }
-            temp->append(formatting.token.suffix);
-            current->append(temp);
+            dstring::append(temp, formatting.token.suffix);
+            dstring::append(current, temp);
             dstring::deinit(temp);
         } break;
         case messagepart::identifier: {
-            DString* temp = DString::create(part.plain);
+            DString temp = dstring::init(part.plain);
             if(current_dest->allow_color) {
                 wrap_color(temp, formatting.identifier.col);
             }
             dstring::prepend(temp, formatting.identifier.prefix);
-            temp->append(formatting.identifier.suffix);
-            current->append(temp);
+            dstring::append(temp, formatting.identifier.suffix);
+            dstring::append(current, temp);
             dstring::deinit(temp);
         }break;
         case messagepart::place: {
@@ -95,7 +95,7 @@ process_part(DString*& current, const MessagePart& part) {
         } break;
         case messagepart::type: {
             Type* step = part.type;
-            current->append(step->name());
+            dstring::append(current, step->name());
         } break;
     }
 }
@@ -104,7 +104,7 @@ process_part(DString*& current, const MessagePart& part) {
 // TODO(sushi) decide if the color of message type prefixes will be customizable and if not
 //             store a static string of them wrapped in their colors
 void
-process_message(DString*& current, Message& m) {
+process_message(DString& current, Message& m) {
     // dont do anything if current verbosity is less than the message's
     if(m.kind == message::debug && m.verbosity > compiler::instance.options.verbosity) return; 
 
@@ -112,24 +112,24 @@ process_message(DString*& current, Message& m) {
     //             and in those cases show a relative path instead of just the name
     switch(m.sender.type) {
         case MessageSender::Compiler: {
-            DString* compiler_prefix = DString::create("amu");
+            DString compiler_prefix = dstring::init("amu");
             if(current_dest->allow_color)
                 wrap_color(compiler_prefix, message::color_cyan);
-                compiler_prefix->append(String(": "));
-            current->append(compiler_prefix);
+                dstring::append(compiler_prefix, String(": "));
+            dstring::append(current, compiler_prefix);
         } break;
         case MessageSender::Code: {
-            DString* temp = DString::create(m.sender.code->name());
+            DString temp = dstring::init(m.sender.code->name());
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_cyan);
-            current->append(temp, ": ");
+            dstring::append(current, temp, ": ");
             dstring::deinit(temp);
         } break;
         case MessageSender::CodeLoc: {
-            DString* temp = DString::create(m.sender.code->name());
+            DString temp = dstring::init(m.sender.code->name());
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_cyan);
-            current->append(temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");
+            dstring::append(current, temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");
             dstring::deinit(temp);
             
         } break;
@@ -140,38 +140,38 @@ process_message(DString*& current, Message& m) {
         } break;
 
         case message::debug: { 
-            DString* temp = DString::create("debug");
+            DString temp = dstring::init("debug");
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_green);
-            current->append(temp);
-            current->append(": ");
+            dstring::append(current, temp);
+            dstring::append(current, ": ");
             dstring::deinit(temp);
         } break;
 
         case message::warning: {
-            DString* temp = DString::create("warning");
+            DString temp = dstring::init("warning");
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_yellow);
-            current->append(temp);
-            current->append(": ");
+            dstring::append(current, temp);
+            dstring::append(current, ": ");
             dstring::deinit(temp);
         } break;
 
         case message::error: {
-            DString* temp = DString::create("error");
+            DString temp = dstring::init("error");
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_red);
-            current->append(temp);
-            current->append(": ");
+            dstring::append(current, temp);
+            dstring::append(current, ": ");
             dstring::deinit(temp);
         } break;
 
         case message::note: {
-            DString* temp = DString::create("note");
+            DString temp = dstring::init("note");
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_magenta);
-            current->append(temp);
-            current->append(": ");
+            dstring::append(current, temp);
+            dstring::append(current, ": ");
             dstring::deinit(temp);
         } break;
     }
@@ -180,7 +180,7 @@ process_message(DString*& current, Message& m) {
         process_part(current, array::readref(m.parts, i));
     }
 
-    current->append("\n");
+    dstring::append(current, "\n");
 }
 
 } // namespace internal
@@ -225,7 +225,7 @@ deliver(Destination destination, b32 clear_messages) {
 
 void
 deliver(Destination destination, Array<Message> messages) {
-    DString* out = DString::create();
+    DString out = dstring::init();
 
     internal::current_dest = &destination;
 

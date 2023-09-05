@@ -44,7 +44,7 @@ start() {
             // TAC doesn't need to be generated for structures for now 
         } break;
         default: {
-            TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
+            TODO(dstring::init("unhandled start case: ", code::strings[code->kind]));
         } break;
     }
 }
@@ -283,7 +283,7 @@ expression(Expr* e) {
             ret->op = tac::param;
             ret->node = e;
             ret->arg0 = u64(0);
-            ret->comment = DString::create("return slot for ", ce->callee->name());
+            ret->comment = dstring::init("return slot for ", ce->callee->name());
             new_temp(ret, e->type);
 
             auto params = array::init<TAC*>();
@@ -294,7 +294,7 @@ expression(Expr* e) {
                 tac->op = tac::param;
                 tac->node = e;
                 tac->arg0 = ret;
-                tac->comment = DString::create("arg in call to ", ce->callee->name());
+                tac->comment = dstring::init("arg in call to ", ce->callee->name());
                 new_temp(tac, n->type);
                 param_size += tac->temp_size;
                 array::push(params, tac);
@@ -681,7 +681,7 @@ expression(Expr* e) {
 
     // an expression didn't return anything or this is a
     // completely unhandled expression kind
-    TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
+    TODO(dstring::init("unhandled expression kind: ", expr::strings[e->kind]));
     return {};
 }
 

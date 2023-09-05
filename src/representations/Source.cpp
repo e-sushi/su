@@ -9,7 +9,7 @@ load(String path) {
     Source* out = pool::add(compiler::instance.storage.sources);
 
     std::filesystem::path ab = std::filesystem::absolute(p);
-    out->path = String(DString::create(ab.c_str()));
+    out->path = String(dstring::init(ab.c_str()));
 
     u8* scan = out->path.str + out->path.count;
     while(*scan != '/' && *scan != '\\') {

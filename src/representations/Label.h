@@ -57,14 +57,14 @@ struct LabelTable {
 
 // a Label created internally 
 struct VirtualLabel : public Label {
-    DString* id;
+    DString id;
 
 
     // ~~~~~~ interface ~~~~~~~
 
 
     static VirtualLabel*
-    create(DString* name);
+    create(DString name);
 
     void
     destroy();
@@ -95,11 +95,11 @@ struct Formatting {
 
 // returns a formatted string representing the given Label
 void
-display(DString*& current, Label* l, Formatting format = Formatting(), b32 allow_color = true);
+display(DString& current, Label* l, Formatting format = Formatting(), b32 allow_color = true);
 
-DString*
+DString
 display(Label* l, Formatting format = Formatting(), b32 allow_color = true) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     display(out, l, format);
     return out;
 }
@@ -120,11 +120,11 @@ search(LabelTable* table, u64 hashed_id);
 } // namespace label
 
 global void
-to_string(DString*& start, Label* l);
+to_string(DString& start, Label* l);
 
-DString*
+DString
 to_string(Label* l) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     to_string(out, l);
     return out;
 }

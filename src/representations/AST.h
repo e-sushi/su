@@ -93,10 +93,10 @@ struct ASTNode : public TNode, public Base {
     void
     replace(ASTNode* n);
 
-    template<void (*callback)(DString*&, ASTNode*)> DString*
+    template<void (*callback)(DString&, ASTNode*)> DString
     print_tree(b32 newlines = true);
 
-    DString*
+    DString
     print_tree(b32 newlines = true);
 
     // returns a String encompassing the first line
@@ -109,10 +109,10 @@ struct ASTNode : public TNode, public Base {
     String
     lines();
 
-    // returns a DString* of the line representing the current node
+    // returns a DString of the line representing the current node
     // as well as an underline of the contents of the node
     // TODO(sushi) this currenly only works with space indentation
-    DString*
+    DString
     underline();
 };
 

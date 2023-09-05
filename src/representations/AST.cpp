@@ -26,41 +26,41 @@ replace(ASTNode* with) {
 
 namespace internal {
 
-template<void (*callback)(DString*&,ASTNode*)> void
-print_tree_recursive(DString*& current, ASTNode* n, b32 newlines) {
+template<void (*callback)(DString&,ASTNode*)> void
+print_tree_recursive(DString& current, ASTNode* n, b32 newlines) {
     // TODO(sushi) this can't be static when things become multithreaded
     persist u32 layers = 0;
-	if(newlines) forI(layers) current->append("  ");
+	if(newlines) forI(layers) dstring::append(current, "  ");
 
-    if(n->child_count) current->append("(");
+    if(n->child_count) dstring::append(current, "(");
 
 	callback(current, n);
 	
 	layers++;
 	for(ASTNode* c = n->first_child(); c; c = c->next()) {
-		if(newlines) current->append("\n");
-		else current->append(" ");
+		if(newlines) dstring::append(current, "\n");
+		else dstring::append(current, " ");
 		print_tree_recursive<callback>(current, c, newlines);
 	}
 	layers--;
 
 	if(n->child_count) {
-		current->append(")");
+		dstring::append(current, ")");
 	} 
 } 
 
 } // namespace internal
 
-template<void (*callback)(DString*&,ASTNode*)> DString* ASTNode::
+template<void (*callback)(DString&,ASTNode*)> DString ASTNode::
 print_tree(b32 newlines) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     internal::print_tree_recursive<callback>(out, this, newlines);
     return out;
 } 
 
-DString* ASTNode::
+DString ASTNode::
 print_tree(b32 newlines) {
-    return print_tree<[](DString*& s, ASTNode* n) { s->append(n->dump()); }>(newlines);
+    return print_tree<[](DString& s, ASTNode* n) { dstring::append(s, n->dump()); }>(newlines);
 }
 
 String ASTNode::
@@ -86,7 +86,7 @@ first_line(b32 line_numbers, b32 remove_leading_whitespace) {
 		out = string::skip_whitespace(out);
 
 	if(line_numbers) // !Leak
-		out = DString::create(start->l0, ": ", out);
+		out = dstring::init(start->l0, ": ", out);
 
 	return out;
 }
@@ -108,9 +108,9 @@ lines() {
 	return String{scan_left, scan_right-scan_left};
 }
 
-DString* ASTNode::
+DString ASTNode::
 underline() {
-	if(!start || !end) return DString::create("ASTNode::underline called, but either start or end are null");
+	if(!start || !end) return dstring::init("ASTNode::underline called, but either start or end are null");
 
 	String line = first_line();
 
@@ -118,15 +118,15 @@ underline() {
 	u64 start_depth = start->raw.str - line.str;
 	u64 end_depth = util::Min(end->raw.str + end->raw.count - line.str, line.count);
 
-	DString* out = DString::create(line, "\n");
+	DString out = dstring::init(line, "\n");
 
 	// TODO(sushi) this does not handle non u8 codepoints
 	forI(start_depth) {
-		out->append(" ");
+		dstring::append(out, " ");
 	}
 
 	forI(end_depth - start_depth) {
-		out->append("~");
+		dstring::append(out, "~");
 	}
 
 	return out;

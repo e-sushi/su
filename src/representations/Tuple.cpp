@@ -14,18 +14,18 @@ destroy() {
     pool::remove(compiler::instance.storage.tuples, this); 
 }
 
-DString* Tuple::
+DString Tuple::
 name() { 
     return dump();
 }
 
-DString* Tuple::
+DString Tuple::
 dump() {
-    DString* out = DString::create("(");
+    DString out = dstring::init("(");
     for(ASTNode* n = first_child(); n; n = n->next()) {
-        out->append(n->dump(), (n->next()? ", " : ""));
+        dstring::append(out, n->dump(), (n->next()? ", " : ""));
     }
-    out->append(")");
+    dstring::append(out, ")");
     return out;
 }
 

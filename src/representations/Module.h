@@ -25,10 +25,10 @@ struct Module : public Entity {
     Label*
     find_label(String s);
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     Module() : Entity(entity::module) {}
@@ -38,11 +38,11 @@ template<> inline b32 Base::
 is<Module>() { return is<Entity>() && as<Entity>()-> kind == entity::module; }
 
 void
-to_string(DString*& start, Module* m);
+to_string(DString& start, Module* m);
 
-DString*
+DString
 to_string(Module* m) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     to_string(out, m);
     return out;
 }

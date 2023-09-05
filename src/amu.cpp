@@ -9,7 +9,7 @@
 	No type will ever have a constructor that initializes memory nor a deconstructor that deinitializes memory. This functionality is to be 
 	implemented through explicit 'init' and 'deinit' functions. Really, no dynamic memory manipulation may ever be done through either of these.
 	Constructors should primarily be used for conversions or simple initialization of a struct with arguments, for example, String heavily uses
-	constructors for compile time creation from string literals and implicit conversion from DString* to String.
+	constructors for compile time creation from string literals and implicit conversion from DString to String.
 	
 	The C++ std library should only be used in cases where platform specific functionality is required. Otherwise, amu prioritizes implementing 
 	things on its own.
@@ -37,12 +37,12 @@
 
 	Project Wide
 	------------------------
-	[!!, **, 23/08/29] DString*s need to be taken better care of. Currently there are leaks all throughout the program
+	[!!, **, 23/08/29] DStrings need to be taken better care of. Currently there are leaks all throughout the program
 	                   primarily because we can just rely on memory to be cleaned up by the program ending, but when 
 					   we get around to compile time stuff and especially allowing using amu in a fully interpretted 
 					   style, we will want to make sure that the compiler itself does not cause leaks. 
 
-					   Ideally I would like a system where we can keep track of when a DString* is no longer needed.
+					   Ideally I would like a system where we can keep track of when a DString is no longer needed.
 					   I tried experimenting with an ownership/reference counting system, but it was just too complicated
 					   and took too much time away from what I needed to be working on at the time. 
 
@@ -132,7 +132,7 @@
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
 #include "storage/SharedArray.cpp"
-#include "storage/DString*.cpp"
+#include "storage/DString.cpp"
 #include "storage/Map.cpp"
 #include "representations/Source.cpp"
 #include "representations/Entity.cpp"

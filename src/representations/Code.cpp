@@ -1,13 +1,13 @@
 namespace amu {
 
-DString* SourceCode::
+DString SourceCode::
 name() {
-    return DString::create(identifier);
+    return dstring::init(identifier);
 }
 
-DString* SourceCode::
+DString SourceCode::
 dump() {
-    return DString::create("SourceCode<", name(), ">");
+    return dstring::init("SourceCode<", name(), ">");
 }
 
 namespace code {
@@ -46,7 +46,7 @@ from(Code* code, Token* start, Token* end) {
 
     if(end->kind == token::end_of_file) end--;
 
-    out->identifier = DString::create(code->identifier, ":subcode<", start, ",", end, ">");
+    out->identifier = dstring::init(code->identifier, ":subcode<", start, ",", end, ">");
 
     return out;
 }
@@ -237,7 +237,7 @@ prev_is(u32 kind) {
     return prev_kind() == kind;
 }
 
-DString* TokenIterator::
+DString TokenIterator::
 display_line() {
     u8* scan_left = curt->raw.str;
 
@@ -253,12 +253,12 @@ display_line() {
     
     s32 depth = curt->raw.str - scan_left;
 
-    DString* out = DString::create(line, "\n");
+    DString out = dstring::init(line, "\n");
 
     forI(depth) {
-        out->append(" ");
+        dstring::append(out, " ");
     }
-    out->append("^");
+    dstring::append(out, "^");
 
     return out;
 }
@@ -309,8 +309,8 @@ get(Token* t, Options opt) {
         if(scan_right == t->code->raw.str) break;
     }
 
-    // turn the entire thing into a DString*
-    out.str = DString::create(String{
+    // turn the entire thing into a DString
+    out.str = dstring::init(String{
         scan_left, array::read(newlines, -1)
     });
 
@@ -333,13 +333,13 @@ get(Token* t, Options opt) {
         }
 
         if(min_leading) {
-            DString* nu = DString::create();
+            DString nu = dstring::init();
             forI(out.lines.count) {
                 String line = array::read(out.lines, i);
-                if(!line.count) nu->append("\n");
-                else nu->append(String{line.str+min_leading, line.count-min_leading}, "\n");
+                if(!line.count) dstring::append(nu, "\n");
+                else dstring::append(nu, String{line.str+min_leading, line.count-min_leading}, "\n");
             }
-            DString* save = out.str;
+            DString save = out.str;
             out.str = nu;
             dstring::deinit(save);
         }
@@ -359,19 +359,19 @@ get(Token* t, Options opt) {
 } // namespace code
 
 void
-to_string(DString*& current, Code* c) {
+to_string(DString& current, Code* c) {
     if(code::is_virtual(c)) { // TODO(sushi) more info for virtual code whenever its actually used
         auto vc = (VirtualCode*)c;
-        current->append("VirtualCode<'", vc->name(), "'>");
+        dstring::append(current, "VirtualCode<'", vc->name(), "'>");
     } else {
         auto sc = (SourceCode*)c;
-        current->append("SourceCode<", code::strings[sc->kind], ">");
+        dstring::append(current, "SourceCode<", code::strings[sc->kind], ">");
     }
 }
 
-DString*
+DString
 to_string(Code* c) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     to_string(out, c);
     return out;
 }

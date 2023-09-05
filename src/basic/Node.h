@@ -147,10 +147,10 @@ namespace util {
     
 // print a given tree
 // the callback provided is called on each node and expects a String returned to represent it
-template<void (*callback)(DString*&, TNode*)> DString*
+template<void (*callback)(DString&, TNode*)> DString
 print_tree(TNode* root, b32 newlines = true);
 
-DString*
+DString
 print_tree(TNode* root, b32 newlines = true);
 
 } // namespace util
@@ -158,9 +158,9 @@ print_tree(TNode* root, b32 newlines = true);
 
 // if 'expand' is true, it will resolve the TNode to what it represents, then return that string
 void
-to_string(DString*& start, TNode* n, b32 expand = false);
+to_string(DString& start, TNode* n, b32 expand = false);
 
-DString*
+DString
 to_string(TNode* n, b32 expand = false);
 
 } // namespace amu

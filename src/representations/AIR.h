@@ -140,143 +140,143 @@ struct BC {
 };
 
 void
-to_string(DString*& current, BC bc) {
+to_string(DString& current, BC bc) {
 
     auto loffset = [&]() {
         if(bc.flags.left_is_const) {
-            current->append(bc.lhs, " ");
+            dstring::append(current, bc.lhs, " ");
         } else {
-            current->append("(sp + ", bc.lhs, ") ");
+            dstring::append(current, "(sp + ", bc.lhs, ") ");
         }
     };
 
     auto roffset = [&]() {
         if(bc.flags.right_is_const || bc.flags.float_op) {
             if(bc.flags.float_op) {
-                current->append(bc.rhs_f);
+                dstring::append(current, bc.rhs_f);
             } else {
-                current->append(bc.rhs);
+                dstring::append(current, bc.rhs);
             }
         } else {
-            current->append("(sp + ", bc.rhs, ")");
+            dstring::append(current, "(sp + ", bc.rhs, ")");
         }
     };
 
     switch(bc.instr) {
         case air::push:{
-            current->append("push ");
+            dstring::append(current, "push ");
             loffset();
             roffset();
         }break;
         case air::popn:{
-            current->append("popn ");
+            dstring::append(current, "popn ");
             loffset();
         }break;
         case air::pushn:{
-            current->append("pushn ");
+            dstring::append(current, "pushn ");
             loffset();
         }break;
         case air::copy:{
-            current->append("copy ");
+            dstring::append(current, "copy ");
             loffset();
             roffset();
         }break;
         case air::add:{
-            current->append("add ");
+            dstring::append(current, "add ");
             loffset();
             roffset();
         }break;
         case air::sub:{
-            current->append("sub ");
+            dstring::append(current, "sub ");
             loffset();
             roffset();
         }break;
         case air::mul:{
-            current->append("mul ");
+            dstring::append(current, "mul ");
             loffset();
             roffset();
         }break;
         case air::div:{
-            current->append("div ");
+            dstring::append(current, "div ");
             loffset();
             roffset();
         }break;
         case air::eq:{
-            current->append("eq ");
+            dstring::append(current, "eq ");
             loffset();
             roffset();
         }break;
         case air::neq:{
-            current->append("neq ");
+            dstring::append(current, "neq ");
             loffset();
             roffset();
         }break;
         case air::lt:{
-            current->append("lt ");
+            dstring::append(current, "lt ");
             loffset();
             roffset();
         }break;
         case air::gt:{
-            current->append("gt ");
+            dstring::append(current, "gt ");
             loffset();
             roffset();
         }break;
         case air::le:{
-            current->append("le ");
+            dstring::append(current, "le ");
             loffset();
             roffset();
         }break;
         case air::ge:{
-            current->append("ge ");
+            dstring::append(current, "ge ");
             loffset();
             roffset();
         }break;
         case air::call:{
-            current->append("call ");
-            current->append(bc.f->name(), " ");
-            current->append(bc.n_params);
+            dstring::append(current, "call ");
+            dstring::append(current, bc.f->name(), " ");
+            dstring::append(current, bc.n_params);
         }break;
         case air::ret:{
-            current->append("ret ");
+            dstring::append(current, "ret ");
             loffset();
         }break;
         case air::jump:{
-            current->append("jmp ");
+            dstring::append(current, "jmp ");
             loffset();
         }break;
         case air::jump_zero:{
-            current->append("jz ");
+            dstring::append(current, "jz ");
             loffset();
             roffset();
         }break;
         case air::jump_not_zero:{
-            current->append("jnz ");
+            dstring::append(current, "jnz ");
             loffset();
             roffset();
         }break;
     }
 
-    current->append(" w: ", (u32)bc.w+1);
+    dstring::append(current, " w: ", (u32)bc.w+1);
 
     if(bc.comment.str) {
-        current->append("  --# ", bc.comment);
+        dstring::append(current, "  --# ", bc.comment);
     }
 }
 
-DString*
+DString
 to_string(BC bc) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     to_string(out, bc);
     return out;
 }
 
 void
-to_string(DString*& current, Register r) {
+to_string(DString& current, Register r) {
 }
 
-DString*
+DString
 to_string(Register r) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     to_string(out, r);
     return out;
 }

@@ -27,10 +27,10 @@ struct Var : public Entity {
     void
     destroy();
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     Type*
@@ -41,11 +41,11 @@ struct Var : public Entity {
 
 
 void
-to_string(DString*& start, Var* p);
+to_string(DString& start, Var* p);
 
-DString*
+DString
 to_string(Var* p) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     to_string(out, p);
     return out;
 }

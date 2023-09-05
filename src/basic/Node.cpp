@@ -278,41 +278,41 @@ namespace util {
 
 namespace internal {
 
-template<void (*callback)(DString*&,TNode*)> void
-print_tree_recursive(DString*& current, TNode* n, b32 newlines) {
+template<void (*callback)(DString&,TNode*)> void
+print_tree_recursive(DString& current, TNode* n, b32 newlines) {
     persist u32 layers = 0;
-	if(newlines) forI(layers) current->append("  ");
+	if(newlines) forI(layers) dstring::append(current, "  ");
 
-    if(n->child_count) current->append("(");
+    if(n->child_count) dstring::append(current, "(");
 
 	callback(current, n);
 	
 	layers++;
 	for(TNode* c = n->first_child; c; c = c->next) {
-		if(newlines) current->append("\n");
-		else current->append(" ");
+		if(newlines) dstring::append(current, "\n");
+		else dstring::append(current, " ");
 		print_tree_recursive<callback>(current, c, newlines);
 	}
 	layers--;
 
 	if(n->child_count) {
-		current->append(")");
+		dstring::append(current, ")");
 	} 
 } 
 
 } // namespace internal
 
-template<void (*callback)(DString*&,TNode*)> DString*
+template<void (*callback)(DString&,TNode*)> DString
 print_tree(TNode* root, b32 newlines) {
-    DString* out = DString::create();
+    DString out = dstring::init();
     internal::print_tree_recursive<callback>(out, root, newlines);
     return out;
 } 
 
 
-DString*
+DString
 print_tree(TNode* root, b32 newlines) {
-	return print_tree<[](DString*& current, TNode* n) { to_string(current, n, true); }>(root, newlines);
+	return print_tree<[](DString& current, TNode* n) { to_string(current, n, true); }>(root, newlines);
 }
 
 } // namespace util
@@ -320,7 +320,7 @@ print_tree(TNode* root, b32 newlines) {
 } // namespace node
 
 void
-to_string(DString*& start, TNode* n, b32 expand) {
+to_string(DString& start, TNode* n, b32 expand) {
     // if(expand) switch(n->kind) {
 	// 	case node::place:      to_string(start, (Place*)n);      return;
 	// 	case node::label:      to_string(start, (Label*)n);      return;
@@ -335,20 +335,20 @@ to_string(DString*& start, TNode* n, b32 expand) {
 	// 	default: NotImplemented;
 	// }
     
-	// start->append("TNode<", node::strings[n->kind]);
+	// dstring::append(start, "TNode<", node::strings[n->kind]);
 
-	// if(n->start) start->append(":", n->start);
-	// else start->append(":null_start");
+	// if(n->start) dstring::append(start, ":", n->start);
+	// else dstring::append(start, ":null_start");
 
-	// if(n->end) start->append(":", n->end);
-	// else start->append(":null_end");
+	// if(n->end) dstring::append(start, ":", n->end);
+	// else dstring::append(start, ":null_end");
 
-	// start->append(">");
+	// dstring::append(start, ">");
 }
 
-DString*
+DString
 to_string(TNode* n, b32 expand) {
-	DString* out = DString::create();
+	DString out = dstring::init();
 	to_string(out, n, expand);
 	return out;
 }

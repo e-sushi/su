@@ -64,7 +64,7 @@ run() {
     b32 finished = 0;
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.f->name()));
+        util::println(dstring::init("----------------------- ", frame.ip, " of ", frame.f->name()));
         util::println(to_string(*frame.ip));
         BC* instr = frame.ip;
         switch(instr->instr) {
@@ -288,9 +288,9 @@ run() {
 
         u8* ss = frame.fp;
         forI(sp - frame.fp + 1) {
-            util::print(DString::create("sp+", i, " ", *sp));
+            util::print(dstring::init("sp+", i, " ", *sp));
             if(sp == ss) {
-                util::print(DString::create("<"));
+                util::print(dstring::init("<"));
             }
             util::println("");
             ss += 1;
@@ -303,7 +303,7 @@ run() {
 
 void Machine::
 print_stack() {
-    DString* out = DString::create();
+    DString out = dstring::init();
 
     auto my_frames = array::init<CallFrame*>();
     forI(frames.count)
@@ -314,12 +314,12 @@ print_stack() {
 
     u8* p = stack;
     while(p < sp) {
-        out->append("r", p-stack, " ", *p);
+        dstring::append(out, "r", p-stack, " ", *p);
         if(frame_idx < my_frames.count && array::read(my_frames, frame_idx)->fp == p) {    
-            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->f->name());
+            dstring::append(out, " <-- fp of ", array::read(my_frames, frame_idx)->f->name());
             frame_idx++;
         }
-        out->append("\n");
+        dstring::append(out, "\n");
         p++;
     }
     util::println(out);

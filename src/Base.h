@@ -10,7 +10,7 @@
     Keep in mind that nearly everything this defines should primarily be used only in cases
     where we need to report something, such as a name or debug dump. 
 
-    The fact that dump and name return DString*s sucks extremely hard. It's not a HUGE deal for now
+    The fact that dump and name return DStrings sucks extremely hard. It's not a HUGE deal for now
     but if we use this to dump information to compile time code, it will leak like crazy, so this
     needs a better system soon. It can be assumed that memory is leaked anytime you use name/dump.
 

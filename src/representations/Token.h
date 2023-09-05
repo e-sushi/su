@@ -8,7 +8,7 @@
 #include "Source.h"
 #include "Code.h"
 #include "storage/String.h"
-#include "storage/DString*.h"
+#include "storage/DString.h"
 
 namespace amu{
 
@@ -165,7 +165,7 @@ to_string(DString* start, Token* t) {
 
 DString* 
 to_string(Token* t) { 
-    auto out = DString*::create();
+    auto out = DString::create();
     to_string(out, t);
     return out; 
 }

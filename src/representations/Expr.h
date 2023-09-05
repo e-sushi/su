@@ -113,10 +113,10 @@ struct Expr : public Entity {
     void
     destroy();
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     Type*
@@ -167,10 +167,10 @@ is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
 //     void
 //     destroy();
 
-//     DString*
+//     DString
 //     name();
 
-//     DString*
+//     DString
 //     debug_str();
 
 //     // cast this literal to some other literal kind
@@ -200,10 +200,10 @@ struct Block : public Expr {
     void
     destroy();
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     Block() : Expr(expr::block) {}
@@ -226,10 +226,10 @@ struct Call : public Expr {
     void
     destroy();
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     Call() : Expr(expr::call) {}
@@ -251,10 +251,10 @@ struct VarRef : public Expr {
     void
     destroy(); 
 
-    DString*
+    DString
     name();
 
-    DString*
+    DString
     dump();
 
     VarRef() : Expr(expr::varref) {}

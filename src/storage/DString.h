@@ -46,20 +46,20 @@ struct DString {
 	create(T...args);
 
 	// NOT(sushi) this DOES NOT check if there are still refs (only gives a warning if there are)
-	//            it just straight destroys the DString*!
+	//            it just straight destroys the DString!
 	void
 	destroy();
 
-	// returns a new reference to this DString*
+	// returns a new reference to this DString
 	DString*
 	ref();
 
-	// indicates that a reference to this DString* is no longer needed
+	// indicates that a reference to this DString is no longer needed
 	void
 	deref();
 
-	// appends the String s to this DString*
-	// if String s comes from a DString*, remember that this is a weak ref!
+	// appends the String s to this DString
+	// if String s comes from a DString, remember that this is a weak ref!
 	void
 	append(String s);
 
@@ -77,14 +77,14 @@ struct DString {
 
 	// removes a codepoint at 'byte_offset'
 	// if the given offset is within a codepoint or the offset is greater than 
-	// than this DString*'s length, we return 0
+	// than this DString's length, we return 0
 	// otherwise return how many bytes were removed 
 	u64 
 	remove(u64 byte_offset);
 
 	// removes 'count' bytes start from 'byte_offset'
-	// if the given offset is within a codepoint, or the offset is greater than this DString*'s length we return 0
-	// if 'byte_offset' plus 'count' is greater than the length of this DString*, we remove until the end
+	// if the given offset is within a codepoint, or the offset is greater than this DString's length we return 0
+	// if 'byte_offset' plus 'count' is greater than the length of this DString, we remove until the end
 	// returns the number of bytes removed
 	u64 
 	remove(u64 byte_offset, u64 count);
@@ -108,7 +108,7 @@ namespace dstring {
 
 DString*
 to_string(const String& s) {
-    return DString*::create(s);
+    return DString::create(s);
 }
 
 String::String(const DString* dstr) {
@@ -121,11 +121,11 @@ template<typename T> struct is_ptr { static const bool value = false; };
 template<typename T> struct is_ptr<T*> { static const bool value = true; };
 
 // TODO(sushi) rewrite this later on
-//             need to make a version that appends to an already existing DString* so that
+//             need to make a version that appends to an already existing DString so that
 //             we dont allocate a ton of temp stuff
 template<typename T> global DString*
 to_string(T x) {
-    DString* out = DString*::create();
+    DString* out = DString::create();
 	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
 		out->append(String(x, (s64)strlen(x)));
 	}else if constexpr(std::is_same_v<T, char>){
@@ -190,7 +190,7 @@ template<typename T> global void
 to_string(DString* start, T x) {
 	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
 		start->append(String(x, (s64)strlen(x)));
-	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString*, T>) {
+	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString, T>) {
 		start->append(String(x));
 	}else if constexpr(std::is_same_v<T, char>){
         start->append(String(&x, 1));
@@ -263,7 +263,7 @@ to_string(DString* start, T x) {
 namespace util {
 DString*
 format_time(f64 ms){
-	DString* out = DString*::create();
+	DString* out = DString::create();
     if(floor(Minutes(ms))){
 		//hope it never gets this far :)
 		f64 fmin = floor(Minutes(ms));
@@ -280,11 +280,11 @@ format_time(f64 ms){
     return out;
 }
 
-// wraps a DString* in ANSI terminal color
+// wraps a DString in ANSI terminal color
 // TODO(sushi) need to setup using the 8 original colors so that terminal themes work properly
 void
 wrap_color(DString* current, u32 color) {
-    auto temp = DString*::create("\e[", color, "m");
+    auto temp = DString::create("\e[", color, "m");
     current->prepend(temp);
     current->append("\e[0m");
     temp->deref();
@@ -293,7 +293,7 @@ wrap_color(DString* current, u32 color) {
 void
 todo(String s, String file, u64 line) {
 	// !Leak
-	println(ScopedDString*Ref(DString*::create("TODO:", file, ":", line, ": ", s)).x);
+	println(ScopedDStringRef(DString::create("TODO:", file, ":", line, ": ", s)).x);
 }
 
 // for todos that should be resolved quickly 

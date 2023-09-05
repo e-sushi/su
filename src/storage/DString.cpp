@@ -1,8 +1,8 @@
 namespace amu{
 
-DString* DString*::
+DString* DString::
 create(String s) {
-    auto out = (DString*)memory::allocate(sizeof(DString*));
+    auto out = (DString*)memory::allocate(sizeof(DString));
     out->count = s.count;
     out->space = util::round_up_to(s.count, 8);
     out->str = (u8*)memory::allocate(out.space); 
@@ -11,35 +11,35 @@ create(String s) {
     return out;
 }
 
-template<typename... T> DString* DString*
+template<typename... T> DString* DString
 create(T... args) {
     DString* out = create();
     (to_string(out, args), ...);
     return out;
 }
 
-void DString*::
+void DString::
 destroy() {
 #if BUILD_SLOW
-    if(refs) messenger::qdebug(String("WARNING: DString* being destroyed but still has refs!"));
+    if(refs) messenger::qdebug(String("WARNING: DString being destroyed but still has refs!"));
 #endif
     memory::free(str);
     memory::free(this);
 }
 
-DString* DString*::
+DString* DString::
 ref() {
     refs++;
     return this;
 }
 
-void DString*::
+void DString::
 deref() {
     refs--;
     if(!refs) destroy();
 }
 
-void DString*::
+void DString::
 append(String s) {
     s64 offset = this->count;
     this->count += s.count;
@@ -50,12 +50,12 @@ append(String s) {
     memory::copy(this->str+offset, s.str, s.count); 
 } 
 
-template<typename... T> void DString*::
+template<typename... T> void DString::
 append(T... args) {
     (to_string(this, args), ...);
 }
 
-void DString*::
+void DString::
 insert(u64 offset, String s) {
     if(b && offset <= this->count) {
         s64 required_space = this->count + s.count + 1;
@@ -66,12 +66,12 @@ insert(u64 offset, String s) {
     }
 }
 
-void DString*::
+void DString::
 prepend(String s) {
     insert(0, s);
 }
 
-u64 DString*::
+u64 DString::
 remove(u64 offset) {
     if((offset < this->count) && !string::internal::utf8_continuation_byte(*(this->str+offset))) {
         DecodedCodepoint decoded = string::internal::decoded_codepoint_from_utf8(this->str+offset, 4);
@@ -82,7 +82,7 @@ remove(u64 offset) {
     return 0;
 }
 
-u64 DString*::
+u64 DString::
 remove(u64 offset, u64 count) {
     // if offset is beyond a, or we are at a continuation byte at either ends of the range
     // return 0
@@ -100,9 +100,9 @@ remove(u64 offset, u64 count) {
 
 namespace dstring {
 
-DString*
+DString
 init(String s) {
-    auto out = (DString*)memory::allocate(sizeof(DString*));
+    auto out = (DString*)memory::allocate(sizeof(DString));
     out->count = s.count;
     out->space = util::round_up_to(s.count, 8);
     out->str = (u8*)memory::allocate(out.space); 
@@ -110,9 +110,9 @@ init(String s) {
     return out;
 }
 
-template<typename... T> FORCE_INLINE DString*
+template<typename... T> FORCE_INLINE DString
 init(T...args) {
-    DString* out = DString::create();
+    DString* out = dstring::init();
     (to_string(out, args), ...);
     return out;
 }
@@ -121,11 +121,11 @@ void
 deinit(DString* s) {
     if(refs)
     memory::free(s.str);
-    memory::zero(&s,sizeof(DString*));
+    memory::zero(&s,sizeof(DString));
 }
 
 void
-grow(DString*& s, u64 bytes) {
+grow(DString& s, u64 bytes) {
     if(bytes) {
         s.space = util::round_up_to(s.space + bytes, 8);
         s.str = (u8*)memory::reallocate(s.str, s.space);
@@ -145,12 +145,12 @@ append(DString* a, String b) {
 }
 
 template<typename... T> void
-append(DString*& a, T... args) {
+append(DString& a, T... args) {
     (to_string(a, args), ...);
 }
 
 global void
-insert(DString*& a, u64 offset, String b) {
+insert(DString& a, u64 offset, String b) {
     if(b && offset <= a.count) {
         s64 required_space = a.count + b.count + 1;
         if(required_space > a.space) grow(a, required_space - a.space);
@@ -161,20 +161,20 @@ insert(DString*& a, u64 offset, String b) {
 }
 
 void
-prepend(DString*& a, String b) {
+prepend(DString& a, String b) {
     insert(a, 0, b);
 }
 
 // concatenates a String to a String and returns a new String
-DString*
-concat(DString*& a, String b) {
-    DString* out = init();
+DString
+concat(DString& a, String b) {
+    DString out = init();
     append(out, b);
     return out;
 }
 
 global u64
-remove(DString*& a, u64 offset) {
+remove(DString& a, u64 offset) {
     if((offset < a.count) && !string::internal::utf8_continuation_byte(*(a.str+offset))) {
         DecodedCodepoint decoded = string::internal::decoded_codepoint_from_utf8(a.str+offset, 4);
         memory::copy(a.str+offset, a.str+offset+decoded.advance, a.count - offset);
@@ -185,7 +185,7 @@ remove(DString*& a, u64 offset) {
 }
 
 global u32
-remove(DString*& a, u64 offset, u64 count) {
+remove(DString& a, u64 offset, u64 count) {
     // if offset is beyond a, or we are at a continuation byte at either ends of the range
     // return 0
     if(offset > a.count || 

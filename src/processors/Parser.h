@@ -59,7 +59,7 @@ struct Parser {
     parse();
 
     // displays the current NodeStack 
-    DString* 
+    DString 
     display_stack();
 
 
@@ -150,7 +150,7 @@ pop_table(Code* c);
 LabelTable*
 current_table(Code* c);
 
-DString*
+DString
 display(Code* c);
 
 } // namespace stack

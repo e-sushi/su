@@ -53,7 +53,7 @@ start() {
 
         } break;
         default: {
-            TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
+            TODO(dstring::init("unhandled start case: ", code::strings[code->kind]));
         } break;
     }
 }
@@ -306,7 +306,7 @@ body() {
                 // manually remove argument temps because they are cleared when
                 // the function returns 
                 array::readref(scoped_temps, -1) -= bc->n_params - tac->temp_size;
-                bc->comment = DString::create("return value at pos ", tac->temp_pos);
+                bc->comment = dstring::init("return value at pos ", tac->temp_pos);
             } break;
 
             case tac::ret: {
@@ -387,7 +387,7 @@ push_temp(TAC* tac) {
     }
 
     tac->temp_pos = stack_offset;
-    out->comment = DString::create("temp with pos ", tac->temp_pos);
+    out->comment = dstring::init("temp with pos ", tac->temp_pos);
     stack_offset += tac->temp_size;
     array::readref(scoped_temps, -1) += tac->temp_size;
 }
