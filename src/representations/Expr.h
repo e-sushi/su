@@ -113,10 +113,10 @@ struct Expr : public Entity {
     void
     destroy();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     Type*
@@ -200,10 +200,10 @@ struct Block : public Expr {
     void
     destroy();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     Block() : Expr(expr::block) {}
@@ -226,10 +226,10 @@ struct Call : public Expr {
     void
     destroy();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     Call() : Expr(expr::call) {}
@@ -251,10 +251,10 @@ struct VarRef : public Expr {
     void
     destroy(); 
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     VarRef() : Expr(expr::varref) {}

@@ -26,8 +26,8 @@ namespace internal {
 u64 layers = 0;
 
 #define announce_stage(n) 
-    // DString indentation = dstring::init(); \
-    // forI(layers) dstring::append(indentation, " "); \
+    // DString indentation = DString::create(); \
+    // forI(layers) indentation->append(" "); \
     // messenger::dispatch(message::make_debug(message::verbosity::debug, String(indentation), String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true))); \
     // layers++; \
     // defer { layers--; }
@@ -478,7 +478,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
         } break;
 
         default: {
-            TODO(dstring::init("unhandled expression kind: ", expr::strings[e->kind]));
+            TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
         } break;    
     }
 

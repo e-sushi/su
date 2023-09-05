@@ -61,10 +61,10 @@ struct Literal : public Base {
         StaticArray* array;
     };
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     
@@ -72,6 +72,9 @@ struct Literal : public Base {
     Literal() : Base(base::literal) {}
     Literal(const Literal& l) : Base(l.Base::kind) {memory::copy(this, (void*)&l, sizeof(Literal));}
 };
+
+template<> b32 inline Base::
+is<Literal>() { return kind == base::literal; }
 
 
 } // namespace amu 

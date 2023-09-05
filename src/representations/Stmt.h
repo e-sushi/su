@@ -41,10 +41,10 @@ struct Stmt : public ASTNode {
     void
     destroy();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     Stmt() : ASTNode(ast::stmt) {}
@@ -57,7 +57,7 @@ template<> inline b32 Base::
 is(stmt::kind k) { return is<Stmt>() && as<Stmt>()->kind == k; }
 
 void
-to_string(DString& start, Stmt* s);
+to_string(DString* start, Stmt* s);
 
 } // namespace amu
 

@@ -59,7 +59,7 @@ struct Parser {
     parse();
 
     // displays the current NodeStack 
-    DString 
+    DString*
     display_stack();
 
 

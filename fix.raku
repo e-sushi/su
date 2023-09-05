@@ -14,7 +14,11 @@ while @stack {
 
 sub process($path) {
     my $content = $path.slurp;
-    while $content ~~ m/<!after \/\/.*?>DString<!before [\*|\S|\s*[\{|\[]]>/ {
+    # while $content ~~ m/<!after \/\/.*?>DString<!before [\*|\S|\s*[\{|\[]]>/ {
+    #     $content = $/.replace-with("DString*");
+    # }
+
+    while $content ~~ m/DString<?before \s*\n\s*[name|dump]>/ {
         $content = $/.replace-with("DString*");
     }
 
@@ -37,6 +41,6 @@ sub process($path) {
 
     # say $content;
 
-    $path.copy: "$path.backup";
+    # $path.copy: "$path.backup";
     $path.spurt: $content;
 }

@@ -41,19 +41,19 @@ can_cast_to(Type* to)  {
     return false;
 }
 
-DString Scalar::
+DString* Scalar::
 name() {
     switch(this->kind) {
-        case scalar::unsigned8:  return dstring::init("u8");
-        case scalar::unsigned16: return dstring::init("u16");
-        case scalar::unsigned32: return dstring::init("u32");
-        case scalar::unsigned64: return dstring::init("u64");
-        case scalar::signed8:    return dstring::init("s8");
-        case scalar::signed16:   return dstring::init("s16");
-        case scalar::signed32:   return dstring::init("s32");
-        case scalar::signed64:   return dstring::init("s64");
-        case scalar::float32:    return dstring::init("f32");
-        case scalar::float64:    return dstring::init("f64");
+        case scalar::unsigned8:  return DString::create("u8");
+        case scalar::unsigned16: return DString::create("u16");
+        case scalar::unsigned32: return DString::create("u32");
+        case scalar::unsigned64: return DString::create("u64");
+        case scalar::signed8:    return DString::create("s8");
+        case scalar::signed16:   return DString::create("s16");
+        case scalar::signed32:   return DString::create("s32");
+        case scalar::signed64:   return DString::create("s64");
+        case scalar::float32:    return DString::create("f32");
+        case scalar::float64:    return DString::create("f64");
     }
 }
 
@@ -73,22 +73,22 @@ size() {
     }
 }
 
-DString Scalar::
+DString* Scalar::
 dump() {
-    DString out = dstring::init("ScalarType<");
+    DString* out = DString::create("ScalarType<");
     switch(this->kind) {
-        case scalar::unsigned8:  dstring::append(out, "u8");    break;
-        case scalar::unsigned16: dstring::append(out, "u16");   break;
-        case scalar::unsigned32: dstring::append(out, "u32");   break;
-        case scalar::unsigned64: dstring::append(out, "u64");   break;
-        case scalar::signed8:    dstring::append(out, "s8");    break;
-        case scalar::signed16:   dstring::append(out, "s16");   break;
-        case scalar::signed32:   dstring::append(out, "s32");   break;
-        case scalar::signed64:   dstring::append(out, "s64");   break;
-        case scalar::float32:    dstring::append(out, "f32");   break;
-        case scalar::float64:    dstring::append(out, "f64");   break;
+        case scalar::unsigned8:  out->append("u8");    break;
+        case scalar::unsigned16: out->append("u16");   break;
+        case scalar::unsigned32: out->append("u32");   break;
+        case scalar::unsigned64: out->append("u64");   break;
+        case scalar::signed8:    out->append("s8");    break;
+        case scalar::signed16:   out->append("s16");   break;
+        case scalar::signed32:   out->append("s32");   break;
+        case scalar::signed64:   out->append("s64");   break;
+        case scalar::float32:    out->append("f32");   break;
+        case scalar::float64:    out->append("f64");   break;
     }
-    dstring::append(out, ">");
+    out->append(">");
     return out;
 }
 
@@ -105,14 +105,14 @@ create(Type* type) {
     return nu;
 }
 
-DString Pointer::
+DString* Pointer::
 name() { // !Leak
-    return dstring::init(type->name(), "*");
+    return DString::create(type->name(), "*");
 }
 
-DString Pointer::
+DString* Pointer::
 dump() {
-    return dstring::init(type->name(), "*");
+    return DString::create(type->name(), "*");
 }
 
 u64 Pointer::
@@ -156,14 +156,14 @@ create(Type* type, u64 count) {
     return nu;
 }
 
-DString StaticArray::
+DString* StaticArray::
 name() {
-    return dstring::init(this->type->name(), "[", this->count, "]"); 
+    return DString::create(ScopedDStringRef(this->type->name()).x, "[", this->count, "]"); 
 }
 
-DString StaticArray::
+DString* StaticArray::
 dump() {
-    return dstring::init(name());
+    return DString::create(name());
 }
 
 u64 StaticArray::
@@ -202,14 +202,14 @@ create(Type* type) {
     return nu;
 }
 
-DString ViewArray::
+DString* ViewArray::
 name() {
-    return dstring::init(this->type->name(), "[]");
+    return DString::create(ScopedDStringRef(this->type->name()).x, "[]");
 }
 
-DString ViewArray::
+DString* ViewArray::
 dump() {
-    return dstring::init(name());
+    return DString::create(name());
 }
 
 u64 ViewArray::
@@ -253,14 +253,14 @@ create(Type* type) {
     return nu;
 }
 
-DString DynamicArray::
+DString* DynamicArray::
 name() {
-    return dstring::init(this->type->name(), "[..]");
+    return DString::create(this->type->name(), "[..]");
 }
 
-DString DynamicArray::
+DString* DynamicArray::
 dump() {
-    return dstring::init(name());
+    return DString::create(name());
 }
 
 u64 DynamicArray::
@@ -277,24 +277,24 @@ create() {
     return out;
 }
 
-DString FunctionType::
+DString* FunctionType::
 name() {
-    DString out = dstring::init("("); // !Leak
+    DString* out = DString::create("("); // !Leak
     for(ASTNode* n = this->parameters->first_child(); n; n = n->next()) {
-        dstring::append(out, n->resolve_type(), (n->next()? ", " : ""));
+        out->append(n->resolve_type(), (n->next()? ", " : ""));
     }
-    dstring::append(out, ") -> ");
+    out->append(") -> ");
     for(ASTNode* n = this->returns; n; n = n->next()) {
         b32 block_next = n->next_is<Block>();
-        dstring::append(out, n->resolve_type(), (block_next? "" : ", "));
+        out->append(n->resolve_type(), (block_next? "" : ", "));
         if(block_next) break;
     }
     return out;
 }
 
-DString FunctionType::
+DString* FunctionType::
 dump() { // !Leak: double leak
-    return dstring::init(name());
+    return name();
 }
 
 u64 FunctionType::
@@ -329,14 +329,14 @@ create(Array<Type*>& types) {
     return nu;
 }
 
-DString TupleType::
+DString* TupleType::
 name() { // TODO(sushi) this sucks
-    return dstring::init(String{start->raw.str, end->raw.str - start->raw.str});
+    return DString::create(String{start->raw.str, end->raw.str - start->raw.str});
 }
 
-DString TupleType::
+DString* TupleType::
 dump() {
-    return dstring::init("TupleType<TODO>");
+    return DString::create("TupleType<TODO>");
 }
 
 u64 TupleType::
@@ -378,14 +378,14 @@ find_member(String id) {
     return structure->find_member(id);
 }
 
-DString Structured::
+DString* Structured::
 name() {
-    return label->name();
+    return label->name()->ref();
 }
 
-DString Structured::
+DString* Structured::
 dump() {
-    return dstring::init("Structured<TODO>");
+    return DString::create("Structured<TODO>");
 }
 
 u64 Structured::

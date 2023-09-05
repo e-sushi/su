@@ -89,6 +89,9 @@ struct DString {
 	u64 
 	remove(u64 byte_offset, u64 count);
 
+	void 
+	grow(u64 bytes);
+
 	DString(){str=0;count=0;space=0;}
 };
 
@@ -100,6 +103,12 @@ struct ScopedDStringRef {
 	DString* operator->() const {
 		return x;
 	}
+};
+
+struct ScopedDeref {
+	DString* x;
+	ScopedDeref(DString* in) : x(in) {}
+	~ScopedDeref() { x->deref(); }
 };
 
 namespace dstring {
@@ -190,7 +199,7 @@ template<typename T> global void
 to_string(DString* start, T x) {
 	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
 		start->append(String(x, (s64)strlen(x)));
-	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString, T>) {
+	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString*, T>) {
 		start->append(String(x));
 	}else if constexpr(std::is_same_v<T, char>){
         start->append(String(&x, 1));

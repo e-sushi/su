@@ -10,19 +10,19 @@ create(FunctionType* type) {
 }
 
 
-DString Function::
+DString* Function::
 name() {
-    return label->name();
+    return label->name()->ref();
 }
 
-DString Function::
+DString* Function::
 dump() {
-    return dstring::init("Function<TODO>");
+    return DString::create("Function<TODO>");
 }
 
 void
-to_string(DString& start, Function* f) {
-    dstring::append(start, "Function<TODO>");
+to_string(DString* start, Function* f) {
+    start->append("Function<TODO>");
 }
 
 } // namespace amu 

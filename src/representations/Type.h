@@ -70,10 +70,10 @@ struct Type : public Entity {
     virtual u64
     size() = 0;
 
-    DString
+    DString*
     name() = 0;
 
-    DString
+    DString*
     dump() = 0;
 
     Type(type::kind k) : kind(k), Entity(entity::type) {}
@@ -86,9 +86,9 @@ is<Type>() { return is<Entity>() && as<Entity>()->kind == entity::type; }
 struct Void : public Type { 
     Void() : Type(type::kind::void_) {} 
 
-    u64     size() { return 0; }
-    DString name() { return dstring::init("void"); }
-    DString dump() { return dstring::init("Void<>"); }
+    u64      size() { return 0; }
+    DString* name() { return DString::create("void"); }
+    DString* dump() { return DString::create("Void<>"); }
 };
 
 template<> inline b32 Base::
@@ -110,9 +110,9 @@ global Void void_;
 struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
-    u64 size() { return 0; }
-    DString name() { return dstring::init("whatever"); }
-    DString dump() { return dstring::init("Whatever<>"); }
+    u64      size() { return 0; }
+    DString* name() { return DString::create("whatever"); }
+    DString* dump() { return DString::create("Whatever<>"); }
 };
 
 template<> inline b32 Base::
@@ -148,10 +148,10 @@ struct Scalar : public Type {
     // ~~~~~~ interface ~~~~~~~
 
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -204,10 +204,10 @@ struct Structured : public Type {
     Member*
     find_member(String id);
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -237,10 +237,10 @@ struct Pointer : public Type {
     static Pointer*
     create(Type* type);
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -274,10 +274,10 @@ struct StaticArray : public Structured {
     static StaticArray*
     create(Type* type, u64 size);
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -308,10 +308,10 @@ struct DynamicArray : public Structured {
     static DynamicArray*
     create(Type* type);
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -340,10 +340,10 @@ struct ViewArray : public Structured {
     static ViewArray*
     create(Type* type);
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -407,10 +407,10 @@ struct FunctionType : public Type {
     static FunctionType*
     create();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -442,10 +442,10 @@ struct TupleType : public Type {
     static TupleType*
     create(Array<Type*>& types);
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     u64
@@ -490,11 +490,11 @@ extern Map<Type*, Type*> type_map;
 // }; 
 
 // void
-// display(DString& current, Type* type, Formatting format = Formatting(), b32 allow_color = true);
+// display(DString* current, Type* type, Formatting format = Formatting(), b32 allow_color = true);
 
 // DString
 // display(Type* type, Formatting format = Formatting(), b32 allow_color = true) {
-//     DString out = dstring::init();
+//     DString out = DString::create();
 //     display(out, type, format, allow_color);
 //     return out;
 // }

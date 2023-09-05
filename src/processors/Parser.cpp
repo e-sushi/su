@@ -491,7 +491,7 @@ label() {
                 } break;
                 default: {
                     util::println(
-                        dstring::init("unhandled label case: ", expr::strings[expr->kind]));
+                        DString::create("unhandled label case: ", expr::strings[expr->kind]));
                     return false;
                 }
             }
@@ -1362,7 +1362,7 @@ factor() {
                     node.push(e);
                 } break;
                 default: {
-                    util::println(dstring::init(
+                    util::println(DString::create(
                         token.current(), " unhandled identifier reference: ", entity::strings[l->entity->kind]));
                 } break;
             }
@@ -1715,16 +1715,16 @@ add(String id, Label* l) {
     map::add(last->map, id, l);
 }
 
-DString Parser::
+DString* Parser::
 display_stack() {
-    if(!node.stack.count) return dstring::init("empty stack");
-    DString out = dstring::init("stack of ", code->identifier, ":\n");
+    if(!node.stack.count) return DString::create("empty stack");
+    DString* out = DString::create("stack of ", code->identifier, ":\n");
     forI(node.stack.count) {
         if(!i) continue; // first element is always 0 due to storing the last element separate
         ASTNode* n = array::read(node.stack, i);
-        dstring::append(out, n->dump(), "\n");
+        out->append(ScopedDStringRef(n->dump()).x, "\n");
     }
-    dstring::append(out, node.current->dump());
+    out->append(node.current->dump());
     return out;
 }
 

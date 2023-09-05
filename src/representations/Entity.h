@@ -67,7 +67,7 @@ namespace trait {
 }
 
 void
-to_string(DString& start, Type* t);
+to_string(DString* start, Type* t);
 
 namespace entity {
 

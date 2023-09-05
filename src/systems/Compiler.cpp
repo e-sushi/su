@@ -170,18 +170,18 @@ dump_diagnostics(String path, Array<String> sources) {
 
     pool::Iterator<Source> iter = pool::iterator(instance.storage.sources);
     
-    DString source_strings = dstring::init();
+    DString* source_strings = DString::create();
 
     Source* current = 0;
     while((current = pool::next(iter))) {
         if(!current->diagnostics.count) continue;
         array::push(source_table, current);
-        u64 source_offset = sizeof(u64)+source_strings.count;
+        u64 source_offset = sizeof(u64)+source_strings->count;
         forI(current->diagnostics.count) {
             array::push(diagnostics, 
                 {source_offset, array::read(current->diagnostics, i)});
         }
-        dstring::append(source_strings, '"', current->path, '"');
+        source_strings->append('"', current->path, '"');
     }
 
     if(!diagnostics.count){
@@ -190,8 +190,8 @@ dump_diagnostics(String path, Array<String> sources) {
         return true;
     } 
 
-    fwrite(&source_strings.count, sizeof(s64), 1, out);
-    fwrite(source_strings.str, source_strings.count, 1, out);
+    fwrite(&source_strings->count, sizeof(s64), 1, out);
+    fwrite(source_strings->str, source_strings->count, 1, out);
     fwrite(diagnostics.data, diagnostics.count*sizeof(DiagnosticEntry), 1, out);
 
     return true;

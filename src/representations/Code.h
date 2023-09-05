@@ -192,6 +192,7 @@ struct TokenIterator {
 
     // ~~~~~~ interface ~~~~~~~
 
+
     TokenIterator() {}
     TokenIterator(Code* c);
 
@@ -271,7 +272,7 @@ struct TokenIterator {
 
     // displays the current line as well as a caret 
     // indicating where in the line we are 
-    DString
+    DString*
     display_line();
 };
 
@@ -328,7 +329,7 @@ struct Options {
 };
 
 struct Lines {
-    DString str;
+    DString* str;
     String line; // the line that this was created with
     Array<String> lines; // views into 'str', representing each gathered line
     Options opt;
@@ -340,8 +341,8 @@ Lines get(Token* t, Options opt = {});
 Lines get(TNode* n, Options opt = {});
 template<typename T> Lines get(T* a, Options opt = {}); 
 
-void  get(DString& start, Token* t, Options opt = {});
-void  get(DString& start, TNode* n, Options opt = {});
+void  get(DString* start, Token* t, Options opt = {});
+void  get(DString* start, TNode* n, Options opt = {});
 
 void normalize_whitespace(Lines& lines);
 void remove_leading_whitespace(Lines& lines);
@@ -360,7 +361,7 @@ void remove_leading_whitespace(Lines& lines);
 } // namespace code
 
 void
-to_string(DString& current, Code* c);
+to_string(DString* current, Code* c);
 
 } // namespace amu
 

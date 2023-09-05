@@ -31,10 +31,10 @@ struct Function : public Entity {
     void
     destroy();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     Function() : Entity(entity::func) {}
@@ -50,11 +50,11 @@ struct OverloadedFunction : public Entity {
 };
 
 void
-to_string(DString& start, Function* p);
+to_string(DString* start, Function* p);
 
-DString
+DString*
 to_string(Function* f) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, f);
     return out;
 }

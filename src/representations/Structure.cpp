@@ -6,14 +6,14 @@ create() {
     return out;
 }
 
-DString Member::
+DString* Member::
 name() {
     return label->name();
 }
 
-DString Member::
+DString* Member::
 dump() {
-    return dstring::init("Member<", label->name(), ">");
+    return DString::create("Member<", ScopedDeref(label->name()).x, ">");
 }
 
 Structure*

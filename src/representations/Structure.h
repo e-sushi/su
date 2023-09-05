@@ -39,10 +39,10 @@ struct Member : public Entity {
     static Member*
     create();
 
-    DString
+    DString*
     name();
 
-    DString
+    DString*
     dump();
 
     Member() : Entity(entity::member) {}
