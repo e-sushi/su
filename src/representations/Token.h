@@ -8,7 +8,7 @@
 #include "Source.h"
 #include "Code.h"
 #include "storage/String.h"
-#include "storage/DString.h"
+#include "storage/DString*.h"
 
 namespace amu{
 
@@ -148,7 +148,9 @@ struct Token {
     Code* code; 
     u64 l0, l1;
     u64 c0, c1;
-
+    
+    // TODO(sushi) replace this union with Literal and setup Lexer to detect 
+    //             other literals such as the various sizes of scalars 
     union{
         f64 f64_val;
         s64 s64_val;
@@ -156,12 +158,14 @@ struct Token {
     };
 };
 
-FORCE_INLINE void to_string(DString& start, Token* t) { 
-    dstring::append(start, "Token<", t->code->identifier, ":", t->l0, ":", t->c0, " '", t->raw, "'>");
+FORCE_INLINE void 
+to_string(DString* start, Token* t) { 
+    start->append("Token<", t->code->identifier, ":", t->l0, ":", t->c0, " '", t->raw, "'>");
 }
 
-DString to_string(Token* t) { 
-    DString out = dstring::init();
+DString* 
+to_string(Token* t) { 
+    auto out = DString*::create();
     to_string(out, t);
     return out; 
 }

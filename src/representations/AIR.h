@@ -34,21 +34,13 @@ namespace amu {
 namespace air {
 // @genstrings(data/airop_strings.generated)
 enum op {
-    // TODO(sushi) these are mostly to keep track of the stack pointer
-    //             they replace use of 'copy' when initializing registers
-    //             but in the VM no actual allocation of a register takes place
-    push, // push a register onto the stack with value A
-    // I don't know when this will be used if ever
-    pop,  // pop a register from the stack
-    popn, // pop A registers from the stack
+    // pushes the value of A (either a literal or stack offset) onto the stack with size B
+    // this is a mix of pushn and copy, but it can copy any arbitrary amount of data
+    push, 
     
-    // pushes A registers to the stack
-    // primarily for use at the beginning of functions to make space for their locals 
-    pushn, 
-
-    // push a register, A, to the stack
-    pushreg, 
-
+    pushn, // push A bytes to the stack
+    popn, // pop A bytes from the stack
+    
     copy, // copy from B to A
 
     add, // add B to A and store in A
@@ -81,6 +73,11 @@ enum op {
 } // namespace air
 
 // representation of a slot on the VM's stack
+// NOTE(sushi) I'm abandoning this for now (23/09/04) in favor of just using byte offsets 
+//             because dealing with data split into several parts smaller than u64 gets annoying.
+//             I will definitely come back to this, likely as a wrapper over the data to segment it
+//             into 8 byte chunks so that allocating registers is easier when we move to implementing
+//             our own backends
 struct Register{
     union {
         u8* ptr;
@@ -100,21 +97,36 @@ struct Register{
     };
 };
 
+enum width {
+    byte = 0, // 1 byte
+    word = 1, // 2 bytes
+    dble = 2, // 4 bytes
+    quad = 3, // 8 bytes
+};  
+
 // representation of an AIR bytecode
 struct BC {
     air::op instr : 6;
 
     struct {
-        b32 left_is_const : 1 = false; // offset_a is actually representing a constant value 
-        b32 right_is_const : 1 = false; // offset_b is actually representing a constant value 
+        b32 left_is_const : 1 = false; // lhs is actually representing a constant value 
+        b32 right_is_const : 1 = false; // rhs is actually representing a constant value 
         b32 float_op : 1 = false; // this instr is acting on float values
     } flags;
 
+    // the width of the data we're about to operate on 
+    width w : 2;
+
     union{
         struct {
-            s32 offset_a;
-            s32 offset_b;
+            // either a byte offset into the stack, or a literal value 
+            s32 lhs;
+            union {
+                s32 rhs;
+                f64 rhs_f;
+            };
         };
+        // large literal value 
         u64 constant;
         struct { // this sucks, setup a way to store functions in 4 bytes instead of 8
             Function* f;
@@ -123,144 +135,148 @@ struct BC {
         };
     };
 
+    // debug comment that gets printed in BC printing 
     String comment;
 };
 
 void
-to_string(DString& current, BC bc) {
+to_string(DString*& current, BC bc) {
 
     auto loffset = [&]() {
         if(bc.flags.left_is_const) {
-            dstring::append(current, bc.offset_a, " ");
+            current->append(bc.lhs, " ");
         } else {
-            dstring::append(current, "r", bc.offset_a, " ");
+            current->append("(sp + ", bc.lhs, ") ");
         }
     };
 
     auto roffset = [&]() {
-        if(bc.flags.left_is_const) {
-            dstring::append(current, bc.offset_b);
+        if(bc.flags.right_is_const || bc.flags.float_op) {
+            if(bc.flags.float_op) {
+                current->append(bc.rhs_f);
+            } else {
+                current->append(bc.rhs);
+            }
         } else {
-            dstring::append(current, "r", bc.offset_b);
+            current->append("(sp + ", bc.rhs, ")");
         }
     };
 
     switch(bc.instr) {
         case air::push:{
-            dstring::append(current, "push ");
+            current->append("push ");
             loffset();
-        }break;
-        case air::pop:{
-            dstring::append(current, "pop ");
-            loffset();
+            roffset();
         }break;
         case air::popn:{
-            dstring::append(current, "popn ");
+            current->append("popn ");
             loffset();
         }break;
         case air::pushn:{
-            dstring::append(current, "pushn ");
+            current->append("pushn ");
             loffset();
         }break;
         case air::copy:{
-            dstring::append(current, "copy ");
+            current->append("copy ");
             loffset();
             roffset();
         }break;
         case air::add:{
-            dstring::append(current, "add ");
+            current->append("add ");
             loffset();
             roffset();
         }break;
         case air::sub:{
-            dstring::append(current, "sub ");
+            current->append("sub ");
             loffset();
             roffset();
         }break;
         case air::mul:{
-            dstring::append(current, "mul ");
+            current->append("mul ");
             loffset();
             roffset();
         }break;
         case air::div:{
-            dstring::append(current, "div ");
+            current->append("div ");
             loffset();
             roffset();
         }break;
         case air::eq:{
-            dstring::append(current, "eq ");
+            current->append("eq ");
             loffset();
             roffset();
         }break;
         case air::neq:{
-            dstring::append(current, "neq ");
+            current->append("neq ");
             loffset();
             roffset();
         }break;
         case air::lt:{
-            dstring::append(current, "lt ");
+            current->append("lt ");
             loffset();
             roffset();
         }break;
         case air::gt:{
-            dstring::append(current, "gt ");
+            current->append("gt ");
             loffset();
             roffset();
         }break;
         case air::le:{
-            dstring::append(current, "le ");
+            current->append("le ");
             loffset();
             roffset();
         }break;
         case air::ge:{
-            dstring::append(current, "ge ");
+            current->append("ge ");
             loffset();
             roffset();
         }break;
         case air::call:{
-            dstring::append(current, "call ");
-            dstring::append(current, bc.f->name(), " ");
-            dstring::append(current, bc.n_params);
+            current->append("call ");
+            current->append(bc.f->name(), " ");
+            current->append(bc.n_params);
         }break;
         case air::ret:{
-            dstring::append(current, "ret ");
+            current->append("ret ");
             loffset();
         }break;
         case air::jump:{
-            dstring::append(current, "jmp ");
+            current->append("jmp ");
             loffset();
         }break;
         case air::jump_zero:{
-            dstring::append(current, "jz ");
+            current->append("jz ");
             loffset();
             roffset();
         }break;
         case air::jump_not_zero:{
-            dstring::append(current, "jnz ");
+            current->append("jnz ");
             loffset();
             roffset();
         }break;
     }
 
+    current->append(" w: ", (u32)bc.w+1);
+
     if(bc.comment.str) {
-        dstring::append(current, "  --# ", bc.comment);
+        current->append("  --# ", bc.comment);
     }
 }
 
-DString
+DString*
 to_string(BC bc) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, bc);
     return out;
 }
 
 void
-to_string(DString& current, Register r) {
+to_string(DString*& current, Register r) {
 }
 
-DString
+DString*
 to_string(Register r) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, r);
     return out;
 }

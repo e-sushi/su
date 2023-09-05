@@ -7,19 +7,19 @@ Module::create() {
     return out;
 }
 
-String Module::
+DString* Module::
 name() {
-    return (label? label->name() : "anon module");
+    return (label? label->name() : DString::create("anon module"));
 }
 
-DString Module::
-debug_str() {
-    return dstring::init("Module<", (label? label->name() : "anon"), ">");
+DString* Module::
+dump() {
+    return DString::create("Module<", (label? label->name() : DString::create("anon")), ">");
 }
 
 void
-to_string(DString& start, Module* m) {
-    dstring::append(start, "Module<TODO>");
+to_string(DString*& start, Module* m) {
+    start->append("Module<TODO>");
 }
 
 } // namespace amu 

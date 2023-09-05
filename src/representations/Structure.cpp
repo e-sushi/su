@@ -6,14 +6,14 @@ create() {
     return out;
 }
 
-String Member::
+DString* Member::
 name() {
     return label->name();
 }
 
-DString Member::
-debug_str() {
-    return dstring::init("Member<", label->name(), ">");
+DString* Member::
+dump() {
+    return DString::create("Member<", label->name(), ">");
 }
 
 Structure*

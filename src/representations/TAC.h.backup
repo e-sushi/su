@@ -1,0 +1,327 @@
+/*
+
+    Three address code (TAC) representation of amu. This is the second to last representation of amu before
+    reaching amu's intermediate representation (AIR). 
+
+    The main information of TAC is a single operation and two or less operands. Operands are represented as
+    Arg, which may reference an existing Var, Function, another TAC, a literal, or a register offset.
+
+    The primary use of TAC is optimization. We optimize TAC over AIR because TAC does not yet deal with 
+    the stack, constant offsets, and other hardcoded information that AIR includes. The only information
+    TAC stores related to memory is how much space temporaries will take up (in units of sizeof(Register), for now)
+
+    TAC is setup so that it can be freely reordered, unlike AIR. When you add, remove, or move TAC, other
+    TAC in the execution sequence do not have to be adjusted with it. 
+
+    TAC stores a lot of extra information meant to support debugging it and generating AIR, while AIR
+    attempts to store as little as possible.
+
+    
+    Following TAC is optional optimization, which doesn't turn TAC into anything else, just reorganizes it. Then
+    from TAC, AIR bytecode is generated. 
+
+*/
+
+#ifndef AMU_TAC_H
+#define AMU_TAC_H
+
+namespace amu {
+
+namespace tac {
+enum op {
+    // a placeholder TAC. This supports various kinds of control flow not knowing where
+    // they are going to jump to. When we create a TAC, if the last TAC's op is 'nop', we return it
+    // instead, so that jumps jump directly to the next instruction rather than a label
+    nop,
+
+    // a TAC that represents a local variable on the stack
+    // information about where it is on the stack is not decided yet
+    // the first operand points to a Var representing the variable
+    local_var,
+
+    // a TAC that just creates a temp value for later TAC to refer to 
+    temp,
+
+    // indicates the start of a function
+    // first operand denotes the size of the parameters + returns + local variables
+    // second operand denotes an offset into this size where returns start
+    func_start,
+
+    addition,
+    multiplication,
+    subtraction,
+    division,
+
+    equal,
+    not_equal,
+    less_than,
+    less_than_or_equal,
+    greater_than,
+    greater_than_or_equal,
+
+    logical_and,
+    logical_or,
+
+    // assignment between 2 things
+    assignment, 
+
+    // a parameter for an upcoming call
+    param,
+
+    // a call to a function
+    call,
+
+    // markers for block start and end
+    // this does not only represent literal blocks from amu
+    // its primary use is to indicate scopes where temporaries will need to be 
+    // cleaned up. The primary example is 'loop', since loop can be used without a block
+    // for example:
+    //     loop a = a + 1;
+    // this creates one temporary, which we need to pop everytime the loop ends, so
+    // if there is no block in the source code, we insert one manually so that
+    // the AIR knows to clean up any temporaries made within the loop 
+    block_start,
+    block_end,
+
+    // the value given by a block if its last expression is not terminated by a semicolon
+    block_value,
+
+    // return from a function
+    // takes a single optional argument which indicates something to return
+    ret, 
+
+    // a jump to another TAC
+    jump,
+
+    // conditional jumps
+    jump_zero,
+    jump_not_zero,
+};
+} // namespace tac
+
+namespace arg {
+enum kind {
+    none,
+    var,
+    member,
+    func,
+    temporary,
+    literal,
+    stack_offset,
+};
+} // namespace arg
+
+struct Arg {
+    arg::kind kind;
+    union {
+        Var* var; // a Var in memory that this Arg is referring to, aka an lvalue
+        Function* func; // a function for call ops
+        TAC* temporary; // a pointer to some TAC whose result this Arg references
+        Literal literal;
+        u64 stack_offset;
+
+        // a Variable with an offset
+        struct {
+            Var* var;
+            Member* member;
+        } offset_var;
+    };
+
+    Arg() : kind(arg::none) {}
+    Arg(Var* p) : kind(arg::var), var(p) {}
+    Arg(Function* f) : kind(arg::func), func(f) {}
+    Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
+    Arg(u64 x) : kind(arg::literal) { literal.kind = literal::_u64; literal._u64 = x; }
+    Arg(f64 x) : kind(arg::literal) { literal.kind = literal::_f64; literal._f64 = x; }
+    Arg(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg));}
+    Arg operator=(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg)); return *this;} 
+};
+
+struct TAC {
+    tac::op op;
+    Arg arg0, arg1;
+
+    // TAC links for resolving jumps 
+    // when a TAC is a jump, it will set 'to' to whatever TAC it wants to jump to
+    // when a TAC is jumped to it sets 'from', which points to the start of a linked list
+    // of TAC that all jump to that TAC
+    TAC* from;
+    TAC* next;
+    TAC* to;
+
+    
+    // when a TAC generates a temporary, this will determine its size
+    u64 temp_size;
+
+
+    // ~~~~ info generated by GenAIR ~~~~
+    // do NOT set these in GenTAC!
+
+    // during AIR generation, we store where on the stack a TAC's temporary was placed
+    u64 temp_pos;
+    // set to the first BC that is generated from a TAC 
+    u64 bc_offset;
+
+    // for debug purposes, when a TAC is created its id is the number of TAC created
+    // before it. need to move this somewhere better eventually 
+    u64 id; 
+
+    // the node the information of this TAC was retrieved from
+    ASTNode* node;
+
+    String comment;
+
+    static TAC*
+    create();
+};
+
+void
+to_string(DString& current, Arg arg) {
+    switch(arg.kind) {
+        case arg::literal: {
+            dstring::append(current, arg.literal.name());
+        } break;
+        case arg::var: {
+            if(!arg.var) {
+                dstring::append(current, "?");
+            } else {
+                dstring::append(current, arg.var->name());
+            }
+        } break;
+        case arg::func: {
+            if(!arg.func) {
+                dstring::append(current, "?");
+            } else {
+                dstring::append(current, arg.func->name());
+            }
+        } break;
+        case arg::temporary: {
+            if(!arg.temporary) {
+                dstring::append(current, "(?)");
+            } else {
+                dstring::append(current, "(", arg.temporary->id, ")");
+            }
+        } break;
+        case arg::member: {
+            if(!arg.offset_var.var) {
+                dstring::append(current, "?");
+            } else {
+                dstring::append(current, arg.offset_var.var->name(),"+",arg.offset_var.member->offset);
+            }
+        } break;
+    }
+}
+
+DString
+to_string(Arg arg) {
+    DString out = dstring::init();
+    to_string(out, arg);
+    return out;
+}
+void
+to_string(DString& current, TAC* tac) {
+    dstring::append(current, "(", tac->id, ") ~ ");
+    switch(tac->op) {
+        case tac::nop: {
+            dstring::append(current, "nop");
+        } break;
+        case tac::temp: {
+            dstring::append(current, "temp");
+        } break;
+        case tac::func_start: {
+            dstring::append(current, "func_start ", tac->arg0, " ", tac->arg1);
+        } break;
+        case tac::addition: {
+            dstring::append(current, tac->arg0, " + ", tac->arg1);
+        } break;
+        case tac::subtraction: {
+            dstring::append(current, tac->arg0, " - ", tac->arg1);
+        } break;
+        case tac::multiplication: {
+            dstring::append(current, tac->arg0, " * ", tac->arg1);
+        } break;
+        case tac::division: {
+            dstring::append(current, tac->arg0, " / ", tac->arg1);
+        } break;
+        case tac::assignment: {
+            dstring::append(current, tac->arg0, " = ", tac->arg1);
+        } break;
+        case tac::equal: {
+            dstring::append(current, tac->arg0, " == ", tac->arg1);
+        } break;
+        case tac::not_equal: {
+            dstring::append(current, tac->arg0, " != ", tac->arg1);
+        } break;
+        case tac::less_than: {
+            dstring::append(current, tac->arg0, " < ", tac->arg1);
+        } break;
+        case tac::less_than_or_equal: {
+            dstring::append(current, tac->arg0, " <= ", tac->arg1);
+        } break;
+        case tac::greater_than: {
+            dstring::append(current, tac->arg0, " > ", tac->arg1);
+        } break;
+        case tac::greater_than_or_equal: {
+            dstring::append(current, tac->arg0, " >= ", tac->arg1);
+        } break;
+        case tac::param: {
+            dstring::append(current, "param ", tac->arg0);
+        } break;
+        case tac::call: {
+            dstring::append(current, "call ", tac->arg0);
+        } break;
+        case tac::block_start: {
+            dstring::append(current, "block_start");
+        } break;
+        case tac::block_end: {
+            dstring::append(current, "block_end");
+        } break;
+        case tac::block_value: {
+            dstring::append(current, "block_value ", tac->arg0);
+        } break;
+        case tac::ret: {
+            dstring::append(current, "return ");
+            if(tac->arg0.kind) {
+                dstring::append(current, tac->arg0);
+            }
+        } break;
+        case tac::jump: {
+            dstring::append(current, "jump ");
+            if(tac->arg0.kind) {
+                dstring::append(current, tac->arg0);
+            } else {
+                dstring::append(current, "...");
+            }
+        } break;
+        case tac::jump_zero: {
+            dstring::append(current, "jump_zero ", tac->arg0, " ");
+            if(tac->arg1.kind) {
+                dstring::append(current, tac->arg1);
+            } else {
+                dstring::append(current, "...");
+            }
+        } break;
+        case tac::jump_not_zero: {
+            dstring::append(current, "jump_not_zero ", tac->arg0, " ");
+            if(tac->arg1.kind) {
+                dstring::append(current, tac->arg1);
+            } else {
+                dstring::append(current, "...");
+            }
+        } break;
+    }
+
+    if(tac->comment.str) {
+        dstring::append(current, " --# ", tac->comment);
+    }
+}
+
+DString
+to_string(TAC* tac) { 
+    DString out = dstring::init();
+    to_string(out, tac);
+    return out;
+}
+} // namespace amu
+
+#endif // AMU_TAC_H

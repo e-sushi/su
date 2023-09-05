@@ -32,11 +32,11 @@ struct Label : public ASTNode {
     Label*
     base();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     // returns the type of the Label's expression
     Type*
@@ -46,8 +46,8 @@ struct Label : public ASTNode {
     Label(b32 is_virt) : ASTNode(ast::label), is_virtual(is_virt) {}
 };
 
-template<> b32 inline ASTNode::
-is<Label>() { return kind == ast::label; }
+template<> b32 inline Base::
+is<Label>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::label; }
 
 struct LabelTable {
     LabelTable* last;
@@ -57,23 +57,23 @@ struct LabelTable {
 
 // a Label created internally 
 struct VirtualLabel : public Label {
-    DString id;
+    DString* id;
 
 
     // ~~~~~~ interface ~~~~~~~
 
 
     static VirtualLabel*
-    create(DString name);
+    create(DString* name);
 
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     VirtualLabel() : Label(true) {} 
 };
@@ -95,11 +95,11 @@ struct Formatting {
 
 // returns a formatted string representing the given Label
 void
-display(DString& current, Label* l, Formatting format = Formatting(), b32 allow_color = true);
+display(DString*& current, Label* l, Formatting format = Formatting(), b32 allow_color = true);
 
-DString
+DString*
 display(Label* l, Formatting format = Formatting(), b32 allow_color = true) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     display(out, l, format);
     return out;
 }
@@ -120,11 +120,11 @@ search(LabelTable* table, u64 hashed_id);
 } // namespace label
 
 global void
-to_string(DString& start, Label* l);
+to_string(DString*& start, Label* l);
 
-DString
+DString*
 to_string(Label* l) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, l);
     return out;
 }

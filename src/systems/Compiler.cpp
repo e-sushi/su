@@ -43,7 +43,6 @@ init() {
     instance.storage.calls               = pool::init<Call>(8);
     instance.storage.blocks              = pool::init<Block>(8);
     instance.storage.varrefs             = pool::init<VarRef>(8);
-    instance.storage.accesses            = pool::init<Access>(8);
     instance.storage.vars                = pool::init<Var>(8);
     instance.storage.tuples              = pool::init<Tuple>(8);
     instance.storage.scalars             = pool::init<Scalar>(8);
@@ -171,7 +170,7 @@ dump_diagnostics(String path, Array<String> sources) {
 
     pool::Iterator<Source> iter = pool::iterator(instance.storage.sources);
     
-    DString source_strings = dstring::init();
+    DString* source_strings = DString::create();
 
     Source* current = 0;
     while((current = pool::next(iter))) {
@@ -182,7 +181,7 @@ dump_diagnostics(String path, Array<String> sources) {
             array::push(diagnostics, 
                 {source_offset, array::read(current->diagnostics, i)});
         }
-        dstring::append(source_strings, '"', current->path, '"');
+        source_strings->append('"', current->path, '"');
     }
 
     if(!diagnostics.count){

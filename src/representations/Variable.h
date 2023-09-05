@@ -13,10 +13,9 @@ struct Register;
 
 struct Var : public Entity {
     Type* type;
-    // the Register offset representing this Var
-    // not set until TAC generation
-    // TODO(sushi) look into a better place to put this if any
-    u32 reg_offset;
+
+    // offset in bytes from the beginning of the stack (fp) 
+    u64 stack_offset;
     
 
     // ~~~~~~ interface ~~~~~~ 
@@ -28,11 +27,11 @@ struct Var : public Entity {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Type*
     resolve_type() { return type; }
@@ -42,11 +41,11 @@ struct Var : public Entity {
 
 
 void
-to_string(DString& start, Var* p);
+to_string(DString*& start, Var* p);
 
-DString
+DString*
 to_string(Var* p) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, p);
     return out;
 }

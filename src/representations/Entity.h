@@ -41,14 +41,11 @@ struct Entity : public ASTNode {
     Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
 };
 
-template<> inline b32 ASTNode::
-is<Entity>() { return kind == ast::entity; }
+template<> inline b32 Base::
+is<Entity>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::entity; }
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is(entity::kind k) { return is<Entity>() && as<Entity>()->kind == k; }
-
-template<> inline b32 ASTNode::
-next_is<Entity>() { return next() && next()->is<Entity>(); }
 
 // a TemplateParameter denotes a position in an AST where we need to place a template argument 
 // when some parameter is filled in for an Entity
@@ -70,7 +67,7 @@ namespace trait {
 }
 
 void
-to_string(DString& start, Type* t);
+to_string(DString*& start, Type* t);
 
 namespace entity {
 

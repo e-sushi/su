@@ -31,16 +31,16 @@ struct Function : public Entity {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Function() : Entity(entity::func) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Function>() { return is<Entity>() && as<Entity>()->kind == entity::func; }
 
 // when a label is assigned to a second function entity, this is created
@@ -50,11 +50,11 @@ struct OverloadedFunction : public Entity {
 };
 
 void
-to_string(DString& start, Function* p);
+to_string(DString*& start, Function* p);
 
-DString
+DString*
 to_string(Function* f) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, f);
     return out;
 }

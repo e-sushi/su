@@ -41,23 +41,23 @@ struct Stmt : public ASTNode {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Stmt() : ASTNode(ast::stmt) {}
 };
 
-template<> inline b32 ASTNode::
-is<Stmt>() { return this->kind == ast::stmt; }
+template<> inline b32 Base::
+is<Stmt>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::stmt; }
 
-template<> inline b32 ASTNode::
-is(stmt::kind k) { return this->is<Stmt>() && as<Stmt>()->kind == k; }
+template<> inline b32 Base::
+is(stmt::kind k) { return is<Stmt>() && as<Stmt>()->kind == k; }
 
 void
-to_string(DString& start, Stmt* s);
+to_string(DString*& start, Stmt* s);
 
 } // namespace amu
 

@@ -40,8 +40,11 @@ start() {
         case code::function: {
             function();
         } break;
+        case code::typedef_: {
+            // TAC doesn't need to be generated for structures for now 
+        } break;
         default: {
-            TODO(dstring::init("unhandled start case: ", code::strings[code->kind]));
+            TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
         } break;
     }
 }
@@ -64,29 +67,9 @@ function() {
     auto f  = l->entity->as<Function>();
     auto ft = f->type;
 
-    util::println(to_string(f->start->code->name()));
-
-    if(ft->returns->is(expr::typeref) && ft->returns->as<Expr>()->type->is_not<Void>()) {
-        register_offset += util::Max(1, ft->returns->as<Expr>()->type->size() / sizeof(Register));
-    }
-
-    f->local_start = register_offset;
-
-    for(auto n = ft->parameters->first_child(); n; n = n->next()) {
-        if(n->is<Label>()) {
-            auto v = n->as<Label>()->entity->as<Var>();
-            v->reg_offset = register_offset;
-            register_offset += util::Max(1, v->type->size() / sizeof(Register));
-        } else TODO("non-Label function parameters");
-    }
-
-    TAC* t = make_and_place();
-    t->op = tac::func_start;
-    t->node = f;
+    messenger::qdebug(code, String("generating TAC for func "), f->name().fin);
 
     block(l->last_child()->last_child<Block>());
-
-    t->arg0 = register_offset;
 
     f->local_size = register_offset;
 
@@ -126,63 +109,32 @@ statement(Stmt* s) {
             switch(l->entity->kind) {
                 case entity::var: {
                     auto v = l->entity->as<Var>();
-                    switch(v->type->kind) {
-                        case type::kind::scalar: {
-                            Arg arg;
-                            if(l->last_child()->is(expr::binary_assignment)) {
-                                // we need to manually extract the rhs to avoid dealing with the typeref
-                                // that will be on the left
-                                arg = expression(l->last_child()->last_child<Expr>());
-                            } else if(l->last_child()->is(expr::typeref)) {
-                                // this is a variable decl of the form
-                                //     <id> : <type> ;
-                                // so we just 0 fill it 
-                                arg = u64(0);
-                            } else {
-                                arg = expression(l->last_child<Expr>());
-                            }
+                    array::push(locals, v);
 
-                            TAC* tac = make_and_place();
-                            tac->op = tac::assignment;
-                            tac->arg0.kind = arg::var;
-                            tac->arg0.var = v;
-
-                            v->reg_offset = register_offset;
-                            register_offset += util::Max(1, v->type->size() / sizeof(Register));
-
-                            tac->arg1 = arg;
-                            tac->node = s;
-                        } break;
-                        case type::kind::structured: {
-                            auto stype = v->type->as<Structured>();
-                            if(stype->kind == structured::user) {
-                                u64 offset = 0;
-
-                                // auto s = stype->structure;
-                                // forI(s->ordered_members.count) {
-                                //     Member* m = array::read(s->ordered_members, i);
-
-                                // }
-                            } else switch(stype->kind) {
-                                case structured::static_array: {
-                                    TODO("array types");
-                                } break;
-                                case structured::view_array: {
-                                    TODO("array types");
-                                } break;
-                                case structured::dynamic_array: {
-                                    TODO("array types");
-                                } break;    
-                            }
-                            
-                        } break;
+                    Arg arg;
+                    if(l->last_child()->is(expr::binary_assignment)) {
+                        // we need to manually extract the rhs to avoid dealing with the typeref
+                        // that will be on the left
+                        // TODO(sushi) by the time we get here, these parts of the AST should probably have been removed
+                        //             so that we dont have to deal with them this far into compilation 
+                        arg = expression(l->last_child()->last_child<Expr>());
+                    } else if(l->last_child()->is(expr::typeref)) {
+                        // this is a variable decl of the form
+                        //     <id> : <type> ;
+                        // so we just 0 fill it 
+                        arg.kind = arg::literal;
+                        arg.literal.kind = literal::_u64;
+                        arg.literal._u64 = 0;
+                    } else {
+                        arg = expression(l->last_child<Expr>());
                     }
 
-                    
-
-                    
-
-                       
+                    TAC* tac = make_and_place();
+                    tac->op = tac::assignment;
+                    tac->arg0.kind = arg::var;
+                    tac->arg0.var = v;
+                    tac->arg1 = arg;
+                    tac->node = s;
                 } break;
                 default: {
                     TODO("unhandled label kind"); // unhandled label kind 
@@ -262,15 +214,23 @@ expression(Expr* e) {
         } break;
 
         case expr::binary_access: {
-            Arg lhs = expression(e->first_child<Expr>());
-
+            if(e->first_child()->is<VarRef>()) {
+                Arg out;
+                out.kind = arg::member;
+                out.offset_var.var = e->first_child()->as<VarRef>()->var;
+                out.offset_var.member = e->member;
+                return out;
+            } else {
+                TODO("handle binary access on things other than Vars");
+            }
         } break;    
 
         case expr::cast: {
-            return expression(e->first_child<Expr>());
+            Arg arg = expression(e->first_child<Expr>());
+
         } break;
+
         case expr::literal: {
-            TODO("handle literals other than unsigned ints");
             switch(e->type->kind) {
                 case type::kind::scalar: {
                     switch(e->type->as<Scalar>()->kind) {
@@ -282,6 +242,14 @@ expression(Expr* e) {
                         } break;
                         default: {
                             TODO("unhandled literal type");
+                        } break;
+                    }
+                } break;
+                case type::kind::structured: {
+                    auto stype = e->type->as<Structured>();
+                    switch(stype->kind) {
+                        default: {
+                            TODO("handle structured literals (structured types/arrays)");
                         } break;
                     }
                 } break;
@@ -315,7 +283,7 @@ expression(Expr* e) {
             ret->op = tac::param;
             ret->node = e;
             ret->arg0 = u64(0);
-            ret->comment = dstring::init("return slot for ", ce->callee->name());
+            ret->comment = DString::create("return slot for ", ce->callee->name());
             new_temp(ret, e->type);
 
             auto params = array::init<TAC*>();
@@ -326,7 +294,7 @@ expression(Expr* e) {
                 tac->op = tac::param;
                 tac->node = e;
                 tac->arg0 = ret;
-                tac->comment = dstring::init("arg in call to ", ce->callee->name());
+                tac->comment = DString::create("arg in call to ", ce->callee->name());
                 new_temp(tac, n->type);
                 param_size += tac->temp_size;
                 array::push(params, tac);
@@ -473,7 +441,6 @@ expression(Expr* e) {
             u32 count = seq.count;
             TAC* nop = make_and_place();
             nop->node = e;
-            array::push(break_stacks, array::init<TAC*>());
 
             array::push(loop_start_stack, nop);
             array::push(loop_end_stack, end);
@@ -590,8 +557,7 @@ expression(Expr* e) {
             success->op = tac::assignment;
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
-            success->arg1.kind = arg::literal_u64;
-            success->arg1._u64 = 1;
+            success->arg1 = u64(1);
             success->node = e;
 
             if(fail_jump) {
@@ -690,8 +656,7 @@ expression(Expr* e) {
             success->op = tac::assignment;
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
-            success->arg1.kind = arg::literal_u64;
-            success->arg1._u64 = 1;
+            success->arg1 = u64(1);
             success->node = e;
 
             TAC* fail_jump = make_and_place();
@@ -716,7 +681,7 @@ expression(Expr* e) {
 
     // an expression didn't return anything or this is a
     // completely unhandled expression kind
-    TODO(dstring::init("unhandled expression kind: ", expr::strings[e->kind]));
+    TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
     return {};
 }
 
@@ -752,7 +717,7 @@ void GenTAC::
 new_temp(TAC* tac, Type* t) {
     tac->temp_size = util::Max(1, t->size() / sizeof(Register));
     array::push(array::readref(temps, -1), tac);
-    // tac->reg_offset = register_offset;
+    // tac->stack_offset = register_offset;
     // register_offset += util::Max(1, t->size() / sizeof(Register));
 }
 

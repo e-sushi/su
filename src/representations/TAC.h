@@ -34,6 +34,11 @@ enum op {
     // instead, so that jumps jump directly to the next instruction rather than a label
     nop,
 
+    // a TAC that represents a local variable on the stack
+    // information about where it is on the stack is not decided yet
+    // the first operand points to a Var representing the variable
+    local_var,
+
     // a TAC that just creates a temp value for later TAC to refer to 
     temp,
 
@@ -98,11 +103,11 @@ namespace arg {
 enum kind {
     none,
     var,
+    member,
     func,
     temporary,
-    literal_u64,
-    literal_f64,
-    reg,
+    literal,
+    stack_offset,
 };
 } // namespace arg
 
@@ -112,19 +117,24 @@ struct Arg {
         Var* var; // a Var in memory that this Arg is referring to, aka an lvalue
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
-        union{
-            u64 _u64;
-            f64 _f64;
-        };
-        u64 reg_offset;
+        Literal literal;
+        u64 stack_offset;
+
+        // a Variable with an offset
+        struct {
+            Var* var;
+            Member* member;
+        } offset_var;
     };
 
     Arg() : kind(arg::none) {}
     Arg(Var* p) : kind(arg::var), var(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
-    Arg(u64 l) : kind(arg::literal_u64), _u64(l) {}
-    Arg(f64 l) : kind(arg::literal_f64), _f64(l) {}
+    Arg(u64 x) : kind(arg::literal) { literal.kind = literal::_u64; literal._u64 = x; }
+    Arg(f64 x) : kind(arg::literal) { literal.kind = literal::_f64; literal._f64 = x; }
+    Arg(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg));}
+    Arg operator=(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg)); return *this;} 
 };
 
 struct TAC {
@@ -166,145 +176,149 @@ struct TAC {
 };
 
 void
-to_string(DString& current, Arg arg) {
+to_string(DString*& current, Arg arg) {
     switch(arg.kind) {
-        case arg::literal_u64: {
-            dstring::append(current, arg._u64);
-        } break;
-        case arg::literal_f64: {
-            dstring::append(current, arg._f64);
+        case arg::literal: {
+            current->append(arg.literal.name());
         } break;
         case arg::var: {
             if(!arg.var) {
-                dstring::append(current, "?");
+                current->append("?");
             } else {
-                dstring::append(current, arg.var->name());
+                current->append(arg.var->name());
             }
         } break;
         case arg::func: {
             if(!arg.func) {
-                dstring::append(current, "?");
+                current->append("?");
             } else {
-                dstring::append(current, arg.func->name());
+                current->append(arg.func->name());
             }
         } break;
         case arg::temporary: {
             if(!arg.temporary) {
-                dstring::append(current, "(?)");
+                current->append("(?)");
             } else {
-                dstring::append(current, "(", arg.temporary->id, ")");
+                current->append("(", arg.temporary->id, ")");
+            }
+        } break;
+        case arg::member: {
+            if(!arg.offset_var.var) {
+                current->append("?");
+            } else {
+                current->append(arg.offset_var.var->name(),"+",arg.offset_var.member->offset);
             }
         } break;
     }
 }
 
-DString
+DString*
 to_string(Arg arg) {
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, arg);
     return out;
 }
 void
-to_string(DString& current, TAC* tac) {
-    dstring::append(current, "(", tac->id, ") ~ ");
+to_string(DString*& current, TAC* tac) {
+    current->append("(", tac->id, ") ~ ");
     switch(tac->op) {
         case tac::nop: {
-            dstring::append(current, "nop");
+            current->append("nop");
         } break;
         case tac::temp: {
-            dstring::append(current, "temp");
+            current->append("temp");
         } break;
         case tac::func_start: {
-            dstring::append(current, "func_start ", tac->arg0, " ", tac->arg1);
+            current->append("func_start ", tac->arg0, " ", tac->arg1);
         } break;
         case tac::addition: {
-            dstring::append(current, tac->arg0, " + ", tac->arg1);
+            current->append(tac->arg0, " + ", tac->arg1);
         } break;
         case tac::subtraction: {
-            dstring::append(current, tac->arg0, " - ", tac->arg1);
+            current->append(tac->arg0, " - ", tac->arg1);
         } break;
         case tac::multiplication: {
-            dstring::append(current, tac->arg0, " * ", tac->arg1);
+            current->append(tac->arg0, " * ", tac->arg1);
         } break;
         case tac::division: {
-            dstring::append(current, tac->arg0, " / ", tac->arg1);
+            current->append(tac->arg0, " / ", tac->arg1);
         } break;
         case tac::assignment: {
-            dstring::append(current, tac->arg0, " = ", tac->arg1);
+            current->append(tac->arg0, " = ", tac->arg1);
         } break;
         case tac::equal: {
-            dstring::append(current, tac->arg0, " == ", tac->arg1);
+            current->append(tac->arg0, " == ", tac->arg1);
         } break;
         case tac::not_equal: {
-            dstring::append(current, tac->arg0, " != ", tac->arg1);
+            current->append(tac->arg0, " != ", tac->arg1);
         } break;
         case tac::less_than: {
-            dstring::append(current, tac->arg0, " < ", tac->arg1);
+            current->append(tac->arg0, " < ", tac->arg1);
         } break;
         case tac::less_than_or_equal: {
-            dstring::append(current, tac->arg0, " <= ", tac->arg1);
+            current->append(tac->arg0, " <= ", tac->arg1);
         } break;
         case tac::greater_than: {
-            dstring::append(current, tac->arg0, " > ", tac->arg1);
+            current->append(tac->arg0, " > ", tac->arg1);
         } break;
         case tac::greater_than_or_equal: {
-            dstring::append(current, tac->arg0, " >= ", tac->arg1);
+            current->append(tac->arg0, " >= ", tac->arg1);
         } break;
         case tac::param: {
-            dstring::append(current, "param ", tac->arg0);
+            current->append("param ", tac->arg0);
         } break;
         case tac::call: {
-            dstring::append(current, "call ", tac->arg0);
+            current->append("call ", tac->arg0);
         } break;
         case tac::block_start: {
-            dstring::append(current, "block_start");
+            current->append("block_start");
         } break;
         case tac::block_end: {
-            dstring::append(current, "block_end");
+            current->append("block_end");
         } break;
         case tac::block_value: {
-            dstring::append(current, "block_value ", tac->arg0);
+            current->append("block_value ", tac->arg0);
         } break;
         case tac::ret: {
-            dstring::append(current, "return ");
+            current->append("return ");
             if(tac->arg0.kind) {
-                dstring::append(current, tac->arg0);
+                current->append(tac->arg0);
             }
         } break;
         case tac::jump: {
-            dstring::append(current, "jump ");
+            current->append("jump ");
             if(tac->arg0.kind) {
-                dstring::append(current, tac->arg0);
+                current->append(tac->arg0);
             } else {
-                dstring::append(current, "...");
+                current->append("...");
             }
         } break;
         case tac::jump_zero: {
-            dstring::append(current, "jump_zero ", tac->arg0, " ");
+            current->append("jump_zero ", tac->arg0, " ");
             if(tac->arg1.kind) {
-                dstring::append(current, tac->arg1);
+                current->append(tac->arg1);
             } else {
-                dstring::append(current, "...");
+                current->append("...");
             }
         } break;
         case tac::jump_not_zero: {
-            dstring::append(current, "jump_not_zero ", tac->arg0, " ");
+            current->append("jump_not_zero ", tac->arg0, " ");
             if(tac->arg1.kind) {
-                dstring::append(current, tac->arg1);
+                current->append(tac->arg1);
             } else {
-                dstring::append(current, "...");
+                current->append("...");
             }
         } break;
     }
 
     if(tac->comment.str) {
-        dstring::append(current, " --# ", tac->comment);
+        current->append(" --# ", tac->comment);
     }
 }
 
-DString
+DString*
 to_string(TAC* tac) { 
-    DString out = dstring::init();
+    DString* out = DString::create();
     to_string(out, tac);
     return out;
 }

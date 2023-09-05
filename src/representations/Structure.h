@@ -39,11 +39,11 @@ struct Member : public Entity {
     static Member*
     create();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Member() : Entity(entity::member) {}
 };

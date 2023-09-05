@@ -1,7 +1,7 @@
 namespace amu {
 
-Expr*
-Expr::create(expr::kind kind, Type* type) {
+Expr* Expr::
+create(expr::kind kind, Type* type) {
     Expr* out = pool::add(compiler::instance.storage.expressions);
     // out->node.kind = node::expression;
     out->kind = kind;
@@ -9,45 +9,78 @@ Expr::create(expr::kind kind, Type* type) {
     return out;
 }
 
-String 
-Expr::name() {
-    return "Expression";
+DString* Expr::
+name() { // TODO(sushi) switch on expr kind
+    return DString::create("Expression");
 }
 
-DString
-Expr::debug_str() {
-    DString out = dstring::init("Expr<");
+DString* Expr::
+dump() {
+    DString* out = DString::create("Expr<");
 
     switch(this->kind) {
         case expr::typeref: {
-            dstring::append(out, "typeref:", this->type);
+            out->append("typeref:", this->type);
         } break;
         case expr::identifier: {
-            dstring::append(out, "id:'", this->start->raw, "'");
+            out->append("id:'", this->start->raw, "'");
         } break;
         case expr::literal: {
-            switch(this->start->kind) {
-                case token::literal_character: dstring::append(out, "chr lit:'", this->start->raw, "'"); break;
-                case token::literal_float:     dstring::append(out, "flt lit:", this->start->f64_val); break;
-                case token::literal_integer:   dstring::append(out, "int lit:", this->start->s64_val); break;
-                case token::literal_string:    dstring::append(out, "str lit:'", this->start->raw, "'"); break;
-            }
+            out->append(literal.dump());
+        } break;
+        case expr::cast: {
+            out->append("cast to ", this->type);
         } break;
         default: {
-            dstring::append(out, expr::strings[(u32)this->kind]);
+            out->append(expr::strings[(u32)this->kind]);
         } break;
     }
 
-    dstring::append(out, ">");
+    out->append(">");
 
     return out;
 }
 
-Type*
-Expr::resolve_type() {
+Type* Expr::
+resolve_type() {
     return type;
 }
-
+// void Literal::
+// cast_to(literal::kind k) {
+//     #define inner(from)                             \
+//         switch(k) {                                 \
+//             case literal::u64_: from = _u64; break; \
+//             case literal::u32_: from = _u32; break; \
+//             case literal::u16_: from = _u16; break; \
+//             case literal::u8_ : from = _u8 ; break; \
+//             case literal::s64_: from = _s64; break; \
+//             case literal::s32_: from = _s32; break; \
+//             case literal::s16_: from = _s16; break; \
+//             case literal::s8_ : from = _s8 ; break; \
+//             case literal::f64_: from = _f64; break; \
+//             case literal::f32_: from = _f32; break; \
+//             default: {  \
+//                 /* there shouldn't be a case where a tuple/array literal is casted to anything else  */ \
+//                 Assert(0); \
+//             } break; \
+//         }
+//      switch(kind) {
+//         case literal::u64_: inner(_u64); break;
+//         case literal::u32_: inner(_u32); break;
+//         case literal::u16_: inner(_u16); break;
+//         case literal::u8_ : inner(_u8 ); break;
+//         case literal::s64_: inner(_s64); break;
+//         case literal::s32_: inner(_s32); break;
+//         case literal::s16_: inner(_s16); break;
+//         case literal::s8_ : inner(_s8 ); break;
+//         case literal::f64_: inner(_f64); break;
+//         case literal::f32_: inner(_f32); break;
+//         default: {
+//             Assert(0);
+//             // there shouldn't be a case where a tuple/array literal is casted to a scalar
+//         } break;
+//     }
+// }
 
 Block* Block::
 create() {
@@ -59,14 +92,14 @@ create() {
     return out;
 }
 
-String Block::
+DString* Block::
 name() { // !Leak TODO(sushi) get this to print something nicer
-    return debug_str();
+    return dump();
 }
 
-DString Block::
-debug_str() {
-    return dstring::init("Block<", (type? type->name() : "unknown type"), ">");
+DString* Block::
+dump() {
+    return DString::create("Block<", (type? type->name() : DString::create("unknown type")), ">");
 }
 
 Call*
@@ -78,16 +111,16 @@ Call::create() {
     return out;
 }
 
-String Call::
+DString* Call::
 name() { // !Leak TODO(sushi) get this to print something nicer
-    return debug_str();
+    return dump();
 }
 
-DString Call::
-debug_str() {
-    return dstring::init("Call<", 
-                (callee? callee->name() : "null callee"), ", ", 
-                (arguments? arguments->name() : "null args"), ">");
+DString* Call::
+dump() {
+    return DString::create("Call<", 
+                (callee? callee->name().fin : "null callee"), ", ", 
+                (arguments? arguments->name().fin : "null args"), ">");
 }
 
 VarRef* VarRef::
@@ -99,64 +132,45 @@ create() {
     return out;
 }
 
-String VarRef::
+DString* VarRef::
 name() { // !Leak TODO(sushi) get this to print something nicer
-    return debug_str();
+    return dump();
 }
 
-DString VarRef::
-debug_str() {
-    return dstring::init("VarRef<", (var? var->name() : "null var"), ">");
-}
-
-Access* Access::
-create() {
-    Access* out = pool::add(compiler::instance.storage.accesses);
-    return out;
-}
-
-// void Access::
-// destroy(); 
-
-String Access::
-name() {
-    return dstring::init(this->first_child()->name(), ".", this->last_child()->name());
-}
-
-DString Access::
-debug_str() {
-    return dstring::init("Access<", this->first_child()->debug_str(), " => ", this->last_child()->debug_str());
+DString* VarRef::
+dump() {
+    return DString::create("VarRef<", (var? var->name() : DString::create("null var")), ">");
 }
 
 void
-to_string(DString& start, Expr* e) {
-    dstring::append(start, "Expr<");
+to_string(DString*& start, Expr* e) {
+    start->append("Expr<");
     // switch(e->kind) {
     //     case expr::typeref: {
-    //         dstring::append(start, "typeref:", e->type);
+    //         start->append("typeref:", e->type);
     //     } break;
     //     case expr::identifier: {
-    //         dstring::append(start, "id:'", e->node.start->raw, "'");
+    //         start->append("id:'", e->node.start->raw, "'");
     //     } break;
     //     case expr::literal: {
     //         switch(e->node.start->kind) {
-    //             case token::literal_character: dstring::append(start, "chr lit:'", e->node.start->raw, "'"); break;
-    //             case token::literal_float:     dstring::append(start, "flt lit:", e->node.start->f64_val); break;
-    //             case token::literal_integer:   dstring::append(start, "int lit:", e->node.start->s64_val); break;
-    //             case token::literal_string:    dstring::append(start, "str lit:'", e->node.start->raw, "'"); break;
+    //             case token::literal_character: start->append("chr lit:'", e->node.start->raw, "'"); break;
+    //             case token::literal_float:     start->append("flt lit:", e->node.start->f64_val); break;
+    //             case token::literal_integer:   start->append("int lit:", e->node.start->s64_val); break;
+    //             case token::literal_string:    start->append("str lit:'", e->node.start->raw, "'"); break;
     //         }
     //     } break;
     //     case expr::varref: {
-    //         dstring::append(start, "varref: ", ((VarRef*)e)->place);
+    //         start->append("varref: ", ((VarRef*)e)->place);
     //     } break;
     //     default: {
-    //         dstring::append(start, expr::strings[(u32)e->kind]);
+    //         start->append(expr::strings[(u32)e->kind]);
     //     } break;
     // }
 
     auto a = &start;
 
-    dstring::append(start, ">");
+    start->append(">");
 }
 
 } // namespace amu

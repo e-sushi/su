@@ -4,12 +4,15 @@
     functionality is implemented for everything, such as printing a name or dumping
     debug information.
 
-    This is just an idea that I've yet to implement. I would like this to be implemented
-    on everything so that everything may be inspected in a uniform manner, but the fact
-    that it introduces a vtable onto whatever uses it bother me. For instance, I wanted
-    Register in Gen.h to use this, but that would make Register no longer only 8 bytes.
+    This seems to work fine, but it's so OOP it kind of disgusts me. I will keep it for now
+    but I think later on it might be beneficial to remove it.
 
-    This can be implemented for things like the AST, TAC, and the various stages, though.
+    Keep in mind that nearly everything this defines should primarily be used only in cases
+    where we need to report something, such as a name or debug dump. 
+
+    The fact that dump and name return DString*s sucks extremely hard. It's not a HUGE deal for now
+    but if we use this to dump information to compile time code, it will leak like crazy, so this
+    needs a better system soon. It can be assumed that memory is leaked anytime you use name/dump.
 
 */
 
@@ -18,42 +21,70 @@
 
 namespace amu {
 
+namespace base {
+enum kind {
+    ast,
+    literal,
+    tac,
+};
+} // namespace base
+
 struct Base {
+    base::kind kind;
+
 
     // return a generated name for this object 
-    virtual DString
+    virtual DString*
     name() = 0;
 
     // outputs debug information about this object
-    virtual DString
+    virtual DString*
     dump() = 0;
 
 
     // performs a cast of this Base object
-    template<typename T> inline T*
+    template<typename T> FORCE_INLINE T*
     as() { return (T*)this; }
 
-    // base template meant to be instantiated by children
-    // that determines how to check if they are a given type
-    // useful for layered types so that you don't have to write
-    // so much to check if something is, say, a Block
-    template<typename T> inline b32
+    /* 
+        The following are small utilities for figuring out what something is
+        This is primarily for ASTNode, which is where it was originally implemented.
+        Since some parts of the AST are layered now, I found myself writing stuff like:
+            
+            if(n->kind == node::entity && ((Entity*)n)->kind == entity::expr && ((Expr*)n)->kind == ...)
+        
+        The following allow you to compress something like this into 
+
+            if(n->is(...)) 
+            or
+            if(n->is<...>()) 
+
+        If this Base thing is ever removed, we should probably just have node kinds store
+        everything they can be in a single enum, so it can be done in one check.
+
+        These are FORCE_INLINED because they are so small and I don't want to waste time
+        entering a function to do these checks
+    */
+
+    template<typename T> FORCE_INLINE b32
     is();
 
-    template<typename... T> inline b32
+    template<typename... T> FORCE_INLINE b32
     is_any() { return (is<T>() || ...); }
 
-    template<typename T> inline b32
+    template<typename T> FORCE_INLINE b32
     is_not() { return !is<T>(); }
 
-    template<typename T> inline b32
+    template<typename T> FORCE_INLINE b32
     is(T x);
 
-    template<typename... T> inline b32
+    template<typename... T> FORCE_INLINE b32
     is_any(T... x) { return (is(x) || ...); }
 
-    template<typename T> inline b32
+    template<typename T> FORCE_INLINE b32
     is_not(T x) { return !is(x); }
+
+    Base(base::kind k) : kind(k) {}
 };
 
 

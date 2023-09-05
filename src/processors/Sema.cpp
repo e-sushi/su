@@ -26,8 +26,8 @@ namespace internal {
 u64 layers = 0;
 
 #define announce_stage(n) 
-    // DString indentation = dstring::init(); \
-    // forI(layers) dstring::append(indentation, " "); \
+    // DString* indentation = DString::create(); \
+    // forI(layers) indentation->append(" "); \
     // messenger::dispatch(message::make_debug(message::verbosity::debug, String(indentation), String("validating "), String(__func__), String(": "), (String)to_string((TNode*)n, true))); \
     // layers++; \
     // defer { layers--; }
@@ -167,6 +167,9 @@ typedef_(Code* code, Expr* e) {
                 if(!expr(code, m->last_child<Expr>())) return false;
                 m->type = m->last_child<Expr>()->type;
                 m->offset = s->size;
+                // if size is 0, then we must have ran into a case where we don't know the size of something yet
+                // and we need to handle parsing dependencies first 
+                Assert(m->type->size()); 
                 s->size += m->type->size();
             }
         } break;
@@ -191,7 +194,7 @@ typeref(Code* code, Expr* e) { announce_stage(e);
 }
 
 b32 
-access(Code* code, Access* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
+access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
     switch(lhs_type->kind) {
         case type::kind::scalar: {
             diagnostic::sema::
@@ -223,8 +226,8 @@ access(Code* code, Access* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
                     unknown_member(rhs->start, stype, rhs->start->raw);
                 return false;
             }
+            e->member = m;
             e->type = m->type;
-            e->offset = m->offset;
             return true;
         } break;
     }
@@ -262,15 +265,32 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 return false;
             }
 
-            // TODO(sushi) type coersion
-            if(!lhs->type->can_cast_to(rhs->type)) {
-                diagnostic::sema::
-                    cannot_implict_coerce(lhs->start, rhs->type, lhs->type);
-                return false;
+            if(lhs->type != rhs->type) {
+                if(!lhs->type->can_cast_to(rhs->type)) {
+                    diagnostic::sema::
+                        cannot_implict_coerce(lhs->start, rhs->type, lhs->type);
+                    return false;
+                }
+                
+                if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
+                    // always take the left because we need to match the type that we are assigning to
+                    if(rhs->is<Literal>()) {
+                        // if we're dealing with a literal, we just have to ask it to cast its value
+                        // for us, no cast node is needed
+                    }
+
+                    auto cast = Expr::create(expr::cast);
+                    cast->type = lhs->type;
+                    cast->start = e->start;
+                    cast->end = e->end;
+                    node::insert_above(rhs, cast);
+                    e->type = cast->type;
+                } else {
+                    TODO("handle other type casts in assignment");                    
+                }
+            } else {
+                e->type = lhs->type;
             }
-
-            e->type = lhs->type;
-
         } break;
 
         case expr::binary_access: {
@@ -284,7 +304,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 return false;
             }
 
-            return access(code, e->as<Access>(), lhs, lhs_type, rhs);
+            return access(code, e, lhs, lhs_type, rhs);
         } break;
 
         case expr::binary_plus:
@@ -421,7 +441,9 @@ expr(Code* code, Expr* e) { announce_stage(e);
                         // and if this is an else that is not a block
                         // this occurs in a case like 
                         // if(...) {...} else ...;
-                        // which should behave like it does in C when the first branch isn't returning anything 
+                        // which should behave like it does in C when the first branch isn't returning anything
+                        // otherwise we would error saying that the type that the else is supposedly returning
+                        // cannot cast to void 
                         if(first_type->is<Void>() && e->first_child()->next()->is<Block>() && !branch->is<Block>()) 
                             continue;
                         diagnostic::sema::
@@ -456,7 +478,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
         } break;
 
         default: {
-            TODO(dstring::init("unhandled expression kind: ", expr::strings[e->kind]));
+            TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
         } break;    
     }
 
@@ -495,6 +517,8 @@ b32
 start(Code* code) {
     if(code->parser->root->is<Module>()) {
         if(!module(code, code->parser->root)) return false;
+        util::println(code->parser->root->print_tree(true));
+
     } else switch(code->parser->root->kind) {
         case ast::entity: {
             DebugBreakpoint;
@@ -518,6 +542,8 @@ pop(Code* code);
 b32
 analyze(Code* code) {
     if(!code->sema) code->sema = sema::create();
+
+
     return internal::start(code);
 }
 

@@ -258,6 +258,7 @@ parts = {
 
         "clang++":{
             "always": ( # flags always applied if this compiler is chosen
+                "-fno-caret-diagnostics " # dont show source with diagnostics
                 "-std=c++20 "         # use the c++20 standard
                 "-fexceptions "       # enable exception handling
                 "-fcxx-exceptions "   # enable c++ exceptions

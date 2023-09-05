@@ -455,7 +455,7 @@ stream_next;                     \
 	}
 
 	// !Leak
-	DString time = util::format_time(util::stopwatch::peek(lexer_time));
+	DString* time = util::format_time(util::stopwatch::peek(lexer_time));
 	messenger::dispatch(message::attach_sender(code,
 		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(time))));
 } // lex::execute
@@ -472,11 +472,11 @@ output(Code* code, b32 human, String path) {
 	Array<Token>& tokens = code::get_token_array(code);
 
 	if(human) {
-		DString buffer = dstring::init();
+		DString* buffer = DString::create();
 
 		forI(tokens.count) {
 			Token& t = array::readref(tokens, i);
-			dstring::append(buffer, (u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
+			buffer->append((u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
 		}
 		
 		fwrite(buffer.str, buffer.count, 1, out);

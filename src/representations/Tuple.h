@@ -69,23 +69,20 @@ struct Tuple : public ASTNode {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Tuple() : ASTNode(ast::tuple) {}
 };
 
-template<> inline b32 ASTNode::
-is<Tuple>() { return kind == ast::tuple; }
-
-template<> inline b32 ASTNode::
-next_is<Tuple>() { return next() && next()->is<Tuple>(); }
+template<> inline b32 Base::
+is<Tuple>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::tuple; }
 
 void
-to_string(DString& start, Tuple* t);
+to_string(DString*& start, Tuple* t);
 
 } // namespace amu
 

@@ -83,13 +83,10 @@ struct Code : public ASTNode {
     Code(code::kind k) : kind(k), ASTNode(ast::code) {}
 };
 
-template<> inline b32 ASTNode::
-is<Code>() { return kind == ast::code; }
+template<> inline b32 Base::
+is<Code>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::code; }
 
-template<> inline b32 ASTNode::
-next_is<Code>() { return next() && next()->is<Code>(); }
-
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is(code::kind k) { return is<Code>() && as<Code>()->kind == k; }
 
 // Code whose Tokens belong to some Source
@@ -99,11 +96,11 @@ struct SourceCode : public Code {
     
     // ~~~~~~ interface ~~~~~~~
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     SourceCode() : Code(code::unknown) {}
 };
@@ -113,7 +110,7 @@ struct SourceCode : public Code {
 // by the compiler. 
 // It stores its own set of Tokens and Diagnostics
 struct VirtualCode : public Code {
-    DString str;
+    DString* str;
     Array<Token> tokens;
     Array<Diagnostic> diagnostics;
 
@@ -121,12 +118,12 @@ struct VirtualCode : public Code {
     // ~~~~~~ interface ~~~~~~~
 
 
-    String
-    name() { return Code::identifier; }
+    DString*
+    name() { return DString*::create(Code::identifier); }
 
-    DString
-    debug_str() {
-        return dstring::init("VirtualCode<>");
+    DString*
+    dump() {
+        return DString*::create("VirtualCode<>");
     }
 
     VirtualCode() : Code(code::unknown) {}
@@ -154,7 +151,7 @@ destroy(Code* code);
 
 // transforms a Code object into a VirtualCode object
 // if the given Code is already virtual, then the same object is returned
-// this initializes a DString with the RString on the given Code
+// this initializes a DString* with the RString on the given Code
 
 VirtualCode*
 make_virtual(Code* code);
@@ -274,7 +271,7 @@ struct TokenIterator {
 
     // displays the current line as well as a caret 
     // indicating where in the line we are 
-    DString
+    DString*
     display_line();
 };
 
@@ -331,7 +328,7 @@ struct Options {
 };
 
 struct Lines {
-    DString str;
+    DString* str;
     String line; // the line that this was created with
     Array<String> lines; // views into 'str', representing each gathered line
     Options opt;
@@ -343,8 +340,8 @@ Lines get(Token* t, Options opt = {});
 Lines get(TNode* n, Options opt = {});
 template<typename T> Lines get(T* a, Options opt = {}); 
 
-void  get(DString& start, Token* t, Options opt = {});
-void  get(DString& start, TNode* n, Options opt = {});
+void  get(DString*& start, Token* t, Options opt = {});
+void  get(DString*& start, TNode* n, Options opt = {});
 
 void normalize_whitespace(Lines& lines);
 void remove_leading_whitespace(Lines& lines);
@@ -363,7 +360,7 @@ void remove_leading_whitespace(Lines& lines);
 } // namespace code
 
 void
-to_string(DString& current, Code* c);
+to_string(DString*& current, Code* c);
 
 } // namespace amu
 

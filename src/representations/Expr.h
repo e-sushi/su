@@ -11,6 +11,7 @@
 #include "Type.h"
 #include "Label.h"
 #include "Entity.h"
+#include "Literal.h"
 
 namespace amu {
 
@@ -71,6 +72,7 @@ enum kind : u32 {
     binary_bit_shift_left,
     binary_bit_shift_right,
     binary_access,
+    binary_structure_access,
     binary_assignment,
     binary_comptime,
 
@@ -96,9 +98,10 @@ struct Expr : public Entity {
         } conditional;
     } flags;
 
-    // a list of TAC that need to jump to this Expr
-    // for whatever reason 
-    Array<TAC*> jumps_to_me;
+    // if this is an access expr, this will point to the member being accessed
+    // idk where else to put this atm 
+    Member* member;
+    Literal literal;
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -110,11 +113,11 @@ struct Expr : public Entity {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Type*
     resolve_type();
@@ -124,11 +127,65 @@ struct Expr : public Entity {
     Expr(expr::kind k) : kind(k), Entity(entity::expr) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Expr>() { return is<Entity>() && as<Entity>()->kind == entity::expr; }
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
+
+// namespace literal {
+// enum kind {
+//     u64_,
+//     u32_,
+//     u16_,
+//     u8_,
+//     s64_,
+//     s32_,
+//     s16_,
+//     s8_,
+//     f64_,
+//     f32_,
+//     array,
+//     tuple, 
+//     string,
+//     chr,
+// };
+// } // namespace literal
+
+// // when this is a tuple or array literal, elements are accessed as children of 
+// // this ASTNode
+// struct Literal : public Expr {
+    
+
+
+//     // ~~~~~~ interface ~~~~~~~
+
+
+//     static Literal*
+//     create(literal::kind k);
+
+//     void
+//     destroy();
+
+//     DString*
+//     name();
+
+//     DString*
+//     debug_str();
+
+//     // cast this literal to some other literal kind
+//     // so that literal casts dont need to actually appear in the AST 
+//     void
+//     cast_to(literal::kind k);
+
+//     Literal() : Expr(expr::literal) {}
+// };
+
+// template<> b32 inline Base::
+// is<Literal>() { return is<Expr>() && as<Expr>()->kind == expr::literal; }
+
+// template<> b32 inline Base::
+// is(literal::kind k) { return is<Literal>() && as<Literal>()->kind == k; }
 
 struct Block : public Expr {
     LabelTable table;
@@ -143,20 +200,17 @@ struct Block : public Expr {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Block() : Expr(expr::block) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Block>() { return is<Expr>() && as<Expr>()->kind == expr::block; }
-
-template<> inline b32 ASTNode::
-next_is<Block>() { return next() && next()->is<Block>(); }
 
 struct Call : public Expr {
     Function* callee;
@@ -172,16 +226,16 @@ struct Call : public Expr {
     void
     destroy();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     Call() : Expr(expr::call) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Call>() { return is<Expr>() && as<Expr>()->kind == expr::call; }
 
 struct VarRef : public Expr {
@@ -197,40 +251,17 @@ struct VarRef : public Expr {
     void
     destroy(); 
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     VarRef() : Expr(expr::varref) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<VarRef>() { return is<Expr>() && as<Expr>()->kind == expr::varref; }
-
-// special so we can store what the offset of the access is 
-struct Access : public Expr {
-    u64 offset; // the offset from the start of base to reach var
-
-
-    // ~~~~~~ interface ~~~~~~~
-
-
-    static Access*
-    create();
-
-    void
-    destroy(); 
-
-    String
-    name();
-
-    DString
-    debug_str();
-
-    Access() : Expr(expr::binary_access) {}
-};
 
 } // namespace amu
 

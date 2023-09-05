@@ -14,24 +14,19 @@ destroy() {
     pool::remove(compiler::instance.storage.tuples, this); 
 }
 
-String Tuple::
+DString* Tuple::
 name() { 
-    return debug_str();
+    return dump();
 }
 
-DString Tuple::
-debug_str() {
-    DString out = dstring::init("(");
+DString* Tuple::
+dump() {
+    DString* out = DString::create("(");
     for(ASTNode* n = first_child(); n; n = n->next()) {
-        dstring::append(out, n->debug_str(), (n->next()? ", " : ""));
+        out->append(n->dump(), (n->next()? ", " : ""));
     }
-    dstring::append(out, ")");
+    out->append(")");
     return out;
-}
-
-void
-to_string(DString& start, Tuple* t) {
-    dstring::append(start, "Tuple<", tuple::strings[t->kind], ">");
 }
 
 } // namespace amu::tuple

@@ -70,31 +70,28 @@ struct Type : public Entity {
     virtual u64
     size() = 0;
 
-    String
+    DString*
     name() = 0;
 
-    DString
-    debug_str() = 0;
+    DString*
+    dump() = 0;
 
     Type(type::kind k) : kind(k), Entity(entity::type) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Type>() { return is<Entity>() && as<Entity>()->kind == entity::type; }
-
-template<> inline b32 ASTNode::
-next_is<Type>() { return next() && next()->is<Type>(); }
 
 // type representing nothing 
 struct Void : public Type { 
     Void() : Type(type::kind::void_) {} 
 
     u64     size() { return 0; }
-    String  name() { return "void"; }
-    DString debug_str() { return dstring::init("Void<>"); }
+    DString* name() { return DString::create("void"); }
+    DString* dump() { return DString::create("Void<>"); }
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Void>() { return is<Type>() && as<Type>()->kind == type::kind::void_; }
 
 namespace type{
@@ -114,11 +111,11 @@ struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
     u64 size() { return 0; }
-    String name() { return "whatever"; }
-    DString debug_str() { return dstring::init("Whatever<>"); }
+    DString* name() { return DString::create("whatever"); }
+    DString* dump() { return DString::create("Whatever<>"); }
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Whatever>() { return is<Type>() && as<Type>()->kind == type::kind::whatever; }
 
 namespace type{
@@ -151,23 +148,20 @@ struct Scalar : public Type {
     // ~~~~~~ interface ~~~~~~~
 
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
 };
 
-template<> b32 inline ASTNode::
+template<> b32 inline Base::
 is<Scalar>() { return is<Type>() && as<Type>()->kind == type::kind::scalar; }
 
-template<> b32 inline ASTNode::
-next_is<Scalar>() { return next() && next()->is<Scalar>(); }
-
-template<> b32 inline ASTNode::
+template<> b32 inline Base::
 is(scalar::kind k) { return is<Scalar>() && as<Scalar>()->kind == k; };
 
 namespace scalar {
@@ -210,11 +204,11 @@ struct Structured : public Type {
     Member*
     find_member(String id);
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -224,10 +218,10 @@ struct Structured : public Type {
     Structured(structured::kind k) : kind(k), Type(type::kind::structured) {}
 };
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is<Structured>() { return is<Type>() && as<Type>()->kind == type::kind::structured; }
 
-template<> inline b32 ASTNode::
+template<> inline b32 Base::
 is(structured::kind k) { return is<Structured>() && as<Structured>()->kind == k; }
 
 // a Type representing an address in memory where a value of 'type' can be found 
@@ -243,11 +237,11 @@ struct Pointer : public Type {
     static Pointer*
     create(Type* type);
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -255,7 +249,7 @@ struct Pointer : public Type {
     Pointer() : Type(type::kind::pointer) {}
 };
 
-template<> b32 inline ASTNode::
+template<> b32 inline Base::
 is<Pointer>() { return is<Type>() && as<Type>()->kind == type::kind::pointer; }
 
 // NOTE(sushi) the following array types inherit from Structured, because they have
@@ -280,11 +274,11 @@ struct StaticArray : public Structured {
     static StaticArray*
     create(Type* type, u64 size);
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -292,7 +286,7 @@ struct StaticArray : public Structured {
     StaticArray() : Structured(structured::static_array) {}
 };
 
-template<> b32 inline ASTNode::
+template<> b32 inline Base::
 is<StaticArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array; }
 
 // a DynamicArray is an array of the form
@@ -314,11 +308,11 @@ struct DynamicArray : public Structured {
     static DynamicArray*
     create(Type* type);
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -326,7 +320,7 @@ struct DynamicArray : public Structured {
     DynamicArray() : Structured(structured::dynamic_array) {}
 };
 
-template<> b32 inline ASTNode::
+template<> b32 inline Base::
 is<DynamicArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
 
 // a ViewArray is the same as a StaticArray, except that it does not 
@@ -346,11 +340,11 @@ struct ViewArray : public Structured {
     static ViewArray*
     create(Type* type);
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -358,16 +352,9 @@ struct ViewArray : public Structured {
     ViewArray() : Structured(structured::view_array) {}
 };
 
-template<> b32 inline ASTNode::
+template<> b32 inline Base::
 is<ViewArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
 
-namespace type::array {
-struct ExistantArray {
-    u64 hash;
-    StaticArray* atype;
-};
-extern Array<ExistantArray> set;
-} // namespace type::array
 
 // a Type which may take on the form of some collection of Types
 // this is a tagged union
@@ -420,11 +407,11 @@ struct FunctionType : public Type {
     static FunctionType*
     create();
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -455,11 +442,11 @@ struct TupleType : public Type {
     static TupleType*
     create(Array<Type*>& types);
 
-    String
+    DString*
     name();
 
-    DString
-    debug_str();
+    DString*
+    dump();
 
     u64
     size();
@@ -503,11 +490,11 @@ extern Map<Type*, Type*> type_map;
 // }; 
 
 // void
-// display(DString& current, Type* type, Formatting format = Formatting(), b32 allow_color = true);
+// display(DString*& current, Type* type, Formatting format = Formatting(), b32 allow_color = true);
 
-// DString
+// DString*
 // display(Type* type, Formatting format = Formatting(), b32 allow_color = true) {
-//     DString out = dstring::init();
+//     DString* out = DString::create();
 //     display(out, type, format, allow_color);
 //     return out;
 // }

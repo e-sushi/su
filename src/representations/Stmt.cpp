@@ -11,19 +11,19 @@ destroy() {
     pool::remove(compiler::instance.storage.statements, this);
 }
 
-String Stmt::
+DString* Stmt::
 name() { 
-    return "Statement(TODO)";
+    return DString::create("Statement(TODO)");
 }
 
-DString Stmt::
-debug_str() {
-    return dstring::init("Stmt<", stmt::strings[kind], ">");
+DString* Stmt::
+dump() {
+    return DString::create("Stmt<", stmt::strings[kind], ">");
 }
 
 void
-to_string(DString& start, Stmt* s) {
-    dstring::append(start, "Stmt<", stmt::strings[s->kind], ">");
+to_string(DString*& start, Stmt* s) {
+    start->append("Stmt<", stmt::strings[s->kind], ">");
 }
 
 } // namespace amu

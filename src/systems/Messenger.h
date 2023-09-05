@@ -13,7 +13,7 @@
 #define AMU_MESSENGER_H
 
 #include "storage/Array.h"
-#include "storage/DString.h"
+#include "storage/DString*.h"
 #include "representations/Source.h"
 #include "representations/Entity.h"
 #include "representations/Token.h"

@@ -3,7 +3,9 @@ namespace amu {
 Machine* Machine::
 create(Code* entry) {
     Machine* out = pool::add(compiler::instance.storage.machines);
-    out->registers = array::init<Register>();
+    // arbitrary amount of stack to allocate
+    // this needs to be a compiler option later 
+    out->stack = (u8*)memory::allocate(Megabytes(16));
     entry->machine = out;
     
 
@@ -11,12 +13,8 @@ create(Code* entry) {
                        // WOW!
         out->frame.f = entry->parser->root->as<Label>()->entity->as<Function>();
         out->frame.ip = entry->air_gen->seq.data;
-        out->registers = array::init<Register>();
-        forI(128) {
-            array::push(out->registers);
-        }
-        out->frame.fp = out->registers.data;
-        out->stack_top = out->registers.data;
+        out->frame.fp = out->stack;
+        out->sp = out->stack;
     } else {
         // TODO(sushi) we'll need to implement a fake CallFrame or just be able to 
         //             use some kind of alternative
@@ -33,179 +31,247 @@ run() {
 
     auto start = util::stopwatch::start();
 
-    // return;
+    return;
+
+    #define sized_op(op, sz, dst, src)                \
+    switch(sz) {                                      \
+        case byte: *(dst) op (u8)(src); break;        \
+        case word: *(u16*)(dst) op (u16)(src); break; \
+        case dble: *(u32*)(dst) op (u32)(src); break; \
+        case quad: *(u64*)(dst) op (u64)(src); break; \
+    }
+
+    #define sized_op_flt(op, sz, dst, src)            \
+    switch(sz) {                                      \
+        case dble: *(f32*)(dst) op (f32)(src); break; \
+        case quad: *(f64*)(dst) op (f64)(src); break; \
+    }
+
+    #define sized_op_assign(op, sz, dst, src)                        \
+    switch(sz) {                                                     \
+        case byte: *(dst) = *(dst) op (u8)(src); break;              \
+        case word: *(u16*)(dst) = *(u16*)(dst) op (u16)(src); break; \
+        case dble: *(u32*)(dst) = *(u32*)(dst) op (u32)(src); break; \
+        case quad: *(u64*)(dst) = *(u64*)(dst) op (u64)(src); break; \
+    }
+
+    #define sized_op_assign_flt(op, sz, dst, src)                    \
+    switch(sz) {                                                     \
+        case dble: *(f32*)(dst) = *(f32*)(dst) op (f32)(src); break; \
+        case quad: *(f64*)(dst) = *(f64*)(dst) op (f64)(src); break; \
+    }
 
     b32 finished = 0;
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        util::println(dstring::init("----------------------- ", frame.ip, " of ", frame.f->name()));
+        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.f->name()));
         util::println(to_string(*frame.ip));
-        switch(frame.ip->instr) {
+        BC* instr = frame.ip;
+        switch(instr->instr) {
             case air::op::push: {
-                Register* dst = stack_top;
+                u8* dst = sp;
                 if(frame.ip->flags.left_is_const) {
-                    dst->_u32 = frame.ip->offset_a;
+                    sized_op(=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_flt(=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_a;
-                    dst->_u32 = src->_u32;
+                    u8* src = frame.fp + frame.ip->lhs;
+                    sized_op(=, instr->w, dst, *src);
+                    sp += instr->w + *src;
                 }
-                stack_top += 1;
             } break;
 
-            case air::op::pushn: {
-                stack_top += frame.ip->offset_a;
-            } break;
-
-            case air::op::popn: {
-                stack_top -= frame.ip->offset_a;
-            } break;
-
-            case air::op::pop: {
-                stack_top--;
-            } break;
+            case air::op::pushn: sp += frame.ip->lhs; break;
+            case air::op::popn:  sp -= frame.ip->lhs; break;
 
             case air::op::copy: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = frame.ip->offset_b;
+                    sized_op(=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_flt(=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op(=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::add: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 += frame.ip->offset_b;
+                    sized_op(+=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_flt(+=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 += src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op(+=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::sub: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 -= frame.ip->offset_b;
+                    sized_op(-=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_flt(-=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 -= src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op(-=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::mul: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 *= frame.ip->offset_b;
+                    sized_op(*=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_flt(*=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 *= src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op(*=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::div: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 /= frame.ip->offset_b;
+                    sized_op(/=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_flt(/=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 /= src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op(/=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::jump_zero: {
                 if(frame.ip->flags.left_is_const) {
-                    if(!frame.ip->offset_a) frame.ip += frame.ip->offset_b - 1;
+                    if(!frame.ip->lhs) frame.ip += frame.ip->rhs - 1;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_a;
-                    if(!src->_u32) {
-                        frame.ip += frame.ip->offset_b - 1;
+                    u8* src = frame.fp + frame.ip->lhs;
+                    b32 cond = 0;
+                    switch(instr->w) {
+                        case byte: cond = cond == *src; break;
+                        case word: cond = cond == *(u16*)src; break;
+                        case dble: cond = cond == *(u32*)src; break;
+                        case quad: cond = cond == *(u64*)src; break;
                     }
+                    if(cond) frame.ip += frame.ip->rhs - 1;
                 }
             } break;
 
             case air::op::jump_not_zero: {
                 if(frame.ip->flags.left_is_const) {
-                    if(frame.ip->offset_a) frame.ip += frame.ip->offset_b - 1;
+                    if(frame.ip->lhs) frame.ip += frame.ip->rhs - 1;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_a;
-                    if(src->_u32) {
-                        frame.ip += frame.ip->offset_b - 1;
+                    u8* src = frame.fp + frame.ip->lhs;
+                    b32 cond = 1;
+                    switch(instr->w) {
+                        case byte: cond = cond == *src; break;
+                        case word: cond = cond == *(u16*)src; break;
+                        case dble: cond = cond == *(u32*)src; break;
+                        case quad: cond = cond == *(u64*)src; break;
                     }
+                    if(cond) frame.ip += frame.ip->rhs - 1;
                 }
             } break;
 
             case air::op::jump: {
-                frame.ip += frame.ip->offset_a - 1;
+                frame.ip += frame.ip->lhs - 1;
             } break;
 
+            // TODO(sushi) this sucks do it better later 
             case air::op::eq: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = dst->_u32 == frame.ip->offset_b;    
+                    sized_op_assign(==, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_assign_flt(==, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = dst->_u32 == src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op_assign(==, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::neq: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = dst->_u32 != frame.ip->offset_b;    
+                    sized_op_assign(!=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_assign_flt(!=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = dst->_u32 != src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op_assign(!=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::lt: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = dst->_u32 < frame.ip->offset_b;    
+                    sized_op_assign(<, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_assign_flt(<, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = dst->_u32 < src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op_assign(<, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::gt: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = dst->_u32 > frame.ip->offset_b;
+                    sized_op_assign(>, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_assign_flt(>, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = dst->_u32 > src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op_assign(>, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::le: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = dst->_u32 <= frame.ip->offset_b;    
+                    sized_op_assign(<=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_assign_flt(<=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = dst->_u32 <= src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op_assign(<=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::ge: {
-                Register* dst = frame.fp + frame.ip->offset_a;
+                u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    dst->_u32 = dst->_u32 >= frame.ip->offset_b;    
+                    sized_op_assign(>=, instr->w, dst, frame.ip->rhs);
+                } else if(frame.ip->flags.float_op) {
+                    sized_op_assign_flt(>=, instr->w, dst, instr->lhs);
+                    sp += instr->w + instr->lhs;
                 } else {
-                    Register* src = frame.fp + frame.ip->offset_b;
-                    dst->_u32 = dst->_u32 >= src->_u32;
+                    u8* src = frame.fp + frame.ip->rhs;
+                    sized_op_assign(>=, instr->w, dst, *src);
                 }
             } break;
 
             case air::op::call: {
                 array::push(frames, frame);
                 frame.f = frame.ip->f;
-                frame.fp = stack_top - frame.ip->n_params;
+                frame.fp = sp - frame.ip->n_params;
                 frame.ip = frame.f->code->air_gen->seq.data - 1;
-                stack_top = frame.fp;
+                sp = frame.fp;
             } break;
 
             case air::op::ret: {
@@ -214,20 +280,20 @@ run() {
                     break;
                 }
                 CallFrame last = frame;
-                stack_top = frame.fp + frame.ip->offset_a; 
+                sp = frame.fp + frame.ip->lhs; 
                 frame = array::pop(frames);
                 util::println(to_string(*frame.ip));
             } break;
         }
 
-        Register* sp = frame.fp;
-        forI(stack_top - frame.fp + 1) {
-            util::print(dstring::init("r", i, " ", sp->_u32));
-            if(stack_top == sp) {
-                util::print(dstring::init("<"));
+        u8* ss = frame.fp;
+        forI(sp - frame.fp + 1) {
+            util::print(DString::create("sp+", i, " ", *sp));
+            if(sp == ss) {
+                util::print(DString::create("<"));
             }
             util::println("");
-            sp += 1;
+            ss += 1;
         }
         frame.ip += 1;
     } 
@@ -237,7 +303,7 @@ run() {
 
 void Machine::
 print_stack() {
-    DString out = dstring::init();
+    DString* out = DString::create();
 
     auto my_frames = array::init<CallFrame*>();
     forI(frames.count)
@@ -246,14 +312,14 @@ print_stack() {
 
     u32 frame_idx = 0;
 
-    Register* p = registers.data;
-    while(p < stack_top) {
-        dstring::append(out, "r", p-registers.data, " ", p->_u64);
+    u8* p = stack;
+    while(p < sp) {
+        out->append("r", p-stack, " ", *p);
         if(frame_idx < my_frames.count && array::read(my_frames, frame_idx)->fp == p) {    
-            dstring::append(out, " <-- fp of ", array::read(my_frames, frame_idx)->f->name());
+            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->f->name());
             frame_idx++;
         }
-        dstring::append(out, "\n");
+        out->append("\n");
         p++;
     }
     util::println(out);

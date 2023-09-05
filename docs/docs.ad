@@ -75,7 +75,7 @@ They are not null-terminated as in C, since they are represented by amu's builti
 TODO(sushi) discuss dynamic string literals once we have an idea of how they'll work
 
 ==== Tuples
-[Tuple](#tuples-1) literals may either result in a valued tuple or a Tuple type depending on the elements provided. 
+[[Tuple]] literals may either result in a valued tuple or a Tuple type depending on the elements provided. 
 
 === Blocks
 Blocks in amu are expressions, much like in rust and other functional languages. This means blocks can return values. Blocks allow [[statement]]s and are scoped. For example: 
@@ -433,7 +433,7 @@ Apple :: struct {
     is_rotten: u32;
 }
 ```
-In this form, the structure `Apple` is exactly equivalent to the named tuple type `(is_delicious: u32, is_rotten: u32)`. This declares the structured type `Apple`, which may now be used to declare [variables](#variables): 
+In this form, the structure `Apple` is exactly equivalent to the named tuple type `(is_delicious: u32, is_rotten: u32)`. This declares the structured type `Apple`, which may now be used to declare [[variable]]s: 
 ```
 a: Apple;
 ```
