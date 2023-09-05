@@ -14,7 +14,7 @@ name() {
 
 DString* Module::
 dump() {
-    return DString::create("Module<", (label? label->name() : DString::create("anon")), ">");
+    return DString::create("Module<", (label? ScopedDeref(label->name()).x : DString::create("anon")), ">");
 }
 
 void

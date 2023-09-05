@@ -12,7 +12,7 @@ create(FunctionType* type) {
 
 DString* Function::
 name() {
-    return label->name()->ref();
+    return label->name();
 }
 
 DString* Function::

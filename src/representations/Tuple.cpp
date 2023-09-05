@@ -23,7 +23,7 @@ DString* Tuple::
 dump() {
     DString* out = DString::create("(");
     for(ASTNode* n = first_child(); n; n = n->next()) {
-        out->append(ScopedDStringRef(n->dump()).x, (n->next()? ", " : ""));
+        out->append(ScopedDeref(n->dump()).x, (n->next()? ", " : ""));
     }
     out->append(")");
     return out;

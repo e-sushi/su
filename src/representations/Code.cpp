@@ -362,7 +362,7 @@ void
 to_string(DString* current, Code* c) {
     if(code::is_virtual(c)) { // TODO(sushi) more info for virtual code whenever its actually used
         auto vc = (VirtualCode*)c;
-        current->append("VirtualCode<'", vc->name(), "'>");
+        current->append("VirtualCode<'", ScopedDeref(vc->name()).x, "'>");
     } else {
         auto sc = (SourceCode*)c;
         current->append("SourceCode<", code::strings[sc->kind], ">");

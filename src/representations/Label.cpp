@@ -33,7 +33,7 @@ resolve_type() {
 VirtualLabel* VirtualLabel::
 create(DString* name) {
     VirtualLabel* out = pool::add(compiler::instance.storage.virtual_labels);
-    out->id = name->ref();
+    out->id = name;
     return out;
 }
 

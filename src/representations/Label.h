@@ -62,7 +62,7 @@ struct VirtualLabel : public Label {
 
     // ~~~~~~ interface ~~~~~~~
 
-
+    // NOTE(sushi) this takes ownership of 'name', so it does not increment its ref count
     static VirtualLabel*
     create(DString* name);
 

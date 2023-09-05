@@ -107,12 +107,12 @@ create(Type* type) {
 
 DString* Pointer::
 name() { // !Leak
-    return DString::create(type->name(), "*");
+    return DString::create(ScopedDeref(type->name()).x, "*");
 }
 
 DString* Pointer::
 dump() {
-    return DString::create(type->name(), "*");
+    return name();
 }
 
 u64 Pointer::
@@ -158,12 +158,12 @@ create(Type* type, u64 count) {
 
 DString* StaticArray::
 name() {
-    return DString::create(ScopedDStringRef(this->type->name()).x, "[", this->count, "]"); 
+    return DString::create(ScopedDeref(this->type->name()).x, "[", this->count, "]"); 
 }
 
 DString* StaticArray::
 dump() {
-    return DString::create(name());
+    return name();
 }
 
 u64 StaticArray::
@@ -204,12 +204,12 @@ create(Type* type) {
 
 DString* ViewArray::
 name() {
-    return DString::create(ScopedDStringRef(this->type->name()).x, "[]");
+    return DString::create(ScopedDeref(this->type->name()).x, "[]");
 }
 
 DString* ViewArray::
 dump() {
-    return DString::create(name());
+    return name();
 }
 
 u64 ViewArray::
@@ -255,12 +255,12 @@ create(Type* type) {
 
 DString* DynamicArray::
 name() {
-    return DString::create(this->type->name(), "[..]");
+    return DString::create(ScopedDeref(this->type->name()).x, "[..]");
 }
 
 DString* DynamicArray::
 dump() {
-    return DString::create(name());
+    return name();
 }
 
 u64 DynamicArray::
@@ -279,7 +279,7 @@ create() {
 
 DString* FunctionType::
 name() {
-    DString* out = DString::create("("); // !Leak
+    DString* out = DString::create("("); 
     for(ASTNode* n = this->parameters->first_child(); n; n = n->next()) {
         out->append(n->resolve_type(), (n->next()? ", " : ""));
     }
@@ -293,7 +293,7 @@ name() {
 }
 
 DString* FunctionType::
-dump() { // !Leak: double leak
+dump() {
     return name();
 }
 
@@ -380,7 +380,7 @@ find_member(String id) {
 
 DString* Structured::
 name() {
-    return label->name()->ref();
+    return label->name();
 }
 
 DString* Structured::

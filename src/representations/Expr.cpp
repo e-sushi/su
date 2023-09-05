@@ -26,7 +26,7 @@ dump() {
             out->append("id:'", this->start->raw, "'");
         } break;
         case expr::literal: {
-            out->append(ScopedDStringRef(literal.dump()).x);
+            out->append(ScopedDeref(literal.dump()).x);
         } break;
         case expr::cast: {
             out->append("cast to ", this->type);
@@ -99,7 +99,7 @@ name() { // !Leak TODO(sushi) get this to print something nicer
 
 DString* Block::
 dump() {
-    return DString::create("Block<", (type? type->name() : DString::create("unknown type")), ">");
+    return DString::create("Block<", (type? ScopedDeref(type->name()).x->fin : "unknown type"), ">");
 }
 
 Call*
@@ -119,8 +119,8 @@ name() { // !Leak TODO(sushi) get this to print something nicer
 DString* Call::
 dump() {
     return DString::create("Call<", 
-                (callee? callee->name()->fin : "null callee"), ", ", 
-                (arguments? arguments->name()->fin : "null args"), ">");
+                (callee? ScopedDeref(callee->name()).x->fin : "null callee"), ", ", 
+                (arguments? ScopedDeref(arguments->name()).x->fin : "null args"), ">");
 }
 
 VarRef* VarRef::
@@ -139,7 +139,7 @@ name() { // !Leak TODO(sushi) get this to print something nicer
 
 DString* VarRef::
 dump() {
-    return DString::create("VarRef<", (var? var->name()->fin : "null var"), ">");
+    return DString::create("VarRef<", (var? ScopedDeref(var->name()).x->fin : "null var"), ">");
 }
 
 void
