@@ -15,7 +15,7 @@ base() {
 }
 
 DString* Label::
-name() {
+display() {
     return DString::create(start->raw);
 }
 
@@ -31,14 +31,14 @@ resolve_type() {
 }
 
 VirtualLabel* VirtualLabel::
-create(DString* name) {
+create(DString* display) {
     VirtualLabel* out = pool::add(compiler::instance.storage.virtual_labels);
-    out->id = name;
+    out->id = display;
     return out;
 }
 
 DString* VirtualLabel::
-name() {
+display() {
     return id->ref();
 }
 
@@ -145,12 +145,12 @@ to_string(DString* start, Label* l) {
  
     // // TODO(sushi) add option to enable this somehow 
     // // if(l->node.end) {
-    // //     start->append(l->node.start->code->name, ":", 
+    // //     start->append(l->node.start->code->display, ":", 
     // //             l->node.start->l0, ",", l->node.start->c0, ":",
     // //             l->node.end->l0, ",", l->node.end->c0,
     // //         ">");
     // // } else {
-    // //     start->append(l->node.start->code->name, ":", 
+    // //     start->append(l->node.start->code->display, ":", 
     // //             l->node.start->l0, ",", l->node.start->c0, ":",
     // //             "?,?",
     // //         ">");

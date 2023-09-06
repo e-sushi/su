@@ -67,7 +67,7 @@ function() {
     auto f  = l->entity->as<Function>();
     auto ft = f->type;
 
-    messenger::qdebug(code, String("generating TAC for func "), ScopedDStringRef(f->name()).x->fin);
+    messenger::qdebug(code, String("generating TAC for func "), ScopedDStringRef(f->display()).x->fin);
 
     block(l->last_child()->last_child<Block>());
 
@@ -122,9 +122,7 @@ statement(Stmt* s) {
                         // this is a variable decl of the form
                         //     <id> : <type> ;
                         // so we just 0 fill it 
-                        arg.kind = arg::literal;
-                        arg.literal.kind = literal::_u64;
-                        arg.literal._u64 = 0;
+                        arg.literal = s64(0);
                     } else {
                         arg = expression(l->last_child<Expr>());
                     }
@@ -227,37 +225,70 @@ expression(Expr* e) {
 
         case expr::cast: {
             Arg arg = expression(e->first_child<Expr>());
-
-        } break;
-
-        case expr::literal: {
-            switch(e->type->kind) {
-                case type::kind::scalar: {
-                    switch(e->type->as<Scalar>()->kind) {
-                        case scalar::signed64: {
-                            return e->start->u64_val;
-                        } break;
-                        case scalar::float64: {
-                            return e->start->f64_val;
-                        } break;
-                        default: {
-                            TODO("unhandled literal type");
-                        } break;
-                    }
-                } break;
-                case type::kind::structured: {
-                    auto stype = e->type->as<Structured>();
-                    switch(stype->kind) {
-                        default: {
-                            TODO("handle structured literals (structured types/arrays)");
-                        } break;
-                    }
-                } break;
-                default: {
-                    TODO("unhandled literal type");
-                } break;
+            TAC* cast = make_and_place();
+            cast->node = e;
+            if(e->type->is<Scalar>() && e->first_child<Expr>()->type->is<Scalar>()) {
+                auto to = e->type->as<Scalar>();
+                auto from = e->first_child<Expr>()->type->as<Scalar>();
+                switch(to->kind) {
+                    case scalar::unsigned64: {
+                        switch(from->kind) {
+                            case scalar::unsigned32: {
+                                cast->op = resz;
+                                cast->arg0 = arg;
+                                cast->arg1 = width::dble;
+                                return cast;
+                            } break;
+                            case scalar::unsigned16: {
+                                cast->op = resz;
+                                cast->arg0 = arg;
+                                cast->arg1 = width::word;
+                                return cast;
+                            } break;
+                        }
+                    } break;
+                    case scalar::float32: {
+                        switch(from->kind) {
+                            case scalar::float64: {
+                                cast->op = resz;
+                                cast->arg0 = arg;
+                                cast->arg1 = width::quad;
+                                return cast;
+                            } break;
+                        }
+                    } break;
+                    case scalar::float64: {
+                        switch(from->kind) {
+                            case scalar::float32: {
+                                cast->op = resz;
+                                cast->arg0 = arg;
+                                cast->arg1 = width::dble;
+                                return cast;
+                            } break;
+                        }
+                    } break;
+                }
+            } else {
+                TODO("handle non-scalar casts");
             }
         } break;
+
+        case expr::literal_scalar: {
+            return e->as<ScalarLiteral>()->value;
+        } break;
+
+        case expr::literal_string: {
+            TODO("handle string literals");
+        } break;
+
+        case expr::literal_array: {
+            TODO("handle array literals");
+        } break;
+
+        case expr::literal_tuple: {
+            TODO("handle tuple literals");
+        } break;
+
         case expr::binary_assignment: {
             Arg lhs = expression(e->first_child<Expr>());
             Arg rhs = expression(e->last_child<Expr>());
@@ -282,8 +313,8 @@ expression(Expr* e) {
             TAC* ret = make();
             ret->op = tac::param;
             ret->node = e;
-            ret->arg0 = u64(0);
-            ret->comment = DString::create("return slot for ", ce->callee->name());
+            ret->arg0.literal = u64(0);
+            ret->comment = DString::create("return slot for ", ce->callee->display());
             new_temp(ret, e->type);
 
             auto params = array::init<TAC*>();
@@ -294,7 +325,7 @@ expression(Expr* e) {
                 tac->op = tac::param;
                 tac->node = e;
                 tac->arg0 = ret;
-                tac->comment = DString::create("arg in call to ", ce->callee->name());
+                tac->comment = DString::create("arg in call to ", ce->callee->display());
                 new_temp(tac, n->type);
                 param_size += tac->temp_size;
                 array::push(params, tac);
@@ -308,7 +339,7 @@ expression(Expr* e) {
             tac->op = tac::call;
             tac->arg0.kind = arg::func;
             tac->arg0.func = ce->callee;
-            tac->arg1 = param_size + ret->temp_size;
+            tac->arg1.literal = param_size + ret->temp_size;
             tac->temp_size = ret->temp_size;
             tac->node = e;
 
@@ -496,7 +527,7 @@ expression(Expr* e) {
             TAC* temp = make_and_place();
             temp->op = tac::temp;
             temp->node = e;
-            new_temp(temp, &scalar::scalars[scalar::unsigned64]);
+            new_temp(temp, &scalar::_u64);
 
             auto jump_stack = array::init<TAC*>();
 
@@ -557,7 +588,7 @@ expression(Expr* e) {
             success->op = tac::assignment;
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
-            success->arg1 = u64(1);
+            success->arg1.literal = u64(1);
             success->node = e;
 
             if(fail_jump) {
@@ -602,7 +633,7 @@ expression(Expr* e) {
             TAC* temp = make_and_place();
             temp->op = tac::temp;
             temp->node = e;
-            new_temp(temp, &scalar::scalars[scalar::unsigned64]);
+            new_temp(temp, &scalar::_u64);
 
             auto jump_stack = array::init<TAC*>();
 
@@ -656,7 +687,7 @@ expression(Expr* e) {
             success->op = tac::assignment;
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
-            success->arg1 = u64(1);
+            success->arg1.literal = u64(1);
             success->node = e;
 
             TAC* fail_jump = make_and_place();

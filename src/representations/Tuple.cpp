@@ -15,7 +15,7 @@ destroy() {
 }
 
 DString* Tuple::
-name() { 
+display() { 
     return dump();
 }
 

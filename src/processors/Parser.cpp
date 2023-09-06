@@ -302,7 +302,7 @@ prescanned_type() {
                     diagnostic::parser::struct_duplicate_member_name(m->start, m->start);
                     return false;
                 }
-                s->add_member(m->label->name(), m);
+                s->add_member(m->label->display(), m);
             }
 
             stype->def = e;
@@ -1622,33 +1622,40 @@ typeref() {
 
 b32 Parser::
 reduce_literal_to_literal_expression() {
-    auto e = Expr::create(expr::literal);
-    e->start = e->end = token.current();
     switch(token.current_kind()) {
         // TODO(sushi) this needs to take into account unicode codepoints!
         //             probably change char to storing u32 instead of u8
+        // TODO(sushi) now that literal expressions are their own types
+        //             we can probably just have lexer make them directly
         case token::literal_character: {
-            e->literal.kind = literal::chr;
-            e->literal.chr = (u8)string::to_s64(e->start->raw);
-            e->type = &scalar::scalars[scalar::unsigned8];
+            auto e = ScalarLiteral::create();
+            e->start = e->end = token.current();
+            e->value = (u8)string::to_s64(e->start->raw);
+            e->type = &scalar::_u8;
+            node.push(e);
         } break;
         case token::literal_float: {
-            e->literal.kind = literal::_f64;
-            e->literal._f64 = string::to_f64(e->start->raw);
-            e->type = &scalar::scalars[scalar::float64];
+            auto e = ScalarLiteral::create();
+            e->start = e->end = token.current();
+            e->value = string::to_f64(e->start->raw);
+            e->type = &scalar::_f64;
+            node.push(e);
         } break;
         case token::literal_integer: {
-            e->literal.kind = literal::_s64;
-            e->literal._s64 = string::to_s64(e->start->raw);
-            e->type = &scalar::scalars[scalar::signed64];
+            auto e = ScalarLiteral::create();
+            e->start = e->end = token.current();
+            e->value = string::to_s64(e->start->raw);
+            e->type = &scalar::_s64;
+            node.push(e);
         } break;
         case token::literal_string: {
-            e->literal.kind = literal::string;
-            e->literal.str = e->start->raw;
-            e->type = StaticArray::create(&scalar::scalars[scalar::unsigned8], token.current()->raw.count);
+            auto e = StringLiteral::create();
+            e->start = e->end = token.current();
+            e->raw = e->start->raw;
+            e->type = StaticArray::create(&scalar::_u8, token.current()->raw.count);
+            node.push(e);
         } break;
     }
-    node.push(e);
     return true;
 }
 
@@ -1658,16 +1665,16 @@ reduce_builtin_type_to_typeref_expression() {
     e->start = e->end = token.current();
     switch(token.current_kind()) {
         case token::void_:      e->type = &type::void_; break; 
-        case token::unsigned8:  e->type = &scalar::scalars[scalar::unsigned8]; break;
-        case token::unsigned16: e->type = &scalar::scalars[scalar::unsigned16]; break;
-        case token::unsigned32: e->type = &scalar::scalars[scalar::unsigned32]; break;
-        case token::unsigned64: e->type = &scalar::scalars[scalar::unsigned64]; break;
-        case token::signed8:    e->type = &scalar::scalars[scalar::signed8]; break;
-        case token::signed16:   e->type = &scalar::scalars[scalar::signed16]; break;
-        case token::signed32:   e->type = &scalar::scalars[scalar::signed32]; break;
-        case token::signed64:   e->type = &scalar::scalars[scalar::signed64]; break;
-        case token::float32:    e->type = &scalar::scalars[scalar::float32]; break;
-        case token::float64:    e->type = &scalar::scalars[scalar::float64]; break;
+        case token::unsigned8:  e->type = &scalar::_u8; break;
+        case token::unsigned16: e->type = &scalar::_u16; break;
+        case token::unsigned32: e->type = &scalar::_u32; break;
+        case token::unsigned64: e->type = &scalar::_u64; break;
+        case token::signed8:    e->type = &scalar::_s8; break;
+        case token::signed16:   e->type = &scalar::_s16; break;
+        case token::signed32:   e->type = &scalar::_s32; break;
+        case token::signed64:   e->type = &scalar::_s64; break;
+        case token::float32:    e->type = &scalar::_f32; break;
+        case token::float64:    e->type = &scalar::_f64; break;
     }
     node.push(e);
     return true;

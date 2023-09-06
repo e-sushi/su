@@ -12,7 +12,7 @@ destroy() {
 }
 
 DString* Stmt::
-name() { 
+display() { 
     return DString::create("Statement(TODO)");
 }
 

@@ -28,7 +28,7 @@ struct Var : public Entity {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

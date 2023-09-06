@@ -11,7 +11,6 @@
 #include "Type.h"
 #include "Label.h"
 #include "Entity.h"
-#include "Literal.h"
 
 namespace amu {
 
@@ -27,7 +26,11 @@ enum kind : u32 {
     null,
 
     identifier,
-    literal,
+    literal_scalar,
+    literal_string,
+    literal_array,
+    literal_tuple,
+    literal_struct,
     entity_func,
     entity_module,    
     typeref,
@@ -101,7 +104,6 @@ struct Expr : public Entity {
     // if this is an access expr, this will point to the member being accessed
     // idk where else to put this atm 
     Member* member;
-    Literal literal;
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -114,7 +116,7 @@ struct Expr : public Entity {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -133,59 +135,124 @@ is<Expr>() { return is<Entity>() && as<Entity>()->kind == entity::expr; }
 template<> inline b32 Base::
 is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
 
-// namespace literal {
-// enum kind {
-//     u64_,
-//     u32_,
-//     u16_,
-//     u8_,
-//     s64_,
-//     s32_,
-//     s16_,
-//     s8_,
-//     f64_,
-//     f32_,
-//     array,
-//     tuple, 
-//     string,
-//     chr,
-// };
-// } // namespace literal
+// The following Literal structures are to help keep each kind of literal separate
+// while also providing a common interface for working with them.
+// I originally tried just having a Literal struct, but found that it stored too much information
+// and I didn't know where exactly to put it.
+// Though I also don't really care for this style either, but if it works better then whatever.
+// I just dont like having several representations of literals throughout the project. Tokens have their own
+// thing, Expressions have their own thing, and now TAC Args have their own as well.
 
-// // when this is a tuple or array literal, elements are accessed as children of 
-// // this ASTNode
-// struct Literal : public Expr {
-    
+// the Scalar type of this Expr determines which literal to use 
+// This is one place where OOP fails I think. I need to store a kind on ScalarValue
+// so that other things that use it can tell what to do with it, but here it's not necessary
+// because Expr already has an underlying Type which can be used to determine this, so a u32 or 64, whatever
+// C++ makes it, is actually wasted here. There's probably some convoluted way to design this better
+// but I don't care for now.
+struct ScalarLiteral : public Expr {
+    ScalarValue value;
 
 
-//     // ~~~~~~ interface ~~~~~~~
+    // ~~~~ interface ~~~~
 
 
-//     static Literal*
-//     create(literal::kind k);
+    static ScalarLiteral*
+    create();
 
-//     void
-//     destroy();
+    void
+    destroy();
 
-//     DString
-//     name();
+    DString*
+    display();
 
-//     DString
-//     debug_str();
+    DString*
+    dump();
 
-//     // cast this literal to some other literal kind
-//     // so that literal casts dont need to actually appear in the AST 
-//     void
-//     cast_to(literal::kind k);
+    ScalarLiteral() : Expr(expr::literal_scalar) {}
+};
 
-//     Literal() : Expr(expr::literal) {}
-// };
+template<> b32 inline Base::
+is<ScalarLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_scalar; }
 
-// template<> b32 inline Base::
-// is<Literal>() { return is<Expr>() && as<Expr>()->kind == expr::literal; }
+struct StringLiteral : public Expr {
+    String raw;
 
-// template<> b32 inline Base::
-// is(literal::kind k) { return is<Literal>() && as<Literal>()->kind == k; }
+
+    // ~~~~ interface ~~~~
+
+
+    static StringLiteral*
+    create();
+
+    void
+    destroy();
+
+    DString*
+    display();
+
+    DString*
+    dump();
+
+    StringLiteral() : Expr(expr::literal_string) {}
+};
+
+template<> b32 inline Base::
+is<StringLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_string; }
+
+// the Type of this expression will be StaticArray and the underlying type of the 
+// array can be reached from there.
+struct ArrayLiteral : public Expr {
+    Array<Expr*> elements;
+
+
+    // ~~~~ interface ~~~~
+
+
+    static ArrayLiteral*
+    create();
+
+    void
+    destroy();
+
+    DString*
+    display();
+
+    DString*
+    dump();
+
+    ArrayLiteral() : Expr(expr::literal_array) {}
+
+};
+
+template<> b32 inline Base::
+is<ArrayLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_array; }
+
+// NOTE(sushi) this represents just plain tuple literals and tuple literals being 
+//             used as struct initializers 
+struct TupleLiteral : public Expr {
+    Tuple* t;
+
+
+    // ~~~~ interface ~~~~
+
+
+    static TupleLiteral*
+    create();
+
+    void
+    destroy();
+
+    DString*
+    display();
+
+    DString*
+    dump();
+
+    TupleLiteral() : Expr(expr::literal_tuple) {}
+};
+
+template<> b32 inline Base::
+is<TupleLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_tuple; }
 
 struct Block : public Expr {
     LabelTable table;
@@ -201,7 +268,7 @@ struct Block : public Expr {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -227,7 +294,7 @@ struct Call : public Expr {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -252,7 +319,7 @@ struct VarRef : public Expr {
     destroy(); 
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

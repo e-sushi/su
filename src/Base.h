@@ -10,9 +10,12 @@
     Keep in mind that nearly everything this defines should primarily be used only in cases
     where we need to report something, such as a name or debug dump. 
 
-    The fact that dump and name return DStrings sucks extremely hard. It's not a HUGE deal for now
-    but if we use this to dump information to compile time code, it will leak like crazy, so this
-    needs a better system soon. It can be assumed that memory is leaked anytime you use name/dump.
+
+    The whole 'is' thing is pretty scuffed. I implemented it when the amount of layered stuff wasn't
+    very high, but now it's gotten up there and so sometimes we are doing like 3-4 checks to figure 
+    something out. This needs to just be an aggregate of all things that inherit it at any level
+    and 'is' just checks for that kind directly. I will do this later when amu becomes somewhat stable,
+    if this system is even still being used by then.
 
 */
 
@@ -26,6 +29,7 @@ enum kind {
     ast,
     literal,
     tac,
+    scalar_value,
 };
 } // namespace base
 
@@ -35,7 +39,7 @@ struct Base {
 
     // return a generated name for this object 
     virtual DString*
-    name() = 0;
+    display() = 0;
 
     // outputs debug information about this object
     virtual DString*

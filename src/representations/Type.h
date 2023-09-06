@@ -71,7 +71,7 @@ struct Type : public Entity {
     size() = 0;
 
     DString*
-    name() = 0;
+    display() = 0;
 
     DString*
     dump() = 0;
@@ -87,7 +87,7 @@ struct Void : public Type {
     Void() : Type(type::kind::void_) {} 
 
     u64      size() { return 0; }
-    DString* name() { return DString::create("void"); }
+    DString* display() { return DString::create("void"); }
     DString* dump() { return DString::create("Void<>"); }
 };
 
@@ -111,7 +111,7 @@ struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
     u64      size() { return 0; }
-    DString* name() { return DString::create("whatever"); }
+    DString* display() { return DString::create("whatever"); }
     DString* dump() { return DString::create("Whatever<>"); }
 };
 
@@ -135,27 +135,26 @@ enum kind {
     float32,
     float64,
 };
-} // namespace type::builtin
+} // namespace scalar
 
-// a numerical type
+// a singular number. Underlies ScalarValue
 struct Scalar : public Type {
     scalar::kind kind;
-    Scalar(scalar::kind kind) : Type(type::kind::scalar) {
-        this->kind = kind;
-    }
 
 
     // ~~~~~~ interface ~~~~~~~
 
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
 
     u64
     size();
+
+    Scalar(scalar::kind k) : kind(k), Type(type::kind::scalar) {}
 };
 
 template<> b32 inline Base::
@@ -165,18 +164,16 @@ template<> b32 inline Base::
 is(scalar::kind k) { return is<Scalar>() && as<Scalar>()->kind == k; };
 
 namespace scalar {
-global Scalar scalars[] = {
-    {scalar::unsigned8},
-    {scalar::unsigned16},
-    {scalar::unsigned32},
-    {scalar::unsigned64},
-    {scalar::signed8},
-    {scalar::signed16},
-    {scalar::signed32},
-    {scalar::signed64},
-    {scalar::float32},
-    {scalar::float64},
-};
+global Scalar _u8  = scalar::unsigned8;
+global Scalar _u16 = scalar::unsigned16;
+global Scalar _u32 = scalar::unsigned32;
+global Scalar _u64 = scalar::unsigned64;
+global Scalar _s8  = scalar::signed8;
+global Scalar _s16 = scalar::signed16;
+global Scalar _s32 = scalar::signed32;
+global Scalar _s64 = scalar::signed64;
+global Scalar _f32 = scalar::float32;
+global Scalar _f64 = scalar::float64;
 } // namespace type::scalar
 
 namespace structured {
@@ -205,7 +202,7 @@ struct Structured : public Type {
     find_member(String id);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -238,7 +235,7 @@ struct Pointer : public Type {
     create(Type* type);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -275,7 +272,7 @@ struct StaticArray : public Structured {
     create(Type* type, u64 size);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -309,7 +306,7 @@ struct DynamicArray : public Structured {
     create(Type* type);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -341,7 +338,7 @@ struct ViewArray : public Structured {
     create(Type* type);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -408,7 +405,7 @@ struct FunctionType : public Type {
     create();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -443,7 +440,7 @@ struct TupleType : public Type {
     create(Array<Type*>& types);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

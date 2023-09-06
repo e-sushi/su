@@ -11,8 +11,8 @@ create(FunctionType* type) {
 
 
 DString* Function::
-name() {
-    return label->name();
+display() {
+    return label->display();
 }
 
 DString* Function::

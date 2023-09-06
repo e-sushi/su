@@ -45,6 +45,10 @@ struct Compiler {
         Pool<Function>        functions;
         Pool<Stmt>            statements;
         Pool<Expr>            expressions;
+        Pool<ScalarLiteral>   scalar_literals;
+        Pool<StringLiteral>   string_literals;
+        Pool<ArrayLiteral>    array_literals;
+        Pool<TupleLiteral>    tuple_literals;
         Pool<Call>            calls;
         Pool<Block>           blocks; 
         Pool<VarRef>          varrefs; 

@@ -42,7 +42,7 @@ struct Stmt : public ASTNode {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

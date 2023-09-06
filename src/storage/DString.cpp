@@ -30,19 +30,13 @@ destroy() {
 DString* DString::
 ref() {
     refs++;
-    util::print("DString ref'd: ");
-    util::println(fin);
     return this;
 }
 
 void DString::
 deref() {
     refs--;
-    util::print("DString deref'd: ");
-    util::println(fin);
     if(!refs) {
-        util::print("DString being destroyed: ");
-        util::println(fin);
         destroy();
     } 
 }

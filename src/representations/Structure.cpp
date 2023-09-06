@@ -7,13 +7,13 @@ create() {
 }
 
 DString* Member::
-name() {
-    return label->name();
+display() {
+    return label->display();
 }
 
 DString* Member::
 dump() {
-    return DString::create("Member<", ScopedDeref(label->name()).x, ">");
+    return DString::create("Member<", ScopedDeref(label->display()).x, ">");
 }
 
 Structure*

@@ -26,7 +26,7 @@ struct Module : public Entity {
     find_label(String s);
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

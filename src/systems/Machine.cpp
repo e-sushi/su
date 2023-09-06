@@ -64,7 +64,7 @@ run() {
     b32 finished = 0;
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.f->name()));
+        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.f->display()));
         util::println(to_string(*frame.ip));
         BC* instr = frame.ip;
         switch(instr->instr) {
@@ -316,7 +316,7 @@ print_stack() {
     while(p < sp) {
         out->append("r", p-stack, " ", *p);
         if(frame_idx < my_frames.count && array::read(my_frames, frame_idx)->fp == p) {    
-            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->f->name());
+            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->f->display());
             frame_idx++;
         }
         out->append("\n");

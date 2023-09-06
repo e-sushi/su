@@ -70,7 +70,7 @@ struct Tuple : public ASTNode {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

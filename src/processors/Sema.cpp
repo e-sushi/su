@@ -147,7 +147,7 @@ call(Code* code, Call* e) {
                 mismatch_argument_type(call_arg->start, 
                     call_arg_t, 
                     func_arg_t, 
-                    func_arg->name(), 
+                    func_arg->display(), 
                     e->callee->label->start->raw);
             return false;
         }
@@ -274,17 +274,20 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 
                 if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
                     // always take the left because we need to match the type that we are assigning to
-                    if(rhs->is<Literal>()) {
+                    if(rhs->is<ScalarLiteral>()) {
                         // if we're dealing with a literal, we just have to ask it to cast its value
                         // for us, no cast node is needed
+                        rhs->as<ScalarLiteral>()->value.cast_to(lhs->type->as<Scalar>()->kind);
+                        e->type = rhs->type = lhs->type;
+                    } else {
+                        // otherwise we have to insert an actual cast
+                        auto cast = Expr::create(expr::cast);
+                        cast->type = lhs->type;
+                        cast->start = e->start;
+                        cast->end = e->end;
+                        node::insert_above(rhs, cast);
+                        e->type = cast->type;
                     }
-
-                    auto cast = Expr::create(expr::cast);
-                    cast->type = lhs->type;
-                    cast->start = e->start;
-                    cast->end = e->end;
-                    node::insert_above(rhs, cast);
-                    e->type = cast->type;
                 } else {
                     TODO("handle other type casts in assignment");                    
                 }
@@ -416,9 +419,6 @@ expr(Code* code, Expr* e) { announce_stage(e);
             }
         } break;
 
-        case expr::literal: {
-        } break;
-
         case expr::varref: {
             e->type = e->as<VarRef>()->var->type;
         } break;
@@ -476,6 +476,9 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 }
             }
         } break;
+
+        case expr::literal_scalar:
+        case expr::literal_string: {} break;
 
         default: {
             TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));

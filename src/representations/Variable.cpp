@@ -9,13 +9,13 @@ create(Type* type) {
 }
 
 DString* Var::
-name() {
-    return (label? label->name() : DString::create("anon/temp var"));
+display() {
+    return (label? label->display() : DString::create("anon/temp var"));
 }
 
 DString* Var::
 dump() {
-    return DString::create("Var<", ScopedDeref(name()).x, ">");
+    return DString::create("Var<", ScopedDeref(display()).x, ">");
 }
 
 void

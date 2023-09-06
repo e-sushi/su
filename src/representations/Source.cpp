@@ -53,10 +53,10 @@ unload(Source* source) {
 
 // TODO(sushi) we can store a map String -> Source* and do this more efficiently
 global Source*
-lookup(String name) {
+lookup(String display) {
     auto iter = pool::iterator(compiler::instance.storage.sources);
     Source* current = pool::next(iter);
-    std::filesystem::path path = (char*)name.str;
+    std::filesystem::path path = (char*)display.str;
     while(current) {
         if(std::filesystem::equivalent(path, std::filesystem::path((char*)current->path.str))) return current;
         pool::next(iter);        

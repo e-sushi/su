@@ -31,6 +31,9 @@
 
 namespace amu {
 
+
+
+
 namespace air {
 // @genstrings(data/airop_strings.generated)
 enum op {
@@ -66,6 +69,10 @@ enum op {
     jump,          // jump to a position, A, relative to current instruction
     jump_zero,     // jump to a position, B, relative to current instruction if A is zero
     jump_not_zero, // jump to a position, B, relative to current instruction if A is non_zero
+
+    // intrinsic scalar casting operations
+    cast_float_to_int,
+    cast_int_to_float,
 };
 
 #include "data/airop_strings.generated"
@@ -97,12 +104,6 @@ struct Register{
     };
 };
 
-enum width {
-    byte = 0, // 1 byte
-    word = 1, // 2 bytes
-    dble = 2, // 4 bytes
-    quad = 3, // 8 bytes
-};  
 
 // representation of an AIR bytecode
 struct BC {
@@ -233,7 +234,7 @@ to_string(DString* current, BC bc) {
         }break;
         case air::call:{
             current->append("call ");
-            current->append(bc.f->name(), " ");
+            current->append(bc.f->display(), " ");
             current->append(bc.n_params);
         }break;
         case air::ret:{

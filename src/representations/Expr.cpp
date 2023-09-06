@@ -10,7 +10,7 @@ create(expr::kind kind, Type* type) {
 }
 
 DString* Expr::
-name() { // TODO(sushi) switch on expr kind
+display() { // TODO(sushi) switch on expr kind
     return DString::create("Expression");
 }
 
@@ -24,9 +24,6 @@ dump() {
         } break;
         case expr::identifier: {
             out->append("id:'", this->start->raw, "'");
-        } break;
-        case expr::literal: {
-            out->append(ScopedDeref(literal.dump()).x);
         } break;
         case expr::cast: {
             out->append("cast to ", this->type);
@@ -82,6 +79,37 @@ resolve_type() {
 //     }
 // }
 
+ScalarLiteral* ScalarLiteral::
+create() {
+    auto out = pool::add(compiler::instance.storage.scalar_literals);
+    return out;
+}
+
+DString* ScalarLiteral::
+display() { 
+    return value.display();
+}
+
+DString* ScalarLiteral::
+dump() {
+    return DString::create("ScalarLiteral<", ScopedDeref(type->display()).x, " ", ScopedDeref(value.display()).x, ">");
+}
+
+StringLiteral* StringLiteral::
+create() {
+    return pool::add(compiler::instance.storage.string_literals);
+}
+
+DString* StringLiteral::
+display() {
+    return DString::create("\"", raw, "\"");
+}
+
+DString* StringLiteral::
+dump() {
+    return DString::create("StringLiteral<", ScopedDeref(display()).x, ">");
+}
+
 Block* Block::
 create() {
     Block* out = pool::add(compiler::instance.storage.blocks);
@@ -93,13 +121,13 @@ create() {
 }
 
 DString* Block::
-name() { // !Leak TODO(sushi) get this to print something nicer
+display() { // !Leak TODO(sushi) get this to print something nicer
     return dump();
 }
 
 DString* Block::
 dump() {
-    return DString::create("Block<", (type? ScopedDeref(type->name()).x->fin : "unknown type"), ">");
+    return DString::create("Block<", (type? ScopedDeref(type->display()).x->fin : "unknown type"), ">");
 }
 
 Call*
@@ -112,15 +140,15 @@ Call::create() {
 }
 
 DString* Call::
-name() { // !Leak TODO(sushi) get this to print something nicer
+display() { // !Leak TODO(sushi) get this to print something nicer
     return dump();
 }
 
 DString* Call::
 dump() {
     return DString::create("Call<", 
-                (callee? ScopedDeref(callee->name()).x->fin : "null callee"), ", ", 
-                (arguments? ScopedDeref(arguments->name()).x->fin : "null args"), ">");
+                (callee? ScopedDeref(callee->display()).x->fin : "null callee"), ", ", 
+                (arguments? ScopedDeref(arguments->display()).x->fin : "null args"), ">");
 }
 
 VarRef* VarRef::
@@ -133,13 +161,13 @@ create() {
 }
 
 DString* VarRef::
-name() { // !Leak TODO(sushi) get this to print something nicer
+display() { // !Leak TODO(sushi) get this to print something nicer
     return dump();
 }
 
 DString* VarRef::
 dump() {
-    return DString::create("VarRef<", (var? ScopedDeref(var->name()).x->fin : "null var"), ">");
+    return DString::create("VarRef<", (var? ScopedDeref(var->display()).x->fin : "null var"), ">");
 }
 
 void

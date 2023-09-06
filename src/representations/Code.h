@@ -97,7 +97,7 @@ struct SourceCode : public Code {
     // ~~~~~~ interface ~~~~~~~
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -119,7 +119,7 @@ struct VirtualCode : public Code {
 
 
     DString*
-    name() { return DString::create(Code::identifier); }
+    display() { return DString::create(Code::identifier); }
 
     DString*
     dump() {
@@ -166,7 +166,7 @@ b32
 is_parsed(Code* code);
 
 String
-name(Code* code);
+display(Code* code);
 
 View<Token>
 get_tokens(Code* code);
@@ -276,12 +276,6 @@ struct TokenIterator {
     display_line();
 };
 
-namespace display {
-
-void
-lines(Code* code, s32 start = 0, s32 n = -1);
-
-} // namespace display
 
 namespace virt {
 

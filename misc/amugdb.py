@@ -43,7 +43,8 @@ class String_printer:
     
     def to_string(self):
         try:
-            val = self.val
+            val:gdb.Value = self.val
+            print(val.type)
             ptr = int(val['str'])
             # this must be a corrupt String
             if abs(val['count']) > int(10000):
@@ -62,10 +63,13 @@ class DString_printer:
     def to_string(self):
         try:
             val = self.val
+            print(val.type)
+            print(f"call util::println((amu::DString*){val.address})")
+            gdb.execute(f"call util::println((amu::DString*){val.address})")
             return f"{val['fin']}"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("DString", r"^amu::DString$", String_printer)
+pp.add_printer("DString", r"^amu::DString$", DString_printer)
 
 class Array_printer:
     def __init__(self, val): 
@@ -316,7 +320,7 @@ class TAC_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call to_string((TAC*){val.address})", to_string = True)
+            s = gdb.execute(f"call *to_string((TAC*){val.address})", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")

@@ -32,7 +32,7 @@ struct Function : public Entity {
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

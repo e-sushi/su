@@ -251,11 +251,11 @@ body() {
                     } break;
                     case arg::literal: {
                         switch(tac->arg1.literal.kind) {
-                            case literal::_u64: {   
+                            case scalar::unsigned64: {   
                                 bc->flags.right_is_const = true;
                                 bc->rhs = tac->arg1.literal._u64;
                             } break;
-                            case literal::_f64: {
+                            case scalar::float64: {
                                 bc->flags.float_op = true;
                                 bc->rhs_f = tac->arg1.literal._f64; 
                             } break;

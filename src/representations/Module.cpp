@@ -8,13 +8,13 @@ Module::create() {
 }
 
 DString* Module::
-name() {
-    return (label? label->name() : DString::create("anon module"));
+display() {
+    return (label? label->display() : DString::create("anon module"));
 }
 
 DString* Module::
 dump() {
-    return DString::create("Module<", (label? ScopedDeref(label->name()).x : DString::create("anon")), ">");
+    return DString::create("Module<", (label? ScopedDeref(label->display()).x : DString::create("anon")), ">");
 }
 
 void

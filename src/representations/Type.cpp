@@ -42,7 +42,7 @@ can_cast_to(Type* to)  {
 }
 
 DString* Scalar::
-name() {
+display() {
     switch(this->kind) {
         case scalar::unsigned8:  return DString::create("u8");
         case scalar::unsigned16: return DString::create("u16");
@@ -106,13 +106,13 @@ create(Type* type) {
 }
 
 DString* Pointer::
-name() { // !Leak
-    return DString::create(ScopedDeref(type->name()).x, "*");
+display() { // !Leak
+    return DString::create(ScopedDeref(type->display()).x, "*");
 }
 
 DString* Pointer::
 dump() {
-    return name();
+    return display();
 }
 
 u64 Pointer::
@@ -147,7 +147,7 @@ create(Type* type, u64 count) {
     data->offset = 0;
 
     auto count_ = s->add_member("count");
-    count_->type = &scalar::scalars[scalar::unsigned64];
+    count_->type = &scalar::_u64;
     count_->inherited = false;
     count_->offset = data->type->size();
 
@@ -157,13 +157,13 @@ create(Type* type, u64 count) {
 }
 
 DString* StaticArray::
-name() {
-    return DString::create(ScopedDeref(this->type->name()).x, "[", this->count, "]"); 
+display() {
+    return DString::create(ScopedDeref(this->type->display()).x, "[", this->count, "]"); 
 }
 
 DString* StaticArray::
 dump() {
-    return name();
+    return display();
 }
 
 u64 StaticArray::
@@ -193,7 +193,7 @@ create(Type* type) {
     data->offset = 0;
 
     auto count = s->add_member("count");
-    count->type = &scalar::scalars[scalar::unsigned64];
+    count->type = &scalar::_u64;
     count->inherited = false;
     count->offset = data->type->size();
 
@@ -203,13 +203,13 @@ create(Type* type) {
 }
 
 DString* ViewArray::
-name() {
-    return DString::create(ScopedDeref(this->type->name()).x, "[]");
+display() {
+    return DString::create(ScopedDeref(this->type->display()).x, "[]");
 }
 
 DString* ViewArray::
 dump() {
-    return name();
+    return display();
 }
 
 u64 ViewArray::
@@ -239,12 +239,12 @@ create(Type* type) {
     data->offset = 0;
 
     auto count = s->add_member("count");
-    count->type = &scalar::scalars[scalar::unsigned64];
+    count->type = &scalar::_u64;
     count->inherited = false;
     count->offset = data->type->size();
     
     auto space = s->add_member("space");
-    space->type = &scalar::scalars[scalar::unsigned64];
+    space->type = &scalar::_u64;
     space->inherited = false;
     space->offset = data->type->size() + count->type->size();
 
@@ -254,13 +254,13 @@ create(Type* type) {
 }
 
 DString* DynamicArray::
-name() {
-    return DString::create(ScopedDeref(this->type->name()).x, "[..]");
+display() {
+    return DString::create(ScopedDeref(this->type->display()).x, "[..]");
 }
 
 DString* DynamicArray::
 dump() {
-    return name();
+    return display();
 }
 
 u64 DynamicArray::
@@ -278,7 +278,7 @@ create() {
 }
 
 DString* FunctionType::
-name() {
+display() {
     DString* out = DString::create("("); 
     for(ASTNode* n = this->parameters->first_child(); n; n = n->next()) {
         out->append(n->resolve_type(), (n->next()? ", " : ""));
@@ -294,7 +294,7 @@ name() {
 
 DString* FunctionType::
 dump() {
-    return name();
+    return display();
 }
 
 u64 FunctionType::
@@ -330,7 +330,7 @@ create(Array<Type*>& types) {
 }
 
 DString* TupleType::
-name() { // TODO(sushi) this sucks
+display() { // TODO(sushi) this sucks
     return DString::create(String{start->raw.str, end->raw.str - start->raw.str});
 }
 
@@ -379,8 +379,8 @@ find_member(String id) {
 }
 
 DString* Structured::
-name() {
-    return label->name();
+display() {
+    return label->display();
 }
 
 DString* Structured::

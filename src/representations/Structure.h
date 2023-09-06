@@ -40,7 +40,7 @@ struct Member : public Entity {
     create();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

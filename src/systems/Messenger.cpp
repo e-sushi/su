@@ -95,7 +95,7 @@ process_part(DString* current, const MessagePart& part) {
         } break;
         case messagepart::type: {
             Type* step = part.type;
-            current->append(step->name());
+            current->append(step->display());
         } break;
     }
 }
@@ -119,14 +119,14 @@ process_message(DString* current, Message& m) {
             current->append(compiler_prefix);
         } break;
         case MessageSender::Code: {
-            DString* temp = DString::create(m.sender.code->name());
+            DString* temp = DString::create(m.sender.code->display());
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_cyan);
             current->append(temp, ": ");
             temp->deref();
         } break;
         case MessageSender::CodeLoc: {
-            DString* temp = DString::create(m.sender.code->name());
+            DString* temp = DString::create(m.sender.code->display());
             if(current_dest->allow_color)
                 wrap_color(temp, message::color_cyan);
             current->append(temp, ":", m.sender.token->l0, ":", m.sender.token->c0, ": ");

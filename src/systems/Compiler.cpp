@@ -40,6 +40,10 @@ init() {
     instance.storage.functions           = pool::init<Function>(8);
     instance.storage.statements          = pool::init<Stmt>(8);
     instance.storage.expressions         = pool::init<Expr>(8);
+    instance.storage.scalar_literals     = pool::init<ScalarLiteral>(8);
+    instance.storage.string_literals     = pool::init<StringLiteral>(8);
+    instance.storage.array_literals      = pool::init<ArrayLiteral>(8);
+    instance.storage.tuple_literals      = pool::init<TupleLiteral>(8);
     instance.storage.calls               = pool::init<Call>(8);
     instance.storage.blocks              = pool::init<Block>(8);
     instance.storage.varrefs             = pool::init<VarRef>(8);

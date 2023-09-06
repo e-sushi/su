@@ -33,7 +33,7 @@ struct Label : public ASTNode {
     base();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();
@@ -62,15 +62,15 @@ struct VirtualLabel : public Label {
 
     // ~~~~~~ interface ~~~~~~~
 
-    // NOTE(sushi) this takes ownership of 'name', so it does not increment its ref count
+    // NOTE(sushi) this takes ownership of 'display', so it does not increment its ref count
     static VirtualLabel*
-    create(DString* name);
+    create(DString* display);
 
     void
     destroy();
 
     DString*
-    name();
+    display();
 
     DString*
     dump();

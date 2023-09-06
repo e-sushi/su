@@ -27,6 +27,13 @@
 
 namespace amu {
 
+enum width {
+    byte = 0, // 1 byte
+    word = 1, // 2 bytes
+    dble = 2, // 4 bytes
+    quad = 3, // 8 bytes
+};  
+
 namespace tac {
 enum op {
     // a placeholder TAC. This supports various kinds of control flow not knowing where
@@ -96,6 +103,16 @@ enum op {
     // conditional jumps
     jump_zero,
     jump_not_zero,
+
+    // I'm not sure how to handle this better atm
+    // casts the first operand to float or vice versa with the size specified by the second operand 
+    ftou,
+    ftos,
+    itof,
+    resz,
+
+    // casting to the same type but different size specified by the second operand
+    resize, 
 };
 } // namespace tac
 
@@ -107,6 +124,7 @@ enum kind {
     func,
     temporary,
     literal,
+    width,
     stack_offset,
 };
 } // namespace arg
@@ -117,8 +135,9 @@ struct Arg {
         Var* var; // a Var in memory that this Arg is referring to, aka an lvalue
         Function* func; // a function for call ops
         TAC* temporary; // a pointer to some TAC whose result this Arg references
-        Literal literal;
+        ScalarValue literal;
         u64 stack_offset;
+        width w;
 
         // a Variable with an offset
         struct {
@@ -131,8 +150,8 @@ struct Arg {
     Arg(Var* p) : kind(arg::var), var(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
-    Arg(u64 x) : kind(arg::literal) { literal.kind = literal::_u64; literal._u64 = x; }
-    Arg(f64 x) : kind(arg::literal) { literal.kind = literal::_f64; literal._f64 = x; }
+    Arg(ScalarValue l) : kind(arg::literal), literal(l) {}
+    Arg(width x) : kind(arg::width), w(x) {}
     Arg(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg));}
     Arg operator=(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg)); return *this;} 
 };
@@ -179,20 +198,20 @@ void
 to_string(DString* current, Arg arg) {
     switch(arg.kind) {
         case arg::literal: {
-            current->append(arg.literal.name());
+            current->append(arg.literal.display());
         } break;
         case arg::var: {
             if(!arg.var) {
                 current->append("?");
             } else {
-                current->append(arg.var->name());
+                current->append(arg.var->display());
             }
         } break;
         case arg::func: {
             if(!arg.func) {
                 current->append("?");
             } else {
-                current->append(arg.func->name());
+                current->append(arg.func->display());
             }
         } break;
         case arg::temporary: {
@@ -206,7 +225,7 @@ to_string(DString* current, Arg arg) {
             if(!arg.offset_var.var) {
                 current->append("?");
             } else {
-                current->append(arg.offset_var.var->name(),"+",arg.offset_var.member->offset);
+                current->append(arg.offset_var.var->display(),"+",arg.offset_var.member->offset);
             }
         } break;
     }
@@ -309,6 +328,19 @@ to_string(DString* current, TAC* tac) {
                 current->append("...");
             }
         } break;
+        case tac::resz: {
+            current->append("resize ", tac->arg0, " ", tac->arg1);
+        } break;
+        case tac::ftos: {
+            current->append("flt_to_sgnd ", tac->arg0, " ", tac->arg1);
+        } break;
+        case tac::ftou: {
+            current->append("flt_to_usgnd ", tac->arg0, " ", tac->arg1);
+        } break;
+        case tac::itof: {
+            current->append("int_to_flt ", tac->arg0, " ", tac->arg1);
+        } break;
+
     }
 
     if(tac->comment.str) {

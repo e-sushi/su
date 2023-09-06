@@ -1,13 +1,13 @@
 namespace amu {
 
 DString* SourceCode::
-name() {
+display() {
     return DString::create(identifier);
 }
 
 DString* SourceCode::
 dump() {
-    return DString::create("SourceCode<", ScopedDStringRef(name()).x, ">");
+    return DString::create("SourceCode<", ScopedDStringRef(display()).x, ">");
 }
 
 namespace code {
@@ -264,10 +264,6 @@ display_line() {
 }
 
 
-namespace display {
-
-} // namespace display
-
 namespace format {
 
 } // namespace format
@@ -362,7 +358,7 @@ void
 to_string(DString* current, Code* c) {
     if(code::is_virtual(c)) { // TODO(sushi) more info for virtual code whenever its actually used
         auto vc = (VirtualCode*)c;
-        current->append("VirtualCode<'", ScopedDeref(vc->name()).x, "'>");
+        current->append("VirtualCode<'", ScopedDeref(vc->display()).x, "'>");
     } else {
         auto sc = (SourceCode*)c;
         current->append("SourceCode<", code::strings[sc->kind], ">");
