@@ -195,48 +195,54 @@ struct TAC {
 };
 
 void
-to_string(DString* current, Arg arg) {
-    switch(arg.kind) {
+to_string(DString* current, Arg* arg) {
+    switch(arg->kind) {
         case arg::literal: {
-            current->append(arg.literal.display());
+            current->append(arg->literal.display());
         } break;
         case arg::var: {
-            if(!arg.var) {
+            if(!arg->var) {
                 current->append("?");
             } else {
-                current->append(arg.var->display());
+                current->append(arg->var->display());
             }
         } break;
         case arg::func: {
-            if(!arg.func) {
+            if(!arg->func) {
                 current->append("?");
             } else {
-                current->append(arg.func->display());
+                current->append(arg->func->display());
             }
         } break;
         case arg::temporary: {
-            if(!arg.temporary) {
+            if(!arg->temporary) {
                 current->append("(?)");
             } else {
-                current->append("(", arg.temporary->id, ")");
+                current->append("(", arg->temporary->id, ")");
             }
         } break;
         case arg::member: {
-            if(!arg.offset_var.var) {
+            if(!arg->offset_var.var) {
                 current->append("?");
             } else {
-                current->append(arg.offset_var.var->display(),"+",arg.offset_var.member->offset);
+                current->append(arg->offset_var.var->display(),"+",arg->offset_var.member->offset);
             }
         } break;
     }
 }
 
 DString*
-to_string(Arg arg) {
+to_string(Arg* arg) {
     DString* out = DString::create();
     to_string(out, arg);
     return out;
 }
+
+void
+to_string(DString* current, Arg arg) {
+    return to_string(current, &arg);
+}
+
 void
 to_string(DString* current, TAC* tac) {
     current->append("(", tac->id, ") ~ ");

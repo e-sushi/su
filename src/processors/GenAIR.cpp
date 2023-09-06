@@ -336,6 +336,38 @@ body() {
                 ret->flags.left_is_const = true;
                 ret->lhs = ret_size;
             } break;
+
+            case tac::resz: {
+                push_temp(tac);
+
+                BC* bc = array::push(seq);
+                bc->instr = air::resz;
+                bc->lhs = tac->temp_pos;
+
+                // switch(tac->arg0.kind) {
+                //     case arg::temporary: {
+                //         bc->lhs = tac->arg0.temporary->temp_pos;
+                //     } break;
+                //     case arg::var: {
+                //         bc->lhs = tac->arg0.var->stack_offset;
+                //     } break;
+                //     case arg::literal: {
+                //         bc->flags.right_is_const = true;
+                //         bc->lhs = tac->arg0.literal._u64;
+                //     } break;
+                //     case arg::stack_offset: {
+                //         bc->lhs = tac->arg0.stack_offset;
+                //     } break;
+                // }
+                
+                switch(tac->arg1.kind) {
+                    case arg::width: {
+                        bc->rhs = tac->arg1.w;
+                        bc->flags.right_is_const = true;
+                    } break;
+                }
+
+            } break;
         }
     }
 }

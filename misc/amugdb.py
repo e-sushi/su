@@ -44,7 +44,6 @@ class String_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            print(val.type)
             ptr = int(val['str'])
             # this must be a corrupt String
             if abs(val['count']) > int(10000):
@@ -63,9 +62,6 @@ class DString_printer:
     def to_string(self):
         try:
             val = self.val
-            print(val.type)
-            print(f"call util::println((amu::DString*){val.address})")
-            gdb.execute(f"call util::println((amu::DString*){val.address})")
             return f"{val['fin']}"
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -331,22 +327,22 @@ class Arg_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call to_string(*(Arg*){val.address})", to_string = True)
+            s = gdb.execute(f"call *to_string((Arg*){val.address})", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("Arg", r"^amu::Arg", Arg_printer)
+pp.add_printer("Arg", r"^amu::Arg$", Arg_printer)
 
 class BC_printer: 
     def __init__(self, val): self.val = val
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call to_string((BC*){val.address}, code)", to_string = True)
+            s = gdb.execute(f"call *to_string((BC*){val.address}, code)", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("BC", r"^amu::BC", BC_printer)
+pp.add_printer("BC", r"^amu::BC$", BC_printer)
 
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 

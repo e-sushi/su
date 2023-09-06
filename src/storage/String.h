@@ -1,17 +1,19 @@
 /*
     String view structure supporting utf8.
 
-    This is completely taken from kigu's str8 because I didn't want to try and use kigu since it comes
-    with a lot more than what I want. The majority of this was originally written by delle.
+    This is completely taken from kigu's str8 because I didn't want to try and
+    use kigu since it comes with a lot more than what I want. The majority of
+    this was originally written by delle.
 
     This contains utilities for analyzing strings as well.
 
-    A lot of this interface is probably not necessary, because the only time we extensively use String is 
-    in lexing, so once the compiler is somewhat stable, it may be worth seeing if this is still true
-    and removing stuff that's not necessary.
+    A lot of this interface is probably not necessary, because the only time we
+    extensively use String is in lexing, so once the compiler is somewhat
+    stable, it may be worth seeing if this is still true and removing stuff
+    that's not necessary.
 
-    A DString may implicitly be convered to a String, so a constructor is provided
-    for that.
+    A DString may implicitly be convered to a String, so a constructor is
+    provided for that.
 */
 
 #ifndef AMU_STRING_H
@@ -23,6 +25,7 @@
 namespace amu {
 
 struct DString;
+
 struct String {
     union {
         u8* str;

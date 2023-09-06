@@ -24,10 +24,6 @@
 #ifndef AMU_DSTRING_H
 #define AMU_DSTRING_H
 
-#include "basic/Memory.h"
-#include "util.h"
-#include "storage/String.h"
-
 namespace amu {
 
 struct DString {
@@ -35,8 +31,8 @@ struct DString {
 		struct {u8* str; s64 count;};
 		String fin;
 	};
-	s64 space;
 
+	s64 space;
 	s64 refs;
 
 	static DString*
@@ -110,10 +106,6 @@ struct ScopedDeref {
 	ScopedDeref(DString* in) : x(in) {}
 	~ScopedDeref() { x->deref(); }
 };
-
-namespace dstring {
-
-} // namespace dstring
 
 DString*
 to_string(const String& s) {
@@ -307,6 +299,14 @@ todo(String s, String file, u64 line) {
 
 // for todos that should be resolved quickly 
 #define TODO(s) do { util::todo(s, __FILE__, __LINE__); Assert(0); } while(0)
+}
+
+// I don't know if it is just clang or what, but since DStrings are entirely accessed by pointers now
+// and (probably) because there is a forward declaration of DString in String, clang will not output Debug information
+// about DString beyond that forward declaration. I can't seem to reproduce this in an isolated project, so I don't know
+// what the real cause is, but yeah, that's why this is here.
+namespace ___clang___is___weird___ {
+DString instance;
 }
 
 } // namespace amu

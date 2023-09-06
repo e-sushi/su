@@ -226,6 +226,7 @@ expression(Expr* e) {
         case expr::cast: {
             Arg arg = expression(e->first_child<Expr>());
             TAC* cast = make_and_place();
+            new_temp(cast, e->type);
             cast->node = e;
             if(e->type->is<Scalar>() && e->first_child<Expr>()->type->is<Scalar>()) {
                 auto to = e->type->as<Scalar>();
@@ -746,7 +747,7 @@ make_and_place() {
 
 void GenTAC::
 new_temp(TAC* tac, Type* t) {
-    tac->temp_size = util::Max(1, t->size() / sizeof(Register));
+    tac->temp_size = t->size();
     array::push(array::readref(temps, -1), tac);
     // tac->stack_offset = register_offset;
     // register_offset += util::Max(1, t->size() / sizeof(Register));

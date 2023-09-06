@@ -353,6 +353,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 auto cast = Expr::create(expr::cast);
                 b32 take_left = l->kind > r->kind;
                 cast->type = (take_left? l : r);
+                cast->start = e->start;
+                cast->end = e->end;
                 node::insert_above((take_left? rhs : lhs), cast);
                 e->type = cast->type;
             } else {

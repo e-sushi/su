@@ -71,8 +71,10 @@ enum op {
     jump_not_zero, // jump to a position, B, relative to current instruction if A is non_zero
 
     // intrinsic scalar casting operations
-    cast_float_to_int,
-    cast_int_to_float,
+    ftou, // float to unsigned
+    ftos, // float to signed 
+    itof, // integer to float
+    resz, // resize a value at position A to the width B and create a temp for it 
 };
 
 #include "data/airop_strings.generated"
@@ -255,6 +257,11 @@ to_string(DString* current, BC bc) {
             loffset();
             roffset();
         }break;
+        case air::resz: {
+            current->append("resz ");
+            loffset();
+            roffset();
+        } break;
     }
 
     current->append(" w: ", (u32)bc.w+1);

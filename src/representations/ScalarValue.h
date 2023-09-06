@@ -63,8 +63,6 @@ struct ScalarValue : public Base {
     ScalarValue(s8  x) : _s8 (x), kind(scalar::signed8), Base(base::scalar_value) {}
     ScalarValue(f64 x) : _f64(x), kind(scalar::float64), Base(base::scalar_value) {}
     ScalarValue(f32 x) : _f32(x), kind(scalar::float32), Base(base::scalar_value) {}
-
-
 };
 
 

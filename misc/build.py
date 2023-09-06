@@ -281,8 +281,7 @@ parts = {
                 "-O2 " # maximizes speed (O1 minimizes size)
             ),
             "debug":(
-                "-fdebug-macro " # output macro information
-                "-ggdb3 " # output debug information for gdb
+                "-g " # output debug information for gdb
                 "-O0 " # disable optimization completely
             ),
             "analyze": {
