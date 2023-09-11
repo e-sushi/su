@@ -29,7 +29,7 @@ parse() {
     if(!prescan_start()) return false;
     if(!start()) return false;
 
-    // util::println(code->parser->root->print_tree());
+    util::println(ScopedDeref(code->parser->root->print_tree()).x);
 
     return true;
 }
@@ -274,9 +274,15 @@ prescanned_function() {
 
     auto e = node.pop()->as<Expr>();
 
-    f->type = e->first_child<Expr>()->type->as<FunctionType>();
+    while(e->first_child()) {
+        node::change_parent(f, e->first_child());
+    }
 
-    node::insert_last(l, e);
+    node::insert_last(l, f);
+ 
+    // e->destroy(); // this sucks 
+
+    f->type = f->first_child<Expr>()->type->as<FunctionType>();
 
     return true;
 }
@@ -691,7 +697,6 @@ tuple() {
     if(found_label)
         table.pop();
     
-
     forI(count) 
         node::insert_first(tuple, node.pop());
 
@@ -763,7 +768,7 @@ tuple() {
 
         table.pop();
         
-        auto fd = Expr::create(expr::func_def);
+        auto fd = Expr::create(expr::function);
         node::insert_last(fd, e);
         node::insert_last(fd, node.pop());
 

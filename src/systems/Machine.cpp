@@ -31,7 +31,7 @@ run() {
 
     auto start = util::stopwatch::start();
 
-    return;
+    // return;
 
     #define sized_op(op, sz, dst, src)                \
     switch(sz) {                                      \
@@ -45,6 +45,12 @@ run() {
     switch(sz) {                                      \
         case dble: *(f32*)(dst) op (f32)(src); break; \
         case quad: *(f64*)(dst) op (f64)(src); break; \
+    }
+
+    #define sized_op_flt_addr(op, sz, dst, src)            \
+    switch(sz) {                                      \
+        case dble: *(f32*)(dst) op (f32)(*(f32*)src); break; \
+        case quad: *(f64*)(dst) op (f64)(*(f64*)src); break; \
     }
 
     #define sized_op_assign(op, sz, dst, src)                        \
@@ -61,25 +67,34 @@ run() {
         case quad: *(f64*)(dst) = *(f64*)(dst) op (f64)(src); break; \
     }
 
+    #define sized_op_assign_flt_addr(op, sz, dst, src)               \
+    switch(sz) {                                                     \
+        case dble: *(f32*)(dst) = *(f32*)(dst) op (f32)(*(f32*)src); break; \
+        case quad: *(f64*)(dst) = *(f64*)(dst) op (f64)(*(f64*)src); break; \
+    }
+
     b32 finished = 0;
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.f->display()));
-        util::println(to_string(*frame.ip));
         BC* instr = frame.ip;
+        util::println(DString::create("----------------------- ", frame.ip, " of ", ScopedDeref(frame.f->display()).x, " with sp ", sp - frame.fp));
+
+        util::println(instr->node->first_line());
+        util::println(ScopedDeref(to_string(*frame.ip)).x);
         switch(instr->instr) {
             case air::op::push: {
                 u8* dst = sp;
                 if(frame.ip->flags.left_is_const) {
-                    sized_op(=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_flt(=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(instr->flags.float_op) {
+                        sized_op_flt(=, instr->w, dst, instr->lhs);
+                    } else {
+                        sized_op(=, instr->w, dst, instr->lhs);
+                    }
+                    sp += instr->rhs;
                 } else {
                     u8* src = frame.fp + frame.ip->lhs;
-                    sized_op(=, instr->w, dst, *src);
-                    sp += instr->w + *src;
+                    memory::copy(dst, src, instr->rhs);
+                    sp += instr->rhs;
                 }
             } break;
 
@@ -89,65 +104,91 @@ run() {
             case air::op::copy: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op(=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_flt(=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op(=, instr->w, dst, *src);
+                    switch(instr->w) {
+                        case width::byte: memory::copy(dst, src, 1); break;
+                        case width::word: memory::copy(dst, src, 2); break;
+                        case width::dble: memory::copy(dst, src, 4); break;
+                        case width::quad: memory::copy(dst, src, 8); break;
+                    }
                 }
             } break;
 
             case air::op::add: {
-                u8* dst = frame.fp + frame.ip->lhs;
+               u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op(+=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_flt(+=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(+=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(+=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op(+=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt_addr(+=, instr->w, dst, src);
+                    } else {
+                        sized_op(+=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::sub: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op(-=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_flt(-=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(-=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(-=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op(-=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt_addr(-=, instr->w, dst, src);
+                    } else {
+                        sized_op(-=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::mul: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op(*=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_flt(*=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(*=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(*=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op(*=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt_addr(*=, instr->w, dst, src);
+                    } else {
+                        sized_op(*=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::div: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op(/=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_flt(/=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(/=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(/=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op(/=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt_addr(/=, instr->w, dst, src);
+                    } else {
+                        sized_op(/=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
@@ -191,78 +232,108 @@ run() {
             case air::op::eq: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op_assign(==, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_assign_flt(==, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(==, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(==, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op_assign(==, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_assign_flt_addr(==, instr->w, dst, src);
+                    } else {
+                        sized_op(==, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::neq: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op_assign(!=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_assign_flt(!=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(!=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(!=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op_assign(!=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_assign_flt_addr(!=, instr->w, dst, src);
+                    } else {
+                        sized_op(!=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::lt: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op_assign(<, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_assign_flt(<, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(<, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(<, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op_assign(<, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_assign_flt_addr(<, instr->w, dst, src);
+                    } else {
+                        sized_op(<, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::gt: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op_assign(>, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_assign_flt(>, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(>, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(>, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op_assign(>, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_assign_flt_addr(>, instr->w, dst, src);
+                    } else {
+                        sized_op(>, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::le: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op_assign(<=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_assign_flt(<=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(<=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(<=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op_assign(<=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_assign_flt_addr(<=, instr->w, dst, src);
+                    } else {
+                        sized_op(<=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
             case air::op::ge: {
                 u8* dst = frame.fp + frame.ip->lhs;
                 if(frame.ip->flags.right_is_const) {
-                    sized_op_assign(>=, instr->w, dst, frame.ip->rhs);
-                } else if(frame.ip->flags.float_op) {
-                    sized_op_assign_flt(>=, instr->w, dst, instr->lhs);
-                    sp += instr->w + instr->lhs;
+                    if(frame.ip->flags.float_op) {
+                        sized_op_flt(>=, instr->w, dst, instr->rhs_f);
+                    } else {
+                        sized_op(>=, instr->w, dst, frame.ip->rhs);
+                    }
                 } else {
                     u8* src = frame.fp + frame.ip->rhs;
-                    sized_op_assign(>=, instr->w, dst, *src);
+                    if(frame.ip->flags.float_op) {
+                        sized_op_assign_flt_addr(>=, instr->w, dst, src);
+                    } else {
+                        sized_op(>=, instr->w, dst, *src);
+                    }
                 }
             } break;
 
@@ -284,18 +355,24 @@ run() {
                 frame = array::pop(frames);
                 util::println(to_string(*frame.ip));
             } break;
+
+            case air::op::resz: {
+                u8* dst = frame.fp + frame.ip->lhs;
+                if(instr->flags.float_op) {
+                    if(instr->w == width::quad) {
+                        *(f64*)(dst) = *(f32*)dst; 
+                    } else {
+                        *(f32*)(dst) = *(f64*)dst; 
+                    }
+                } else {
+                    TODO("integer resizing");
+                }
+            } break;
         }
 
-        u8* ss = frame.fp;
-        forI(sp - frame.fp + 1) {
-            util::print(DString::create("sp+", i, " ", *sp));
-            if(sp == ss) {
-                util::print(DString::create("<"));
-            }
-            util::println("");
-            ss += 1;
-        }
         frame.ip += 1;
+
+        print_frame_vars();
     } 
 
     util::println(util::format_time(util::stopwatch::peek(start)));
@@ -323,6 +400,19 @@ print_stack() {
         p++;
     }
     util::println(out);
+    out->deref();
+}
+
+void Machine::
+print_frame_vars() {
+    DString* out = DString::create();
+
+    forI(frame.f->locals.values.count) {
+        Var* v = array::read(frame.f->locals.values, i);
+        out->append(ScopedDeref(v->display()).x, "(", v->stack_offset, "): \n", v->type->print_from_address(frame.fp + v->stack_offset), "\n");
+    }
+
+    util::println(out->fin);
     out->deref();
 }
 

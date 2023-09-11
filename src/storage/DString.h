@@ -87,7 +87,7 @@ struct DString {
 
 	void 
 	grow(u64 bytes);
-
+	
 	DString(){str=0;count=0;space=0;}
 };
 
@@ -275,7 +275,7 @@ format_time(f64 ms){
 		f64 fsec = floor(Seconds(ms));
 		f64 fms  = ms - fsec*SecondsToMS(1);
 		out->append(fsec, "s ", fms, "ms");
-	}else{
+	} else {
 		out->append(ms, " ms");
 	}
     return out;

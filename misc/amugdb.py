@@ -141,7 +141,7 @@ class Token_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call to_string((Token*){val.address})", to_string=True)
+            s = gdb.execute(f"call *to_string((Token*){val.address})", to_string=True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -153,7 +153,7 @@ class Label_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call ((Label*){val.address})->debug_str()", to_string=True)
+            s = gdb.execute(f"call *((Label*){val.address})->dump()", to_string=True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -270,7 +270,7 @@ class ASTNode_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call ((ASTNode*){val.address})->debug_str()", to_string = True)
+            s = gdb.execute(f"call ((ASTNode*){val.address})->dump()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -281,25 +281,11 @@ class Expression_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            out = f"{str(val['kind']).lstrip('amu::').replace('expression', 'expr')} "
-            start = ""
-            end = ""
-            node = val['node']
-            s = node['start']
-            e = node['end']
-            if s:
-                start = str(s.dereference())
-            else:
-                start = "<null start>"
-            if e:
-                end = str(e.dereference())
-            else:
-                end = "<null end>"
-            out += f"{start} -> {end}"
-            return out
+            s = gdb.execute(f"call *((Expr*){val.address})->dump()", to_string=True)
+            return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("Expression", r"^amu::Expression", Expression_printer)
+pp.add_printer("Expression", r"^amu::Expr$", Expression_printer)
 
 class Map_printer: 
     def __init__(self, val): self.val = val
@@ -344,7 +330,20 @@ class BC_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("BC", r"^amu::BC$", BC_printer)
 
+class Member_printer: 
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            s = gdb.execute(f"call *((Member*){val.address})->dump()", to_string = True)
+            return s[s.find('=')+2:-1]
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Member", r"^amu::Member$", Member_printer)
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
+
+
 
 # commands
 

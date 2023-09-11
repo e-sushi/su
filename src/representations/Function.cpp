@@ -17,7 +17,12 @@ display() {
 
 DString* Function::
 dump() {
-    return DString::create("Function<TODO>");
+    return DString::create(
+        "Function<", 
+            ScopedDeref(label->display()).x, 
+            ": ", 
+            ScopedDeref(type->display()).x, 
+        ">");
 }
 
 void

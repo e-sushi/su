@@ -42,4 +42,14 @@ add_member(String id, Member* m) {
     map::add(members, id, m);
 }
 
+DString* Structure::
+display_members_from_address(u8* start) {
+    auto out = DString::create();
+    for(Member* m = first_member; m; m = m->next<Member>()) {
+        out->append(ScopedDeref(m->label->display()).x, ": ", *(f32*)(start + m->offset), "\n");
+    }
+
+    return out;
+}
+
 } // namespace amu

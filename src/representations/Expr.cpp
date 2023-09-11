@@ -42,42 +42,6 @@ Type* Expr::
 resolve_type() {
     return type;
 }
-// void Literal::
-// cast_to(literal::kind k) {
-//     #define inner(from)                             \
-//         switch(k) {                                 \
-//             case literal::u64_: from = _u64; break; \
-//             case literal::u32_: from = _u32; break; \
-//             case literal::u16_: from = _u16; break; \
-//             case literal::u8_ : from = _u8 ; break; \
-//             case literal::s64_: from = _s64; break; \
-//             case literal::s32_: from = _s32; break; \
-//             case literal::s16_: from = _s16; break; \
-//             case literal::s8_ : from = _s8 ; break; \
-//             case literal::f64_: from = _f64; break; \
-//             case literal::f32_: from = _f32; break; \
-//             default: {  \
-//                 /* there shouldn't be a case where a tuple/array literal is casted to anything else  */ \
-//                 Assert(0); \
-//             } break; \
-//         }
-//      switch(kind) {
-//         case literal::u64_: inner(_u64); break;
-//         case literal::u32_: inner(_u32); break;
-//         case literal::u16_: inner(_u16); break;
-//         case literal::u8_ : inner(_u8 ); break;
-//         case literal::s64_: inner(_s64); break;
-//         case literal::s32_: inner(_s32); break;
-//         case literal::s16_: inner(_s16); break;
-//         case literal::s8_ : inner(_s8 ); break;
-//         case literal::f64_: inner(_f64); break;
-//         case literal::f32_: inner(_f32); break;
-//         default: {
-//             Assert(0);
-//             // there shouldn't be a case where a tuple/array literal is casted to a scalar
-//         } break;
-//     }
-// }
 
 ScalarLiteral* ScalarLiteral::
 create() {
@@ -93,6 +57,23 @@ display() {
 DString* ScalarLiteral::
 dump() {
     return DString::create("ScalarLiteral<", ScopedDeref(type->display()).x, " ", ScopedDeref(value.display()).x, ">");
+}
+
+void ScalarLiteral::
+cast_to(scalar::kind k) {
+    value.cast_to(k);
+    switch(k) {
+        case scalar::unsigned64: type = &scalar::_u64; break;
+        case scalar::unsigned32: type = &scalar::_u32; break;
+        case scalar::unsigned16: type = &scalar::_u16; break;
+        case scalar::unsigned8: type = &scalar::_u8; break;
+        case scalar::signed64: type = &scalar::_s64; break;
+        case scalar::signed32: type = &scalar::_s32; break;
+        case scalar::signed16: type = &scalar::_s16; break;
+        case scalar::signed8: type = &scalar::_s8; break;
+        case scalar::float64: type = &scalar::_f64; break;
+        case scalar::float32: type = &scalar::_f32; break;
+    }
 }
 
 StringLiteral* StringLiteral::

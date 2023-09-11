@@ -327,6 +327,7 @@ global const u32 npos = -1;
 #define Million(a)  (((u64)(a)) * 1000000)
 #define Billion(a)  (((u64)(a)) * 1000000000)
 
+#define Nanoseconds(ms) (ms * 1000000);
 #define Seconds(ms) (ms          / 1000)
 #define Minutes(ms) (Seconds(ms) / 60)
 #define Hours(ms)   (Minutes(ms) / 60)

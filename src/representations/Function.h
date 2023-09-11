@@ -9,21 +9,19 @@
 
 #include "Entity.h"
 #include "Type.h"
+#include "Expr.h"
 
 namespace amu {
 
 struct FunctionType;
-
+// TODO(sushi) the AST for Functions is stupid atm. This doesn't even appear in the AST
+//             its Label does. 
 struct Function : public Entity {
     FunctionType* type;
 
-    // total size on stack needed for this function
-    // (eventually in bytes, but in units of size(Register) for now)
-    u64 stack_size;
-    // where on the stack local variables start 
-    u64 local_start;
-    u64 local_size;
-    u64 return_start;
+    // mapping of a position on a stack to a Variable so that we may
+    // display local vars
+    Map<s64, Var*> locals;
 
     static Function*
     create(FunctionType* type = 0);
@@ -41,7 +39,7 @@ struct Function : public Entity {
 };
 
 template<> inline b32 Base::
-is<Function>() { return is<Entity>() && as<Entity>()->kind == entity::func; }
+is<Function>() { return is<Expr>() && as<Expr>()->kind == expr::function; }
 
 // when a label is assigned to a second function entity, this is created
 // and the label points at it instead of any of the Functions

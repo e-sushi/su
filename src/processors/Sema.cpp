@@ -105,10 +105,9 @@ func_arg_tuple(Code* code, Tuple* t) { announce_stage(t);
 }
 
 b32
-funcdef(Code* code, Expr* e) {
-    auto typeref = e->first_child<Expr>();
-    auto type = typeref->type->as<FunctionType>();
-    auto be = e->last_child<Block>();
+function(Code* code, Function* f) {
+    auto type = f->type;
+    auto be = f->last_child<Block>();
     if(!func_arg_tuple(code, type->parameters->as<Tuple>()) ||
         !func_ret(code, type->returns) || 
         !block(code, be)) return false;
@@ -151,6 +150,12 @@ call(Code* code, Call* e) {
                     e->callee->label->start->raw);
             return false;
         }
+        // TODO(sushi) we need to handle this better
+        if(call_arg->is<ScalarLiteral>()) {
+            // if this is a scalar literal just cast it in place 
+            call_arg->as<ScalarLiteral>()->cast_to(func_arg_t->as<Scalar>()->kind);
+        }
+
         func_arg = func_arg->next();
         call_arg = call_arg->next();
     }
@@ -172,6 +177,7 @@ typedef_(Code* code, Expr* e) {
                 Assert(m->type->size()); 
                 s->size += m->type->size();
             }
+            s->first_member = e->first_child<Member>();
         } break;
     }
     return true;
@@ -252,7 +258,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
             return call(code, (Call*)e);
         } break;
         case expr::typeref: return typeref(code, e);
-        case expr::func_def: return funcdef(code, e);
+        case expr::function: return function(code, e->as<Function>());
         case expr::typedef_: return typedef_(code, e);
         case expr::binary_assignment: {
             auto lhs = e->first_child<Expr>();
@@ -277,8 +283,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
                     if(rhs->is<ScalarLiteral>()) {
                         // if we're dealing with a literal, we just have to ask it to cast its value
                         // for us, no cast node is needed
-                        rhs->as<ScalarLiteral>()->value.cast_to(lhs->type->as<Scalar>()->kind);
-                        e->type = rhs->type = lhs->type;
+                        rhs->as<ScalarLiteral>()->cast_to(lhs->type->as<Scalar>()->kind);
+                        e->type = rhs->type;
                     } else {
                         // otherwise we have to insert an actual cast
                         auto cast = Expr::create(expr::cast);
@@ -490,9 +496,22 @@ expr(Code* code, Expr* e) { announce_stage(e);
     return true;
 }
 
+
 b32
 label(Code* code, Label* node) { announce_stage(node);
-    if(!expr(code, node->last_child<Expr>())) return false;
+    switch(node->last_child()->kind) {
+        case ast::entity: {
+            switch(node->last_child<Entity>()->kind) {
+                case entity::func: {
+                    if(!function(code, node->last_child<Function>())) return false;
+                } break;
+                case entity::expr: {
+                    if(!expr(code, node->last_child<Expr>())) return false;
+                } break;
+            }
+        } break;
+    }
+
 
     auto l = (Label*)node;
     switch(l->entity->kind) {
@@ -522,7 +541,7 @@ b32
 start(Code* code) {
     if(code->parser->root->is<Module>()) {
         if(!module(code, code->parser->root)) return false;
-        util::println(code->parser->root->print_tree(true));
+        // util::println(code->parser->root->print_tree(true));
 
     } else switch(code->parser->root->kind) {
         case ast::entity: {

@@ -31,8 +31,7 @@ enum kind : u32 {
     literal_array,
     literal_tuple,
     literal_struct,
-    entity_func,
-    entity_module,    
+    function,
     typeref,
     typedef_,
     func_def,
@@ -167,6 +166,13 @@ struct ScalarLiteral : public Expr {
 
     DString*
     dump();
+
+    // NOTE(sushi) it is IMPORTANT!!! that you call this and NOT the function
+    //             on 'value' because otherwise the type of this expression will
+    //             not change! 
+    //             this KINDA SUCKS but whatever
+    void
+    cast_to(scalar::kind k);
 
     ScalarLiteral() : Expr(expr::literal_scalar) {}
 };

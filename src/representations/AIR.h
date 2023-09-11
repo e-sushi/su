@@ -44,7 +44,10 @@ enum op {
     pushn, // push A bytes to the stack
     popn, // pop A bytes from the stack
     
-    copy, // copy from B to A
+    // copy from B to A
+    // copies an amount of data specified by width
+    // TODO(sushi) this kind of SUCKS im not gonna lie 
+    copy, 
 
     add, // add B to A and store in A
     sub, // sub B from A and store in A
@@ -140,6 +143,8 @@ struct BC {
 
     // debug comment that gets printed in BC printing 
     String comment;
+    ASTNode* node;
+    TAC* tac; // the TAC used to generate this
 };
 
 void
@@ -149,19 +154,19 @@ to_string(DString* current, BC bc) {
         if(bc.flags.left_is_const) {
             current->append(bc.lhs, " ");
         } else {
-            current->append("(sp + ", bc.lhs, ") ");
+            current->append(bc.lhs, "sp ");
         }
     };
 
     auto roffset = [&]() {
-        if(bc.flags.right_is_const || bc.flags.float_op) {
+        if(bc.flags.right_is_const) {
             if(bc.flags.float_op) {
                 current->append(bc.rhs_f);
             } else {
                 current->append(bc.rhs);
             }
         } else {
-            current->append("(sp + ", bc.rhs, ")");
+            current->append(bc.rhs, "sp");
         }
     };
 
@@ -263,8 +268,6 @@ to_string(DString* current, BC bc) {
             roffset();
         } break;
     }
-
-    current->append(" w: ", (u32)bc.w+1);
 
     if(bc.comment.str) {
         current->append("  --# ", bc.comment);

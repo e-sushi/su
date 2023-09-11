@@ -76,6 +76,11 @@ struct Type : public Entity {
     DString*
     dump() = 0;
 
+    // given an address, return a formatted DString displaying
+    // the values this Type would represent
+    virtual DString*
+    print_from_address(u8* addr) = 0;
+
     Type(type::kind k) : kind(k), Entity(entity::type) {}
 };
 
@@ -89,6 +94,7 @@ struct Void : public Type {
     u64      size() { return 0; }
     DString* display() { return DString::create("void"); }
     DString* dump() { return DString::create("Void<>"); }
+    DString* print_from_address(u8* addr) { return 0; } // this should never happen
 };
 
 template<> inline b32 Base::
@@ -102,17 +108,16 @@ global Void void_;
 // a specific case:
 // if(...) break else ...
 // 'break' is an expression, and needs a type, so I just say it is Whatever
-// because it isn't going to actually return anything, it just controls flow
+// because it isn't going to actually return anything, it just controls flow.
 // Any type may implicitly convert to this, so it's really just a wildcard
 // Though it is an error if you try to use this as a value in any way
-// This is extremely experimental and I figure it will be confusing
-// so it will probably be removed eventually 
 struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
     u64      size() { return 0; }
     DString* display() { return DString::create("whatever"); }
     DString* dump() { return DString::create("Whatever<>"); }
+    DString* print_from_address(u8* addr) { return 0; } // this should never happen
 };
 
 template<> inline b32 Base::
@@ -153,6 +158,9 @@ struct Scalar : public Type {
 
     u64
     size();
+
+    DString*
+    print_from_address(u8* addr);
 
     Scalar(scalar::kind k) : kind(k), Type(type::kind::scalar) {}
 };
@@ -210,6 +218,9 @@ struct Structured : public Type {
     u64
     size();
 
+    DString*
+    print_from_address(u8* addr);
+
     Structured() : Type(type::kind::structured) {}
 
     Structured(structured::kind k) : kind(k), Type(type::kind::structured) {}
@@ -242,6 +253,9 @@ struct Pointer : public Type {
 
     u64
     size();
+
+    DString*
+    print_from_address(u8* addr);
 
     Pointer() : Type(type::kind::pointer) {}
 };
@@ -280,6 +294,9 @@ struct StaticArray : public Structured {
     u64
     size();
 
+    DString*
+    print_from_address(u8* addr);
+
     StaticArray() : Structured(structured::static_array) {}
 };
 
@@ -314,6 +331,9 @@ struct DynamicArray : public Structured {
     u64
     size();
 
+    DString*
+    print_from_address(u8* addr);
+
     DynamicArray() : Structured(structured::dynamic_array) {}
 };
 
@@ -345,6 +365,9 @@ struct ViewArray : public Structured {
 
     u64
     size();
+
+    DString*
+    print_from_address(u8* addr);
 
     ViewArray() : Structured(structured::view_array) {}
 };
@@ -413,6 +436,9 @@ struct FunctionType : public Type {
     u64
     size();
 
+    DString*
+    print_from_address(u8* addr);
+
     FunctionType() : Type(type::kind::function) {}
 };
 
@@ -447,6 +473,9 @@ struct TupleType : public Type {
 
     u64
     size();
+
+    DString*
+    print_from_address(u8* addr);
 
     TupleType() : Type(type::kind::tuple) {}
 };

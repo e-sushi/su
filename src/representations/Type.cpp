@@ -92,6 +92,24 @@ dump() {
     return out;
 }
 
+DString* Scalar::
+print_from_address(u8* addr) {
+    DString* out = DString::create();
+    switch(this->kind) {
+        case scalar::unsigned8:  out->append(*(u8*)addr); break;
+        case scalar::unsigned16: out->append(*(u16*)addr); break;
+        case scalar::unsigned32: out->append(*(u32*)addr); break;
+        case scalar::unsigned64: out->append(*(u64*)addr); break;
+        case scalar::signed8:    out->append(*(s8*)addr); break;
+        case scalar::signed16:   out->append(*(s16*)addr); break;
+        case scalar::signed32:   out->append(*(s32*)addr); break;
+        case scalar::signed64:   out->append(*(s64*)addr); break;
+        case scalar::float32:    out->append(*(f32*)addr); break;
+        case scalar::float64:    out->append(*(f64*)addr); break;
+    }
+    return out;
+}
+
 Array<Pointer*> Pointer::set = array::init<Pointer*>();
 
 Pointer* Pointer::
@@ -118,6 +136,11 @@ dump() {
 u64 Pointer::
 size() {
     return sizeof(void*);
+}
+
+DString* Pointer::
+print_from_address(u8* addr) {
+    return DString::create((u8*)*(u64*)addr);
 }
 
 Array<StaticArray*> StaticArray::set = array::init<StaticArray*>();
@@ -171,6 +194,12 @@ size() {
     return sizeof(void*) + sizeof(u64);
 }
 
+DString* StaticArray::
+print_from_address(u8* addr) {
+    TODO("print static arrays from address");
+    return 0;
+}
+
 Array<ViewArray*> ViewArray::set = array::init<ViewArray*>();
 
 ViewArray* ViewArray::
@@ -215,6 +244,12 @@ dump() {
 u64 ViewArray::
 size() {
     return sizeof(void*) + sizeof(u64);
+}
+
+DString* ViewArray::
+print_from_address(u8* addr) {
+    TODO("print view array from address");
+    return 0;
 }
 
 Array<DynamicArray*> DynamicArray::set = array::init<DynamicArray*>();
@@ -268,6 +303,12 @@ size() { // TODO(sushi) size of Allocators when they are implemented
     return sizeof(void*) + sizeof(u64) + sizeof(u64);
 }
 
+DString* DynamicArray::
+print_from_address(u8* addr) {
+    TODO("print dynamic array from address");
+    return 0;
+}
+
 // FunctionType does not try to be unique for now
 FunctionType* FunctionType::
 create() {
@@ -300,6 +341,11 @@ dump() {
 u64 FunctionType::
 size() {
     return sizeof(void*); // treated as pointers for now 
+}
+
+DString* FunctionType::
+print_from_address(u8* addr) {
+    return DString::create((u8*)*(u64*)addr);
 }
 
 Array<TupleType*> TupleType::set = array::init<TupleType*>();
@@ -348,6 +394,12 @@ size() {
     return count;
 }
 
+DString* TupleType::
+print_from_address(u8* addr) {
+    TODO("print tuples from address");
+    return 0;
+}
+
 // namespace type::structure {
 // Array<ExistingStructureType> set = amu::array::init<ExistingStructureType>();
 // } // namespace structure
@@ -393,7 +445,10 @@ size() {
     return structure->size;
 }
 
-
+DString* Structured::
+print_from_address(u8* addr) {
+    return structure->display_members_from_address(addr);
+}
 
 } // namespace amu
 

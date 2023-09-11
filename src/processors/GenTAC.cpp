@@ -21,7 +21,7 @@ generate() {
     forI(seq.count) {
         TAC* tac = array::read(seq, i);
         if(last_line_num == -1 || last_line_num != tac->node->start->l0) {
-            // util::println(tac->node->first_line(true, true));
+            util::println(tac->node->first_line(true, true));
             last_line_num = tac->node->start->l0;
         }
         util::println(to_string(array::read(seq, i)));
@@ -71,15 +71,13 @@ function() {
 
     block(l->last_child()->last_child<Block>());
 
-    f->local_size = register_offset;
-
     // if a function ends with a block_value, we want to turn it into a return
     TAC* last = array::read(seq, -1);
     if(last->op == tac::block_value) {
         last->op = tac::ret;
     } else {
-        TAC* ret = make_and_place();
-        ret->node = f;
+        TAC* ret = make_and_place(); // wow
+        ret->node = l->last_child()->last_child()->last_child();
         ret->op = tac::ret;
     }
 } 
@@ -89,15 +87,14 @@ block(Block* e) {
     TAC* tac = make_and_place();
     tac->op = tac::block_start;
     array::push(temps, array::init<TAC*>());
-    for(auto n = e->first_child<Stmt>(); n; n = n->next<Stmt>()) {
+    for(auto n = e->first_child<Stmt>(); n; n = n->next<Stmt>())
         statement(n);
-    }
     tac->node = e;
 
     if(array::read(seq, -1)->op != tac::block_value) {
         tac = make_and_place();
         tac->op = tac::block_end;
-        tac->node = e;
+        tac->node = e->last_child();
     }
 }
 
@@ -233,38 +230,44 @@ expression(Expr* e) {
                 auto from = e->first_child<Expr>()->type->as<Scalar>();
                 switch(to->kind) {
                     case scalar::unsigned64: {
+                        cast->temp_size = 4;
+                        cast->arg1 = width::quad;
                         switch(from->kind) {
                             case scalar::unsigned32: {
                                 cast->op = resz;
                                 cast->arg0 = arg;
-                                cast->arg1 = width::dble;
-                                return cast;
                             } break;
                             case scalar::unsigned16: {
                                 cast->op = resz;
                                 cast->arg0 = arg;
-                                cast->arg1 = width::word;
-                                return cast;
                             } break;
                         }
                     } break;
                     case scalar::float32: {
+                        cast->temp_size = 4;
+                        cast->arg1 = width::dble;
                         switch(from->kind) {
                             case scalar::float64: {
+                                 // NOTE(sushi) even if we're casting to a smaller type, the temp 
+                                //             has to be large enough to hold the original value.
+                                //             Ideally we setup casting values that are already in
+                                //             temporaries in place soon, but for now this is fine
+                                //             since it's going to be cleared eventually anyways
+                                cast->temp_size = 8;
                                 cast->op = resz;
                                 cast->arg0 = arg;
-                                cast->arg1 = width::quad;
-                                return cast;
+                                cast->is_float = true;
                             } break;
                         }
                     } break;
                     case scalar::float64: {
+                        cast->temp_size = 8;
+                        cast->arg1 = width::quad;
                         switch(from->kind) {
                             case scalar::float32: {
                                 cast->op = resz;
                                 cast->arg0 = arg;
-                                cast->arg1 = width::dble;
-                                return cast;
+                                cast->is_float = true;
                             } break;
                         }
                     } break;
@@ -272,6 +275,10 @@ expression(Expr* e) {
             } else {
                 TODO("handle non-scalar casts");
             }
+
+            // if(arg.kind == arg::temporary) return arg;
+            // else return cast;
+            return cast;
         } break;
 
         case expr::literal_scalar: {
@@ -749,8 +756,6 @@ void GenTAC::
 new_temp(TAC* tac, Type* t) {
     tac->temp_size = t->size();
     array::push(array::readref(temps, -1), tac);
-    // tac->stack_offset = register_offset;
-    // register_offset += util::Max(1, t->size() / sizeof(Register));
 }
 
 } // namespace amu

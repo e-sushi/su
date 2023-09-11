@@ -51,6 +51,7 @@ struct Member : public Entity {
 struct Structure {
     u64 size; // size of this structure in bytes
     Map<String, Member*> members;
+    Member* first_member;
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -70,6 +71,11 @@ struct Structure {
 
     void
     add_member(String id, Member* m);
+
+    // takes an address in memory and displays the values of each member
+    // (nested if those members are also structures) 
+    DString*
+    display_members_from_address(u8* start);
 };
 
 } // namespace amu 

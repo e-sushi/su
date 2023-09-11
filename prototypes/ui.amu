@@ -1,0 +1,236 @@
+ui :: module;
+
+g: Context;
+
+Context :: struct {
+    base: Item; // root of all Items
+    hovered: Item*; 
+    active: Item*;
+
+    istate: InputState;
+
+    updating: b32; // true when update is running
+
+    //things dealing with immediate items
+    immediate: (
+        active: b32, // is an immediate block active
+        pushed: b32,
+        file: u8[];  // file  
+    );
+
+
+    items: Item[..];
+    immediate_items: Item[..];
+
+    inactive_drawcmds: Node(DrawCmd);
+
+    inactive_drawcmds_vertex_sorted: DrawCmd*[..];
+    inactive_drawcmds_index_sorted: DrawCmd*[..];
+
+    arenas: (
+        vertex,
+        index: mem.Arena
+    );
+
+    item_stack: Item*[..];
+
+    stats: (
+        visible: (
+            items,
+            drawcmds,
+            vertexes,
+            indexes: u64
+        ),  
+        reserved: (
+            items,
+            drawcmds,
+            vertexes,
+            indexes: u64
+        )   
+    );
+}
+
+Item :: struct(?T = void) {
+    using Node(Item);
+
+    id: u8[] = "anon item";
+    style: Style;
+
+    action: (Item*) -> void;
+    action_data: T*;
+    action_trigger: ActTrigger;
+
+    internal: (
+        style_hash: u64;
+        
+        pos:   (local, screen: vec2);
+        size:  vec2 union (width, height: f32);
+        scale: vec2 union (scale_x, scale_y: f32);
+
+        max_scroll: vec2;
+
+        children_bbx: (pos, size: vec2);
+
+        visible: (start, size: vec2);
+
+        drawcmds: DrawCmd[];
+
+        dirty: b32;
+
+        update_trigger: UpdateTrigger;
+
+        update:   (Item*) -> void;
+        evaulate: (Item*) -> void;
+        generate: (Item*) -> void;
+        hash:     (Item*) ->  u64;
+        cleanup:  (Item*) -> void;
+
+        file: u8[];
+        line: u64;
+
+        memsize: u64;
+
+        cached: b32;
+
+        #debug {
+            frame_stats: (
+                evals: u32;
+                draws: u32;
+            );
+        }
+    );
+
+    impl Display;
+    impl Hash;
+}
+
+Style :: struct {
+    Size :: variant (
+        Pixel(vec2),
+        Percent(vec2),
+    )
+
+    positioning: Positioning;
+    anchor: Anchor;
+    sizing: Sizing :: 
+        enum<flags>(
+            Normal, 
+            AutoX, AutoY
+            Auto = AutoX | AutoY,
+
+        );
+
+    pos: vec2 union(x,y: f32);
+    size: vec2 union(width, height: f32);
+    min_size: vec2 union(min_width, min_height: f32);
+    max_size: vec2 union(max_width, min_width: f32);
+    margin, padding: union(
+        vec4;
+        tl: vec2 union(left, top: f32);
+        br: vec2 union(right, bottom: f32);
+    );
+    scale: vec2 union(xscale, yscale: f32);
+    scroll: vec2 union(xscroll, yscroll: f32);
+    
+    background: (
+        color: Color;
+        image: Texture*;
+    );
+
+    border: (
+        style: BorderStyle :: 
+            enum(None, Solid) = Solid;
+        color: Color = color.light_grey;
+        width: f32 = 1;
+    );
+
+    font: Font*;
+    font_height: f32;
+    text_wrap: TextWrap :: 
+        enum (None, Char, Word) = None;
+}
+
+InputState :: enum {
+    None,
+    Scrolling,
+    Dragging,
+    Resizing,
+    PreventInputs,
+    ExternalPreventInputs,
+}
+
+create::(Item) -> Item* {
+
+}
+
+destroy::(Item*) -> void {
+
+}
+
+
+DrawCmd :: struct(
+    using Node(DrawCmd);
+    texture: Texture*;
+    offsets: (vectex, index: u32);
+    counts: (reserved, used: vec2i);
+)
+
+DrawCmd :: struct {
+    using Node(DrawCmd);
+    texture: Texture*;
+    offsets: (vertex, index: u32);
+    counts: (reserved, used: vec2i);
+}
+
+create::(DrawCmd) -> DrawCmd =
+    g.stats.reserved.drawcmds += 1 
+       then return DrawCmd.allocate();
+
+create::(DrawCmd, count: u32) -> DrawCmd[] =
+    g.stats.reserved.drawcmds += count
+        then return [ DrawCmd.allocate() for i in 0..count ];
+
+destroy::(DrawCmd*) -> void = 
+    self.free() and g.stats.reserved.drawcmds -= 1;
+
+
+remove::(self: DrawCmd*) -> void {
+    varr := &g.inactive_drawcmds_vertex_sorted;
+    iarr := &g.inactive_drawcmds_index_sorted;
+
+    mid := varr.binary_index((a){a.vertex_offset});
+
+    if mid != varr.count - 1 {
+        right := &varr[mid+1];
+        if right.vertex_offset - self.counts_reserved.x == self.vertex_offset {
+            self.counts_reserved.x += right.counts_reserved.x;
+            right.counts_reserved.x = 0;
+            varr.remove(mid+1);
+            right.destroy() unless right.counts_reserved.y;
+        }
+    }
+
+    if mid {
+        left := &iarr[mid-1];
+        if left.offsets.vertex + left.counts.reserved.x == self.offsets.vertex {
+            
+        }
+    }
+}
+
+binary_index::(a:?T[], access: (T) -> ?V/Order) -> u64 {
+    mid, left, right := 
+    ( 0;    0; a.count-1);
+    while left <= right {
+        mid = left + (right - left)/2;
+        if a[mid].access() < a[right].access() then 
+            left = mid + 1 and mid = left + (right - left) / 2
+        else right = mid - 1; 
+    }
+    mid
+}
+
+binary_search::(a:?T[], i:V, access: (T) -> ?V/Order) -> (found: b32; idx: u64) {
+    idx := binary_index(a, access);
+    (true if a[idx] == i else false; idx)
+}

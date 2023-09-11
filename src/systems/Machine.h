@@ -25,7 +25,6 @@ struct Machine {
     CallFrame frame;
 
 
-
     // ~~~~~~~ interface ~~~~~~~
 
 
@@ -40,6 +39,9 @@ struct Machine {
 
     void
     print_stack();
+
+    void
+    print_frame_vars();
 };
 
 } // namespace amu

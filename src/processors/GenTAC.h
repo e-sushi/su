@@ -42,6 +42,7 @@ struct GenTAC {
     // array of local variables in the order that they are found
     // for AIR to position on the stack later 
     Array<Var*> locals;
+    Array<Var*> params; 
 
 
     u64 register_offset;

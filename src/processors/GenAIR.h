@@ -2,7 +2,7 @@
 
     AIR generator. See AIR.h for information on what AIR is.
 
-    This takes Code that has generated TAC, optionally been optimized, and generates a sequence of
+    This takes Code that has generated TAC that's optionally been optimized and generates a sequence of
     AIR representing it. 
 
 */
@@ -11,6 +11,15 @@
 #define AMU_GENAIR_H
 
 namespace amu {
+
+// something that'll be put on the stack that is not a
+// local variable.
+struct StackThing {
+    u64 offset;
+    width w;
+    Type* type;
+    DString* name;
+};
 
 struct GenAIR {
     Code* code;
@@ -21,6 +30,8 @@ struct GenAIR {
     u32 stack_offset;
 
     Array<u64> scoped_temps;
+
+    Map<BC*, StackThing> stack_things;
 
     static GenAIR*
     create(Code* code);
