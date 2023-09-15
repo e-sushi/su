@@ -116,7 +116,9 @@ struct BC {
 
     struct {
         b32 left_is_const : 1 = false; // lhs is actually representing a constant value 
+        b32 left_is_ptr : 1 = false;
         b32 right_is_const : 1 = false; // rhs is actually representing a constant value 
+        b32 right_is_ptr : 1 = false;
         b32 float_op : 1 = false; // this instr is acting on float values
     } flags;
 
@@ -126,9 +128,9 @@ struct BC {
     union{
         struct {
             // either a byte offset into the stack, or a literal value 
-            s32 lhs;
+            s64 lhs;
             union {
-                s32 rhs;
+                s64 rhs;
                 f64 rhs_f;
             };
         };
@@ -153,6 +155,8 @@ to_string(DString* current, BC bc) {
     auto loffset = [&]() {
         if(bc.flags.left_is_const) {
             current->append(bc.lhs, " ");
+        } else if(bc.flags.left_is_ptr) { 
+            current->append((void*)bc.lhs, " ");
         } else {
             current->append(bc.lhs, "sp ");
         }

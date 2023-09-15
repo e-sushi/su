@@ -73,12 +73,16 @@ start() {
                 end->node = e;
             } else if(array::read(seq, -1)->op == tac::block_value) {
                 array::read(seq, -1)->op = tac::ret;
+            } else {
+                TAC* ret = make_and_place();
+                ret->op = tac::ret;
+                ret->node = e;
             }
         } break;
         case code::var_decl: {
             // this is a global variable so for now we'll just make room for it on the stack 
             // and initialize it to whatever its value needs to be 
-            TODO("handle global vars");
+            TODOsoft("handle runtime global vars");
         } break;
         default: {
             TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
@@ -146,6 +150,10 @@ statement(Stmt* s) {
             switch(l->entity->kind) {
                 case entity::var: {
                     auto v = l->entity->as<Var>();
+                    // a compile time variable should not appear in runtime code
+                    if(!code->compile_time && v->is_compile_time) {
+                        return;
+                    }
                     array::push(locals, v);
 
                     Arg arg;
@@ -216,18 +224,30 @@ statement(Stmt* s) {
 
 Arg GenTAC::
 expression(Expr* e) {
-    using namespace tac;
     switch(e->kind) {
         case expr::varref: {
+            // if we're referencing a variable, we need to check if that variable 
+            // is in compile time memory and if we are compiling compile time code
+            // runtime code cannot reference a compile time variable, but compile
+            // time code is allowed to freely modify compile time memory.
+            // if(e->as<VarRef>()->var->is_compile_time && !code->compile_time) {
+            //     // the compile time var will have already put its value in memory
+            //     // so we just need to copy that to the variable
+            //     Var* v = e->as<VarRef>()->var;
+            //     forI(v->type->size()) {
+
+            //     }
+            //     return expression(e->as<VarRef>()->var->label->last_child<Expr>());
+            // } 
             return e->as<VarRef>()->var;
         } break;
 
-        case expr::binary_plus: 
+        case expr::binary_plus:
         case expr::binary_minus:
         case expr::binary_multiply:
         case expr::binary_division:
-        case expr::binary_equal: 
-        case expr::binary_not_equal: 
+        case expr::binary_equal:
+        case expr::binary_not_equal:
         case expr::binary_less_than:
         case expr::binary_less_than_or_equal:
         case expr::binary_greater_than:
@@ -274,7 +294,6 @@ expression(Expr* e) {
             return arg;
         } break;
 
-
         case expr::cast: {
             Arg arg = expression(e->first_child<Expr>());
             TAC* cast = make_and_place();
@@ -289,11 +308,11 @@ expression(Expr* e) {
                         cast->arg1 = width::quad;
                         switch(from->kind) {
                             case scalar::unsigned32: {
-                                cast->op = resz;
+                                cast->op = tac::resz;
                                 cast->arg0 = arg;
                             } break;
                             case scalar::unsigned16: {
-                                cast->op = resz;
+                                cast->op = tac::resz;
                                 cast->arg0 = arg;
                             } break;
                         }
@@ -309,7 +328,7 @@ expression(Expr* e) {
                                 //             temporaries in place soon, but for now this is fine
                                 //             since it's going to be cleared eventually anyways
                                 cast->temp_size = 8;
-                                cast->op = resz;
+                                cast->op = tac::resz;
                                 cast->arg0 = arg;
                                 cast->is_float = true;
                             } break;
@@ -320,7 +339,7 @@ expression(Expr* e) {
                         cast->arg1 = width::quad;
                         switch(from->kind) {
                             case scalar::float32: {
-                                cast->op = resz;
+                                cast->op = tac::resz;
                                 cast->arg0 = arg;
                                 cast->is_float = true;
                             } break;
@@ -770,6 +789,10 @@ expression(Expr* e) {
                 }
             }
             return temp;
+        } break;
+
+        case expr::unary_comptime: {
+            return expression(e->last_child<Expr>());
         } break;
     }
 

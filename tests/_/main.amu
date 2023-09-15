@@ -10,11 +10,13 @@ Player :: struct {
     status: StatusFlags;
 }
 
+width :: 5;
+height :: 5;
+
 main::()->void {
-    d := :{
-        a := 1;
-        b := 2;
-        c := a + b;
-        c + 3
-    }
+    b :: 1;
+    arr: u8[width * height];
+    a := b;
+    :b = 10;
+    c := b + 2;
 }

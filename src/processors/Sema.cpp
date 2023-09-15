@@ -243,7 +243,9 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
 b32 
 expr(Code* code, Expr* e) { announce_stage(e);
     switch(e->kind) {
-        case expr::unary_comptime: return expr(code, e->first_child<Expr>());
+        case expr::unary_comptime: {
+            return expr(code, e->first_child<Expr>());
+        } break;
         case expr::unary_assignment: {
             if(!expr(code, e->first_child<Expr>())) return false;
             e->type = e->first_child()->resolve_type();
@@ -428,6 +430,11 @@ expr(Code* code, Expr* e) { announce_stage(e);
         } break;
 
         case expr::varref: {
+            if(code->compile_time && !e->as<VarRef>()->var->is_compile_time) {
+                diagnostic::sema::
+                    compile_time_code_cannot_reference_runtime_memory(e->start);
+                return false;
+            }
             e->type = e->as<VarRef>()->var->type;
         } break;
 

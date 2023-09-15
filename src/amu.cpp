@@ -64,6 +64,11 @@
 							ID.AddArray(things);
 							...
 						In any case, the logic for creating Types is a big mess that needs cleaned up bad.
+	
+	Parser
+	------------------------
+	[!!, *, 23/09/15] It may be best to not have specific stages of the parser for things that are prescanned
+		              and just let it all be handled normally. 
 */
 
 

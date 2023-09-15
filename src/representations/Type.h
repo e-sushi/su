@@ -69,7 +69,7 @@ struct Type : public Entity {
     // attempts to find the size of a given Type in bytes
     virtual u64
     size() = 0;
-
+    
     DString*
     display() = 0;
 
@@ -92,6 +92,7 @@ struct Void : public Type {
     Void() : Type(type::kind::void_) {} 
 
     u64      size() { return 0; }
+    ASTNode* deep_copy() { return this; }
     DString* display() { return DString::create("void"); }
     DString* dump() { return DString::create("Void<>"); }
     DString* print_from_address(u8* addr) { return 0; } // this should never happen
@@ -115,6 +116,7 @@ struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
     u64      size() { return 0; }
+    ASTNode* deep_copy() { return this; }
     DString* display() { return DString::create("whatever"); }
     DString* dump() { return DString::create("Whatever<>"); }
     DString* print_from_address(u8* addr) { return 0; } // this should never happen

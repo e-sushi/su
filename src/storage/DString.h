@@ -299,6 +299,8 @@ todo(String s, String file, u64 line) {
 
 // for todos that should be resolved quickly 
 #define TODO(s) do { util::todo(s, __FILE__, __LINE__); Assert(0); } while(0)
+#define TODOsoft(s) do { util::todo(s, __FILE__, __LINE__); } while(0)
+
 }
 
 // I don't know if it is just clang or what, but since DStrings are entirely accessed by pointers now

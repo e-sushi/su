@@ -131,7 +131,9 @@ is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
 // representation of a single expression meant to be evaluated at compile time
 // this is primarily so that we can keep track of frame information that an 
 // Expr may need, which is just local variables for now 
+// the original expression is the first child, the evaluated AST is the last
 struct CompileTime : public Expr {
+    // frame information for this compile time expression
     Frame frame;
 
 
@@ -152,6 +154,9 @@ struct CompileTime : public Expr {
 
     CompileTime() : Expr(expr::unary_comptime) {}
 };
+
+template<> inline b32 Base::
+is<CompileTime>() { return is<Expr>() && as<Expr>()->kind == expr::unary_comptime; }
 
 // The following Literal structures are to help keep each kind of literal separate
 // while also providing a common interface for working with them.

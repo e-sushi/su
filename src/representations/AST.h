@@ -119,7 +119,6 @@ struct ASTNode : public TNode, public Base {
 template<> b32 inline Base::
 is<ASTNode>() { return kind == base::ast; }
 
-
 } // namespace amu
 
 #endif // AMU_AST_H

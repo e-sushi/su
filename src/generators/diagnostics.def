@@ -524,10 +524,24 @@ group sema {
         }
     }
 
+    diagnostic cant_use_whatever_as_variable_type {
+        type: error;
+        message: {
+            en: "cannot have a variable of type Whatever";
+        }
+    }
+
     diagnostic control_expressions_can_only_be_used_at_the_end_of_logical_operators {
         type: error;
         message: {
             en: "control expressions can only be used at the very right of logical operators";
+        }
+    }
+
+    diagnostic compile_time_code_cannot_reference_runtime_memory {
+        type: error;
+        message: {
+            en: "compile time code cannot reference runtime memory";
         }
     }
 }

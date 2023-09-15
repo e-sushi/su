@@ -102,7 +102,12 @@ run() {
             case air::op::popn:  sp -= frame.ip->lhs; break;
 
             case air::op::copy: {
-                u8* dst = frame.fp + frame.ip->lhs;
+                u8* dst = 0;
+                if(instr->flags.left_is_ptr) {
+                    dst = (u8*)frame.ip->lhs;
+                } else {
+                    dst = frame.fp + frame.ip->lhs;
+                }
                 if(frame.ip->flags.right_is_const) {
                     if(frame.ip->flags.float_op) {
                         sized_op_flt(=, instr->w, dst, instr->rhs_f);

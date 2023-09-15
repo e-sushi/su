@@ -66,6 +66,9 @@ struct VirtualLabel : public Label {
     static VirtualLabel*
     create(DString* display);
 
+    ASTNode*
+    deep_copy();
+
     void
     destroy();
 

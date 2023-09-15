@@ -389,7 +389,12 @@ prescanned_var_decl() {
         }
     }
 
-    node::insert_last(l, e);
+    if(e->is<CompileTime>()) {
+        v->is_compile_time = true;
+        v->memory = (u8*)memory::allocate(v->type->size());
+    }
+
+    node::change_parent(l, e->last_child());
 
     return true;
 }
@@ -512,6 +517,26 @@ label() {
                             f->start = f->type->parameters->start;
                             l->entity = (Entity*)f;
                             node::insert_last(l, cand);
+                        } break;
+                        default: {
+                            // since this is a compile time variable, we can do some type
+                            // checking a little early 
+                            auto v = Var::create();
+                            v->label = l;
+                            v->type = expr->type;
+                            l->entity = v->as<Entity>();
+                            v->is_compile_time = true;
+                            if(cand->last_child<Expr>()->type->is<Whatever>()) {
+                                diagnostic::sema::
+                                    cant_use_whatever_as_variable_type(cand->start);
+                                return false;
+                            } else if(cand->last_child<Expr>()->type->is<Void>()) {
+                                diagnostic::sema::
+                                    cannot_have_a_variable_of_void_type(cand->start);
+                                return false;
+                            }
+                            v->memory = (u8*)memory::allocate(v->type->size());
+                            node::insert_last(l, cand->last_child());
                         } break;
                     }
                 } break;
@@ -892,14 +917,12 @@ expression() {
             // its own Code object and send it down the pipeline 
             Code* nu = code::from(code, e);
             nu->parser->table.last = table.last;
+            nu->compile_time = true;
 
             if(!compiler::funnel(nu, code::machine)) return false;
 
             // now we need to figure out exactly what was returned from the expression
             e->type = e->first_child<Expr>()->type;
-
-            // the final expression that this comptime thing will resolve into
-            Expr* fin = 0;
 
             // a scalar type will just resolve into a scalar literal
             if(e->type->is<Scalar>()) {
@@ -916,21 +939,15 @@ expression() {
                     case scalar::signed64:   sl->value = *(s64*)nu->machine->stack; break;
                     case scalar::float32:    sl->value = *(f32*)nu->machine->stack; break;
                     case scalar::float64:    sl->value = *(f64*)nu->machine->stack; break;
-                }
-                fin = sl;
+                }   
+                node::insert_last(e, sl);
+                sl->type = e->first_child<Expr>()->type;
+            } else if(e->type->is_any<Void,Whatever>()) {
+                // if the usage of these is invalid, it should be handled later
             } else {
                 Assert(0); // handle other things being returned from comptime expr
             }
-
-            fin->type = e->type;
-
-            // NOTE(sushi) this will probably cause issues later when we want to display information 
-            //             about whatever is generated from this. 
-            //             It may be better to just keep it around as a child of the current
-            //             Code object.
-            code::destroy(nu);
-
-            node.push(fin);
+            node.push(e);
         } break;
 
         case token::structdecl: {

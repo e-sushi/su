@@ -189,6 +189,8 @@ dump() {
     return display();
 }
 
+
+
 u64 StaticArray::
 size() {
     return sizeof(void*) + sizeof(u64);

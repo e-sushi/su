@@ -81,6 +81,9 @@ struct Code : public ASTNode {
     // Source this code belongs to. if this is 0, then this is VirtualCode
     Source* source = 0;
 
+    // set true when this Code object fully represents compile time code
+    b32 compile_time;
+
     // information from stages that this Code has been passed through
     Lexer* lexer = 0;
     Parser* parser = 0;
@@ -133,12 +136,11 @@ struct VirtualCode : public Code {
 
 
     DString*
-    display() { return DString::create(Code::identifier); }
+    display();
 
     DString*
-    dump() {
-        return DString::create("VirtualCode<>");
-    }
+    dump();
+    
 
     VirtualCode() : Code(code::unknown) {}
 };

@@ -10,6 +10,16 @@ dump() {
     return DString::create("SourceCode<", ScopedDStringRef(display()).x, ">");
 }
 
+DString* VirtualCode::
+display() { return DString::create(Code::identifier); }
+
+DString* VirtualCode::
+dump() {
+    return DString::create("VirtualCode<>");
+}
+
+
+
 namespace code {
 
 SourceCode*

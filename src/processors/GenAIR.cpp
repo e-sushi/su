@@ -363,7 +363,12 @@ body() {
                         bc->lhs = tac->arg0.temporary->temp_pos;
                     } break;
                     case arg::var: {
-                        bc->lhs = tac->arg0.var->stack_offset;
+                        if(tac->arg0.var->is_compile_time) {
+                            bc->flags.left_is_ptr = true;
+                            bc->lhs = (s64)tac->arg0.var->memory;
+                        } else {
+                            bc->lhs = tac->arg0.var->stack_offset;
+                        }
                     } break;
                     case arg::member: {
                         bc->lhs = tac->arg0.offset_var.var->stack_offset + tac->arg0.offset_var.offset;
@@ -384,7 +389,27 @@ body() {
                         }
                     } break;
                     case arg::var: {
-                        bc->rhs = tac->arg1.var->stack_offset;
+                        if(tac->arg1.var->is_compile_time) {
+                            if(!code->compile_time) {
+                                s64 lhs = bc->lhs;
+                                forI(tac->arg1.var->type->size()) {
+                                    bc->flags.right_is_const = true;
+                                    bc->w = width::byte;
+                                    bc->rhs = *(tac->arg1.var->memory + i);
+                                    bc->lhs = lhs + i;
+                                    if(i != tac->arg1.var->type->size() - 1) {
+                                        bc = array::push(seq);
+                                        bc->instr = air::copy;
+                                        bc->node = tac->node;
+                                    }
+                                }
+                            } else {
+                                bc->flags.right_is_ptr = true;
+                                bc->rhs = (s64)tac->arg1.var->memory;
+                            }
+                        } else {
+                            bc->rhs = tac->arg1.var->stack_offset;
+                        }
                     } break;
                     case arg::literal: {
                         bc->flags.right_is_const = true;
