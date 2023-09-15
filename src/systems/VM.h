@@ -8,21 +8,17 @@
 #ifndef AMU_MACHINE_H
 #define AMU_MACHINE_H
 
+#include "representations/Frame.h"
+
 namespace amu {
 
-struct CallFrame {
-    BC* ip;
-    u8* fp;
-    Function* f;
-}; 
-
-struct Machine {
+struct VM {
     // stack as an array of bytes
     u8* stack;
     u8* sp;
 
-    Array<CallFrame> frames;
-    CallFrame frame;
+    Array<Frame> frames;
+    Frame frame;
 
 
     // ~~~~~~~ interface ~~~~~~~
@@ -30,8 +26,11 @@ struct Machine {
 
     // creates a machine with some entry Code object
     // places the instruction pointer at the start of the code's AIR
-    static Machine*
+    static VM*
     create(Code* entry); 
+
+    void
+    destroy();
 
     // begins execution of the code 
     void

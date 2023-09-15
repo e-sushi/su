@@ -1,32 +1,33 @@
 namespace amu {
 
-Machine* Machine::
+VM* VM::
 create(Code* entry) {
-    Machine* out = pool::add(compiler::instance.storage.machines);
+    VM* out = pool::add(compiler::instance.storage.vm);
     // arbitrary amount of stack to allocate
     // this needs to be a compiler option later 
-    out->stack = (u8*)memory::allocate(Megabytes(16));
+    out->stack = (u8*)memory::allocate(Megabytes(8));
     entry->machine = out;
     
-
     if(entry->is(code::function)) {
-                       // WOW!
-        out->frame.f = entry->parser->root->as<Label>()->entity->as<Function>();
-        out->frame.ip = entry->air_gen->seq.data;
-        out->frame.fp = out->stack;
-        out->sp = out->stack;
-    } else {
-        // TODO(sushi) we'll need to implement a fake CallFrame or just be able to 
-        //             use some kind of alternative
-        NotImplemented;
+        out->frame = entry->parser->root->as<Label>()->entity->as<Function>()->frame;
+    } else if(entry->is(code::expression)) {
+        // we create a frame for this expr
+        out->frame.identifier = DString::create("ExprFrame<", (void*)entry->parser->root, ">");
     }
+    out->frame.ip = entry->air_gen->seq.data;
+    out->frame.fp = out->stack;
+    out->sp = out->frame.fp;
 
     return out;
 }
 
+void VM::
+destroy() {
+    memory::free(stack);
+    pool::remove(compiler::instance.storage.vm, this);
+}
 
-
-void Machine::
+void VM::
 run() {
 
     auto start = util::stopwatch::start();
@@ -77,8 +78,7 @@ run() {
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         BC* instr = frame.ip;
-        util::println(DString::create("----------------------- ", frame.ip, " of ", ScopedDeref(frame.f->display()).x, " with sp ", sp - frame.fp));
-
+        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.identifier, " with sp ", sp - frame.fp));
         util::println(instr->node->first_line());
         util::println(ScopedDeref(to_string(*frame.ip)).x);
         switch(instr->instr) {
@@ -339,9 +339,8 @@ run() {
 
             case air::op::call: {
                 array::push(frames, frame);
-                frame.f = frame.ip->f;
+                frame = frame.ip->f->frame;
                 frame.fp = sp - frame.ip->n_params;
-                frame.ip = frame.f->code->air_gen->seq.data - 1;
                 sp = frame.fp;
             } break;
 
@@ -350,7 +349,7 @@ run() {
                     finished = true;
                     break;
                 }
-                CallFrame last = frame;
+                Frame last = frame;
                 sp = frame.fp + frame.ip->lhs; 
                 frame = array::pop(frames);
                 util::println(to_string(*frame.ip));
@@ -376,13 +375,14 @@ run() {
     } 
 
     util::println(util::format_time(util::stopwatch::peek(start)));
+
 } 
 
-void Machine::
+void VM::
 print_stack() {
     DString* out = DString::create();
 
-    auto my_frames = array::init<CallFrame*>();
+    auto my_frames = array::init<Frame*>();
     forI(frames.count)
         array::push(my_frames, array::readptr(frames, i));
     array::push(my_frames, &frame);
@@ -393,7 +393,7 @@ print_stack() {
     while(p < sp) {
         out->append("r", p-stack, " ", *p);
         if(frame_idx < my_frames.count && array::read(my_frames, frame_idx)->fp == p) {    
-            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->f->display());
+            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->identifier);
             frame_idx++;
         }
         out->append("\n");
@@ -403,12 +403,12 @@ print_stack() {
     out->deref();
 }
 
-void Machine::
+void VM::
 print_frame_vars() {
     DString* out = DString::create();
 
-    forI(frame.f->locals.values.count) {
-        Var* v = array::read(frame.f->locals.values, i);
+    forI(frame.locals.count) {
+        Var* v = array::read(frame.locals, i);
         out->append(ScopedDeref(v->display()).x, "(", v->stack_offset, "): \n", v->type->print_from_address(frame.fp + v->stack_offset), "\n");
     }
 
