@@ -156,6 +156,20 @@ group parser {
         }
     }
 
+    diagnostic label_already_defined {
+        type: error;
+        message: {
+            en: "the label %token% has already been defined in this scope";
+        }
+    }
+
+    diagnostic missing_close_brace {
+        type: error;
+        message: {
+            en: "missing a close brace for this opening brace (I think)";
+        }
+    }
+
     diagnostic expected_comma_or_closing_paren_tuple {
         type: error;
         message: {

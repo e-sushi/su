@@ -28,7 +28,6 @@ from(Code* code, Token* start, Token* end) {
     Code* out;
     if(code->source) {
         SourceCode* sc = pool::add(compiler::instance.storage.source_code);
-        sc->source = code->source;
         sc->tokens.data = start;
         sc->tokens.count = end-start+1;
         out = (Code*)sc;
@@ -37,8 +36,6 @@ from(Code* code, Token* start, Token* end) {
         VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
         vc->tokens = array::copy(c->tokens, start-c->tokens.data, end-start+1);
     }
-
-    // TODO(sushi) find a better way to track what Code Tokens belong to or just get rid of them storing Code entirely
 
     out->source = code->source;
     out->raw.str = start->raw.str;
@@ -49,6 +46,41 @@ from(Code* code, Token* start, Token* end) {
     out->identifier = DString::create(code->identifier, ":subcode<", start, ",", end, ">");
 
     return out;
+}
+
+Code*
+from(Code* code, ASTNode* node) {
+    Code* out = code::from(code, node->start, node->end);
+
+    Parser::create(out);
+    out->parser->root = node;
+
+    switch(node->kind) {
+        case ast::entity: {
+            auto e = node->as<Entity>();
+            switch(e->kind) {
+                case entity::expr: {
+                    out->kind = code::expression;
+                } break;
+            }
+        } break;
+    }
+
+    out->level = code::parse;
+
+    // trying to create a Code object from an unhandled branch kind
+    Assert(out->kind != code::unknown); 
+    return out;
+}
+
+void
+destroy(Code* c) {
+    if(c->lexer) c->lexer->destroy();
+    if(c->parser) c->parser->destroy();
+    if(c->sema) sema::destroy(c->sema);
+    if(c->tac_gen) c->tac_gen->destroy();
+    if(c->air_gen) c->air_gen->destroy();
+    if(c->machine) c->machine->destroy();
 }
 
 b32
@@ -64,9 +96,6 @@ get_tokens(Code* code) {
         return ((SourceCode*)code)->tokens;
     }
 }
-
-
-
 
 Array<Token>&
 get_token_array(Code* code) {
@@ -211,10 +240,9 @@ skip_to_matching_pair() {
     }
 }
 
-
 template<typename... T> FORCE_INLINE void TokenIterator::
 skip_until(T... args) {
-    while(!is_any(args...)) increment();
+    while(!is_any(args...) && increment());
 }
 
 FORCE_INLINE b32 TokenIterator::

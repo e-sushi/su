@@ -83,6 +83,7 @@ private:
     b32 start();
     b32 prescanned_function();
     b32 prescanned_type();
+    b32 prescanned_var_decl();
     b32 struct_decl();
     b32 label();
     b32 label_get();

@@ -43,6 +43,31 @@ resolve_type() {
     return type;
 }
 
+CompileTime* CompileTime::
+create(Type* type) {
+    auto out = pool::add(compiler::instance.storage.comp_times);
+    out->frame.locals = array::init<Var*>();
+    out->type = type;
+    return out;
+}
+
+DString* CompileTime::
+display() {
+    return DString::create("CompileTime");
+}
+
+DString* CompileTime::
+dump() {
+    auto out = DString::create("CompileTime<");
+    if(first_child()) {
+        out->append(ScopedDeref(first_child()->dump()).x);
+    } else {
+        out->append("null");
+    }
+    out->append(">");
+    return out;
+}
+
 ScalarLiteral* ScalarLiteral::
 create() {
     auto out = pool::add(compiler::instance.storage.scalar_literals);

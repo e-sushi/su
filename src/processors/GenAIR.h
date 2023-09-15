@@ -37,6 +37,9 @@ struct GenAIR {
     create(Code* code);
 
     void
+    destroy();
+
+    void
     generate();
 
 private:

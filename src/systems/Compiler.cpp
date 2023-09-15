@@ -31,7 +31,7 @@ init() {
     instance.storage.semas               = pool::init<Sema>(8);
     instance.storage.tac_gens            = pool::init<GenTAC>(8);
     instance.storage.air_gens            = pool::init<GenAIR>(8);
-    instance.storage.machines            = pool::init<Machine>(8);
+    instance.storage.vm                  = pool::init<VM>(8);
     instance.storage.modules             = pool::init<Module>(8);
     instance.storage.labels              = pool::init<Label>(8);
     instance.storage.virtual_labels      = pool::init<VirtualLabel>(8);
@@ -40,6 +40,7 @@ init() {
     instance.storage.functions           = pool::init<Function>(8);
     instance.storage.statements          = pool::init<Stmt>(8);
     instance.storage.expressions         = pool::init<Expr>(8);
+    instance.storage.comp_times          = pool::init<CompileTime>(8);
     instance.storage.scalar_literals     = pool::init<ScalarLiteral>(8);
     instance.storage.string_literals     = pool::init<StringLiteral>(8);
     instance.storage.array_literals      = pool::init<ArrayLiteral>(8);
@@ -228,11 +229,11 @@ begin(Array<String> args) {
 
     entry_source->code = code::from(entry_source);
     
-    entry_source->code->lexer = lex::create();
-    lex::execute(entry_source->code);
+    auto lexer = Lexer::create(entry_source->code);
+    lexer->start();
     
     if(instance.options.dump_tokens.path.str) {
-        lex::output(entry_source->code, instance.options.dump_tokens.human, instance.options.dump_tokens.path);
+        lexer->output(instance.options.dump_tokens.human, instance.options.dump_tokens.path);
         if(instance.options.dump_tokens.exit) return;
     }
 
@@ -249,13 +250,47 @@ begin(Array<String> args) {
     GenTAC::create(entry_source->code)->generate();
     GenAIR::create(entry_source->code)->generate();
 
-    Machine::create(entry_source->code->last_child<Code>())
+    VM::create(entry_source->code->last_child<Code>())
         ->run();
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
     }
 
+}
+
+b32
+funnel(Code* code, code::level level) {
+    while(1) {
+        if(code->level >= level) return true;
+        switch(code->level) {
+            case code::none: {
+                if(!code->lexer) Lexer::create(code);
+                code->lexer->start();
+            } break;
+            case code::lex: {
+                if(!code->parser) Parser::create(code);
+                if(!code->parser->parse()) return false;
+            } break;
+            case code::parse: {
+                if(!code->sema) code->sema = sema::create();
+                if(!sema::analyze(code)) return false;
+            } break;
+            case code::sema: {
+                if(!code->tac_gen) GenTAC::create(code);
+                code->tac_gen->generate();
+            } break;
+            case code::tac: {
+                if(!code->air_gen) GenAIR::create(code);
+                code->air_gen->generate();
+            } break;
+            case code::air: {
+                if(!code->machine) VM::create(code);
+                code->machine->run();
+                code->level = code::machine;
+            } break;
+        }
+    }
 }
 
 } // namespace compiler

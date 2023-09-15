@@ -45,8 +45,7 @@ b32 Parser::
 prescan_start() {
     switch(code->kind) {
         case code::source: {
-            code::TokenIterator token(code);
-            prescan_source();
+            if(!prescan_source()) return false;
         } break;
         case code::function: {
             // code::TokenIterator token = code::token_tokenator(code);
@@ -71,7 +70,7 @@ prescan_source() {
     while(1) {
         switch(token.current_kind()) {
             case token::identifier: {
-                prescan_label();
+                if(!prescan_label()) return false;
             } break;
         }
         if(token.increment()->kind == token::end_of_file) return true;
@@ -96,6 +95,10 @@ prescan_module() {
 b32 Parser::
 prescan_label() {
     Token* id = token.current();
+    if(table.search(id->hash)) {
+        diagnostic::parser::label_already_defined(id, id);
+        return false;
+    }
     switch(token.increment()->kind) {
         case token::colon: {
             switch(token.increment()->kind) {
@@ -169,7 +172,7 @@ prescan_label() {
                             stype->start = start;
                             stype->end =  token.current();
 
-                            l->entity = (Entity*)stype;
+                            l->entity = stype->as<Entity>();
                             stype->label = l;
 
                             auto e = Expr::create(expr::identifier);
@@ -177,7 +180,7 @@ prescan_label() {
 
                             node::insert_first(l, e);
 
-                            nu->parser = Parser::create(nu);
+                            Parser::create(nu);
                             nu->parser->root = l->as<ASTNode>();
 
                             table.add(id->raw, l);
@@ -198,7 +201,54 @@ prescan_label() {
                         } break;
                         default: {
                             // this must be a compile time var declaration, so parse for an expression
+                            // which is kind of hard cause an expression can take so many different forms
+                            // the hardest thing is something like 
+                            // {...} <op> {...}
+                            // which is bad style imo, but im not going to make it against the rules in
+                            // global scope. The difficulty comes from us allowing omitting the semicolon
+                            // after braced code, so when we can over the first {}, we then have to check if 
+                            // it's followed after any token that can continue an expression (or, maybe any token that
+                            // ends an expression), which isn't stable yet. The stuff here will probably need 
+                            // to consistently be updated to cover more syntax. The case above isn't handled for now
+                            // if we find a '{', we just scan to the next matching '}'. Otherwise
+                            // just scan until a ';'
+                            Token* save = token.current();
+                            if(token.is(token::open_brace)) {
+                                token.skip_to_matching_pair();
+                                if(!token.next()) {
+                                    diagnostic::parser::missing_close_brace(save);
+                                    return false;
+                                }
+                            } else {
+                                token.skip_until(token::semicolon);
+                                if(!token.next()) {
+                                    diagnostic::parser::missing_semicolon(save);
+                                    return false;
+                                }
+                            }
 
+                            Code* nu = code::from(code, id, token.current());
+                            nu->kind = code::var_decl;
+
+                            Label* l = Label::create();
+                            l->start = id;
+                            l->end = token.current();
+
+                            auto e = Expr::create(expr::identifier);
+                            e->start = e->end = id;
+
+                            node::insert_first(l, e);
+
+                            auto v = Var::create();
+                            v->label = l;
+                            l->entity = v->as<Entity>();
+
+                            Parser::create(nu);
+                            nu->parser->root = l->as<ASTNode>();
+
+                            table.add(id->raw, l);
+
+                            node::insert_last(code, nu);
                         } break;
                     }
                 } break;
@@ -237,14 +287,13 @@ start() {
     Assert(code->parser, "a parser must have been made for a Code object created in the first stage.");
     switch(code->kind) {
         case code::function: {
-            code::TokenIterator token(code);
             if(!prescanned_function()) return false;
-
-            //util::println(code->parser->root->print_tree());
         } break;
         case code::typedef_: {
-            code::TokenIterator token(code);
             if(!prescanned_type()) return false;
+        } break;
+        case code::var_decl: {
+            if(!prescanned_var_decl()) return false;
         } break;
         case code::source: {
             for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
@@ -253,10 +302,9 @@ start() {
                 c->parser->table.pop();
                 node::insert_last(code->parser->root, c->parser->root);
             }
-            // when we're done, we need to join all of the children's nodes into the source's
-            // maybe 
         } break;
     }
+    code->level = code::parse;
     return true;
 }
 
@@ -304,6 +352,7 @@ prescanned_type() {
 
             auto e = (Expr*)node.pop();
             for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
+                // TODO(sushi) this is probably very inefficient
                 if(s->find_member(m->start->raw)) {
                     diagnostic::parser::struct_duplicate_member_name(m->start, m->start);
                     return false;
@@ -313,17 +362,6 @@ prescanned_type() {
 
             stype->def = e;
 
-            // for(Label* n = e->first_child<Label>(); n; n = n->next<Label>()) {
-            //     if(Member* m = s->find_member(n->start->raw); m) { // TODO(sushi) show where it was already defined 
-            //         diagnostic::parser::struct_duplicate_member_name(n->start, m->label->start);
-            //         return false;
-            //     }
-            //     s->add_member(l->name(), {
-            //         .label = l,
-            //         .inherited = false,
-            //         .offset = offset, 
-            //     });
-            // }
             // reuse the typedef to place in the AST 
             e->type = type;
             node::insert_last(l, e);
@@ -332,6 +370,29 @@ prescanned_type() {
     return true;
 }
 
+b32 Parser::
+prescanned_var_decl() {
+    auto l = code->parser->root->as<Label>();
+    auto v = l->entity->as<Var>();
+
+    token.increment();
+    token.increment();
+
+    if(!expression()) return false;
+
+    auto e = node.pop()->as<Expr>();
+
+    if(!token.is(token::semicolon)) {
+        if(!token.is(token::close_brace)) {
+            diagnostic::parser::missing_semicolon(token.current());
+            return false;
+        }
+    }
+
+    node::insert_last(l, e);
+
+    return true;
+}
 
 /*  parses a structure definition
     expected to be started at the 'struct' token
@@ -811,17 +872,65 @@ expression() {
                 return true;
             }
 
-            auto e = Expr::create(expr::unary_comptime);
-            e->start = token.current();
-
+            auto e = CompileTime::create();
+            e->start = save;
 
             node::insert_first(e, node.pop());
             e->end = e->last_child()->end;
             e->type = e->first_child<Expr>()->type;
 
-            TODO("implement comptime code funneling");
+            // TODO(sushi) we need to setup checks for cases like 
+            //               width :: 5
+            //             because we obv don't need to run this expression
+            //             through the VM
 
-            node.push(e);
+            // TODO(sushi) setup checks for nested compile time expressions, as we
+            //             don't need to create nested Code objects when that 
+            //             happens
+
+            // we need to evaluate this compile time expression, so we segment it into
+            // its own Code object and send it down the pipeline 
+            Code* nu = code::from(code, e);
+            nu->parser->table.last = table.last;
+
+            if(!compiler::funnel(nu, code::machine)) return false;
+
+            // now we need to figure out exactly what was returned from the expression
+            e->type = e->first_child<Expr>()->type;
+
+            // the final expression that this comptime thing will resolve into
+            Expr* fin = 0;
+
+            // a scalar type will just resolve into a scalar literal
+            if(e->type->is<Scalar>()) {
+                auto sl = ScalarLiteral::create();
+                sl->value.kind = e->first_child<Expr>()->type->as<Scalar>()->kind;
+                switch(sl->value.kind) {
+                    case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
+                    case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
+                    case scalar::unsigned32: sl->value = *(u32*)nu->machine->stack; break;
+                    case scalar::unsigned64: sl->value = *(u64*)nu->machine->stack; break;
+                    case scalar::signed8:    sl->value = *(s8*)nu->machine->stack; break;
+                    case scalar::signed16:   sl->value = *(s16*)nu->machine->stack; break;
+                    case scalar::signed32:   sl->value = *(s32*)nu->machine->stack; break;
+                    case scalar::signed64:   sl->value = *(s64*)nu->machine->stack; break;
+                    case scalar::float32:    sl->value = *(f32*)nu->machine->stack; break;
+                    case scalar::float64:    sl->value = *(f64*)nu->machine->stack; break;
+                }
+                fin = sl;
+            } else {
+                Assert(0); // handle other things being returned from comptime expr
+            }
+
+            fin->type = e->type;
+
+            // NOTE(sushi) this will probably cause issues later when we want to display information 
+            //             about whatever is generated from this. 
+            //             It may be better to just keep it around as a child of the current
+            //             Code object.
+            code::destroy(nu);
+
+            node.push(fin);
         } break;
 
         case token::structdecl: {
@@ -1284,13 +1393,6 @@ conditional() {
     if(!expression()) return false;
 
     node::insert_last(e, node.pop());
-
-    // check if the body of this if is returning something
-    auto body = e->first_child<Expr>();
-    if( !body->is<Block>() ||
-        body->child_count && body->last_child()->is(stmt::block_final)) {
-        e->flags.conditional.returning = true;
-    }
 
     node.push(e);
 

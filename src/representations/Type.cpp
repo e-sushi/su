@@ -196,8 +196,10 @@ size() {
 
 DString* StaticArray::
 print_from_address(u8* addr) {
-    TODO("print static arrays from address");
-    return 0;
+    auto out = DString::create();
+    out->append(" data: ", (void*)*(u64*)addr, "\n"
+                "count: ", *(u64*)(addr+8));
+    return out;
 }
 
 Array<ViewArray*> ViewArray::set = array::init<ViewArray*>();

@@ -12,9 +12,6 @@ new_chunk(Pool<T>& pool) {
     node::insert_before(pool.chunk_root, 
         (LNode*)memory::allocate(sizeof(LNode)+pool.items_per_chunk*blocksize));
 
-    // append the first free block to our free blocks list
-    // node::insert_before(&pool.free_blocks, pool.chunk_root.prev + sizeof(LNode));
-
     // connect the remaining free blocks
     u8* blockstart = (u8*)(pool.chunk_root->prev + 1);
     forI(pool.items_per_chunk) {
@@ -58,9 +55,14 @@ init(spt n_per_chunk) {
 
 template<typename T> void
 deinit(Pool<T>& pool) {
-    for(LNode* n = pool.chunk_root->next; n != &pool.chunk_root; n = n->next) {
+    // NOTE(sushi) skip the first chunk cause it's not the same as anything allocated
+    //             after it, see init
+    // TODO(sushi) this is stupid so fix it eventually
+    for(LNode* n = pool.chunk_root->next->next; n != pool.chunk_root; n = n->next) {
         memory::free(n);
     }
+
+    memory::free(pool.free_blocks);
 }
 
 template<typename T> T*

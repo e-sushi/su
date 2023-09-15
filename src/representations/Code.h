@@ -20,7 +20,7 @@ struct Parser;
 struct Sema;
 struct GenTAC;
 struct GenAIR;
-struct Machine;
+struct VM;
 
 namespace token {
 enum kind : u32;
@@ -48,12 +48,25 @@ enum kind {
 
 #include "data/code_strings.generated"
 
+// the level of compilation a given Code object has been through
+enum level {
+    none,
+    lex,
+    parse,
+    sema,
+    tac,
+    opt,
+    air,
+    machine,
+};
+
 } // namespace code
 
 
 
 struct Code : public ASTNode {
     code::kind kind;
+    code::level level;
     // raw representation of this code
     String raw;
 
@@ -74,7 +87,7 @@ struct Code : public ASTNode {
     Sema* sema = 0;
     GenTAC* tac_gen = 0;
     GenAIR* air_gen = 0;
-    Machine* machine = 0;
+    VM* machine = 0;
 
     
     // ~~~~~~ interface ~~~~~~~
@@ -95,6 +108,7 @@ struct SourceCode : public Code {
 
     
     // ~~~~~~ interface ~~~~~~~
+
 
     DString*
     display();
@@ -140,11 +154,8 @@ from(String s);
 Code*
 from(Code* code, Token* start, u64 count);
 
-// create a Code object from an AST node
-// if the TNode does not already mark its own start and end tokens, and 'resolve_start_end' is true
-// we wil attempt to resolve these before giving the Code object
 Code*
-from(TNode* node, b32 resolve_start_end = false);
+from(Code* code, ASTNode* node);
 
 void
 destroy(Code* code);

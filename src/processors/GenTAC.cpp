@@ -4,12 +4,22 @@ GenTAC* GenTAC::
 create(Code* code) {
     GenTAC* out = pool::add(compiler::instance.storage.tac_gens);
     out->code = code;
+    code->tac_gen = out;
     out->pool = pool::init<TAC>(64);
     out->seq = array::init<TAC*>();
     out->loop_start_stack = array::init<TAC*>();
     out->loop_end_stack = array::init<TAC*>();
     out->temps = array::init<Array<TAC*>>();
     return out;
+}
+
+void GenTAC::
+destroy() {
+    pool::deinit(pool);
+    array::deinit(seq);
+    array::deinit(loop_start_stack);
+    array::deinit(loop_end_stack);
+    array::deinit(temps);
 }
 
 void GenTAC::
@@ -26,6 +36,8 @@ generate() {
         }
         util::println(to_string(array::read(seq, i)));
     }
+
+    code->level = code::tac;
 }
 
 void GenTAC::
@@ -42,6 +54,31 @@ start() {
         } break;
         case code::typedef_: {
             // TAC doesn't need to be generated for structures for now 
+            // we might want to generate initialization TAC for structures later once we support that
+            // so that it can be inserted immediately
+        } break;
+        case code::expression: {
+            auto e = code->parser->root->as<CompileTime>();
+            TAC* start = 0;
+            if(e->first_child()->is_not<Block>()) {
+                start = make_and_place();
+                start->op = tac::block_start;
+                start->node = e;
+            }
+            Arg arg = expression(e->first_child<Expr>());
+            if(start) {
+                TAC* end = make_and_place();
+                end->op = tac::ret;
+                end->arg0 = arg;
+                end->node = e;
+            } else if(array::read(seq, -1)->op == tac::block_value) {
+                array::read(seq, -1)->op = tac::ret;
+            }
+        } break;
+        case code::var_decl: {
+            // this is a global variable so for now we'll just make room for it on the stack 
+            // and initialize it to whatever its value needs to be 
+            TODO("handle global vars");
         } break;
         default: {
             TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
@@ -67,6 +104,8 @@ function() {
     auto f  = l->entity->as<Function>();
     auto ft = f->type;
 
+    f->frame.identifier = DString::create(ScopedDeref(f->dump()).x);
+
     messenger::qdebug(code, String("generating TAC for func "), ScopedDStringRef(f->display()).x->fin);
 
     block(l->last_child()->last_child<Block>());
@@ -77,7 +116,8 @@ function() {
         last->op = tac::ret;
     } else {
         TAC* ret = make_and_place(); // wow
-        ret->node = l->last_child()->last_child()->last_child();
+        auto p = l->last_child()->last_child();
+        ret->node = (p->last_child()? p->last_child() : p);
         ret->op = tac::ret;
     }
 } 
@@ -94,7 +134,7 @@ block(Block* e) {
     if(array::read(seq, -1)->op != tac::block_value) {
         tac = make_and_place();
         tac->op = tac::block_end;
-        tac->node = e->last_child();
+        tac->node = (e->last_child()? e->last_child() : e);
     }
 }
 
@@ -130,6 +170,13 @@ statement(Stmt* s) {
                     tac->arg0.var = v;
                     tac->arg1 = arg;
                     tac->node = s;
+
+                    // initialize special types such as StaticArrays 
+                    switch(v->type->kind) {
+                        case type::kind::structured: {
+
+                        } break;
+                    }
                 } break;
                 default: {
                     TODO("unhandled label kind"); // unhandled label kind 
@@ -209,16 +256,24 @@ expression(Expr* e) {
         } break;
 
         case expr::binary_access: {
-            if(e->first_child()->is<VarRef>()) {
-                Arg out;
-                out.kind = arg::member;
-                out.offset_var.var = e->first_child()->as<VarRef>()->var;
-                out.offset_var.member = e->member;
-                return out;
-            } else {
-                TODO("handle binary access on things other than Vars");
+            Arg arg;
+            arg.kind = arg::member;
+            arg.offset_var.type = e->member->type;
+            arg.offset_var.offset = 0;
+
+            Expr* step = e;
+            while(1) {
+                arg.offset_var.offset += step->member->offset;
+                if(step->first_child()->is<VarRef>()) {
+                    arg.offset_var.var = step->first_child<VarRef>()->var;
+                    break;
+                } 
+                step = step->first_child<Expr>();
             }
-        } break;    
+
+            return arg;
+        } break;
+
 
         case expr::cast: {
             Arg arg = expression(e->first_child<Expr>());

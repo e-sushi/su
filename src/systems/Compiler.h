@@ -18,7 +18,7 @@
 #include "processors/GenTAC.h"
 #include "processors/GenAIR.h"
 #include "representations/Code.h"
-#include "systems/Machine.h"
+#include "systems/VM.h"
 
 namespace amu {
 
@@ -36,7 +36,7 @@ struct Compiler {
         Pool<Sema>            semas;
         Pool<GenTAC>          tac_gens;
         Pool<GenAIR>          air_gens;
-        Pool<Machine>         machines;
+        Pool<VM>              vm;
         Pool<Module>          modules;
         Pool<Label>           labels;
         Pool<VirtualLabel>    virtual_labels;
@@ -45,6 +45,7 @@ struct Compiler {
         Pool<Function>        functions;
         Pool<Stmt>            statements;
         Pool<Expr>            expressions;
+        Pool<CompileTime>     comp_times;
         Pool<ScalarLiteral>   scalar_literals;
         Pool<StringLiteral>   string_literals;
         Pool<ArrayLiteral>    array_literals;
@@ -105,6 +106,13 @@ deinit();
 // the entry point of the compiler given a list of command line arguments
 global void
 begin(Array<String> args);
+
+// attempts to compile a Code object up to the given level
+// this doesn't clean up anything as it is expected that whatever is calling it
+// needs information from whatever is generated here. All information generated
+// here can be cleaned up by just calling code::destroy(<code ptr>)
+b32
+funnel(Code* code, code::level level);
 
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler

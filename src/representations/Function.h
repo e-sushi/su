@@ -10,6 +10,7 @@
 #include "Entity.h"
 #include "Type.h"
 #include "Expr.h"
+#include "Frame.h"
 
 namespace amu {
 
@@ -18,10 +19,7 @@ struct FunctionType;
 //             its Label does. 
 struct Function : public Entity {
     FunctionType* type;
-
-    // mapping of a position on a stack to a Variable so that we may
-    // display local vars
-    Map<s64, Var*> locals;
+    Frame frame;
 
     static Function*
     create(FunctionType* type = 0);

@@ -11,6 +11,7 @@
 #include "Type.h"
 #include "Label.h"
 #include "Entity.h"
+#include "Frame.h"
 
 namespace amu {
 
@@ -93,13 +94,6 @@ struct Expr : public Entity {
 
     Type* type; // the semantic type of this expression
 
-    // assortment of flags for each expression type that hint towards certain things 
-    struct {
-        struct {
-            b32 returning : 1 = 0;
-        } conditional;
-    } flags;
-
     // if this is an access expr, this will point to the member being accessed
     // idk where else to put this atm 
     Member* member;
@@ -133,6 +127,31 @@ is<Expr>() { return is<Entity>() && as<Entity>()->kind == entity::expr; }
 
 template<> inline b32 Base::
 is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
+
+// representation of a single expression meant to be evaluated at compile time
+// this is primarily so that we can keep track of frame information that an 
+// Expr may need, which is just local variables for now 
+struct CompileTime : public Expr {
+    Frame frame;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static CompileTime*
+    create(Type* type = 0);
+
+    void
+    destroy();
+
+    DString*
+    display();
+
+    DString*
+    dump();
+
+    CompileTime() : Expr(expr::unary_comptime) {}
+};
 
 // The following Literal structures are to help keep each kind of literal separate
 // while also providing a common interface for working with them.

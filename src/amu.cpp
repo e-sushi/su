@@ -37,15 +37,6 @@
 
 	Project Wide
 	------------------------
-	[!!, **, 23/08/29] DStrings need to be taken better care of. Currently there are leaks all throughout the program
-	                   primarily because we can just rely on memory to be cleaned up by the program ending, but when 
-					   we get around to compile time stuff and especially allowing using amu in a fully interpretted 
-					   style, we will want to make sure that the compiler itself does not cause leaks. 
-
-					   Ideally I would like a system where we can keep track of when a DString is no longer needed.
-					   I tried experimenting with an ownership/reference counting system, but it was just too complicated
-					   and took too much time away from what I needed to be working on at the time. 
-
 	[!!!, *, 23/09/03] I started experimenting with OOP stuff in the compiler some time ago and have gone so far as liberally 
 					   using inheritance in the Type system. This seems to work well internally, but when it comes to the language
 					   trying to reference this information we'll probably start to run into trouble. The biggest thing being 
@@ -73,8 +64,6 @@
 							ID.AddArray(things);
 							...
 						In any case, the logic for creating Types is a big mess that needs cleaned up bad.
-
-
 */
 
 
@@ -112,16 +101,17 @@
 #include "representations/Tuple.h"
 #include "representations/TAC.h"
 #include "representations/AIR.h"
+#include "representations/Frame.h"
 #include "representations/Code.h"
 #include "systems/Diagnostics.h"
-#include "systems/Messenger.h"
+#include "systems/VM.h"
 #include "systems/Compiler.h"
 #include "processors/Lexer.h"
 #include "processors/Parser.h"
 #include "processors/Sema.h"
 #include "processors/GenTAC.h"
 #include "processors/GenAIR.h"
-#include "systems/Machine.h"
+#include "systems/VM.h"
 
 #include <thread>
 #include <chrono>
@@ -155,7 +145,7 @@
 #include "processors/Sema.cpp"
 #include "processors/GenTAC.cpp"
 #include "processors/GenAIR.cpp"
-#include "systems/Machine.cpp"
+#include "systems/VM.cpp"
 
 
 int main(int argc, char* argv[]){

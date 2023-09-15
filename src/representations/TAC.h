@@ -139,10 +139,13 @@ struct Arg {
         u64 stack_offset;
         width w;
 
-        // a Variable with an offset
+        // a Variable with an offset and the Type of that offset
+        // the reason we don't just store a Member here is because
+        // that wouldn't work for nested access
         struct {
             Var* var;
-            Member* member;
+            u64 offset;
+            Type* type;
         } offset_var;
     };
 
@@ -226,7 +229,7 @@ to_string(DString* current, Arg* arg) {
             if(!arg->offset_var.var) {
                 current->append("?");
             } else {
-                current->append(arg->offset_var.var->display(),"+",arg->offset_var.member->offset);
+                current->append(arg->offset_var.var->display(),"+",arg->offset_var.offset);
             }
         } break;
     }

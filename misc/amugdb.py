@@ -324,7 +324,7 @@ class BC_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *to_string((BC*){val.address}, code)", to_string = True)
+            s = gdb.execute(f"call *to_string(*(BC*){val.address})", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -428,15 +428,7 @@ class print_ast(gdb.Command):
     def invoke(self, arg, tty):
         try: 
             val = gdb.parse_and_eval(arg)
-            if not is_tnode(val):
-                print(f"past requires a TNode or TNode* as its argument")
-                return
-            addr = 0
-            if val.type.code == gdb.TYPE_CODE_PTR:
-                addr = int(val)
-            else:
-                addr = val.address
-            out = gdb.execute(f"call node::util::print_tree((TNode*){addr}, true)", to_string=True)
+            out = gdb.execute(f"call *(((ASTNode*){val.dereference().address})->print_tree(true))", to_string=True)
             # String's printer turns newlines into '\n' but we want them here, so we need to replace them (again)
             out = out[out.find('=')+2:-1]
             print(out.replace("\\n", "\n"))
@@ -591,3 +583,5 @@ class emit_gast(gdb.Command):
             print(f"{self.__class__.__name__} error: {e}")
             return 
 emit_gast()
+
+

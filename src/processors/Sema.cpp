@@ -539,15 +539,26 @@ module(Code* code, ASTNode* node) { announce_stage(node);
 
 b32 
 start(Code* code) {
-    if(code->parser->root->is<Module>()) {
-        if(!module(code, code->parser->root)) return false;
-        // util::println(code->parser->root->print_tree(true));
-
-    } else switch(code->parser->root->kind) {
+    switch(code->parser->root->kind) {
         case ast::entity: {
-            DebugBreakpoint;
+            auto e = code->parser->root->as<Entity>();
+            switch(e->kind) {
+                case entity::module: {
+                    if(!module(code, code->parser->root)) return false;
+                    // util::println(code->parser->root->print_tree(true));
+                } break;
+
+                case entity::expr: {
+                    if(!expr(code, e->as<Expr>())) return false;
+                } break;
+
+                default: DebugBreakpoint;
+            }
         } break;
+
+        default: DebugBreakpoint;
     }
+    code->level = code::sema;
     return true;
 }
 
@@ -566,8 +577,6 @@ pop(Code* code);
 b32
 analyze(Code* code) {
     if(!code->sema) code->sema = sema::create();
-
-
     return internal::start(code);
 }
 
