@@ -389,6 +389,8 @@ prescanned_var_decl() {
         }
     }
 
+    v->type = e->type;
+
     if(e->is<CompileTime>()) {
         v->is_compile_time = true;
         v->memory = (u8*)memory::allocate(v->type->size());
