@@ -1,6 +1,4 @@
 namespace amu {
-namespace lex {
-
 namespace internal {
 
 #define strcase(s) case string::static_hash(s)
@@ -71,18 +69,22 @@ is_identifier_char(u32 codepoint) {
 
 } // namespace internal
 
-Lexer*
-create() {
+Lexer* Lexer::
+create(Code* code) {
 	Lexer* out = pool::add(compiler::instance.storage.lexers);
 	out->labels = array::init<spt>();
+	out->code = code;
+	code->lexer = out;
 	return out;
 }
 
-void 
-destroy(Lexer* lexer) {}
+void Lexer::
+destroy() {
+	array::deinit(labels);
+}
 
-void
-execute(Code* code) {
+void Lexer::
+start() {
 #define stream_next { string::advance(stream); line_col++; } 
 
 //!ref: https://github.com/pervognsen/bitwise/blob/master/ion/lex.c
@@ -458,10 +460,12 @@ stream_next;                     \
 	DString* time = util::format_time(util::stopwatch::peek(lexer_time));
 	messenger::dispatch(message::attach_sender(code,
 		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(time))));
+
+	code->level = code::lex;
 } // lex::execute
 
-void
-output(Code* code, b32 human, String path) {
+void Lexer::
+output(b32 human, String path) {
     FILE* out = fopen((char*)path.str, "w");
     if(!out) {
 		diagnostic::internal::
@@ -499,5 +503,4 @@ output(Code* code, b32 human, String path) {
     fclose(out);
 }
 
-} // namespace lex
 } // namespace amu
