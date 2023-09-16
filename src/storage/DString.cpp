@@ -113,9 +113,23 @@ void DString::
 indent(s64 n) {
     if(!n) return;
     if(n < 0) {
-
+        NotImplemented; // :P
     } else {
-        
+        forI(n) {
+            insert(0, " ");
+        }
+        u32 last = 0;
+        while(1) {
+            u32 nl = string::find_first({str+last+n+1, count-last-n-1}, '\n');
+            if(nl == npos) return;
+
+            nl += last+n+2;
+
+            forI(n) {
+                insert(nl, " ");
+            }
+            last = nl+n+1;
+        }
     }
 }
 
