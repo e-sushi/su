@@ -26,6 +26,11 @@ namespace amu {
 
 struct DString;
 
+struct DecodedCodepoint{
+	u32 codepoint;
+	u32 advance;
+};
+
 struct String {
     union {
         u8* str;
@@ -42,12 +47,114 @@ struct String {
     String(u8* s, s64 count) : str(s), count(count) {}
     consteval String(const char* in) : __char_str((char*)in), count(util::constexpr_strlen(in)) {}
     operator bool() { return str && count; }
+
+	DecodedCodepoint
+	advance(u32 n = 1);
+
+	void
+	advance_until(u32 c);
+
+	void
+	advance_while(u32 c);
+
+	inline DecodedCodepoint
+	index(u64 n);
+
+	inline s64
+	length();
+
+	s64
+	compare(String s, u64 n = 1);
+
+	b32 
+	equal(String s);
+
+	inline b32
+	nequal(String s, u64 n);
+
+	inline b32
+	begins_with(String s);
+	
+	inline b32
+	ends_with(String s);
+
+	b32
+	contains(String s);
+
+	u32
+	find_first(u32 codepoint);
+
+	u32
+	find_last(u32 codepoint);
+
+	inline String
+	eat(u64 n = 1);
+
+	inline String 
+	eat_until(u32 c);
+
+	inline String
+	eat_until_last(u32 c);
+
+	inline String
+	eat_until_str(String s);
+
+	inline String
+	eat_whitespace();
+
+	inline String
+	eat_word(b32 include_underscore = 0);
+
+	inline String
+	eat_int();
+
+	inline String
+	skip(u64 n = 1);
+
+	inline String 
+	skip_until(u32 c);
+
+	inline String
+	skip_until_last(u32 c);
+
+	inline String
+	skip_whitespace();
+
+	// eats and returns a line
+	String
+	eat_line();
+
+	Array<String>
+	find_lines();
+
+	Array<s32>
+	find_line_offsets(String s);
+
+	u64 
+	hash(u64 seed = 14695981039346656037) {
+		auto s = *this;
+		while(s.count-- != 0){
+			seed ^= *s.str++;
+			seed *= 1099511628211; //64bit FNV_prime
+		}
+		return seed;
+	}
+
+	f64 
+	to_f64() {
+		return strtod((char*)str, 0);
+	}
+
+	s64
+	to_s64() {
+		s64 x;
+		(void)sscanf((char*)str, "%lli", &x);
+		return x;
+	}
+
 };
 
-struct DecodedCodepoint{
-	u32 codepoint;
-	u32 advance;
-};
+
 
 namespace string {
 
@@ -189,275 +296,275 @@ isdigit(u32 codepoint){
 	return false;
 }
 
-DecodedCodepoint
-advance(String& s, u32 n = 1) {
-    DecodedCodepoint decoded{};
-    while(s && n--){
-        decoded = internal::decoded_codepoint_from_utf8(s.str, 4);
-        internal::increment(s, decoded.advance);
-    }
-	return decoded;
-}
+// DecodedCodepoint
+// advance(String& s, u32 n = 1) {
+//     DecodedCodepoint decoded{};
+//     while(s && n--){
+//         decoded = internal::decoded_codepoint_from_utf8(s.str, 4);
+//         internal::increment(s, decoded.advance);
+//     }
+// 	return decoded;
+// }
 
-global void
-advance_until(String& s, u32 c){
-    DecodedCodepoint decoded{};
-    while(s){
-        decoded = internal::decoded_codepoint_from_utf8(s.str, 4);
-        if(decoded.codepoint == c) break;
-        internal::increment(s, decoded.advance);
-    }
-}
+// global void
+// advance_until(String& s, u32 c){
+//     DecodedCodepoint decoded{};
+//     while(s){
+//         decoded = internal::decoded_codepoint_from_utf8(s.str, 4);
+//         if(decoded.codepoint == c) break;
+//         internal::increment(s, decoded.advance);
+//     }
+// }
 
-global void
-advance_while(String& s, u32 c){
-    DecodedCodepoint decoded{};
-    while(s){
-        decoded = internal::decoded_codepoint_from_utf8(s.str, 4);
-        if(decoded.codepoint != c) break;
-        internal::increment(s, decoded.advance);
-    }
-}
+// global void
+// advance_while(String& s, u32 c){
+//     DecodedCodepoint decoded{};
+//     while(s){
+//         decoded = internal::decoded_codepoint_from_utf8(s.str, 4);
+//         if(decoded.codepoint != c) break;
+//         internal::increment(s, decoded.advance);
+//     }
+// }
 
-global inline DecodedCodepoint
-index(String a, u64 n){
-	return advance(a, n+1);
-}
+// global inline DecodedCodepoint
+// index(String a, u64 n){
+// 	return advance(a, n+1);
+// }
 
-global inline s64
-length(String a){
-	s64 result = 0;
-	while(advance(a).codepoint) result++;
-	return result;
-}
+// global inline s64
+// length(String a){
+// 	s64 result = 0;
+// 	while(advance(a).codepoint) result++;
+// 	return result;
+// }
 
-global s64
-compare(String a, String b, u64 n = 1){
-	if(a.str == b.str && a.count == b.count) return 0;
-	s64 diff = 0;
-	while(diff == 0 && n-- && (a || b)) diff = (s64)advance(a).codepoint - (s64)advance(b).codepoint;
-	return diff;
-}
+// global s64
+// compare(String a, String b, u64 n = 1){
+// 	if(a.str == b.str && a.count == b.count) return 0;
+// 	s64 diff = 0;
+// 	while(diff == 0 && n-- && (a || b)) diff = (s64)advance(a).codepoint - (s64)advance(b).codepoint;
+// 	return diff;
+// }
 
-global b32 
-equal(String a, String b) {
-    return a.count == b.count && compare(a, b) == 0;
-}
+// global b32 
+// equal(String a, String b) {
+//     return a.count == b.count && compare(a, b) == 0;
+// }
 
-global inline b32
-nequal(String a, String b, u64 n){
-	return compare(a, b, n) == 0;
-}
+// global inline b32
+// nequal(String a, String b, u64 n){
+// 	return compare(a, b, n) == 0;
+// }
 
-global inline b32
-begins_with(String a, String b){
-	if(a.str == b.str && a.count == b.count) return true;
-	return a.count >= b.count && compare(a, b, length(b)) == 0;
-}
+// global inline b32
+// begins_with(String a, String b){
+// 	if(a.str == b.str && a.count == b.count) return true;
+// 	return a.count >= b.count && compare(a, b, length(b)) == 0;
+// }
 
-global inline b32
-ends_with(String a, String b){
-	if(a.str == b.str && a.count == b.count) return true;
-	return a.count >= b.count && compare(String(a.str+a.count-b.count,b.count), b) == 0;
-}
+// global inline b32
+// ends_with(String a, String b){
+// 	if(a.str == b.str && a.count == b.count) return true;
+// 	return a.count >= b.count && compare(String(a.str+a.count-b.count,b.count), b) == 0;
+// }
 
-global b32
-contains(String a, String b){
-	if(a.str == b.str && a.count == b.count) return true;
-	u32 b_len = length(b);
-	while(a){
-		if(b.count > a.count) return false;
-		if(nequal(a, b, b_len)) return true;
-		advance(a);
-	}
-	return false;
-}
+// global b32
+// contains(String a, String b){
+// 	if(a.str == b.str && a.count == b.count) return true;
+// 	u32 b_len = length(b);
+// 	while(a){
+// 		if(b.count > a.count) return false;
+// 		if(nequal(a, b, b_len)) return true;
+// 		advance(a);
+// 	}
+// 	return false;
+// }
 
-global u32
-find_first(String a, u32 codepoint){
-	u32 iter = 0;
-	while(a.count){
-		DecodedCodepoint d = advance(a);
-		if(d.codepoint==codepoint) return iter;
-		iter++;
-	}
-	return npos;
-}
+// global u32
+// find_first(String a, u32 codepoint){
+// 	u32 iter = 0;
+// 	while(a.count){
+// 		DecodedCodepoint d = advance(a);
+// 		if(d.codepoint==codepoint) return iter;
+// 		iter++;
+// 	}
+// 	return npos;
+// }
 
-global u32
-find_last(String a, u32 codepoint) {
-	u32 iter = 0;
-	while(iter < a.count){
-		iter += internal::utf8_move_back(a.str+a.count-iter);
-		iter++;
-		if(internal::decoded_codepoint_from_utf8(a.str+a.count-iter,4).codepoint == codepoint) return a.count-iter;
-	}
-	return npos;
-}
+// global u32
+// find_last(String a, u32 codepoint) {
+// 	u32 iter = 0;
+// 	while(iter < a.count){
+// 		iter += internal::utf8_move_back(a.str+a.count-iter);
+// 		iter++;
+// 		if(internal::decoded_codepoint_from_utf8(a.str+a.count-iter,4).codepoint == codepoint) return a.count-iter;
+// 	}
+// 	return npos;
+// }
 
-global inline String
-eat(String a, u64 n = 1){
-	String b = a;
-	advance(b, n);
-	if(!b) return a;
-	return String(a.str, a.count-b.count);
-}
+// global inline String
+// eat(String a, u64 n = 1){
+// 	String b = a;
+// 	advance(b, n);
+// 	if(!b) return a;
+// 	return String(a.str, a.count-b.count);
+// }
 
 
-global inline String 
-eat_until(String a, u32 c) {
-   	String b = a;
-    DecodedCodepoint decoded{};
-	while(b){
-		decoded = internal::decoded_codepoint_from_utf8(b.str, 4);
-		if(decoded.codepoint == c) break;
-		internal::increment(b, decoded.advance);
-	}
-	if(!b) return a;
-	return String{a.str, a.count-b.count};
-}
+// global inline String 
+// eat_until(String a, u32 c) {
+//    	String b = a;
+//     DecodedCodepoint decoded{};
+// 	while(b){
+// 		decoded = internal::decoded_codepoint_from_utf8(b.str, 4);
+// 		if(decoded.codepoint == c) break;
+// 		internal::increment(b, decoded.advance);
+// 	}
+// 	if(!b) return a;
+// 	return String{a.str, a.count-b.count};
+// }
 
-global inline String
-eat_until_last(String a, u32 c) {
-	String b = a;
-	s64 count = 0;
-    DecodedCodepoint decoded{};
-	while(b){
-		decoded = internal::decoded_codepoint_from_utf8(b.str, 4);
-		if(decoded.codepoint == c) count = b.count;
-		internal::increment(b, decoded.advance);
-	}
-	return String(a.str, a.count-count);
-}
+// global inline String
+// eat_until_last(String a, u32 c) {
+// 	String b = a;
+// 	s64 count = 0;
+//     DecodedCodepoint decoded{};
+// 	while(b){
+// 		decoded = internal::decoded_codepoint_from_utf8(b.str, 4);
+// 		if(decoded.codepoint == c) count = b.count;
+// 		internal::increment(b, decoded.advance);
+// 	}
+// 	return String(a.str, a.count-count);
+// }
 
-global inline String
-eat_until_str(String a, String c) {
-    String b = a;
-	while(b){
-		if(begins_with(b, c)) break;
-		advance(b);
-	}
-	if(!b) return a;
-	return String{a.str, a.count-b.count};
-}
+// global inline String
+// eat_until_str(String a, String c) {
+//     String b = a;
+// 	while(b){
+// 		if(begins_with(b, c)) break;
+// 		advance(b);
+// 	}
+// 	if(!b) return a;
+// 	return String{a.str, a.count-b.count};
+// }
 
-global inline String
-eat_whitespace(String a){
-	String out = {a.str,0};
-	while(a){
-		DecodedCodepoint dc = advance(a); 
-		if(!isspace(dc.codepoint)) break;
-		out.count += dc.advance;
-	}
-	return out;
-}
+// global inline String
+// eat_whitespace(String a){
+// 	String out = {a.str,0};
+// 	while(a){
+// 		DecodedCodepoint dc = advance(a); 
+// 		if(!isspace(dc.codepoint)) break;
+// 		out.count += dc.advance;
+// 	}
+// 	return out;
+// }
 
-global inline String
-eat_word(String a, b32 include_underscore = 0){
-	String out = {a.str,0};
-	while(a){
-		DecodedCodepoint dc = advance(a);
-		if(!isalnum(dc.codepoint)) break;
-		if(dc.codepoint == '_' && !include_underscore) break;
-		out.count += dc.advance;
-	}
-	return out;
-}
+// global inline String
+// eat_word(String a, b32 include_underscore = 0){
+// 	String out = {a.str,0};
+// 	while(a){
+// 		DecodedCodepoint dc = advance(a);
+// 		if(!isalnum(dc.codepoint)) break;
+// 		if(dc.codepoint == '_' && !include_underscore) break;
+// 		out.count += dc.advance;
+// 	}
+// 	return out;
+// }
 
-global inline String
-str8_eat_int(String a){
-	String out = {a.str,0};
-	while(a){
-		DecodedCodepoint dc = advance(a);
-		if(!isdigit(dc.codepoint)) break;
-		out.count += dc.advance;
-	}
-	return out;
-}
+// global inline String
+// str8_eat_int(String a){
+// 	String out = {a.str,0};
+// 	while(a){
+// 		DecodedCodepoint dc = advance(a);
+// 		if(!isdigit(dc.codepoint)) break;
+// 		out.count += dc.advance;
+// 	}
+// 	return out;
+// }
 
-global inline String
-skip(String a, u64 n = 1) {
-    advance(a, n);
-	return a;
-}
+// global inline String
+// skip(String a, u64 n = 1) {
+//     advance(a, n);
+// 	return a;
+// }
 
-global inline String 
-skip_until(String a, u32 c) {
-    while(a){
-		DecodedCodepoint decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
-		if(decoded.codepoint == c) break;
-		internal::increment(a, decoded.advance);
-	}
-	return a;
-}
+// global inline String 
+// skip_until(String a, u32 c) {
+//     while(a){
+// 		DecodedCodepoint decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
+// 		if(decoded.codepoint == c) break;
+// 		internal::increment(a, decoded.advance);
+// 	}
+// 	return a;
+// }
 
-global inline String
-skip_until_last(String a, u32 c) {
-    String b{};
-	while(a){
-		DecodedCodepoint decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
-		if(decoded.codepoint == c) b = a;
-		internal::increment(a, decoded.advance);
-	}
-	return b;
-}
+// global inline String
+// skip_until_last(String a, u32 c) {
+//     String b{};
+// 	while(a){
+// 		DecodedCodepoint decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
+// 		if(decoded.codepoint == c) b = a;
+// 		internal::increment(a, decoded.advance);
+// 	}
+// 	return b;
+// }
 
-inline String
-skip_whitespace(String a) {
-	String out = a;
-	while(a){
-		if(!isspace(*out.str)) break;
-		advance(out);
-	}
-	return out;
-}
+// inline String
+// skip_whitespace(String a) {
+// 	String out = a;
+// 	while(a){
+// 		if(!isspace(*out.str)) break;
+// 		advance(out);
+// 	}
+// 	return out;
+// }
 
-// eats and returns a line
-String
-eat_line(String s) {
-	String out = {s.str, 0};
-	while(s && *s.str != '\n') {
-		string::advance(s);
-		out.count += 1;
-	}
-	return out;
-}
+// // eats and returns a line
+// String
+// eat_line(String s) {
+// 	String out = {s.str, 0};
+// 	while(s && *s.str != '\n') {
+// 		string::advance(s);
+// 		out.count += 1;
+// 	}
+// 	return out;
+// }
 
-Array<String>
-find_lines(String s) {
-	Array<String> out = Array<String>::create();
-	String cur = {s.str, 0};
-	while(s) {
-		if(*s.str == '\n') {
-			out.push(cur);
-			cur = {s.str + 1, 0};
-		} else cur.count++;
-		string::advance(s);
-	}
-	return out;
-}
+// Array<String>
+// find_lines(String s) {
+// 	Array<String> out = Array<String>::create();
+// 	String cur = {s.str, 0};
+// 	while(s) {
+// 		if(*s.str == '\n') {
+// 			out.push(cur);
+// 			cur = {s.str + 1, 0};
+// 		} else cur.count++;
+// 		string::advance(s);
+// 	}
+// 	return out;
+// }
 
-Array<s32>
-find_line_offsets(String s) {
-	Array<s32> out = Array<s32>::create();
-	u8* start = s.str;
-	while(s) {
-		if(*s.str == '\n') {
-			out.push(s32(s.str-start));
-		}
-		string::advance(s);
-	}
-	return out;
-}
+// Array<s32>
+// find_line_offsets(String s) {
+// 	Array<s32> out = Array<s32>::create();
+// 	u8* start = s.str;
+// 	while(s) {
+// 		if(*s.str == '\n') {
+// 			out.push(s32(s.str-start));
+// 		}
+// 		string::advance(s);
+// 	}
+// 	return out;
+// }
 
-global u64 
-hash(String s, u64 seed = 14695981039346656037) {
-    while(s.count-- != 0){
-		seed ^= *s.str++;
-		seed *= 1099511628211; //64bit FNV_prime
-	}
-	return seed;
-}
+// global u64 
+// hash(String s, u64 seed = 14695981039346656037) {
+//     while(s.count-- != 0){
+// 		seed ^= *s.str++;
+// 		seed *= 1099511628211; //64bit FNV_prime
+// 	}
+// 	return seed;
+// }
 
 consteval u64
 static_hash(String s, u64 seed = 14695981039346656037) {
@@ -469,23 +576,23 @@ static_hash(String s, u64 seed = 14695981039346656037) {
 	return seed;
 }
 
-f64 
-to_f64(const String& s) {
-    return strtod((char*)s.str, 0);
-}
+// f64 
+// to_f64(const String& s) {
+//     return strtod((char*)s.str, 0);
+// }
 
-s64
-to_s64(const String& s) {
-    s64 x;
-    (void)sscanf((char*)s.str, "%lli", &x);
-    return x;
-}
+// s64
+// to_s64(const String& s) {
+//     s64 x;
+//     (void)sscanf((char*)s.str, "%lli", &x);
+//     return x;
+// }
 
 } // namespace string
 
 namespace util {
-template<> FORCE_INLINE u64 hash(const String& s) {return string::hash((String&)s);}
-template<> FORCE_INLINE u64 hash(String* s) {return string::hash(*s);}
+template<> FORCE_INLINE u64 hash(const String& s) {return ((String&)s).hash();}
+template<> FORCE_INLINE u64 hash(String* s) {return (*s).hash();}
 
 void 
 print(String s) {

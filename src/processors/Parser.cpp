@@ -1941,21 +1941,21 @@ reduce_literal_to_literal_expression() {
         case token::literal_character: {
             auto e = ScalarLiteral::create();
             e->start = e->end = token.current();
-            e->value = (u8)string::to_s64(e->start->raw);
+            e->value = (u8)e->start->raw.to_s64();
             e->type = &scalar::_u8;
             node.push(e);
         } break;
         case token::literal_float: {
             auto e = ScalarLiteral::create();
             e->start = e->end = token.current();
-            e->value = string::to_f64(e->start->raw);
+            e->value = e->start->raw.to_f64();
             e->type = &scalar::_f64;
             node.push(e);
         } break;
         case token::literal_integer: {
             auto e = ScalarLiteral::create();
             e->start = e->end = token.current();
-            e->value = string::to_s64(e->start->raw);
+            e->value = e->start->raw.to_s64();
             e->type = &scalar::_s64;
             node.push(e);
         } break;

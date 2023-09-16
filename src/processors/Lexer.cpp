@@ -1,11 +1,11 @@
 namespace amu {
-namespace internal {
+namespace lexer::internal {
 
 #define strcase(s) case string::static_hash(s)
 
 local token::kind
 token_is_keyword_or_identifier(String raw) {
-    switch(string::hash(raw)) {
+    switch(raw.hash()) {
         strcase("return"):    return token::return_;
 		strcase("if"):        return token::if_;
 		strcase("else"):      return token::else_;
@@ -43,7 +43,7 @@ token_is_keyword_or_identifier(String raw) {
 
 local token::kind
 token_is_directive_or_identifier(String raw) {
-    switch(string::hash(raw)) {
+    switch(raw.hash()) {
         strcase("import"):                 return token::directive_import;
 		strcase("internal"):               return token::directive_internal;
 		strcase("run"):                    return token::directive_run;
@@ -85,7 +85,7 @@ destroy() {
 
 void Lexer::
 start() {
-#define stream_next { string::advance(stream); line_col++; } 
+#define stream_next { stream.advance(); line_col++; } 
 
 //!ref: https://github.com/pervognsen/bitwise/blob/master/ion/lex.c
 #define CASE1(c1,t1) \
@@ -180,17 +180,17 @@ stream_next;                     \
 					while(isdigit(*stream.str)){ stream_next; } //skip to non-digit
 					token.raw.count = stream.str - token.raw.str;
 					token.kind      = token::literal_float;
-					token.f64_val   = string::to_f64(token.raw); 
+					token.f64_val   = token.raw.to_f64(); 
 				}else if(*stream.str == 'x' || *stream.str == 'X'){
 					stream_next;
 					while(isxdigit(*stream.str)){ stream_next; } //skip to non-hexdigit
 					token.raw.count = stream.str - token.raw.str;
 					token.kind      = token::literal_integer;
-					token.s64_val   = string::to_s64(token.raw);
+					token.s64_val   = token.raw.to_s64();
 				}else{
 					token.raw.count = stream.str - token.raw.str;
 					token.kind      = token::literal_integer;
-					token.s64_val   = string::to_s64(token.raw); 
+					token.s64_val   = token.raw.to_s64(); 
 				}	
 
 				token.l1 = line_num;
@@ -381,16 +381,16 @@ stream_next;                     \
 			}break;
 			
 			default:{
-				if(internal::is_identifier_char(string::codepoint(stream))){
-				  	while(internal::is_identifier_char(string::codepoint(stream))) 
+				if(lexer::internal::is_identifier_char(string::codepoint(stream))){
+				  	while(lexer::internal::is_identifier_char(string::codepoint(stream))) 
 						stream_next; //skip until we find a non-identifier char
 
                 	token.raw.count = stream.str - token.raw.str;
-                	token.kind = internal::token_is_keyword_or_identifier(token.raw);
-					token.hash = string::hash(token.raw);
+                	token.kind = lexer::internal::token_is_keyword_or_identifier(token.raw);
+					token.hash = token.raw.hash();
 
 					if(tokens.count && tokens.read(-1).kind == token::pound){
-						token::kind kind = internal::token_is_directive_or_identifier(token.raw);
+						token::kind kind = lexer::internal::token_is_directive_or_identifier(token.raw);
 						if(kind == token::identifier){
                             diagnostic::lexer::
 								unknown_directive(&token, token.raw);

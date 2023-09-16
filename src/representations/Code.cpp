@@ -360,7 +360,7 @@ get(Token* t, Options opt) {
         forI(out.lines.count) {
             String line = out.lines.read(i);
             if(!line.count) continue;
-            s32 whitespace_len = string::eat_whitespace(line).count;
+            s32 whitespace_len = line.eat_whitespace().count;
             if(whitespace_len == line.count) continue;
             min_leading = amu::util::Min(min_leading, whitespace_len);
             if(!min_leading) break;
@@ -378,7 +378,7 @@ get(Token* t, Options opt) {
             save->deref();
         }
 
-        out.lines = string::find_lines(out.str);
+        out.lines = out.str->fin.find_lines();
     }
 
     if(opt.line_numbers) {

@@ -126,6 +126,7 @@
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
 #include "storage/DString.cpp"
+#include "storage/String.cpp"
 #include "storage/Map.cpp"
 #include "representations/Source.cpp"
 #include "representations/Entity.cpp"

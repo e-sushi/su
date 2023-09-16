@@ -1,6 +1,6 @@
 namespace amu {
 
-namespace internal {
+namespace array::internal {
 
 template<typename T> void 
 grow_if_needed(Array<T>& arr) {
@@ -11,7 +11,7 @@ grow_if_needed(Array<T>& arr) {
     }
 }
 
-} // namespace internal
+} // namespace array::internal
 
 template<typename T> Array<T> Array<T>::
 create(u32 initial_space) {
@@ -30,7 +30,7 @@ destroy() {
 
 template<typename T> T*  Array<T>::
 push() {
-    internal::grow_if_needed(*this);
+    array::internal::grow_if_needed(*this);
     T* out = new (this->data + this->count) T();
     this->count += 1;
 
@@ -39,7 +39,7 @@ push() {
 
 template<typename T> void Array<T>::
 push(const T& val) {
-    internal::grow_if_needed(*this);
+    array::internal::grow_if_needed(*this);
     *(this->data + this->count) = val;
     this->count += 1;
 }
@@ -62,7 +62,7 @@ insert(spt idx) {
     
     Assert(idx < this->count);
 
-    internal::grow_if_needed(*this);
+    array::internal::grow_if_needed(*this);
 
     memory::move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
     memory::zero(this->data + idx, sizeof(T));
@@ -74,7 +74,7 @@ template<typename T> void Array<T>::
 insert(spt idx, const T& val) {
     Assert(idx <= this->count);
 
-    internal::grow_if_needed(*this);
+    array::internal::grow_if_needed(*this);
 
     if(!this->count) {
         push(val);

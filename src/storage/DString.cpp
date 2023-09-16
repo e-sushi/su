@@ -120,7 +120,7 @@ indent(s64 n) {
         }
         u32 last = 0;
         while(1) {
-            u32 nl = string::find_first({str+last+n+1, count-last-n-1}, '\n');
+            u32 nl = String{str+last+n+1, count-last-n-1}.find_first('\n');
             if(nl == npos) return;
 
             nl += last+n+2;

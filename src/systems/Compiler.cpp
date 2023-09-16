@@ -79,7 +79,7 @@ b32
 parse_arguments(Array<String> args) {
     for(s32 i = 1; i < args.count; i++) {
         String arg = args.read(i);
-        u64 hash = string::hash(arg);
+        u64 hash = arg.hash();
         switch(hash) {
 
             case string::static_hash("-q"): {
@@ -89,9 +89,9 @@ parse_arguments(Array<String> args) {
             case string::static_hash("--dump-tokens"): {
                 while(i != args.count-1) {
                     arg = args.read(++i);
-                    if(string::equal(arg, "-human")) {
+                    if(arg.equal("-human")) {
                         instance.options.dump_tokens.human = true;
-                    }else if(string::equal(arg, "-exit")) {
+                    }else if(arg.equal("-exit")) {
                         instance.options.dump_tokens.exit = true;
                     } else break;
                 }
@@ -106,7 +106,7 @@ parse_arguments(Array<String> args) {
 
             case string::static_hash("--dump-diagnostics"): {
                 arg = args.read(++i);
-                if(string::equal(arg, "-source")) {
+                if(arg.equal("-source")) {
                     instance.options.dump_diagnostics.sources = Array<String>::create();
                     arg = args.read(++i);
                     if(arg.str[0] == '-') {

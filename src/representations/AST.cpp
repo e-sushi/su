@@ -24,7 +24,7 @@ replace(ASTNode* with) {
 	if(my->next) my->next->prev = their;
 }
 
-namespace internal {
+namespace ast::internal {
 
 template<void (*callback)(DString*,ASTNode*)> void
 print_tree_recursive(DString* current, ASTNode* n, b32 newlines) {
@@ -54,7 +54,7 @@ print_tree_recursive(DString* current, ASTNode* n, b32 newlines) {
 template<void (*callback)(DString*,ASTNode*)> DString* ASTNode::
 print_tree(b32 newlines) {
     DString* out = DString::create();
-    internal::print_tree_recursive<callback>(out, this, newlines);
+    ast::internal::print_tree_recursive<callback>(out, this, newlines);
     return out;
 } 
 
@@ -83,7 +83,7 @@ first_line(b32 line_numbers, b32 remove_leading_whitespace) {
 	String out = String{scan_left, scan_right-scan_left};
 
 	if(remove_leading_whitespace) 
-		out = string::skip_whitespace(out);
+		out = out.skip_whitespace();
 
 	if(line_numbers) // !Leak
 		out = DString::create(start->l0, ": ", out);
