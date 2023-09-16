@@ -14,9 +14,9 @@ namespace amu {
 Parser* Parser::
 create(Code* code) {
     Parser* out = pool::add(compiler::instance.storage.parsers);
-    out->table.stack = array::init<LabelTable*>();
+    out->table.stack = Array<LabelTable*>::create();
     out->table.last = 0;
-    out->node.stack = array::init<ASTNode*>();
+    out->node.stack = Array<ASTNode*>::create();
     out->node.current = 0;
     out->code = code;
     code->parser = out;
@@ -36,8 +36,8 @@ parse() {
 
 void Parser::
 destroy() {
-    array::deinit(table.stack);
-    array::deinit(node.stack);
+    table.stack.destroy();
+    node.stack.destroy();
     pool::remove(compiler::instance.storage.parsers, this);
 }
 
@@ -803,11 +803,11 @@ tuple() {
         Tuple* t = Tuple::create();
         t->kind = tuple::multireturn;
 
-        ScopedArray<Type*> types = array::init<Type*>();
+        ScopedArray<Type*> types = Array<Type*>::create();
 
         forI(count) {
             auto n = (Type*)node.pop();
-            array::push(types, n);
+            types.push(n);
             node::insert_first(t, n);
         }
 
@@ -1993,26 +1993,26 @@ reduce_builtin_type_to_typeref_expression() {
 
 FORCE_INLINE void Parser::NodeStack::
 push(ASTNode* n) { 
-    array::push(stack, current); 
+    stack.push(current); 
     current = n; 
 }
 
 FORCE_INLINE ASTNode* Parser::NodeStack::
 pop() { 
     ASTNode* save = current; 
-    current = array::pop(stack); 
+    current = stack.pop(); 
     return save; 
 } 
 
 void Parser::TableStack::
 push(LabelTable* l) {
-    array::push(stack, last); 
+    stack.push(last); 
     last = l;
 
 }
 void Parser::TableStack::
 pop() { 
-    last = array::pop(stack); 
+    last = stack.pop(); 
 }
 
 Label* Parser::TableStack::
@@ -2021,7 +2021,7 @@ search(u64 hashed_id) {
     while(table) {
         auto [idx, found] = map::find(table->map, hashed_id);
         if(found) {
-            return array::read(table->map.values, idx);
+            return table->map.values.read(idx);
         }
         table = table->last;
     }
@@ -2039,7 +2039,7 @@ display_stack() {
     DString* out = DString::create("stack of ", code->identifier, ":\n");
     forI(node.stack.count) {
         if(!i) continue; // first element is always 0 due to storing the last element separate
-        ASTNode* n = array::read(node.stack, i);
+        ASTNode* n = node.stack.read(i);
         out->append(ScopedDStringRef(n->dump()).x, "\n");
     }
     out->append(node.current->dump());

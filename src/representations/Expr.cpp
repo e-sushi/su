@@ -46,7 +46,7 @@ resolve_type() {
 CompileTime* CompileTime::
 create(Type* type) {
     auto out = pool::add(compiler::instance.storage.comp_times);
-    out->frame.locals = array::init<Var*>();
+    out->frame.locals = Array<Var*>::create();
     out->type = type;
     return out;
 }

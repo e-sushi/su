@@ -35,7 +35,7 @@ load(String path) {
     // don't keep the file locked
     fclose(out->file);
 
-    out->diagnostics = array::init<Diagnostic>();
+    out->diagnostics = Array<Diagnostic>::create();
     return out;
 }
 
@@ -45,7 +45,7 @@ unload(Source* source) {
     source->path.str = 0;
     source->path.count = 0;
 
-    array::deinit(source->diagnostics);
+    source->diagnostics.destroy();
 
     // module::destroy(*source->module);
     code::destroy(source->code);

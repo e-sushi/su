@@ -68,7 +68,7 @@ Label*
 search(LabelTable* table, u64 hashed_id) {
     while(table) {
         auto [idx, found] = map::find(table->map, hashed_id);
-        if(found) return array::read(table->map.values, idx);
+        if(found) return table->map.values.read(idx);
         table = table->last;
     }
     return 0;

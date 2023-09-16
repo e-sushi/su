@@ -27,7 +27,7 @@ Member* Structure::
 find_member(String s) {
     auto [idx, found] = map::find(members, s);
     if(!found) return 0;
-    return amu::array::read(members.values, idx);
+    return members.values.read(idx);
 }
 
 Member* Structure::

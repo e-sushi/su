@@ -368,7 +368,7 @@ run() {
             } break;
 
             case air::op::call: {
-                array::push(frames, frame);
+                frames.push(frame);
                 u8* next_fp = sp - frame.ip->n_params;
                 frame = frame.ip->f->frame;
                 frame.fp = next_fp;
@@ -383,7 +383,7 @@ run() {
                 }
                 Frame last = frame;
                 sp = frame.fp + frame.ip->lhs; 
-                frame = array::pop(frames);
+                frame = frames.pop();
                 util::println(to_string(*frame.ip));
             } break;
 
@@ -414,18 +414,18 @@ void VM::
 print_stack() {
     DString* out = DString::create();
 
-    auto my_frames = array::init<Frame*>();
+    auto my_frames = Array<Frame*>::create();
     forI(frames.count)
-        array::push(my_frames, array::readptr(frames, i));
-    array::push(my_frames, &frame);
+        my_frames.push(frames.readptr(i));
+    my_frames.push(&frame);
 
     u32 frame_idx = 0;
 
     u8* p = stack;
     while(p < sp) {
         out->append("r", p-stack, " ", *p);
-        if(frame_idx < my_frames.count && array::read(my_frames, frame_idx)->fp == p) {    
-            out->append(" <-- fp of ", array::read(my_frames, frame_idx)->identifier);
+        if(frame_idx < my_frames.count && my_frames.read(frame_idx)->fp == p) {    
+            out->append(" <-- fp of ", my_frames.read(frame_idx)->identifier);
             frame_idx++;
         }
         out->append("\n");
@@ -440,7 +440,7 @@ print_frame_vars() {
     DString* out = DString::create();
 
     forI(frame.locals.count) {
-        Var* v = array::read(frame.locals, i);
+        Var* v = frame.locals.read(i);
         auto val = v->type->print_from_address(frame.fp + v->stack_offset);
         val->indent(2);
         out->append(ScopedDeref(v->display()).x, "(", v->stack_offset, "): \n", ScopedDeref(val).x, "\n");

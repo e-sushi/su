@@ -32,16 +32,16 @@ u64 layers = 0;
     // layers++; \
     // defer { layers--; }
 
-// Array<LabelTable*> table_stack = array::init<LabelTable*>();
+// Array<LabelTable*> table_stack = Array<LabelTable*>::create();
 // LabelTable* current_table = 0;
 
 // void push_table(LabelTable* lt) {
-//     array::push(table_stack, current_table);
+//     table_stack.push(current_table);
 //     current_table = lt;
 // }
 
 // void pop_table() {
-//     current_table = array::pop(table_stack);
+//     current_table = table_stack.pop();
 // }
 
 b32 label(Code* code, Label* l);

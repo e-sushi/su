@@ -64,8 +64,8 @@ init() {
     instance.options.deliver_debug_immediately = true;
 
     messenger::init();  // TODO(sushi) compiler arguments to control this
-    array::push(messenger::instance.destinations, Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
-    array::push(messenger::instance.destinations, Destination(fopen("temp/log", "w"), false));
+    messenger::instance.destinations.push(Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
+    messenger::instance.destinations.push(Destination(fopen("temp/log", "w"), false));
 
     module = Module::create();
 }
@@ -78,7 +78,7 @@ namespace internal {
 b32 
 parse_arguments(Array<String> args) {
     for(s32 i = 1; i < args.count; i++) {
-        String arg = array::read(args, i);
+        String arg = args.read(i);
         u64 hash = string::hash(arg);
         switch(hash) {
 
@@ -88,7 +88,7 @@ parse_arguments(Array<String> args) {
 
             case string::static_hash("--dump-tokens"): {
                 while(i != args.count-1) {
-                    arg = array::read(args, ++i);
+                    arg = args.read(++i);
                     if(string::equal(arg, "-human")) {
                         instance.options.dump_tokens.human = true;
                     }else if(string::equal(arg, "-exit")) {
@@ -105,10 +105,10 @@ parse_arguments(Array<String> args) {
             } break;
 
             case string::static_hash("--dump-diagnostics"): {
-                arg = array::read(args, ++i);
+                arg = args.read(++i);
                 if(string::equal(arg, "-source")) {
-                    instance.options.dump_diagnostics.sources = array::init<String>();
-                    arg = array::read(args, ++i);
+                    instance.options.dump_diagnostics.sources = Array<String>::create();
+                    arg = args.read(++i);
                     if(arg.str[0] == '-') {
                         diagnostic::compiler::
                             expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source");
@@ -120,13 +120,13 @@ parse_arguments(Array<String> args) {
                     forI(arg.count) {
                         curt.count++;
                         if(i == arg.count-1 || arg.str[i] == ' ' || arg.str[i+1] == ',') {
-                            array::push(instance.options.dump_diagnostics.sources, curt);
+                            instance.options.dump_diagnostics.sources.push(curt);
                             curt.str = arg.str + i + 1;
                             if(arg.str[i+1] == ',') curt.str++;
                             curt.count = 0;
                         }
                     }
-                    arg = array::read(args, ++i);
+                    arg = args.read(++i);
                 }
                 if(arg.str[0] == '-') {
                     diagnostic::compiler::
@@ -159,7 +159,7 @@ dump_diagnostics(String path, Array<String> sources) {
     if(sources.count) {
         NotImplemented; // TODO(sushi) selective diag dump
         // forI(sources.count){
-        //     Source* s = lookup_source(array::read(sources, i));
+        //     Source* s = lookup_source(sources.read(i));
         //     if(!s) return false;
             
         // }
@@ -170,8 +170,8 @@ dump_diagnostics(String path, Array<String> sources) {
         Diagnostic diag;
     };
     
-    auto source_table = array::init<Source*>();
-    auto diagnostics = array::init<DiagnosticEntry>();;
+    auto source_table = Array<Source*>::create();
+    auto diagnostics = Array<DiagnosticEntry>::create();;
 
     pool::Iterator<Source> iter = pool::iterator(instance.storage.sources);
     
@@ -180,11 +180,11 @@ dump_diagnostics(String path, Array<String> sources) {
     Source* current = 0;
     while((current = pool::next(iter))) {
         if(!current->diagnostics.count) continue;
-        array::push(source_table, current);
+        source_table.push(current);
         u64 source_offset = sizeof(u64)+source_strings->count;
         forI(current->diagnostics.count) {
-            array::push(diagnostics, 
-                {source_offset, array::read(current->diagnostics, i)});
+            diagnostics.push(
+                {source_offset, current->diagnostics.read(i)});
         }
         source_strings->append('"', current->path, '"');
     }

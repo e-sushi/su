@@ -3,7 +3,6 @@
 
 #include "storage/Map.h"
 #include "storage/Array.h"
-#include "storage/SharedArray.h"
 #include "storage/String.h"
 #include "representations/Label.h"
 #include "representations/Code.h"

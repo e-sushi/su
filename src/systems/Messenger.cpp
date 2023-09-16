@@ -5,9 +5,9 @@ Messenger instance;
 
 void 
 init() {
-    instance.messages = array::init<Message>();
-    instance.formatting_stack = array::init<MessageFormatting>();
-    instance.destinations = array::init<Destination>();
+    instance.messages = Array<Message>::create();
+    instance.formatting_stack = Array<MessageFormatting>::create();
+    instance.destinations = Array<Destination>::create();
 
     push_formatting(MessageFormatting());
 }
@@ -28,7 +28,7 @@ wrap_color(DString* current, u32 color) {
 
 void
 process_part(DString* current, const MessagePart& part) {
-    MessageFormatting& formatting = array::readref(instance.formatting_stack, -1);
+    MessageFormatting& formatting = instance.formatting_stack.readref(-1);
     switch(part.kind) {
         case messagepart::plain: {
             DString* temp = DString::create(part.plain);
@@ -177,7 +177,7 @@ process_message(DString* current, Message& m) {
     }
 
     forI(m.parts.count) {
-        process_part(current, array::readref(m.parts, i));
+        process_part(current, m.parts.readref(i));
     }
 
     current->append("\n");
@@ -190,11 +190,11 @@ process_message(DString* current, Message& m) {
 void
 dispatch(Message message) {
     if(message.kind == message::debug && compiler::instance.options.deliver_debug_immediately) {
-        Array<Message> temp = array::init<Message>(1); // this is weird, change it so that we can just deliver one message immediately
-        array::push(temp, message);
+        Array<Message> temp = Array<Message>::create(1); // this is weird, change it so that we can just deliver one message immediately
+        temp.push(message);
         deliver(stdout, temp);
-        array::deinit(temp);
-    } else array::push(instance.messages, message);
+        temp.destroy();
+    } else instance.messages.push(message);
 }
 
 // dispatch a plain str8
@@ -211,15 +211,15 @@ dispatch(String message, Source* source) {
 void
 deliver(b32 clear_messages) {
     forI(instance.destinations.count) {
-        deliver(array::read(instance.destinations, i), instance.messages);
+        deliver(instance.destinations.read(i), instance.messages);
     }
-    if(clear_messages) array::clear(instance.messages);
+    if(clear_messages) instance.messages.clear();
 }
 
 void 
 deliver(Destination destination, b32 clear_messages) {
     deliver(destination, instance.messages);
-    if(clear_messages) array::clear(instance.messages);
+    if(clear_messages) instance.messages.clear();
 }
 
 
@@ -231,7 +231,7 @@ deliver(Destination destination, Array<Message> messages) {
 
     forI(messages.count) {
         internal::process_message(out, 
-            array::readref(messages, i));
+            messages.readref(i));
     }
 
     if(compiler::instance.options.quiet && destination.file == stdout) return;
@@ -240,12 +240,12 @@ deliver(Destination destination, Array<Message> messages) {
 
 void
 push_formatting(MessageFormatting formatting) {
-    array::push(instance.formatting_stack, formatting);
+    instance.formatting_stack.push(formatting);
 }
 
 void 
 pop_formatting() {
-    array::pop(instance.formatting_stack);
+    instance.formatting_stack.pop();
 }
 
 template<typename... T> void 
@@ -263,7 +263,7 @@ Message
 init() {
     Message out = {};
     out.time = time(0);
-    out.parts = array::init<MessagePart>();
+    out.parts = Array<MessagePart>::create();
     return out;
 }
 
@@ -308,12 +308,12 @@ make_debug(u32 verbosity, T... args) {
 
 void
 push(Message& m, MessagePart part) {
-    array::push(m.parts, part);
+    m.parts.push(part);
 }
 
 void
 prefix(Message& m, MessagePart part) {
-    array::insert(m.parts, 0, part);
+    m.parts.insert(0, part);
 }
 
 template<typename... T>

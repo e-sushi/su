@@ -6,20 +6,20 @@ create(Code* code) {
     out->code = code;
     code->tac_gen = out;
     out->pool = pool::init<TAC>(64);
-    out->seq = array::init<TAC*>();
-    out->loop_start_stack = array::init<TAC*>();
-    out->loop_end_stack = array::init<TAC*>();
-    out->temps = array::init<Array<TAC*>>();
+    out->seq = Array<TAC*>::create();
+    out->loop_start_stack = Array<TAC*>::create();
+    out->loop_end_stack = Array<TAC*>::create();
+    out->temps = Array<Array<TAC*>>::create();
     return out;
 }
 
 void GenTAC::
 destroy() {
     pool::deinit(pool);
-    array::deinit(seq);
-    array::deinit(loop_start_stack);
-    array::deinit(loop_end_stack);
-    array::deinit(temps);
+    seq.destroy();
+    loop_start_stack.destroy();
+    loop_end_stack.destroy();
+    temps.destroy();
 }
 
 void GenTAC::
@@ -29,12 +29,12 @@ generate() {
     util::println(code->identifier);
     u32 last_line_num = -1;
     forI(seq.count) {
-        TAC* tac = array::read(seq, i);
+        TAC* tac = seq.read(i);
         if(last_line_num == -1 || last_line_num != tac->node->start->l0) {
             util::println(tac->node->first_line(true, true));
             last_line_num = tac->node->start->l0;
         }
-        util::println(to_string(array::read(seq, i)));
+        util::println(to_string(seq.read(i)));
     }
 
     code->level = code::tac;
@@ -65,15 +65,15 @@ start() {
                 start->op = tac::block_start;
                 start->node = e;
             }
-            array::push(temps, array::init<TAC*>());
+            temps.push(Array<TAC*>::create());
             Arg arg = expression(e->first_child<Expr>());
             if(start) {
                 TAC* end = make_and_place();
                 end->op = tac::ret;
                 end->arg0 = arg;
                 end->node = e;
-            } else if(array::read(seq, -1)->op == tac::block_value) {
-                array::read(seq, -1)->op = tac::ret;
+            } else if(seq.read(-1)->op == tac::block_value) {
+                seq.read(-1)->op = tac::ret;
             } else {
                 TAC* ret = make_and_place();
                 ret->op = tac::ret;
@@ -116,7 +116,7 @@ function() {
     block(l->last_child()->last_child<Block>());
 
     // if a function ends with a block_value, we want to turn it into a return
-    TAC* last = array::read(seq, -1);
+    TAC* last = seq.read(-1);
     if(last->op == tac::block_value) {
         last->op = tac::ret;
     } else {
@@ -131,12 +131,12 @@ void GenTAC::
 block(Block* e) {
     TAC* tac = make_and_place();
     tac->op = tac::block_start;
-    array::push(temps, array::init<TAC*>());
+    temps.push(Array<TAC*>::create());
     for(auto n = e->first_child<Stmt>(); n; n = n->next<Stmt>())
         statement(n);
     tac->node = e;
 
-    if(array::read(seq, -1)->op != tac::block_value) {
+    if(seq.read(-1)->op != tac::block_value) {
         tac = make_and_place();
         tac->op = tac::block_end;
         tac->node = (e->last_child()? e->last_child() : e);
@@ -155,7 +155,7 @@ statement(Stmt* s) {
                     if(!code->compile_time && v->is_compile_time) {
                         return;
                     }
-                    array::push(locals, v);
+                    locals.push(v);
 
                     Arg arg;
                     if(l->last_child()->is(expr::binary_assignment)) {
@@ -417,7 +417,7 @@ expression(Expr* e) {
             ret->comment = DString::create("return slot for ", ce->callee->display());
             new_temp(ret, e->type);
 
-            auto params = array::init<TAC*>();
+            auto params = Array<TAC*>::create();
 
             for(auto n = ce->arguments->last_child<Expr>(); n; n = n->prev<Expr>()) {
                 Arg ret = expression(n);
@@ -428,12 +428,12 @@ expression(Expr* e) {
                 tac->comment = DString::create("arg in call to ", ce->callee->display());
                 new_temp(tac, n->type);
                 param_size += tac->temp_size;
-                array::push(params, tac);
+                params.push(tac);
             }
 
             place(ret);
             forI(params.count) {
-                place(array::read(params, i));
+                place(params.read(i));
             }
             TAC* tac = make_and_place();
             tac->op = tac::call;
@@ -443,13 +443,13 @@ expression(Expr* e) {
             tac->temp_size = ret->temp_size;
             tac->node = e;
 
-            array::deinit(params);
+            params.destroy();
 
             return tac;
         } break;
         case expr::block: {
             block(e->as<Block>());
-            return array::read(seq, -1);
+            return seq.read(-1);
         } break;
         case expr::conditional: {
             TAC* temp = 0;
@@ -466,7 +466,7 @@ expression(Expr* e) {
             Expr* curr = e;
 
             TAC* last_condjump = 0;
-            auto truejumps = array::init<TAC*>();
+            auto truejumps = Array<TAC*>::create();
 
             while(1) {
                 auto cond       = curr->first_child<Expr>();
@@ -497,7 +497,7 @@ expression(Expr* e) {
                     TAC* truejump = make_and_place();
                     truejump->op = tac::jump;
                     truejump->node = (true_body->last_child()? true_body->last_child() : true_body);
-                    array::push(truejumps, truejump);
+                    truejumps.push(truejump);
                 }
 
                 TAC* placeholder = make_and_place();
@@ -511,13 +511,13 @@ expression(Expr* e) {
                     
                     if(!truejumps.count) break;
 
-                    TAC* last_jump = array::pop(truejumps);
+                    TAC* last_jump = truejumps.pop();
                     last_jump->arg0.temporary = placeholder;
                     last_jump->arg0.kind = arg::temporary;
                     placeholder->from->next = last_jump;
 
                     while(truejumps.count) {
-                        TAC* j = array::pop(truejumps);
+                        TAC* j = truejumps.pop();
                         j->arg0.temporary = placeholder;
                         j->arg0.kind = arg::temporary;
                         last_jump->next = j;
@@ -546,13 +546,13 @@ expression(Expr* e) {
                 placeholder = make_and_place();
                 placeholder->op = tac::nop;
 
-                TAC* last_jump = array::pop(truejumps);
+                TAC* last_jump = truejumps.pop();
                 last_jump->arg0.kind = arg::temporary;
                 last_jump->arg0.temporary = placeholder;
                 placeholder->from = last_jump;
 
                 while(truejumps.count) {
-                    TAC* j = array::pop(truejumps);
+                    TAC* j = truejumps.pop();
                     j->arg0.kind = arg::temporary;
                     j->arg0.temporary = placeholder;
                     last_jump->next = j;
@@ -573,9 +573,9 @@ expression(Expr* e) {
             TAC* nop = make_and_place();
             nop->node = e;
 
-            array::push(loop_start_stack, nop);
-            array::push(loop_end_stack, end);
-            array::push(temps, array::init<TAC*>());
+            loop_start_stack.push(nop);
+            loop_end_stack.push(end);
+            temps.push(Array<TAC*>::create());
 
             b32 make_block = e->first_child()->is_not<Block>();
             if(make_block) {
@@ -598,7 +598,7 @@ expression(Expr* e) {
             TAC* tac = make_and_place();
             tac->op = tac::jump;
             tac->arg0.kind = arg::temporary;
-            tac->arg0.temporary = array::read(seq, count);
+            tac->arg0.temporary = seq.read(count);
             tac->to = nop;
             tac->node = e;
 
@@ -611,7 +611,7 @@ expression(Expr* e) {
             TAC* jump = make_and_place();
             jump->op = tac::jump;
             jump->node = e;
-            TAC* loop_end = array::read(loop_end_stack, -1);
+            TAC* loop_end = loop_end_stack.read(-1);
             jump->arg0 = loop_end;
             jump->next = loop_end->from;
             loop_end->from = jump;
@@ -629,20 +629,20 @@ expression(Expr* e) {
             temp->node = e;
             new_temp(temp, &scalar::_u64);
 
-            auto jump_stack = array::init<TAC*>();
+            auto jump_stack = Array<TAC*>::create();
 
-            auto left_stack = array::init<Expr*>();
-            array::push(left_stack, e);
+            auto left_stack = Array<Expr*>::create();
+            left_stack.push(e);
             auto left = e->first_child<Expr>();
             while(1) {
                 if(left->is_not(expr::binary_or)) break;
-                array::push(left_stack, left);
+                left_stack.push(left);
                 left = left->first_child<Expr>();
             }
 
             Arg left_result;
 
-            left = array::pop(left_stack);
+            left = left_stack.pop();
 
             // get deepest lhs expression result 
             Arg lhs = expression(left->first_child<Expr>());
@@ -652,7 +652,7 @@ expression(Expr* e) {
             ljump->arg0 = lhs;
             ljump->node = e;
 
-            array::push(jump_stack, ljump);
+            jump_stack.push(ljump);
 
             b32 user_exit = 0;
 
@@ -671,10 +671,10 @@ expression(Expr* e) {
                 rjump->arg0 = rhs;
                 rjump->node = e;
 
-                array::push(jump_stack, rjump);
+                jump_stack.push(rjump);
 
                 if(!left_stack.count) break;
-                left = array::pop(left_stack);
+                left = left_stack.pop();
             }
 
             TAC* fail_jump = 0; 
@@ -703,13 +703,13 @@ expression(Expr* e) {
 
 
             if(jump_stack.count) {
-                TAC* last_jump = array::pop(jump_stack);
+                TAC* last_jump = jump_stack.pop();
                 success->from = last_jump;
                 last_jump->arg1.kind = arg::temporary;
                 last_jump->arg1.temporary = success;
 
                 while(jump_stack.count) {
-                    TAC* b = array::pop(jump_stack);
+                    TAC* b = jump_stack.pop();
                     b->arg1.kind = arg::temporary;
                     b->arg1.temporary = success;
                     last_jump->next = b;
@@ -735,20 +735,20 @@ expression(Expr* e) {
             temp->node = e;
             new_temp(temp, &scalar::_u64);
 
-            auto jump_stack = array::init<TAC*>();
+            auto jump_stack = Array<TAC*>::create();
 
-            auto left_stack = array::init<Expr*>();
-            array::push(left_stack, e);
+            auto left_stack = Array<Expr*>::create();
+            left_stack.push(e);
             auto left = e->first_child<Expr>();
             while(1) {
                 if(left->is_not(expr::binary_and)) break;
-                array::push(left_stack, left);
+                left_stack.push(left);
                 left = left->first_child<Expr>();
             }
 
             Arg left_result;
 
-            left = array::pop(left_stack);
+            left = left_stack.pop();
 
             // get deepest lhs expression result 
             Arg lhs = expression(left->first_child<Expr>());
@@ -758,7 +758,7 @@ expression(Expr* e) {
             ljump->arg0 = lhs;
             ljump->node = e;
 
-            array::push(jump_stack, ljump);
+            jump_stack.push(ljump);
 
             b32 user_exit = 0;
 
@@ -777,10 +777,10 @@ expression(Expr* e) {
                 rjump->arg0 = rhs;
                 rjump->node = e;
 
-                array::push(jump_stack, rjump);
+                jump_stack.push(rjump);
 
                 if(!left_stack.count) break;
-                left = array::pop(left_stack);
+                left = left_stack.pop();
             }
 
             TAC* success = make_and_place();
@@ -793,13 +793,13 @@ expression(Expr* e) {
             TAC* fail_jump = make_and_place();
 
             if(jump_stack.count) {
-                TAC* last_jump = array::pop(jump_stack);
+                TAC* last_jump = jump_stack.pop();
                 fail_jump->from = last_jump;
                 last_jump->arg1.kind = arg::temporary;
                 last_jump->arg1.temporary = fail_jump;
 
                 while(jump_stack.count) {
-                    TAC* b = array::pop(jump_stack);
+                    TAC* b = jump_stack.pop();
                     b->arg1.kind = arg::temporary;
                     b->arg1.temporary = fail_jump;
                     last_jump->next = b;
@@ -823,7 +823,7 @@ expression(Expr* e) {
 TAC* GenTAC::
 make() {
     if(seq.count) {
-        TAC* last = array::read(seq, -1);
+        TAC* last = seq.read(-1);
         if(last->op == tac::nop)
             return last;
     } 
@@ -836,14 +836,14 @@ make() {
 
 void GenTAC::
 place(TAC* t) {
-    array::push(seq, t);
+    seq.push(t);
 }
 
 TAC* GenTAC::
 make_and_place() {
     TAC* out = make();
     // TODO(sushi) do this better
-    if(!seq.count || array::read(seq, -1)->op != tac::nop) 
+    if(!seq.count || seq.read(-1)->op != tac::nop) 
         place(out);
     return out;
 }
@@ -851,7 +851,7 @@ make_and_place() {
 void GenTAC::
 new_temp(TAC* tac, Type* t) {
     tac->temp_size = t->size();
-    array::push(array::readref(temps, -1), tac);
+    temps.readref(-1).push(tac);
 }
 
 } // namespace amu

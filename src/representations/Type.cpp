@@ -120,16 +120,16 @@ is_float() {
     return kind == scalar::float32 || kind == scalar::float64;
 }
 
-Array<Pointer*> Pointer::set = array::init<Pointer*>();
+Array<Pointer*> Pointer::set = Array<Pointer*>::create();
 
 Pointer* Pointer::
 create(Type* type) {
     auto [idx,found] = amu::array::util::
-        search<Pointer*, Type*>(Pointer::set, type, [](Pointer* p){ return p->type; });
-    if(found) return amu::array::read(Pointer::set, idx);
+        search<Pointer*, Type*>(amu::Pointer::set, type, [](Pointer* p){ return p->type; });
+    if(found) return amu::Pointer::set.read(idx);
     Pointer* nu = pool::add(compiler::instance.storage.pointer_types);
     nu->type = type;
-    amu::array::insert(Pointer::set, idx, nu);
+    amu::Pointer::set.insert(idx, nu);
     return nu;
 }
 
@@ -153,7 +153,7 @@ print_from_address(u8* addr) {
     return DString::create((u8*)*(u64*)addr);
 }
 
-Array<StaticArray*> StaticArray::set = array::init<StaticArray*>();
+Array<StaticArray*> StaticArray::set = Array<StaticArray*>::create();
 
 
 // NOTE(sushi) I am VERY sorry to whoever reads or needs to fix the following functions 
@@ -166,11 +166,11 @@ create(Type* type, u64 count) {
         search<StaticArray*, u64>(StaticArray::set, hash, 
             [](StaticArray* a){ return (u64(a->type) << a->count) * 1234; });
 
-    if(found) return amu::array::read(StaticArray::set, idx);
+    if(found) return amu::StaticArray::set.read(idx);
     StaticArray* nu = pool::add(compiler::instance.storage.static_array_types);
     nu->type = type;
     nu->count = count;
-    amu::array::insert(StaticArray::set, idx, nu);
+    amu::StaticArray::set.insert(idx, nu);
 
     auto s = Structure::create();
     
@@ -215,7 +215,7 @@ print_from_address(u8* addr) {
     return out;
 }
 
-Array<ViewArray*> ViewArray::set = array::init<ViewArray*>();
+Array<ViewArray*> ViewArray::set = Array<ViewArray*>::create();
 
 ViewArray* ViewArray::
 create(Type* type) {
@@ -223,11 +223,11 @@ create(Type* type) {
     auto [idx, found] = amu::array::util::
         search<ViewArray*, u64>(ViewArray::set, hash, [](ViewArray* a){return u64(a->type);});
 
-    if(found) return amu::array::read(ViewArray::set, idx);
+    if(found) return amu::ViewArray::set.read(idx);
 
     ViewArray* nu = pool::add(compiler::instance.storage.view_array_types);
     nu->type = type;
-    amu::array::insert(ViewArray::set, idx, nu);
+    amu::ViewArray::set.insert(idx, nu);
 
     auto s = Structure::create();
 
@@ -267,7 +267,7 @@ print_from_address(u8* addr) {
     return 0;
 }
 
-Array<DynamicArray*> DynamicArray::set = array::init<DynamicArray*>();
+Array<DynamicArray*> DynamicArray::set = Array<DynamicArray*>::create();
 
 DynamicArray* DynamicArray::
 create(Type* type) {
@@ -275,11 +275,11 @@ create(Type* type) {
     auto [idx, found] = amu::array::util::
         search<DynamicArray*, u64>(DynamicArray::set, hash, [](DynamicArray* a){return u64(a->type);});
 
-    if(found) return amu::array::read(DynamicArray::set, idx);
+    if(found) return amu::DynamicArray::set.read(idx);
 
     DynamicArray* nu = pool::add(compiler::instance.storage.dynamic_array_types);
     nu->type = type;
-    amu::array::insert(DynamicArray::set, idx, nu);
+    amu::DynamicArray::set.insert(idx, nu);
 
     auto s = Structure::create();
 
@@ -363,27 +363,27 @@ print_from_address(u8* addr) {
     return DString::create((u8*)*(u64*)addr);
 }
 
-Array<TupleType*> TupleType::set = array::init<TupleType*>();
+Array<TupleType*> TupleType::set = Array<TupleType*>::create();
 
 TupleType* TupleType::
 create(Array<Type*>& types) {
     // extremely bad, awful, no good
     u64 hash = 1212515131534;
     forI(types.count) {
-        hash <<= (u64)amu::array::read(types, i) * 167272723;
+        hash <<= (u64)types.read(i) * 167272723;
     }
     auto [idx, found] = amu::array::util::
         search<TupleType*, u64>(TupleType::set, hash, [](TupleType* t){
             u64 hash = 1212515131534;
             forI(t->types.count) {
-                hash <<= (u64)amu::array::read(t->types, i) * 167272723;
+                hash <<= (u64)t->types.read(i) * 167272723;
             }
             return hash;
         });
     
     if(found) {
-        amu::array::deinit(types);
-        return amu::array::read(TupleType::set, idx);
+        types.destroy();
+        return TupleType::set.read(idx);
     } 
     TupleType* nu = pool::add(compiler::instance.storage.tuple_types);
     nu->types = types;
@@ -404,7 +404,7 @@ u64 TupleType::
 size() {
     u64 count = 0;
     forI(types.count) {
-        count += array::read(types, i)->size();
+        count += types.read(i)->size();
     }
     return count;
 }
@@ -416,15 +416,15 @@ print_from_address(u8* addr) {
 }
 
 // namespace type::structure {
-// Array<ExistingStructureType> set = amu::array::init<ExistingStructureType>();
+// Array<ExistingStructureType> set = amu::Array<ExistingStructureType>::create();
 // } // namespace structure
 
 // Structured* Structured::
 // create(Structure* s) {
-//     auto [idx, found] = amu::array::util::
-//         search<type::structure::ExistingStructureType, Structure*>(type::structure::set, s, [](type::structure::ExistingStructureType& s) { return s.structure; });
-//     if(found) return amu::array::read(type::structure::set, idx).stype;
-//     type::structure::ExistingStructureType* nu = amu::array::insert(structure::set, idx);
+//     auto [idx, found] = amu::type::structure::set.util::
+//         search<type::structure::ExistingStructureType, Structure*>(s, [](type::structure::ExistingStructureType& s) { return s.structure; });
+//     if(found) return amu::type::structure::set.read(idx).stype;
+//     type::structure::ExistingStructureType* nu = amu::structure::set.insert(idx);
 //     nu->stype = pool::add(compiler::instance.storage.structured_types);
 //     nu->stype->kind = type::kind::structured;
 //     nu->stype->node.kind = node::type;

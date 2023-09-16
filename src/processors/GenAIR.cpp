@@ -3,19 +3,19 @@ namespace amu {
 GenAIR* GenAIR::
 create(Code* code) {
     GenAIR* out = pool::add(compiler::instance.storage.air_gens);
-    out->seq = array::init<BC>();
+    out->seq = Array<BC>::create();
     out->code = code;
     code->air_gen = out;
-    out->scoped_temps = array::init<u64>();
+    out->scoped_temps = Array<u64>::create();
     out->stack_things = map::init<BC*, StackThing>();
-    array::push(out->scoped_temps, u64(0));
+    out->scoped_temps.push(u64(0));
     return out;
 }
 
 void GenAIR::
 destroy() {
-    array::deinit(seq);
-    array::deinit(scoped_temps);
+    seq.destroy();
+    scoped_temps.destroy();
     map::deinit(stack_things);
 }
 
@@ -27,7 +27,7 @@ generate() {
     u32 last_line_num = -1;
     TAC* last_tac = 0;
     forI(seq.count) {
-        BC bc = array::read(seq, i);
+        BC bc = seq.read(i);
         // if(bc.tac && bc.tac != last_tac) {
         //     last_tac = bc.tac;
         //     util::println(to_string(bc.tac));
@@ -49,7 +49,7 @@ start() {
         } break;
         case code::function: {
             Function* f = code->parser->root->as<Label>()->entity->as<Function>();
-            f->frame.locals = array::init<Var*>();
+            f->frame.locals = Array<Var*>::create();
             
             // actually the first thing we need to do is see if we are returning something!
             stack_offset += f->type->return_type->size();
@@ -58,30 +58,30 @@ start() {
             for(Label* n = f->type->parameters->first_child<Label>(); n; n = n->next<Label>()) {
                 Var* v = n->entity->as<Var>();
                 v->stack_offset = stack_offset;
-                array::push(f->frame.locals, v);
+                f->frame.locals.push(v);
                 stack_offset += v->type->size();
             }
 
             // the first thing we need to do is figure out the locals of this function and
             // setup their Vars to be positioned correctly on the stack
             forI(code->tac_gen->locals.count) {
-                auto v = array::read(code->tac_gen->locals, i);
+                auto v = code->tac_gen->locals.read(i);
                 v->stack_offset = stack_offset;
                 // if(v->type->is<Structured>()) {
                 //     // uhm i forget what I was going to do here
                 // }
-                array::push(f->frame.locals, v);
+                f->frame.locals.push(v);
                 stack_offset += v->type->size();
             }
-            BC* bc = array::push(seq);
-            bc->tac = array::read(code->tac_gen->seq, 0);
+            BC* bc = seq.push();
+            bc->tac = code->tac_gen->seq.read(0);
             bc->node = f->code->parser->root;
             bc->instr = air::pushn;
             bc->lhs = stack_offset;
             bc->flags.left_is_const = true;
             bc->comment = "make room for function locals";
             body();
-            f->frame.ip = array::readptr(seq, 0);
+            f->frame.ip = seq.readptr(0);
         } break;
 
         case code::typedef_: { // typedefs dont generate anything for now 
@@ -91,14 +91,14 @@ start() {
         case code::expression: {
             auto e = code->parser->root->as<CompileTime>();
             forI(code->tac_gen->locals.count) {
-                auto v = array::read(code->tac_gen->locals, i);
+                auto v = code->tac_gen->locals.read(i);
                 v->stack_offset = stack_offset;
-                array::push(e->frame.locals, v);
+                e->frame.locals.push(v);
                 stack_offset += v->type->size();
             }
             if(stack_offset) {
-                BC* bc = array::push(seq);
-                bc->tac = array::read(code->tac_gen->seq, 0);
+                BC* bc = seq.push();
+                bc->tac = code->tac_gen->seq.read(0);
                 bc->node = e;
                 bc->instr = air::pushn;
                 bc->lhs = stack_offset;
@@ -124,7 +124,7 @@ body() {
     // TODO(sushi) when we get around to implementing an optimization stage this will likely need to be changed 
     auto tac_seq = code->tac_gen->seq;
     forI(tac_seq.count) {
-        TAC* tac = array::read(tac_seq, i);
+        TAC* tac = tac_seq.read(i);
         if(tac->node->flags.break_air_gen) DebugBreakpoint;
         tac->bc_offset = seq.count;
 
@@ -132,7 +132,7 @@ body() {
             TAC* from = tac->from;
             while(from) {
                 if(from->bc_offset != -1) {
-                    BC* bc = array::readptr(seq, from->bc_offset);
+                    BC* bc = seq.readptr(from->bc_offset);
                     if(bc->instr == air::jump) {
                         bc->lhs = seq.count - from->bc_offset;
                     } else {
@@ -157,7 +157,7 @@ body() {
 
             case tac::func_start: {
                 stack_offset = tac->arg0.literal._u64;
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::pushn;
@@ -167,7 +167,7 @@ body() {
             } break;
 
             case tac::jump_zero: {
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::jump_zero;
@@ -195,7 +195,7 @@ body() {
             } break;
 
             case tac::jump_not_zero: {
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::jump_not_zero;
@@ -224,7 +224,7 @@ body() {
             } break;
 
             case tac::jump: {
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::jump;
@@ -238,7 +238,7 @@ body() {
                 // FixMe; // map::add(offset_map, tac, (u32)registers.count);
                 // // tac->arg0.kind = arg::stack_offset;
                 // // tac->arg0.stack_offset = registers.count;
-                // // Register* r = array::push(registers);
+                // // Register* r = registers.push();
             } break;
 
             case tac::addition:
@@ -247,7 +247,7 @@ body() {
             case tac::division: {
                 push_temp(tac);
                 
-                BC* bc1 = array::push(seq);
+                BC* bc1 = seq.push();
                 bc1->tac = tac;
                 bc1->node = tac->node;
                 bc1->instr = 
@@ -320,7 +320,7 @@ body() {
                                     bc1->rhs = *(v->memory + i);
                                     bc1->lhs = lhs + i;
                                     if(i != v->type->size() - 1) {
-                                        bc1 = array::push(seq);
+                                        bc1 = seq.push();
                                         bc1->instr = air::copy;
                                         bc1->node = tac->node;
                                     }
@@ -347,7 +347,7 @@ body() {
             case tac::greater_than_or_equal: {
                 push_temp(tac);
 
-                BC* bc1 = array::push(seq);
+                BC* bc1 = seq.push();
                 bc1->tac = tac;
                 bc1->node = tac->node;
                 bc1->instr = 
@@ -381,7 +381,7 @@ body() {
             } break;
 
             case tac::assignment: {
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::copy;
@@ -447,7 +447,7 @@ body() {
             } break;
 
             case tac::call: {
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::call;
@@ -457,7 +457,7 @@ body() {
                 tac->temp_pos = stack_offset - tac->temp_size;
                 // manually remove argument temps because they are cleared when
                 // the function returns 
-                array::readref(scoped_temps, -1) -= bc->n_params - tac->temp_size;
+                scoped_temps.readref(-1) -= bc->n_params - tac->temp_size;
                 bc->comment = DString::create("return value at pos ", tac->temp_pos);
             } break;
 
@@ -465,7 +465,7 @@ body() {
                 u64 ret_size = 0;
 
                 if(tac->arg0.kind != arg::none) {
-                    BC* bc = array::push(seq);
+                    BC* bc = seq.push();
                     bc->tac = tac;
                     bc->node = tac->node;
                     bc->instr = air::copy;
@@ -490,7 +490,7 @@ body() {
                     }
                 }
 
-                BC* ret = array::push(seq);
+                BC* ret = seq.push();
                 ret->tac = tac;
                 ret->node = tac->node;
                 ret->instr = air::ret;
@@ -501,7 +501,7 @@ body() {
             case tac::resz: {
                 push_temp(tac);
 
-                BC* bc = array::push(seq);
+                BC* bc = seq.push();
                 bc->tac = tac;
                 bc->node = tac->node;
                 bc->instr = air::resz;
@@ -537,7 +537,7 @@ body() {
                         switch(tac->arg1.kind) {
                             case arg::var: {
                                 auto vr = tac->arg1.var;
-                                BC* temp = array::push(seq);
+                                BC* temp = seq.push();
                                 temp->tac = tac;
                                 temp->node = tac->node;
                                 temp->instr = air::push;
@@ -546,16 +546,16 @@ body() {
                                 temp->rhs = 8;
                                 u64 temp_pos = stack_offset;
                                 stack_offset += 8;
-                                array::readref(scoped_temps, -1) += 8;
+                                scoped_temps.readref(-1) += 8;
 
-                                BC* add = array::push(seq);
+                                BC* add = seq.push();
                                 add->tac = tac;
                                 add->node = tac->node;
                                 add->instr = air::add;
                                 add->lhs = temp_pos;
                                 add->rhs = vr->stack_offset;
 
-                                BC* mult = array::push(seq);
+                                BC* mult = seq.push();
                                 mult->tac = tac;
                                 mult->node = tac->node;
                                 mult->instr = air::mul;
@@ -563,7 +563,7 @@ body() {
                                 mult->flags.right_is_const = true;
                                 mult->rhs = tac->temp_size;
 
-                                out = array::push(seq);
+                                out = seq.push();
                                 out->tac = tac;
                                 out->node = tac->node;
                                 out->instr = air::push;
@@ -573,7 +573,7 @@ body() {
                             } break;
                             case arg::temporary: {
                                 TAC* t = tac->arg1.temporary;
-                                BC* temp = array::push(seq);
+                                BC* temp = seq.push();
                                 temp->tac = tac;
                                 temp->node = tac->node;
                                 temp->instr = air::push;
@@ -582,16 +582,16 @@ body() {
                                 temp->rhs = 8;
                                 u64 temp_pos = stack_offset;
                                 stack_offset += 8;
-                                array::readref(scoped_temps, -1) += 8;
+                                scoped_temps.readref(-1) += 8;
 
-                                BC* add = array::push(seq);
+                                BC* add = seq.push();
                                 add->tac = tac;
                                 add->node = tac->node;
                                 add->instr = air::add;
                                 add->lhs = temp_pos;
                                 add->rhs = t->temp_pos;
 
-                                BC* mult = array::push(seq);
+                                BC* mult = seq.push();
                                 mult->tac = tac;
                                 mult->node = tac->node;
                                 mult->instr = air::mul;
@@ -599,7 +599,7 @@ body() {
                                 mult->flags.right_is_const = true;
                                 mult->rhs = tac->temp_size;
 
-                                out = array::push(seq);
+                                out = seq.push();
                                 out->tac = tac;
                                 out->node = tac->node;
                                 out->instr = air::push;
@@ -608,7 +608,7 @@ body() {
                                 out->rhs = tac->temp_size;
                             } break;
                             case arg::literal: {
-                                out = array::push(seq);
+                                out = seq.push();
                                 out->tac = tac;
                                 out->node = tac->node;
                                 out->instr = air::push;
@@ -625,7 +625,7 @@ body() {
                 tac->temp_pos = stack_offset;
                 out->comment = DString::create("temp with pos ", tac->temp_pos);
                 stack_offset += tac->temp_size;
-                array::readref(scoped_temps, -1) += tac->temp_size;
+                scoped_temps.readref(-1) += tac->temp_size;
             } break; 
         }
     }
@@ -633,18 +633,18 @@ body() {
 
 void GenAIR::
 push_scope() {
-    array::push(scoped_temps, u64(0));
+    scoped_temps.push(u64(0));
 }
 
 void GenAIR::
 pop_scope() {
     clean_temps();
-    array::pop(scoped_temps);
+    scoped_temps.pop();
 }
 
 void GenAIR::
 push_temp(TAC* tac) {
-    BC* out = array::push(seq);
+    BC* out = seq.push();
     out->tac = tac;
     out->node = tac->node;
     out->instr = air::push;
@@ -670,7 +670,7 @@ push_temp(TAC* tac) {
                         out->lhs = *(v->memory + i);
                         out->rhs = 1;
                         if(i != v->type->size() - 1) {
-                            out = array::push(seq);
+                            out = seq.push();
                             out->instr = air::push;
                             out->node = tac->node;
                         }
@@ -699,18 +699,18 @@ push_temp(TAC* tac) {
     tac->temp_pos = stack_offset;
     out->comment = DString::create("temp with pos ", tac->temp_pos);
     stack_offset += tac->temp_size;
-    array::readref(scoped_temps, -1) += tac->temp_size;
+    scoped_temps.readref(-1) += tac->temp_size;
 }
 
 void GenAIR::
 clean_temps() {
-    u64& temp_count = array::readref(scoped_temps, -1);
+    u64& temp_count = scoped_temps.readref(-1);
     if(!temp_count) return;
-    BC* last = array::readptr(seq, -1);
+    BC* last = seq.readptr(-1);
     if(last->instr == air::popn) {
         last->lhs += temp_count;
     } else {
-        BC* clean = array::push(seq);
+        BC* clean = seq.push();
         clean->instr = air::popn;
         clean->lhs = temp_count;
         clean->flags.left_is_const = true;

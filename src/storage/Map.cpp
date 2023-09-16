@@ -29,7 +29,7 @@ add(Map<K,V>& m, const K& key) {
 template<typename K, typename V> u32
 add(Map<K,V>& m, const K& key, const V& value) {
     u32 idx = add(m, key);
-    array::readref(m.values, idx) = value;
+    m.values.readref(idx) = value;
     return idx;
 }
 
@@ -37,8 +37,8 @@ template<typename K, typename V> void
 remove(Map<K,V>& m, const K& key) {
     auto [idx, found] = find(m, key);
     if(!found) return;
-    array::remove(m.keys, idx);
-    array::remove(m.values, idx);
+    m.keys.remove(idx);
+    m.values.remove(idx);
 }
 
 template<typename K, typename V> b32 
@@ -60,11 +60,11 @@ find(Map<K,V>& m, u64 hash) {
         spt right = m.keys.count - 1;
         while(left <= right) {
             middle = left+(right-left)/2;
-            if(array::readref(m.keys, middle).hash == hash) {
+            if(m.keys.readref(middle).hash == hash) {
                 index = middle;
                 break;
             }
-            if(array::readref(m.keys, middle).hash < hash) {
+            if(m.keys.readref(middle).hash < hash) {
                 left = middle+1;
                 middle = left+(right-left)/2;
             } else {

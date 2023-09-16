@@ -85,7 +85,6 @@
 #include "storage/View.h"
 #include "storage/Pool.h"
 #include "storage/Array.h"
-#include "storage/SharedArray.h"
 #include "storage/DString.h"
 #include "storage/String.h"
 #include "storage/Map.h"
@@ -126,7 +125,6 @@
 #include "representations/AST.cpp"
 #include "storage/Pool.cpp"
 #include "storage/Array.cpp"
-#include "storage/SharedArray.cpp"
 #include "storage/DString.cpp"
 #include "storage/Map.cpp"
 #include "representations/Source.cpp"
@@ -156,9 +154,9 @@
 int main(int argc, char* argv[]){
 	{using namespace amu;
 		compiler::init();
-		auto args = array::init<String>(argc);
+		auto args = Array<String>::create(argc);
 		forI(argc) 
-			array::push(args, string::init(argv[i]));
+			args.push(string::init(argv[i]));
 		compiler::begin(args);
 	}
 	return 0;

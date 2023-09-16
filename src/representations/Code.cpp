@@ -44,7 +44,7 @@ from(Code* code, Token* start, Token* end) {
     } else {
         auto c = (VirtualCode*)code;
         VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
-        vc->tokens = array::copy(c->tokens, start-c->tokens.data, end-start+1);
+        vc->tokens = c->tokens.copy(start-c->tokens.data, end-start+1);
     }
 
     out->source = code->source;
@@ -101,7 +101,7 @@ is_virtual(Code* code) {
 View<Token>
 get_tokens(Code* code) {
     if(is_virtual(code)) {
-        return array::view(((VirtualCode*)code)->tokens);
+        return ((VirtualCode*)code)->tokens.view();
     } else {
         return ((SourceCode*)code)->tokens;
     }
@@ -119,9 +119,9 @@ get_token_array(Code* code) {
 void
 add_diagnostic(Code* code, Diagnostic d) {
     if(code::is_virtual(code)) {
-        array::push(((VirtualCode*)code)->diagnostics, d);
+        ((VirtualCode*)code)->diagnostics.push(d);
     } else {
-        array::push(code->source->diagnostics, d);
+        code->source->diagnostics.push(d);
     }
 }
 
@@ -311,7 +311,7 @@ namespace lines {
 Lines 
 get(Token* t, Options opt) {
     Lines out = {};
-    out.lines = array::init<String>();
+    out.lines = Array<String>::create();
     out.opt = opt;
     out.token = t;
     
@@ -321,8 +321,8 @@ get(Token* t, Options opt) {
     while(scan_left != t->code->raw.str && *scan_left != '\n')
         scan_left--;
 
-    ScopedArray<s32> newlines = array::init<s32>();
-    array::push(newlines, 0);
+    ScopedArray<s32> newlines = Array<s32>::create();
+    newlines.push(0);
 
     // we need to store newlines as offsets into a string
     // so we don't collect indexes going backwards cause we'd 
@@ -339,26 +339,26 @@ get(Token* t, Options opt) {
     forI(n_lines) {
         while(scan_right != t->code->raw.str + t->code->raw.count && *scan_right != '\n')
             scan_right++;
-        array::push(newlines, s32(scan_right++-scan_left) + 1);
+        newlines.push(s32(scan_right++-scan_left) + 1);
         if(scan_right == t->code->raw.str) break;
     }
 
     // turn the entire thing into a DString
     out.str = DString::create(String{
-        scan_left, array::read(newlines, -1)
+        scan_left, newlines.read(-1)
     });
 
     forI(newlines.count - 1) {
-        array::push(out.lines, {
-            out.str->str + array::read(newlines, i),
-            array::read(newlines, i+1) - array::read(newlines, i) - 1 
+        out.lines.push({
+            out.str->str + newlines.read(i),
+            newlines.read(i+1) - newlines.read(i) - 1 
         });
     }
 
     if(opt.remove_leading_whitespace) {
         u32 min_leading = MAX_U32;
         forI(out.lines.count) {
-            String line = array::read(out.lines, i);
+            String line = out.lines.read(i);
             if(!line.count) continue;
             s32 whitespace_len = string::eat_whitespace(line).count;
             if(whitespace_len == line.count) continue;
@@ -369,7 +369,7 @@ get(Token* t, Options opt) {
         if(min_leading) {
             DString* nu = DString::create();
             forI(out.lines.count) {
-                String line = array::read(out.lines, i);
+                String line = out.lines.read(i);
                 if(!line.count) nu->append("\n");
                 else nu->append(String{line.str+min_leading, line.count-min_leading}, "\n");
             }

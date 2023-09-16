@@ -72,7 +72,7 @@ is_identifier_char(u32 codepoint) {
 Lexer* Lexer::
 create(Code* code) {
 	Lexer* out = pool::add(compiler::instance.storage.lexers);
-	out->labels = array::init<spt>();
+	out->labels = Array<spt>::create();
 	out->code = code;
 	code->lexer = out;
 	return out;
@@ -80,7 +80,7 @@ create(Code* code) {
 
 void Lexer::
 destroy() {
-	array::deinit(labels);
+	labels.destroy();
 }
 
 void Lexer::
@@ -147,7 +147,7 @@ stream_next;                     \
 	Token last_token = {};
 	b32 label_latch = false; // true when a label has been found, set back to false when a label ending token is crossed (a semicolon or close brace)
 
-	auto tokens = array::init<Token>();
+	auto tokens = Array<Token>::create();
 
     while(stream) {
         Token token = {};
@@ -196,7 +196,7 @@ stream_next;                     \
 				token.l1 = line_num;
 	 			token.c1 = line_col;
 				token.group = token::group_literal;
-	 			array::push(tokens, token);
+	 			tokens.push(token);
 				last_token = token;
 			}continue;
 
@@ -217,7 +217,7 @@ stream_next;                     \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				array::push(tokens, token);
+				tokens.push(token);
 				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
@@ -239,7 +239,7 @@ stream_next;                     \
 				token.l1 = line_num;
 				token.c1 = line_col;
 				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				array::push(tokens, token);
+				tokens.push(token);
 				last_token = token;
 				stream_next;
 			}continue; //skip token creation b/c we did it manually
@@ -269,7 +269,7 @@ stream_next;                     \
 				token.kind = token::colon; 
 				// if(!current_module.label_latch && last_token.kind == token::identifier) {
 				// 	current_module.label_latch = true;
-				// 	array::push(code->lexer->labels, tokens.count-1);
+				// 	code->lexer->labels.push(tokens.count-1);
 				// }
 				stream_next; 
 			}break;
@@ -322,7 +322,7 @@ stream_next;                     \
 				stream_next;
 				if(*stream.str == '>'){
 					token.kind = token::function_arrow;
-					// array::push(lexer.funcarrows, tokens.count);
+					// lexer.funcarrows.push(tokens.count);
 					stream_next;
 				}
 			}break;
@@ -389,17 +389,17 @@ stream_next;                     \
                 	token.kind = internal::token_is_keyword_or_identifier(token.raw);
 					token.hash = string::hash(token.raw);
 
-					if(tokens.count && array::read(tokens, -1).kind == token::pound){
+					if(tokens.count && tokens.read(-1).kind == token::pound){
 						token::kind kind = internal::token_is_directive_or_identifier(token.raw);
 						if(kind == token::identifier){
                             diagnostic::lexer::
 								unknown_directive(&token, token.raw);
 						}
 						token.kind = kind;
-						array::pop(tokens);
+						tokens.pop();
 					} else {
 						switch(token.kind) {
-							case token::structdecl: break; // array::push(lexer.structs, tokens.count); break;
+							case token::structdecl: break; // lexer.structs.push(tokens.count); break;
 							case token::moduledecl: {
 								// Module* m = module::create();
 								// // link the new module's symbol table to the current one 
@@ -437,7 +437,7 @@ stream_next;                     \
             token.l1 = line_num;
             token.c1 = line_col;
             token.raw.count = stream.str - token.raw.str;
-            array::push(tokens, token);
+            tokens.push(token);
         }
 
 		last_token = token;
@@ -447,13 +447,13 @@ stream_next;                     \
 	eof.kind = token::end_of_file;
 	eof.l0 = line_num;
 	eof.c0 = line_col;
-	array::push(tokens, eof);
+	tokens.push(eof);
 
 	if(code::is_virtual(code)) {
 		((VirtualCode*)code)->tokens = tokens;
 	} else {
 		code->source->tokens = tokens;
-		((SourceCode*)code)->tokens = array::view(code->source->tokens);
+		((SourceCode*)code)->tokens = code->source->tokens.view();
 	}
 
 	// !Leak
@@ -479,25 +479,25 @@ output(b32 human, String path) {
 		DString* buffer = DString::create();
 
 		forI(tokens.count) {
-			Token& t = array::readref(tokens, i);
+			Token& t = tokens.readref(i);
 			buffer->append((u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
 		}
 		
 		fwrite(buffer->str, buffer->count, 1, out);
 		buffer->deref();
 	} else {
-		Array<u32> data = array::init<u32>(4*tokens.count);
+		Array<u32> data = Array<u32>::create(4*tokens.count);
 
-		Token* curt = array::readptr(tokens, 0);
+		Token* curt = tokens.readptr(0);
 		forI(tokens.count) {
-			array::push(data, (u32)curt->kind);
-			array::push(data, (u32)curt->l0);
-			array::push(data, (u32)curt->c0);
-			array::push(data, (u32)curt->raw.count);
+			data.push((u32)curt->kind);
+			data.push((u32)curt->l0);
+			data.push((u32)curt->c0);
+			data.push((u32)curt->raw.count);
 		}
 
 		fwrite(data.data, data.count*sizeof(u32), 1, out);
-		array::deinit(data);
+		data.destroy();
 	}
 
     fclose(out);

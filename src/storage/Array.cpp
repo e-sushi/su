@@ -175,7 +175,7 @@ copy() {
 template<typename T> Array<T> Array<T>::
 copy(u64 start, u64 count) {
     Assert(start < this->count && start + count < this->count);
-    Array<T> out = init<T>(count);
+    Array<T> out = create(count);
     memory::copy(out.data, this->data+start, sizeof(T)*count);
     out.count = count;
     return out;
