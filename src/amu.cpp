@@ -157,10 +157,8 @@ int main(int argc, char* argv[]){
 	{using namespace amu;
 		compiler::init();
 		auto args = array::init<String>(argc);
-		forI(argc) {
+		forI(argc) 
 			array::push(args, string::init(argv[i]));
-		}
-
 		compiler::begin(args);
 	}
 	return 0;

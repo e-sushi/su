@@ -430,7 +430,9 @@ print_frame_vars() {
 
     forI(frame.locals.count) {
         Var* v = array::read(frame.locals, i);
-        out->append(ScopedDeref(v->display()).x, "(", v->stack_offset, "): \n", v->type->print_from_address(frame.fp + v->stack_offset), "\n");
+        auto val = v->type->print_from_address(frame.fp + v->stack_offset);
+        val->indent(2);
+        out->append(ScopedDeref(v->display()).x, "(", v->stack_offset, "): \n", ScopedDeref(val).x, "\n");
     }
 
     util::println(out->fin);

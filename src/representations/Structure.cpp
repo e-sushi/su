@@ -46,7 +46,7 @@ DString* Structure::
 display_members_from_address(u8* start) {
     auto out = DString::create();
     for(Member* m = first_member; m; m = m->next<Member>()) {
-        out->append(ScopedDeref(m->label->display()).x, ": ", m->type->print_from_address(start + m->offset), "\n");
+        out->append(ScopedDeref(m->label->display()).x, ": ", ScopedDeref(m->type->print_from_address(start + m->offset)).x, "\n");
     }
 
     return out;
