@@ -1495,6 +1495,55 @@ factor() {
             }
         } break;
 
+        case token::open_square: {
+            // array literal
+
+            token.increment();
+            if(token.is(token::close_brace)) {
+                // empty array 
+                // we need to figure out how we want to handle this before deciding
+                // what to do here. We could possibly determine what the type of the 
+                // array needs to be from the context in which it is being used, but 
+                // I'm not sure yet if I want to allow that.
+                TODO("handle empty array literals");
+
+            }
+
+            u64 count = 0;
+            while(1) {
+                if(token.is(token::close_square)) break;
+
+                if(!expression()) return false;
+                count++;
+
+                if(token.is(token::comma)) {
+                    if(token.next_is(token::close_square)) {
+                        token.increment();
+                        break;
+                    }
+                    token.increment();
+                } else if(!token.is(token::close_square)) {
+                    diagnostic::parser::
+                        array_expected_comma_or_close_square(token.current());
+                    return false;
+                }
+            }
+
+            // we're not able to reliably determine what sort of array this should be yet, so we leave 
+            // it up to Sema to figure out later.
+
+            auto e = ArrayLiteral::create();
+            
+            forI(count) {
+                node::insert_first(e, node.pop());
+            }
+
+            node.push(e);
+
+            token.increment();
+
+        } break;
+
         case token::if_: {
             if(!conditional()) return false;
         } break;

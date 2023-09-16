@@ -314,6 +314,13 @@ group parser {
         }
     }
 
+    diagnostic array_expected_comma_or_close_square {
+        type: error;
+        message: {
+            en: "expected a ',' or ']' for array";
+        }
+    }
+
     diagnostic tuple_positional_arg_but_found_label {
         type: error;
         message: {

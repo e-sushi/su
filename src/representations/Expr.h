@@ -241,6 +241,9 @@ is<StringLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_str
 
 // the Type of this expression will be StaticArray and the underlying type of the 
 // array can be reached from there.
+
+// idk if this is really necessary, there's no reason to store an Array of Expr* because 
+// the elements are just its children anyways
 struct ArrayLiteral : public Expr {
     Array<Expr*> elements;
 
@@ -261,7 +264,6 @@ struct ArrayLiteral : public Expr {
     dump();
 
     ArrayLiteral() : Expr(expr::literal_array) {}
-
 };
 
 template<> b32 inline Base::

@@ -131,6 +131,28 @@ dump() {
     return DString::create("StringLiteral<", ScopedDeref(display()).x, ">");
 }
 
+ArrayLiteral* ArrayLiteral::
+create() {
+    auto out = pool::add(compiler::instance.storage.array_literals);
+    return out;
+}
+
+DString* ArrayLiteral::
+display() {
+    auto out = DString::create();
+    out->append("[");
+    for(Expr* e = first_child<Expr>(); e; e = e->next<Expr>()) {
+        out->append(ScopedDeref(e->display()).x, ",");
+    }
+    out->append("]");
+    return out;
+}
+
+DString* ArrayLiteral::
+dump() {
+    return DString::create("ArrayLiteral<", ScopedDeref(display()).x, ">");
+}
+
 Block* Block::
 create() {
     Block* out = pool::add(compiler::instance.storage.blocks);
