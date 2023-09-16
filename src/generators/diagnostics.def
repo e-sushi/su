@@ -583,6 +583,27 @@ group sema {
             en: "array element %num:elem_index% is of type %type:bad_type% which does not define ImplicitCast to the first element's type %type:first_type%";
         }
     }
+
+    diagnostic type_is_not_subscriptable {
+        type: error;
+        message: {
+            en: "the type %type% cannot be subscripted";
+        }
+    }
+
+    diagnostic subscript_must_evaluate_to_integer {
+        type: error;
+        message: {
+            en: "a subscript must evaluate to an integer (or, eventually, a range of integers), but this evaluates to %type%";
+        }
+    }
+
+    diagnostic subscript_out_of_bounds {
+        type: warning;
+        message: {
+            en: "the subscript %num:bad_guy% is out of bounds of static array of size %num:array_size%";
+        } 
+    }
 }
 
 group internal {

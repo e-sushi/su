@@ -1576,6 +1576,7 @@ factor() {
                 token.increment();
                 if(!reduce_literal_to_literal_expression()) return false;
                 node.current->as<ScalarLiteral>()->value._s64 *= -1;
+                token.increment();
                 return true;
             }
             

@@ -520,6 +520,58 @@ expr(Code* code, Expr* e) { announce_stage(e);
             e->type = StaticArray::create(first_type, count);
         } break;
 
+        case expr::subscript: {
+            auto lhs = e->first_child<Expr>();
+            auto rhs = e->last_child<Expr>();
+            if(!expr(code, lhs)) return false;
+            if(!expr(code, rhs)) return false;
+
+            if(lhs->type->is_not<Structured>()) {
+                diagnostic::sema::
+                    type_is_not_subscriptable(lhs->start, lhs->type);
+                return false;
+            }
+
+            if(rhs->type->is_not<Scalar>() || 
+               rhs->type->as<Scalar>()->is_float()) {
+                diagnostic::sema::
+                    subscript_must_evaluate_to_integer(rhs->start, rhs->type);
+                return false;
+            }
+
+            auto s = lhs->type->as<Structured>();
+
+            switch(s->kind) {
+                case structured::user: {
+                    diagnostic::sema::
+                        type_is_not_subscriptable(lhs->start, lhs->type);
+                    return false;
+                } break;
+
+                case structured::view_array: {
+                    e->type = s->as<ViewArray>()->type;
+                } break;
+
+                case structured::dynamic_array: {
+                    e->type = s->as<DynamicArray>()->type;
+                } break;
+
+                case structured::static_array: {
+                    // TODO(sushi) this needs to check beyond just literals, but since constant propagation
+                    //             isn't done until optimization, im not sure how we should handle that
+                    //             probably just do constant prop in parsing
+                    if(rhs->is<ScalarLiteral>()) {
+                        auto sl = rhs->as<ScalarLiteral>();
+                        if(abs(sl->value._s64) - (sl->is_negative()? 1 : 0) >= s->as<StaticArray>()->count) {
+                            diagnostic::sema::
+                                subscript_out_of_bounds(rhs->start, sl->value._s64, s->as<StaticArray>()->count);
+                        } 
+                    }
+                    e->type = s->as<StaticArray>()->type;
+                } break;
+            }
+        } break;
+
         default: {
             TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
         } break;    
