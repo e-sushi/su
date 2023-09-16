@@ -495,6 +495,31 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::literal_scalar:
         case expr::literal_string: {} break;
 
+        case expr::literal_array: {
+            Type* first_type = 0;
+            u32 count = 0;
+            for(Expr* elem = e->first_child<Expr>(); elem; elem = elem->next<Expr>()) {
+                if(!expr(code, elem)) return false;
+                if(!first_type) first_type = elem->type;
+
+                if(!elem->type->can_cast_to(first_type)) {
+                    diagnostic::sema::
+                        array_literal_type_mismatch(elem->start, count, elem->type, first_type);
+                    return false;
+                }
+
+                if(elem->type->is<Scalar>() && first_type->is<Scalar>()) {
+                    if(elem->is<ScalarLiteral>()) {
+                        elem->as<ScalarLiteral>()->cast_to(first_type->as<Scalar>()->kind);
+                    }
+                }
+
+                count++;
+            }
+
+            e->type = StaticArray::create(first_type, count);
+        } break;
+
         default: {
             TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
         } break;    

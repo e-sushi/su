@@ -190,6 +190,10 @@ sub construct-diag(@diag) {
                             @locdynparts.push: 'Type*' => $name;
                             $part = $name;
                         }
+                        when 'num' {
+                            @locdynparts.push: 's64' => $name;
+                            $part = "to_string($name)->fin"; # !Leak: Messenger needs to take DStrings so we don't cause leaks like this 
+                        }
                     }
                 } else {
                     given $split[0].substr(1,*-1) {
@@ -212,6 +216,10 @@ sub construct-diag(@diag) {
                         when 'type' {
                             @locdynparts.push: 'Type*';
                             $part = "arg$argcount";
+                        }
+                        when 'num' {
+                            @locdynparts.push: 's64';
+                            $part = "to_string(arg$argcount)->fin";
                         }
                     }
                 }

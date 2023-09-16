@@ -128,7 +128,10 @@ struct BC {
     union{
         struct {
             // either a byte offset into the stack, or a literal value 
-            s64 lhs;
+            union {
+                s64 lhs;
+                f64 lhs_f;
+            };
             union {
                 s64 rhs;
                 f64 rhs_f;

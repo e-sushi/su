@@ -401,7 +401,7 @@ group parser {
     diagnostic runtime_structures_not_allowed {
         type: error;
         message: {
-            en: "structure types cannot be defined in runtime memory (did you forget a ':'?)";
+            en: "structure types cannot be defined in runtime memory (did you forget a ':'? or did you use '=' instead of ':'?)";
         }
     }
 
@@ -567,6 +567,13 @@ group sema {
         type: error;
         message: {
             en: "compile time code cannot reference runtime memory";
+        }
+    }
+
+    diagnostic array_literal_type_mismatch {
+        type: error;
+        message: {
+            en: "array element %num:elem_index% is of type %type:bad_type% which does not define ImplicitCast to the first element's type %type:first_type%";
         }
     }
 }

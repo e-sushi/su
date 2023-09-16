@@ -87,7 +87,7 @@ start() {
         case code::typedef_: { // typedefs dont generate anything for now 
 
         } break;
-        
+
         case code::expression: {
             auto e = code->parser->root->as<CompileTime>();
             forI(code->tac_gen->locals.count) {
@@ -570,6 +570,55 @@ body() {
                     } break;
                 }
 
+            } break;
+
+            case tac::array_element: {
+                BC* bc = array::push(seq);
+                bc->instr = air::push;
+                bc->node = tac->node;
+                
+                switch(tac->arg0.kind) {
+                    case arg::literal: {
+                        bc->flags.left_is_const = true;
+                        switch(tac->arg0.literal.kind) {
+                            case scalar::float64: {
+                                bc->lhs_f = tac->arg0.literal._f64;
+                                bc->flags.float_op = true;
+                                bc->rhs = 8;
+                            } break;
+                            case scalar::float32: {
+                                bc->lhs_f = tac->arg0.literal._f32;
+                                bc->flags.float_op = true;
+                                bc->rhs = 4;
+                            } break;
+                            case scalar::signed64:
+                            case scalar::unsigned64: {
+                                bc->lhs = tac->arg0.literal._s64;
+                                bc->rhs = 8;
+                            } break;
+                            case scalar::signed32: 
+                            case scalar::unsigned32: {
+                                bc->lhs = tac->arg0.literal._s32;
+                                bc->rhs = 4;
+                            } break;
+                            case scalar::signed16: 
+                            case scalar::unsigned16: {
+                                bc->lhs = tac->arg0.literal._s16;
+                                bc->rhs = 2;
+                            } break;
+                            case scalar::signed8: 
+                            case scalar::unsigned8: {
+                                bc->lhs = tac->arg0.literal._s8;
+                                bc->rhs = 1;
+                            } break;
+                        }
+                    } break;
+                }
+            } break;
+
+            case tac::array_literal: {
+                tac->temp_pos = tac->arg1.temporary->temp_pos;
+                
             } break;
         }
     }

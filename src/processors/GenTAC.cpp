@@ -227,19 +227,6 @@ Arg GenTAC::
 expression(Expr* e) {
     switch(e->kind) {
         case expr::varref: {
-            // if we're referencing a variable, we need to check if that variable 
-            // is in compile time memory and if we are compiling compile time code
-            // runtime code cannot reference a compile time variable, but compile
-            // time code is allowed to freely modify compile time memory.
-            // if(e->as<VarRef>()->var->is_compile_time && !code->compile_time) {
-            //     // the compile time var will have already put its value in memory
-            //     // so we just need to copy that to the variable
-            //     Var* v = e->as<VarRef>()->var;
-            //     forI(v->type->size()) {
-
-            //     }
-            //     return expression(e->as<VarRef>()->var->label->last_child<Expr>());
-            // } 
             return e->as<VarRef>()->var;
         } break;
 
@@ -365,7 +352,22 @@ expression(Expr* e) {
         } break;
 
         case expr::literal_array: {
-            TODO("handle array literals");
+            TAC* first = 0;
+            for(Expr* elem = e->first_child<Expr>(); elem; elem = elem->next<Expr>()) {
+                TAC* t = make_and_place();
+                t->op = tac::array_element;
+                t->arg0 = expression(elem);
+                t->node = elem;
+                if(!first) first = t;
+            }
+
+            TAC* arr = make_and_place();
+            arr->op = tac::array_literal;
+            arr->arg0.literal = e->first_child<Expr>()->type->size() * e->child_count;
+            arr->node = e;
+            arr->arg1 = first;
+
+            return arr;
         } break;
 
         case expr::literal_tuple: {

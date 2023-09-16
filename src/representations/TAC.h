@@ -113,6 +113,11 @@ enum op {
 
     // casting to the same type but different size specified by the second operand
     resize, 
+
+    // a TAC representing an array literal
+    // temp_size is set to the total size of the array
+    array_element,
+    array_literal,
 };
 } // namespace tac
 
@@ -349,6 +354,12 @@ to_string(DString* current, TAC* tac) {
         } break;
         case tac::itof: {
             current->append("int_to_flt ", tac->arg0, " ", tac->arg1);
+        } break;
+        case tac::array_element: {
+            current->append("array_element ", tac->arg0);
+        } break;
+        case tac::array_literal: {
+            current->append("array_literal ", tac->arg0, " ", tac->arg1);
         } break;
 
     }

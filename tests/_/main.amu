@@ -1,19 +1,6 @@
-StatusFlags :: struct {
-    is_poisoned: u32;
-    is_bleeding: u32;
-}
-
-Player :: struct {
-    health: u32;
-    mana: u32;
-
-    status: StatusFlags;
-}
-
 width :: 5;
 height :: 5;
 
 main::()->void {
-    a := [1, 2];
-    arr: u8[width*height];
+    a := [1, 2.3];
 }

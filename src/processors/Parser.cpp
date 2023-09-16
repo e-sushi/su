@@ -1497,6 +1497,7 @@ factor() {
 
         case token::open_square: {
             // array literal
+            auto save = token.current();
 
             token.increment();
             if(token.is(token::close_brace)) {
@@ -1537,6 +1538,9 @@ factor() {
             forI(count) {
                 node::insert_first(e, node.pop());
             }
+
+            e->start = save;
+            e->end = token.current();
 
             node.push(e);
 
