@@ -442,7 +442,7 @@ class parser_print_stack(gdb.Command):
     
     def invoke(self, args, tty):
         try:
-            s = gdb.execute("call display_stack()", to_string=True)
+            s = gdb.execute("call *display_stack()", to_string=True)
             
             if tty:
                 print(s[s.find('=')+2:-1].replace("\\n", "\n"))
@@ -458,7 +458,7 @@ class display_line(gdb.Command):
     
     def invoke(self, args, tty):
         try: 
-            s = gdb.execute("call token.display_line()", to_string=True)
+            s = gdb.execute("call *token.display_line()", to_string=True)
             if tty:
                 print(s[s.find('=')+2:-1].replace("\\n", "\n"))
             else:

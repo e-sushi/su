@@ -537,6 +537,7 @@ label() {
                     Type* t = expr->type;
                     switch(t->kind) {
                         case type::kind::scalar:
+                        case type::kind::pointer: 
                         case type::kind::structured: {
                             auto v = Var::create();
                             v->label = l;
@@ -987,7 +988,7 @@ expression() {
             case token::double_ampersand: if(!logi_and()) return false; break;
             case token::logi_or: if(!logi_or()) return false; break;
             case token::equal: if(!assignment()) return false; break;
-            //case token::open_brace: advance_curt(); if(!block()) return false; break;
+            case token::range: if(!range()) return false; break;
             default: search = false;
         }
     }
@@ -1337,6 +1338,34 @@ logi_or() {
 }
 
 b32 Parser::
+range() {
+    if(token.is(token::range)) {
+        token.increment();
+        if(!factor()) return false;
+        if(!access()) return false;
+        if(!term()) return false;
+        if(!additive()) return false;
+        if(!bit_shift()) return false;
+        if(!relational()) return false;
+        if(!equality()) return false;
+        if(!bit_and()) return false;
+        if(!bit_xor()) return false;
+        if(!bit_or()) return false;
+        if(!logi_and()) return false;
+        if(!logi_or()) return false;
+        auto e = Expr::create(expr::binary_range);
+
+        node::insert_first(e, node.pop());
+        node::insert_first(e, node.pop());
+        e->start = e->first_child()->start;
+        e->end = e->last_child()->start;
+
+        node.push(e);
+    }
+    return true;
+}
+
+b32 Parser::
 assignment() {
     if(token.is(token::equal)) {
         token.increment();
@@ -1352,6 +1381,7 @@ assignment() {
         if(!bit_or()) return false;
         if(!logi_and()) return false;
         if(!logi_or()) return false;
+        if(!range()) return false;
         auto e = Expr::create(expr::binary_assignment);
 
         node::insert_first(e, node.pop());
@@ -1496,56 +1526,7 @@ factor() {
         } break;
 
         case token::open_square: {
-            // array literal
-            auto save = token.current();
-
-            token.increment();
-            if(token.is(token::close_brace)) {
-                // empty array 
-                // we need to figure out how we want to handle this before deciding
-                // what to do here. We could possibly determine what the type of the 
-                // array needs to be from the context in which it is being used, but 
-                // I'm not sure yet if I want to allow that.
-                TODO("handle empty array literals");
-
-            }
-
-            u64 count = 0;
-            while(1) {
-                if(token.is(token::close_square)) break;
-
-                if(!expression()) return false;
-                count++;
-
-                if(token.is(token::comma)) {
-                    if(token.next_is(token::close_square)) {
-                        token.increment();
-                        break;
-                    }
-                    token.increment();
-                } else if(!token.is(token::close_square)) {
-                    diagnostic::parser::
-                        array_expected_comma_or_close_square(token.current());
-                    return false;
-                }
-            }
-
-            // we're not able to reliably determine what sort of array this should be yet, so we leave 
-            // it up to Sema to figure out later.
-
-            auto e = ArrayLiteral::create();
-            
-            forI(count) {
-                node::insert_first(e, node.pop());
-            }
-
-            e->start = save;
-            e->end = token.current();
-
-            node.push(e);
-
-            token.increment();
-
+            array_literal();
         } break;
 
         case token::if_: {
@@ -1622,6 +1603,88 @@ factor() {
             }
         } break;
     }
+    if(token.is(token::open_square)) {
+        auto a = node.pop();
+        if(!subscript()) return false;
+        node::insert_first(node.current, a);
+    }
+
+    return true;
+}
+
+b32 Parser::
+array_literal() {
+    auto save = token.current();
+
+    token.increment();
+    if(token.is(token::close_brace)) {
+        // empty array 
+        // we need to figure out how we want to handle this before deciding
+        // what to do here. We could possibly determine what the type of the 
+        // array needs to be from the context in which it is being used, but 
+        // I'm not sure yet if I want to allow that.
+        TODO("handle empty array literals");
+
+    }
+
+    u64 count = 0;
+    while(1) {
+        if(token.is(token::close_square)) break;
+
+        if(!expression()) return false;
+        count++;
+
+        if(token.is(token::comma)) {
+            if(token.next_is(token::close_square)) {
+                token.increment();
+                break;
+            }
+            token.increment();
+        } else if(!token.is(token::close_square)) {
+            diagnostic::parser::
+                array_expected_comma_or_close_square(token.current());
+            return false;
+        }
+    }
+
+    // we're not able to reliably determine what sort of array this should be yet, so we leave 
+    // it up to Sema to figure out later.
+
+    auto e = ArrayLiteral::create();
+    
+    forI(count) {
+        node::insert_first(e, node.pop());
+    }
+
+    e->start = save;
+    e->end = token.current();
+
+    node.push(e);
+
+    token.increment();
+
+    return true;
+}
+
+b32 Parser::
+subscript() {
+    auto e = Expr::create(expr::subscript);
+    e->start = token.current();
+
+    token.increment();
+
+    if(!expression()) return false;
+
+    node::insert_last(e, node.pop());
+
+    if(!token.is(token::close_square)) {
+        diagnostic::parser::
+            subscript_missing_close_square(token.current());
+        return false;
+    }
+
+    node.push(e);
+    token.increment();
     return true;
 }
 

@@ -1,6 +1,6 @@
 width :: 5;
 height :: 5;
 
-main::()->void {
-    a := [1, 2.3];
+main::()->void { 
+    a : u32[][0]*;
 }

@@ -425,6 +425,13 @@ group parser {
             en: "static array count cannot be negative";
         }
     }
+
+    diagnostic subscript_missing_close_square {
+        type: error;
+        message: {
+            en: "subscript operator missing closing square ']'";
+        }
+    }
 }
 
 group sema {

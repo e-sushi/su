@@ -102,10 +102,13 @@ private:
     b32 bit_or();
     b32 logi_and();
     b32 logi_or();
+    b32 range();
     b32 assignment();
     b32 conditional();
     b32 loop();
     b32 factor();
+    b32 array_literal();
+    b32 subscript();
     b32 block();
     b32 typeref();
     b32 reduce_builtin_type_to_typeref_expression();

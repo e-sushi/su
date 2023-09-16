@@ -48,6 +48,7 @@ enum kind : u32 {
     return_,
     using_,
     break_,
+    subscript,
 
     unary_bit_comp,
     unary_logi_not,
@@ -78,6 +79,7 @@ enum kind : u32 {
     binary_structure_access,
     binary_assignment,
     binary_comptime,
+    binary_range,
 
     cast,
     reinterpret,
