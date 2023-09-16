@@ -17,101 +17,103 @@ struct Array {
     T* data;
     spt count;
     spt space;
+
+    static Array<T>
+    create(u32 initial_space = 4);
+
+    void
+    destroy();
+
+    // pushes an item to the end of the array and 
+    // returns a pointer to it, growing if needed
+    T*
+    push();
+
+    // pushes an item to the end of the array and
+    // sets its value to 'val', growing if needed
+    void
+    push(const T& val);
+
+
+    // pops 'count' items from the end of the array
+    // and returns the last item popped's value
+    T
+    pop(u32 count = 1);
+
+    // inserts a new item at 'idx' and returns a pointer to it
+    T*
+    insert(spt idx);
+
+    // inserts a new item at 'idx' and sets its value to 'val'
+    void
+    insert(spt idx, const T& val);
+
+    // removes the item at idx
+    // if the array is 'unordered', the item at
+    // the end of the array is moved to the given 'idx'
+    // but if it is ordered, then all items to the left of 
+    // 'idx' are moved left
+    void
+    remove(u32 idx, b32 unordered = false);
+
+    // sets all items in an array to 0
+    // does not affect space
+    void
+    clear();
+
+    // sets the count of the array and zero inits any new items
+    void
+    resize(u32 count);
+
+    // allocates a new amount of space for items
+    // but does not affect the count of items
+    void
+    reserve(u32 count);
+
+    // sets the item at 'idx' to 'val'
+    // the thread safe alternative to trying to set directly
+    void
+    set(spt idx, T val);
+
+    // makes a copy of the item at 'idx' and returns it 
+    // supports negative indexing
+    T
+    read(spt idx);
+
+    // returns a pointer to the item at 'idx' in the array
+    // supports negative indexing
+    // the item can move with the entire array, so this can become invalid
+    // at any time!
+    T*
+    readptr(spt idx);
+
+    // returns a reference to the item at 'idx' in the array
+    // supports negative indexing
+    // the item can move with the entire array, so this can become invalid
+    // at any time!
+    T&
+    readref(spt idx);
+
+    // makes a copy of the given Array's contents 
+    // and returns a new Array with those contents
+    Array<T>
+    copy();
+
+    // makes a copy of a slice of the given Array's contents 
+    // and returns a new Array with those contents
+    Array<T>
+    copy(u64 start, u64 count);
+
+    // returns a View over the given Array
+    View<T>
+    view();
+
+    T operator[](s64 i) {
+        return read(i);
+    }
 };
 
 namespace array {
-
-// initializes an array with an initial space
-template<typename T> Array<T>
-init(u32 initial_space = 4);
-
-// deinitializes an array
-template<typename T> void
-deinit(Array<T>& arr);
-
-// pushes an item to the end of the array and 
-// return a pointer to it, growing if needed
-template<typename T> T* 
-push(Array<T>& arr);
-
-// pushes an item to the end of the array and
-// sets its value to 'val', growing if needed
-template<typename T> void
-push(Array<T>& arr, const T& val);
-
-// pops 'count' items from the end of the array
-// and returns the last item popped's value
-template<typename T> T
-pop(Array<T>& arr, u32 count = 1);
-
-// inserts a new item at 'idx' and returns a pointer to it
-template<typename T> T*
-insert(Array<T>& arr, spt idx);
-
-// inserts a new item at 'idx' and sets its value to 'val'
-template<typename T> void
-insert(Array<T>& arr, spt idx, const T& val);
-
-// removes the item at idx
-// if the array is 'unordered', the item at
-// the end of the array is moved to the given 'idx'
-// but if it is ordered, then all items to the left of 
-// 'idx' are moved left
-template<typename T> void
-remove(Array<T>& arr, u32 idx, b32 unordered = false);
-
-// sets all items in an array to 0
-// does not affect space
-template<typename T> void
-clear(Array<T>& arr);
-
-// sets the count of the array and zero inits any new items
-template<typename T> void
-resize(Array<T>& arr, u32 count);
-
-// allocates a new amount of space for items
-// but does not affect the count of items
-template<typename T> void
-reserve(Array<T>& arr, u32 count);
-
-// sets the item at 'idx' to 'val'
-// the thread safe alternative to trying to set directly
-template<typename T> void
-set(Array<T>& arr, spt idx, T val);
-
-// makes a copy of the item at 'idx' and returns it 
-// supports negative indexing
-template<typename T> T
-read(Array<T>& arr, spt idx);
-
-// returns a pointer to the item at 'idx' in the array
-// supports negative indexing
-// the item can move with the entire array, so this can become invalid
-// at any time!
-template<typename T> T*
-readptr(Array<T>& arr, spt idx);
-
-// returns a reference to the item at 'idx' in the array
-// supports negative indexing
-// the item can move with the entire array, so this can become invalid
-// at any time!
-template<typename T> T&
-readref(Array<T>& arr, spt idx);
-
-// makes a copy of the given Array's contents 
-// and returns a new Array with those contents
-template<typename T> Array<T>
-copy(Array<T>& arr);
-
-// makes a copy of a slice of the given Array's contents 
-// and returns a new Array with those contents
-template<typename T> Array<T>
-copy(Array<T>& arr, u64 start, u64 count);
-
-// returns a View over the given Array
-template<typename T> View<T>
-view(Array<T>& arr);
-
 namespace util {
 
 struct SearchResult {
@@ -128,7 +130,7 @@ search(Array<T>& arr, I element, I (*get)(T&));
 } // namespace array
 
 template<typename T>
-using ScopedArray = util::scoped<Array<T>, [](Array<T>* a) { array::deinit(*a); }>;
+using ScopedArray = util::scoped<Array<T>, [](Array<T>* a) { a->destroy(); }>;
 
 } // namespace amu
 

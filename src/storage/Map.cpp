@@ -4,15 +4,15 @@ namespace map {
 template<typename K, typename V> Map<K,V>
 init() {
     Map<K,V> out;
-    out.keys = array::init<typename Map<K,V>::Key>();
-    out.values = array::init<V>();
+    out.keys = Array<typename Map<K,V>::Key>::create();
+    out.values = Array<V>::create();
     return out;
 }
 
 template<typename K, typename V> void
 deinit(Map<K,V>& m) {
-    array::deinit(m.keys);
-    array::deinit(m.values);
+    m.keys.destroy();
+    m.values.destroy();
 }
 
 template<typename K, typename V> u32
@@ -21,8 +21,8 @@ add(Map<K,V>& m, const K& key) {
     auto [idx, found] = find(m, hash);
     if(found) return idx;
     if(idx == -1) idx = 0;
-    array::insert(m.keys, idx, {key, hash, 0});
-    array::insert(m.values, idx, {});
+    m.keys.insert(idx, {key, hash, 0});
+    m.values.insert(idx, {});
     return idx;
 }
 

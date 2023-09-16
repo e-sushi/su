@@ -1,5 +1,4 @@
 namespace amu {
-namespace array{
 
 namespace internal {
 
@@ -14,8 +13,8 @@ grow_if_needed(Array<T>& arr) {
 
 } // namespace internal
 
-template<typename T> Array<T>
-init(u32 initial_space) {
+template<typename T> Array<T> Array<T>::
+create(u32 initial_space) {
     Array<T> out;
     out.data = (T*)memory::allocate(sizeof(T)*initial_space);
     out.count = 0;
@@ -23,174 +22,175 @@ init(u32 initial_space) {
     return out;
 }
 
-template<typename T> void
-deinit(Array<T>& arr) {
-    memory::free(arr.data);
-    arr = {};
+template<typename T> void Array<T>::
+destroy() {
+    memory::free(this->data);
+    *this = {};
 }
 
-template<typename T> T* 
-push(Array<T>& arr) {
-    internal::grow_if_needed(arr);
-    T* out = new (arr.data + arr.count) T();
-    arr.count += 1;
+template<typename T> T*  Array<T>::
+push() {
+    internal::grow_if_needed(*this);
+    T* out = new (this->data + this->count) T();
+    this->count += 1;
 
     return out;
 }
 
-template<typename T> void
-push(Array<T>& arr, const T& val) {
-    internal::grow_if_needed(arr);
-    *(arr.data + arr.count) = val;
-    arr.count += 1;
+template<typename T> void Array<T>::
+push(const T& val) {
+    internal::grow_if_needed(*this);
+    *(this->data + this->count) = val;
+    this->count += 1;
 }
 
 
-template<typename T> T
-pop(Array<T>& arr, u32 count) {
-    Assert(arr.count);
+template<typename T> T Array<T>::
+pop(u32 count) {
+    Assert(this->count);
     forI(count-1) {
-        arr.count -= 1;
+        this->count -= 1;
     }
 
-    T out = *(arr.data + arr.count-- - 1);
+    T out = *(this->data + this->count-- - 1);
     return out;
 }
 
-template<typename T> T*
-insert(Array<T>& arr, spt idx) {
-    if(!arr.count && !idx) return push(arr);
+template<typename T> T* Array<T>::
+insert(spt idx) {
+    if(!this->count && !idx) return push(*this);
     
-    Assert(idx < arr.count);
+    Assert(idx < this->count);
 
-    internal::grow_if_needed(arr);
+    internal::grow_if_needed(*this);
 
-    memory::move(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
-    memory::zero(arr.data + idx, sizeof(T));
-    arr.count += 1;
-    return arr.data + idx;
+    memory::move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
+    memory::zero(this->data + idx, sizeof(T));
+    this->count += 1;
+    return this->data + idx;
 }
 
-template<typename T> void
-insert(Array<T>& arr, spt idx, const T& val) {
-    Assert(idx <= arr.count);
+template<typename T> void Array<T>::
+insert(spt idx, const T& val) {
+    Assert(idx <= this->count);
 
-    internal::grow_if_needed(arr);
+    internal::grow_if_needed(*this);
 
-    if(!arr.count) {
-        array::push(arr, val);
+    if(!this->count) {
+        push(val);
     } else {
-        memory::move(arr.data + idx + 1, arr.data + idx, sizeof(T) * (arr.count - idx));
-        memory::zero(arr.data + idx, sizeof(T));
-        arr.count += 1;
-        *(arr.data + idx) = val;
+        memory::move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
+        memory::zero(this->data + idx, sizeof(T));
+        this->count += 1;
+        *(this->data + idx) = val;
     }
 }
 
-template<typename T> void
-remove(Array<T>& arr, u32 idx, b32 unordered) {
-    Assert(idx < arr.count);
+template<typename T> void Array<T>::
+remove(u32 idx, b32 unordered) {
+    Assert(idx < this->count);
 
-    arr.count -= 1;
+    this->count -= 1;
     if(unordered) {
-        arr.data[idx] = arr.data[arr.count];
+        this->data[idx] = this->data[this->count];
     } else {
-        memory::move(arr.data+idx, arr.data+idx+1, sizeof(T)*(arr.count - idx));
+        memory::move(this->data+idx, this->data+idx+1, sizeof(T)*(this->count - idx));
     }
 }
 
-template<typename T> void
-clear(Array<T>& arr) {
-    forI(arr.count) {
-        arr.data[i] = {};
+template<typename T> void Array<T>::
+clear() {
+    forI(this->count) {
+        this->data[i] = {};
     }
-    arr.count = 0;
+    this->count = 0;
 }
 
-template<typename T> void
-resize(Array<T>& arr, u32 count) {
-    if(count > arr.count) {
-        if(count > arr.space) {
-            arr.data = memory::reallocate(arr.data, count*sizeof(T));
+template<typename T> void Array<T>::
+resize(u32 count) {
+    if(count > this->count) {
+        if(count > this->space) {
+            this->data = memory::reallocate(this->data, count*sizeof(T));
         }
 
-        forI(count - arr.count) {
-            *(arr.data + arr.count + i) = {};
+        forI(count - this->count) {
+            *(this->data + this->count + i) = {};
         }
 
-        arr.count = count;
-    } else if (count < arr.count) {
-        arr.count = count;
+        this->count = count;
+    } else if (count < this->count) {
+        this->count = count;
     }
 }
 
-template<typename T> void
-reserve(Array<T>& arr, u32 count) {
-    if(count > arr.space) {
-        arr.data = memory::reallocate(arr.data, count*sizeof(T));
-        arr.space = count;
+template<typename T> void Array<T>::
+reserve(u32 count) {
+    if(count > this->space) {
+        this->data = memory::reallocate(this->data, count*sizeof(T));
+        this->space = count;
     }
 }
 
-template<typename T> T
-read(Array<T>& arr, spt idx) {
+template<typename T> T Array<T>::
+read(spt idx) {
     if(idx < 0) {
-        Assert(arr.count + idx >= 0);
-        return *(arr.data + arr.count + idx);
+        Assert(this->count + idx >= 0);
+        return *(this->data + this->count + idx);
     } else {
-        Assert(idx < arr.count);
-        return *(arr.data + idx);
+        Assert(idx < this->count);
+        return *(this->data + idx);
     }
 }
 
-template<typename T> T*
-readptr(Array<T>& arr, spt idx) {
+template<typename T> T* Array<T>::
+readptr(spt idx) {
     if(idx < 0) {
-        Assert(arr.count + idx >= 0);
-        return arr.data + arr.count + idx;
+        Assert(this->count + idx >= 0);
+        return this->data + this->count + idx;
     } else {
-        Assert(idx < arr.count);
-        return arr.data + idx;
+        Assert(idx < this->count);
+        return this->data + idx;
     }
 }
 
-template<typename T> T&
-readref(Array<T>& arr, spt idx) {
+template<typename T> T& Array<T>::
+readref(spt idx) {
     if(idx < 0) {
-        Assert(arr.count + idx >= 0);
-        return arr.data[arr.count + idx];
+        Assert(this->count + idx >= 0);
+        return this->data[this->count + idx];
     } else {
-        Assert(idx < arr.count);
-        return arr.data[idx];
+        Assert(idx < this->count);
+        return this->data[idx];
     }
 }
 
-template<typename T> Array<T>
-copy(Array<T>& arr) {
-    Array<T> out = init<T>(arr.count);
-    memory::copy(out.data, arr.data, sizeof(T)*arr.count);
-    out.count = arr.count;
+template<typename T> Array<T> Array<T>::
+copy() {
+    Array<T> out = init<T>(this->count);
+    memory::copy(out.data, this->data, sizeof(T)*this->count);
+    out.count = this->count;
     return out;
 }
 
-template<typename T> Array<T>
-copy(Array<T>& arr, u64 start, u64 count) {
-    Assert(start < arr.count && start + count < arr.count);
+template<typename T> Array<T> Array<T>::
+copy(u64 start, u64 count) {
+    Assert(start < this->count && start + count < this->count);
     Array<T> out = init<T>(count);
-    memory::copy(out.data, arr.data+start, sizeof(T)*count);
+    memory::copy(out.data, this->data+start, sizeof(T)*count);
     out.count = count;
     return out;
 }
 
-template<typename T> View<T>
-view(Array<T>& arr) {
+template<typename T> View<T> Array<T>::
+view() {
     View<T> out = {};
-    out.data = arr.data;
-    out.count = arr.count;
+    out.data = this->data;
+    out.count = this->count;
     return out;
 }
 
-namespace util {
+
+namespace array::util {
 
 
 template<typename T, typename I> SearchResult
@@ -202,7 +202,7 @@ search(Array<T>& arr, I element, I (*get)(T)) {
         s64 right = arr.count - 1;
         while(left <= right) {
             middle = left+(right-left)/2;
-            I elem = get(array::read(arr,middle));
+            I elem = get(arr[middle]);
             if(elem == element) {
                 index = middle;
                 break;
@@ -219,5 +219,4 @@ search(Array<T>& arr, I element, I (*get)(T)) {
 }
 
 } // namespace util
-} // namespace array
 } // namespace amu

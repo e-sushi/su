@@ -425,11 +425,11 @@ eat_line(String s) {
 
 Array<String>
 find_lines(String s) {
-	Array<String> out = array::init<String>();
+	Array<String> out = Array<String>::create();
 	String cur = {s.str, 0};
 	while(s) {
 		if(*s.str == '\n') {
-			array::push(out, cur);
+			out.push(cur);
 			cur = {s.str + 1, 0};
 		} else cur.count++;
 		string::advance(s);
@@ -439,11 +439,11 @@ find_lines(String s) {
 
 Array<s32>
 find_line_offsets(String s) {
-	Array<s32> out = array::init<s32>();
+	Array<s32> out = Array<s32>::create();
 	u8* start = s.str;
 	while(s) {
 		if(*s.str == '\n') {
-			array::push(out, s32(s.str-start));
+			out.push(s32(s.str-start));
 		}
 		string::advance(s);
 	}
