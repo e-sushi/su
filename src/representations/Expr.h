@@ -198,6 +198,16 @@ struct ScalarLiteral : public Expr {
     void
     cast_to(scalar::kind k);
 
+    // NOTE(sushi) this returns if the scalar is of signed INTEGER type
+    b32 
+    is_signed();
+
+    b32
+    is_float();
+
+    b32
+    is_negative();
+
     ScalarLiteral() : Expr(expr::literal_scalar) {}
 };
 

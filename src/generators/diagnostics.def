@@ -23,6 +23,10 @@
 //
 //      
 // A message may backreference any argument it requested using the syntax $<id>$
+//
+//
+// To parse this and generate 'data/diagnostics-impl.generated' and 'data/diagnostics-data.generated'
+// run 'raku diagnostics.raku' while inside the 'src/generators' directory
 
 group path {
     diagnostic not_found {
@@ -398,6 +402,20 @@ group parser {
         type:error;
         message: {
             en: "member %token% already defined.";
+        }
+    }
+
+    diagnostic static_array_count_must_eval_to_integer {
+        type: error;
+        message: {
+            en: "static array count must evaluate to a compile time integer, but found %type% instead";
+        }
+    }
+
+    diagnostic static_array_size_cannot_be_negative {
+        type: error;
+        message: {
+            en: "static array count cannot be negative";
         }
     }
 }

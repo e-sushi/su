@@ -164,6 +164,13 @@ struct Scalar : public Type {
     DString*
     print_from_address(u8* addr);
 
+    // NOTE(sushi) this returns if the scalar is of signed INTEGER type
+    b32
+    is_signed();
+
+    b32
+    is_float();
+
     Scalar(scalar::kind k) : kind(k), Type(type::kind::scalar) {}
 };
 

@@ -92,7 +92,13 @@ run() {
                     }
                     sp += instr->rhs;
                 } else {
+
                     u8* src = frame.fp + frame.ip->lhs;
+                    if(instr->flags.left_is_ptr) {
+                        src = (u8*)instr->lhs;
+                    } else {
+                        src = frame.fp + frame.ip->lhs;
+                    }
                     memory::copy(dst, src, instr->rhs);
                     sp += instr->rhs;
                 }
@@ -162,7 +168,12 @@ run() {
             } break;
 
             case air::op::mul: {
-                u8* dst = frame.fp + frame.ip->lhs;
+                u8* dst = 0;
+                if(instr->flags.left_is_ptr) {
+                    dst = (u8*)instr->lhs;
+                } else {
+                    dst = frame.fp + instr->lhs;
+                }
                 if(frame.ip->flags.right_is_const) {
                     if(frame.ip->flags.float_op) {
                         sized_op_flt(*=, instr->w, dst, instr->rhs_f);
@@ -170,7 +181,12 @@ run() {
                         sized_op(*=, instr->w, dst, frame.ip->rhs);
                     }
                 } else {
-                    u8* src = frame.fp + frame.ip->rhs;
+                    u8* src = 0;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->rhs;
+                    } else {
+                        src = frame.fp + instr->rhs;
+                    }
                     if(frame.ip->flags.float_op) {
                         sized_op_flt_addr(*=, instr->w, dst, src);
                     } else {

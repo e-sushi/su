@@ -83,9 +83,11 @@ start() {
             body();
             f->frame.ip = bc;
         } break;
+
         case code::typedef_: { // typedefs dont generate anything for now 
 
         } break;
+        
         case code::expression: {
             auto e = code->parser->root->as<CompileTime>();
             forI(code->tac_gen->locals.count) {
@@ -105,6 +107,11 @@ start() {
             }
             body();
         } break;
+
+        case code::var_decl: {
+
+        } break;
+
         default: {
             TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
         } break;
@@ -303,7 +310,28 @@ body() {
                         }
                     } break;
                     case arg::var: {
-                        bc1->rhs = tac->arg1.var->stack_offset; 
+                        auto v = tac->arg1.var;
+                        if(v->is_compile_time) {
+                            if(!code->compile_time) {
+                                s64 lhs = bc1->lhs;
+                                forI(v->type->size()) {
+                                    bc1->flags.right_is_const = true;
+                                    bc1->w = width::byte;
+                                    bc1->rhs = *(v->memory + i);
+                                    bc1->lhs = lhs + i;
+                                    if(i != v->type->size() - 1) {
+                                        bc1 = array::push(seq);
+                                        bc1->instr = air::copy;
+                                        bc1->node = tac->node;
+                                    }
+                                }
+                            } else {
+                                bc1->flags.right_is_ptr = true;
+                                bc1->rhs = (s64)v->memory;
+                            }
+                        } else {
+                            bc1->rhs = v->stack_offset;
+                        }
                     } break;
                     case arg::stack_offset: {
                         bc1->rhs = tac->arg1.stack_offset;
@@ -575,8 +603,30 @@ push_temp(TAC* tac) {
             out->lhs = tac->arg0.literal._u64;
         } break;
         case arg::var: {
-            out->lhs = tac->arg0.var->stack_offset;
-            out->rhs = tac->arg0.var->type->size();
+            auto v = tac->arg0.var;
+            if(v->is_compile_time) {
+                if(!code->compile_time) {
+                    s64 lhs = out->lhs;
+                    forI(v->type->size()) {
+                        out->flags.left_is_const = true;
+                        out->w = width::byte;
+                        out->lhs = *(v->memory + i);
+                        out->rhs = 1;
+                        if(i != v->type->size() - 1) {
+                            out = array::push(seq);
+                            out->instr = air::push;
+                            out->node = tac->node;
+                        }
+                    }
+                } else {
+                    out->flags.left_is_ptr = true;
+                    out->lhs = (s64)v->memory;
+                    out->rhs = v->type->size();
+                }
+            } else {
+                out->lhs = tac->arg0.var->stack_offset;
+                out->rhs = tac->arg0.var->type->size();
+            }
         } break;
         case arg::member: {
             out->lhs = tac->arg0.offset_var.var->stack_offset + tac->arg0.offset_var.offset;

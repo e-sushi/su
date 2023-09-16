@@ -110,6 +110,16 @@ print_from_address(u8* addr) {
     return out;
 }
 
+b32 Scalar::
+is_signed() {
+    return kind == scalar::signed8 || kind == scalar::signed16 || kind == scalar::signed32 || kind == scalar::signed64;
+}
+
+b32 Scalar::
+is_float() {
+    return kind == scalar::float32 || kind == scalar::float64;
+}
+
 Array<Pointer*> Pointer::set = array::init<Pointer*>();
 
 Pointer* Pointer::

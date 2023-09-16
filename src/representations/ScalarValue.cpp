@@ -21,6 +21,29 @@ dump() {
     return DString::create("ScalarValue<", ScopedDeref(display()).x, ">");
 }
 
+b32 ScalarValue::
+is_signed() {
+    return kind == scalar::signed8 || kind == scalar::signed16 || kind == scalar::signed32 || kind == scalar::signed64;
+}
+
+b32 ScalarValue::
+is_float() {
+    return kind == scalar::float32 || kind == scalar::float64;
+}
+
+b32 ScalarValue::
+is_negative() {
+    switch(kind) {
+        case scalar::float32:  return _f32 < 0;
+        case scalar::float64:  return _f64 < 0;
+        case scalar::signed8:  return _s8  < 0;
+        case scalar::signed16: return _s16 < 0;
+        case scalar::signed32: return _s32 < 0;
+        case scalar::signed64: return _s64 < 0;
+    }
+    return false;
+}
+
 // casts this ScalarValue IN PLACE.
 void ScalarValue::
 cast_to(scalar::kind k) {

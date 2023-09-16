@@ -15,6 +15,16 @@
     determine what kind of scalar it is in several places and having to convert between them everytime they mixed. 
     This should allow me to just straight copy between the different usages when necessary.
 
+
+    TODO
+
+    
+    Unfortunately doing this this way causes some duplication between Scalar and ScalarValue, particularly
+    is_signed and is_float. It also causes there to be two kinds to keep track of with ScalarLiteral. I wanted
+    to try and make this inherit Scalar and then have ScalarLiteral inherit ScalarValue, but this runs into the
+    diamond problem, and that's too OOP for me to want to deal with. 
+
+    Ideally this can be cleaned up some other way, but this should do for now. 
 */
 
 #ifndef AMU_SCALARVALUE_H
@@ -46,6 +56,15 @@ struct ScalarValue : public Base {
 
     DString*
     dump();
+
+    b32
+    is_signed();
+
+    b32
+    is_float();
+
+    b32
+    is_negative();
 
     // casts this ScalarValue IN PLACE.
     void

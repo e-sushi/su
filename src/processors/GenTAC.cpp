@@ -65,6 +65,7 @@ start() {
                 start->op = tac::block_start;
                 start->node = e;
             }
+            array::push(temps, array::init<TAC*>());
             Arg arg = expression(e->first_child<Expr>());
             if(start) {
                 TAC* end = make_and_place();

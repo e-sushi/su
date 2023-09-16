@@ -107,4 +107,16 @@ grow(u64 bytes) {
         this->str = (u8*)memory::reallocate(this->str, this->space);
     }
 }
+
+
+void DString::
+indent(s64 n) {
+    if(!n) return;
+    if(n < 0) {
+
+    } else {
+        
+    }
+}
+
 } // namespace amu

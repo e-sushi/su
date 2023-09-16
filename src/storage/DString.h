@@ -87,6 +87,11 @@ struct DString {
 
 	void 
 	grow(u64 bytes);
+
+	// indents each line by n spaces
+	// if n is negative, outdents instead
+	void
+	indent(s64 n);
 	
 	DString(){str=0;count=0;space=0;}
 };

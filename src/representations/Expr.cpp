@@ -101,6 +101,21 @@ cast_to(scalar::kind k) {
     }
 }
 
+b32 ScalarLiteral::
+is_signed() {
+    return value.is_signed();
+}
+
+b32 ScalarLiteral::
+is_float() {
+    return value.is_float();
+}
+
+b32 ScalarLiteral::
+is_negative() {
+    return value.is_negative();
+}
+
 StringLiteral* StringLiteral::
 create() {
     return pool::add(compiler::instance.storage.string_literals);

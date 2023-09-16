@@ -394,6 +394,8 @@ prescanned_var_decl() {
     if(e->is<CompileTime>()) {
         v->is_compile_time = true;
         v->memory = (u8*)memory::allocate(v->type->size());
+        memory::copy(v->memory, e->code->machine->stack, v->type->size());
+        e->code->machine->destroy();
     }
 
     node::change_parent(l, e->last_child());
@@ -401,24 +403,6 @@ prescanned_var_decl() {
     return true;
 }
 
-/*  parses a structure definition
-    expected to be started at the 'struct' token
-    leaves each declaration inside the struct on a typeref expression
-    for example, the struct 
-    
-    struct {
-        a: u32;
-        b: u32;
-    }
-
-    will leave
-
-    (expr:typedef
-        (label<'a'> ...)
-        (label<'b'> ...))
-
-    on the stack
-*/
 b32 Parser::
 struct_decl() {
     token.increment();
@@ -483,7 +467,6 @@ struct_decl() {
     node.push(e);
     return true;
 }
-
 
 // parses a label and whatever comes after it 
 b32 Parser::
@@ -920,6 +903,7 @@ expression() {
             Code* nu = code::from(code, e);
             nu->parser->table.last = table.last;
             nu->compile_time = true;
+            e->code = nu;
 
             if(!compiler::funnel(nu, code::machine)) return false;
 
@@ -1551,6 +1535,27 @@ factor() {
             node.push(e);
         } break;
 
+        case token::minus: {
+            // this might not be a good idea
+            // tiu eble ne estas bonideo
+            if(token.next_is(token::literal_integer)) {
+                token.increment();
+                if(!reduce_literal_to_literal_expression()) return false;
+                node.current->as<ScalarLiteral>()->value._s64 *= -1;
+                return true;
+            }
+            
+            auto e = Expr::create(expr::unary_negate);
+            e->start = e->end = token.current();
+            token.increment();
+
+            if(!expression()) return false;
+
+            node::insert_last(e, node.pop());
+
+            node.push(e);
+        } break;
+
         default: {
             if(token.current()->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
@@ -1718,22 +1723,85 @@ typeref() {
                     // this is a ViewArray
                     last->type = ViewArray::create(last->type);
                 } break;
-                // TODO(sushi) support more complex expressions to size arrays, such as compile time stuff
-                case token::literal_integer: {
-                    // this is a StaticArray
-                    last->type = StaticArray::create(last->type, token.current()->s64_val);
-                    token.increment();
-                    if(!token.is(token::close_square)) {
-                        diagnostic::parser::array_missing_close_square(token.current());
-                        return false;
-                    }
-                } break;
                 case token::range: {
                     // dynamic array
                     last->type = DynamicArray::create(last->type);
                     token.increment();
                     if(!token.is(token::close_square)) {
                         diagnostic::parser::array_missing_close_square(token.current());
+                        return false;
+                    }
+                } break;
+                default: {
+                    // parse whatever is inside, expecting the type returned to be a constant
+                    // integer literal
+                    if(!expression()) return false;
+                    auto e = node.pop()->as<Expr>();
+
+                    switch(e->kind) {
+                        case expr::literal_scalar: {
+                            auto sl = e->as<ScalarLiteral>();
+                            if(sl->is_float()) {
+                                diagnostic::parser::
+                                    static_array_count_must_eval_to_integer(e->start, sl->type);
+                                return false;
+                            } else if(sl->is_negative()) {
+                                diagnostic::parser::
+                                    static_array_size_cannot_be_negative(e->start);
+                                return false;
+                            }
+                            // because we can't have float or negative values, just taking the unsigned 64 bit
+                            // value SHOULD be fine, but idk it might break
+                            last->type = StaticArray::create(last->type, e->as<ScalarLiteral>()->value._u64);
+                        } break;
+                        default: {
+                            // whatever expression we've found needs to be evaluated fully as a compile
+                            // time expression
+                            auto ct = CompileTime::create();
+                            ct->start = e->start;
+                            ct->end = e->end;
+                            node::insert_first(ct, e);
+
+                            Code* nu = code::from(code, ct);
+                            nu->parser->table.last = table.last;
+                            nu->compile_time = true;
+
+                            if(!compiler::funnel(nu, code::machine)) return false;
+
+                            // now we need to figure out exactly what was returned from the expression
+                            e->type = e->first_child<Expr>()->type;
+
+                            // a scalar type will just resolve into a scalar literal
+                            if(e->type->is<Scalar>() && !e->type->as<Scalar>()->is_float()) {
+                                auto sl = ScalarLiteral::create();
+                                sl->value.kind = e->first_child<Expr>()->type->as<Scalar>()->kind;
+                                switch(sl->value.kind) {
+                                    case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
+                                    case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
+                                    case scalar::unsigned32: sl->value = *(u32*)nu->machine->stack; break;
+                                    case scalar::unsigned64: sl->value = *(u64*)nu->machine->stack; break;
+                                    case scalar::signed8:    sl->value = *(s8*)nu->machine->stack; break;
+                                    case scalar::signed16:   sl->value = *(s16*)nu->machine->stack; break;
+                                    case scalar::signed32:   sl->value = *(s32*)nu->machine->stack; break;
+                                    case scalar::signed64:   sl->value = *(s64*)nu->machine->stack; break;
+                                }   
+                                if(sl->is_negative()) {
+                                    diagnostic::parser::
+                                        static_array_size_cannot_be_negative(e->start);
+                                    return false;
+                                }
+                                last->type = StaticArray::create(last->type, sl->value._u64);
+                                node::insert_last(ct, sl);
+                            } else {
+                                diagnostic::parser::
+                                    static_array_count_must_eval_to_integer(e->start, e->type);
+                                return false;
+                            }
+                        } break;
+                    }
+                    if(!token.is(token::close_square)) {
+                        diagnostic::parser::
+                            array_missing_close_square(token.current());
                         return false;
                     }
                 } break;
