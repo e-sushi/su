@@ -526,12 +526,6 @@ expr(Code* code, Expr* e) { announce_stage(e);
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
 
-            if(lhs->type->is_not<Structured>()) {
-                diagnostic::sema::
-                    type_is_not_subscriptable(lhs->start, lhs->type);
-                return false;
-            }
-
             if(rhs->type->is_not<Scalar>() || 
                rhs->type->as<Scalar>()->is_float()) {
                 diagnostic::sema::
@@ -539,37 +533,52 @@ expr(Code* code, Expr* e) { announce_stage(e);
                 return false;
             }
 
-            auto s = lhs->type->as<Structured>();
+            if(lhs->type->is<Structured>()) {
+                auto s = lhs->type->as<Structured>();
+                switch(s->kind) {
+                    case structured::user: {
+                        diagnostic::sema::
+                            type_is_not_subscriptable(lhs->start, lhs->type);
+                        return false;
+                    } break;
 
-            switch(s->kind) {
-                case structured::user: {
+                    case structured::view_array: {
+                        e->type = s->as<ViewArray>()->type;
+                    } break;
+
+                    case structured::dynamic_array: {
+                        e->type = s->as<DynamicArray>()->type;
+                    } break;
+
+                    case structured::static_array: {
+                        // TODO(sushi) this needs to check beyond just literals, but since constant propagation
+                        //             isn't done until optimization, im not sure how we should handle that
+                        //             probably just do constant prop in parsing
+                        if(rhs->is<ScalarLiteral>()) {
+                            auto sl = rhs->as<ScalarLiteral>();
+                            if(abs(sl->value._s64) - (sl->is_negative()? 1 : 0) >= s->as<StaticArray>()->count) {
+                                diagnostic::sema::
+                                    subscript_out_of_bounds(rhs->start, sl->value._s64, s->as<StaticArray>()->count);
+                            } 
+                        }
+                        e->type = s->as<StaticArray>()->type;
+                    } break;
+                }
+            } else if(lhs->type->is<Pointer>()) {
+                // TODO(sushi) this can just return the nth value before the pointer
+                if(rhs->is<ScalarLiteral>() && rhs->as<ScalarLiteral>()->is_negative()) {
                     diagnostic::sema::
-                        type_is_not_subscriptable(lhs->start, lhs->type);
+                        subscript_negative_not_allowed_on_pointer(rhs->start);
                     return false;
-                } break;
-
-                case structured::view_array: {
-                    e->type = s->as<ViewArray>()->type;
-                } break;
-
-                case structured::dynamic_array: {
-                    e->type = s->as<DynamicArray>()->type;
-                } break;
-
-                case structured::static_array: {
-                    // TODO(sushi) this needs to check beyond just literals, but since constant propagation
-                    //             isn't done until optimization, im not sure how we should handle that
-                    //             probably just do constant prop in parsing
-                    if(rhs->is<ScalarLiteral>()) {
-                        auto sl = rhs->as<ScalarLiteral>();
-                        if(abs(sl->value._s64) - (sl->is_negative()? 1 : 0) >= s->as<StaticArray>()->count) {
-                            diagnostic::sema::
-                                subscript_out_of_bounds(rhs->start, sl->value._s64, s->as<StaticArray>()->count);
-                        } 
-                    }
-                    e->type = s->as<StaticArray>()->type;
-                } break;
+                }
+                e->type = lhs->type->as<Pointer>()->type;
+            } else {
+                diagnostic::sema::
+                    type_is_not_subscriptable(lhs->start, lhs->type);
+                return false;
             }
+
+            
         } break;
 
         default: {

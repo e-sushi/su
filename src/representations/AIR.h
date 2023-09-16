@@ -44,9 +44,12 @@ enum op {
     pushn, // push A bytes to the stack
     popn, // pop A bytes from the stack
     
-    // copy from B to A
-    // copies an amount of data specified by width
-    // TODO(sushi) this kind of SUCKS im not gonna lie 
+    // a 3 operand instruction
+    // A: the location to copy to
+    // B: the location to copy from
+    // C: the amount of data to copy
+    // all of the right and left flags still apply normally to A and B
+    // TODO(sushi) maybe just make everything 3 operands 
     copy, 
 
     add, // add B to A and store in A
@@ -111,14 +114,21 @@ struct Register{
 
 
 // representation of an AIR bytecode
+// TODO(sushi) oh my god this is so awful please clean it up soon 
 struct BC {
     air::op instr : 6;
 
     struct {
         b32 left_is_const : 1 = false; // lhs is actually representing a constant value 
         b32 left_is_ptr : 1 = false;
+        b32 left_is_stack_ptr : 1 = false;
+        // the left value is a pointer to something and we want to use the value at that address
+        // if 'left_is_ptr' is not set, then we add lhs to the frame pointer and take the value that's there
+        b32 deref_left : 1 = false; 
         b32 right_is_const : 1 = false; // rhs is actually representing a constant value 
         b32 right_is_ptr : 1 = false;
+        b32 right_is_stack_ptr : 1 = false;
+        b32 deref_right : 1 = false;
         b32 float_op : 1 = false; // this instr is acting on float values
     } flags;
 
@@ -137,6 +147,16 @@ struct BC {
                 f64 rhs_f;
             };
         };
+
+        struct { // three operands for copy instructions 
+            s64 dst;
+            union {
+                s64 src;
+                ScalarValue literal;
+            };
+            s64 size;
+        }copy;
+
         // large literal value 
         u64 constant;
         struct { // this sucks, setup a way to store functions in 4 bytes instead of 8
@@ -150,6 +170,9 @@ struct BC {
     String comment;
     ASTNode* node;
     TAC* tac; // the TAC used to generate this
+
+    BC() {}
+    BC(const BC& bc) {memory::copy(this, (void*)&bc, sizeof(BC));}
 };
 
 void
@@ -159,21 +182,35 @@ to_string(DString* current, BC bc) {
         if(bc.flags.left_is_const) {
             current->append(bc.lhs, " ");
         } else if(bc.flags.left_is_ptr) { 
-            current->append((void*)bc.lhs, " ");
+            if(bc.flags.deref_left) {
+                current->append("[", (void*)bc.lhs, "] ");
+            } else {
+                current->append("[", (void*)bc.lhs, "] ");
+            }
         } else {
-            current->append(bc.lhs, "sp ");
+            if(bc.flags.deref_left) {
+                current->append("[", bc.lhs, "sp] ");
+            } else {
+                current->append(bc.lhs, "sp ");
+            }
         }
     };
 
     auto roffset = [&]() {
         if(bc.flags.right_is_const) {
-            if(bc.flags.float_op) {
-                current->append(bc.rhs_f);
+            current->append(bc.rhs, " ");
+        } else if(bc.flags.right_is_ptr) { 
+            if(bc.flags.deref_right) {
+                current->append("[", (void*)bc.rhs, "] ");
             } else {
-                current->append(bc.rhs);
+                current->append("[", (void*)bc.rhs, "] ");
             }
         } else {
-            current->append(bc.rhs, "sp");
+            if(bc.flags.deref_right) {
+                current->append("[", bc.rhs, "sp] ");
+            } else {
+                current->append(bc.rhs, "sp ");
+            }
         }
     };
 
@@ -193,8 +230,21 @@ to_string(DString* current, BC bc) {
         }break;
         case air::copy:{
             current->append("copy ");
-            loffset();
-            roffset();
+            if(bc.flags.left_is_ptr) {
+                current->append((void*)bc.copy.dst, " ");   
+            } else {
+                current->append(bc.copy.dst, "sp ");
+            }
+
+            if(bc.flags.right_is_ptr) {
+                current->append((void*)bc.copy.src, " ");   
+            } else if(bc.flags.right_is_const) {
+                current->append(ScopedDeref(bc.copy.literal.display()).x, " ");
+            } else {
+                current->append(bc.copy.src, "sp ");
+            }
+
+            current->append(bc.copy.size, " bytes");
         }break;
         case air::add:{
             current->append("add ");

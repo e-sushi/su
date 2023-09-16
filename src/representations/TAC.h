@@ -118,6 +118,9 @@ enum op {
     // temp_size is set to the total size of the array
     array_element,
     array_literal,
+
+    // an index into whatever the first operand is 
+    subscript,
 };
 } // namespace tac
 
@@ -360,6 +363,9 @@ to_string(DString* current, TAC* tac) {
         } break;
         case tac::array_literal: {
             current->append("array_literal ", tac->arg0, " ", tac->arg1);
+        } break;
+        case tac::subscript: {
+            current->append("subscript ", tac->arg0, " ", tac->arg1);
         } break;
 
     }

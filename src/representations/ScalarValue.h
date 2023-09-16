@@ -66,6 +66,9 @@ struct ScalarValue : public Base {
     b32
     is_negative();
 
+    u64
+    size();
+
     // casts this ScalarValue IN PLACE.
     void
     cast_to(scalar::kind k);

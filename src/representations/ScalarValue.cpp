@@ -44,6 +44,22 @@ is_negative() {
     return false;
 }
 
+u64 ScalarValue::
+size() {
+    switch(kind) {
+        case scalar::signed8:
+        case scalar::unsigned8: return 1;
+        case scalar::signed16:
+        case scalar::unsigned16: return 2;
+        case scalar::float32:
+        case scalar::signed32:
+        case scalar::unsigned32: return 4;
+        case scalar::float64:
+        case scalar::signed64:
+        case scalar::unsigned64: return 8;
+    }
+}
+
 // casts this ScalarValue IN PLACE.
 void ScalarValue::
 cast_to(scalar::kind k) {

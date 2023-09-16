@@ -604,6 +604,13 @@ group sema {
             en: "the subscript %num:bad_guy% is out of bounds of static array of size %num:array_size%";
         } 
     }
+
+    diagnostic subscript_negative_not_allowed_on_pointer {
+        type: error;
+        message: {
+            en: "negative subscripts on pointers aren't defined";
+        }
+    }
 }
 
 group internal {

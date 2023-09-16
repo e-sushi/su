@@ -357,17 +357,32 @@ expression(Expr* e) {
                 TAC* t = make_and_place();
                 t->op = tac::array_element;
                 t->arg0 = expression(elem);
+                t->temp_size = elem->type->size();
                 t->node = elem;
                 if(!first) first = t;
             }
 
             TAC* arr = make_and_place();
             arr->op = tac::array_literal;
-            arr->arg0.literal = e->first_child<Expr>()->type->size() * e->child_count;
+            arr->temp_size = e->type->size();
             arr->node = e;
-            arr->arg1 = first;
+            arr->arg0 = first;
 
             return arr;
+        } break;
+
+        case expr::subscript: {
+            Arg lhs = expression(e->first_child<Expr>());
+            Arg rhs = expression(e->last_child<Expr>());
+            
+            TAC* tac = make_and_place();
+            tac->op = tac::subscript;
+            tac->arg0 = lhs;
+            tac->arg1 = rhs;
+            tac->temp_size = e->last_child<Expr>()->type->size();
+            tac->node = e;
+
+            return tac;
         } break;
 
         case expr::literal_tuple: {

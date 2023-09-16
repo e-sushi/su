@@ -341,6 +341,28 @@ class Member_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Member", r"^amu::Member$", Member_printer)
 
+class Type_printer: 
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            s = gdb.execute(f"call *((Type*){val.address})->dump()", to_string = True)
+            return s[s.find('=')+2:-1]
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Type", r"^amu::Type$", Type_printer)
+
+class Var_printer: 
+    def __init__(self, val): self.val = val
+    def to_string(self):
+        try:
+            val:gdb.Value = self.val
+            s = gdb.execute(f"call *((Var*){val.address})->dump()", to_string = True)
+            return s[s.find('=')+2:-1]
+        except Exception as e:
+            print(f"{self.__class__.__name__} error: {e}")
+pp.add_printer("Var", r"^amu::Var$", Var_printer)
+
 gdb.printing.register_pretty_printer(gdb.current_objfile(), pp)
 
 

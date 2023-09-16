@@ -92,12 +92,19 @@ run() {
                     }
                     sp += instr->rhs;
                 } else {
-
                     u8* src = frame.fp + frame.ip->lhs;
                     if(instr->flags.left_is_ptr) {
-                        src = (u8*)instr->lhs;
+                        if(instr->flags.deref_left) {
+                            src = frame.fp + *(u64*)instr->lhs;
+                        } else {
+                            src = (u8*)instr->lhs;
+                        }
                     } else {
-                        src = frame.fp + frame.ip->lhs;
+                        if(instr->flags.deref_left) {
+                            src = frame.fp + *(u64*)(frame.fp + frame.ip->lhs);
+                        } else {
+                            src = frame.fp + frame.ip->lhs;
+                        }
                     }
                     memory::copy(dst, src, instr->rhs);
                     sp += instr->rhs;
@@ -110,24 +117,26 @@ run() {
             case air::op::copy: {
                 u8* dst = 0;
                 if(instr->flags.left_is_ptr) {
-                    dst = (u8*)frame.ip->lhs;
+                    dst = (u8*)instr->copy.dst;
                 } else {
-                    dst = frame.fp + frame.ip->lhs;
+                    dst = frame.fp + instr->copy.dst;
                 }
-                if(frame.ip->flags.right_is_const) {
-                    if(frame.ip->flags.float_op) {
-                        sized_op_flt(=, instr->w, dst, instr->rhs_f);
-                    } else {
-                        sized_op(=, instr->w, dst, frame.ip->rhs);
+                if(instr->flags.right_is_const) {
+                    switch(instr->copy.literal.kind) {
+                        case scalar::float32: *(f32*)dst = instr->copy.literal._f32; break;
+                        case scalar::float64: *(f64*)dst = instr->copy.literal._f64; break;
+                        case scalar::signed8: 
+                        case scalar::unsigned8: *(u8*)dst = instr->copy.literal._u8; break;
+                        case scalar::signed16: 
+                        case scalar::unsigned16: *(u16*)dst = instr->copy.literal._u16; break;
+                        case scalar::signed32: 
+                        case scalar::unsigned32: *(u32*)dst = instr->copy.literal._u32; break;
+                        case scalar::signed64: 
+                        case scalar::unsigned64: *(u64*)dst = instr->copy.literal._u64; break;
                     }
                 } else {
-                    u8* src = frame.fp + frame.ip->rhs;
-                    switch(instr->w) {
-                        case width::byte: memory::copy(dst, src, 1); break;
-                        case width::word: memory::copy(dst, src, 2); break;
-                        case width::dble: memory::copy(dst, src, 4); break;
-                        case width::quad: memory::copy(dst, src, 8); break;
-                    }
+                    u8* src = frame.fp + instr->copy.src;
+                    memory::copy(dst, src, instr->copy.size);
                 }
             } break;
 
@@ -360,9 +369,11 @@ run() {
 
             case air::op::call: {
                 array::push(frames, frame);
+                u8* next_fp = sp - frame.ip->n_params;
                 frame = frame.ip->f->frame;
-                frame.fp = sp - frame.ip->n_params;
+                frame.fp = next_fp;
                 sp = frame.fp;
+                continue; // we don't want to increment the ip
             } break;
 
             case air::op::ret: {

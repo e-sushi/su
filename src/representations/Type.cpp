@@ -199,18 +199,19 @@ dump() {
     return display();
 }
 
-
-
 u64 StaticArray::
 size() {
-    return sizeof(void*) + sizeof(u64);
+    return type->size() * count;
 }
 
 DString* StaticArray::
 print_from_address(u8* addr) {
     auto out = DString::create();
-    out->append(" data: ", (void*)*(u64*)addr, "\n"
-                "count: ", *(u64*)(addr+8));
+    out->append("[");
+    forI(count) {
+        out->append(ScopedDeref(type->print_from_address(addr + i * type->size())).x, ",");
+    }
+    out->append("]");
     return out;
 }
 
