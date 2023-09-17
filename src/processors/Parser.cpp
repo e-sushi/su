@@ -260,6 +260,46 @@ prescan_label() {
                     // TODO(sushi) segment function variables
                     NotImplemented;
                 } break;
+                default: {
+                    // this is probably a global runtime var declaration
+                    Token* save = token.current();
+                    if(token.is(token::open_brace)) {
+                        token.skip_to_matching_pair();
+                        if(!token.next()) {
+                            diagnostic::parser::missing_close_brace(save);
+                            return false;
+                        }
+                    } else {
+                        token.skip_until(token::semicolon);
+                        if(!token.next()) {
+                            diagnostic::parser::missing_semicolon(save);
+                            return false;
+                        }
+                    }
+
+                    Code* nu = code::from(code, id, token.current());
+                    nu->kind = code::var_decl;
+
+                    Label* l = Label::create();
+                    l->start = id;
+                    l->end = token.current();
+
+                    auto e = Expr::create(expr::identifier);
+                    e->start = e->end = id;
+
+                    node::insert_first(l, e);
+
+                    auto v = Var::create();
+                    v->label = l;
+                    l->entity = v->as<Entity>();
+
+                    Parser::create(nu);
+                    nu->parser->root = l->as<ASTNode>();
+
+                    table.add(id->raw, l);
+
+                    node::insert_last(code, nu);
+                } break;
             }
         } break;
         case token::comma: {
@@ -304,7 +344,6 @@ start() {
             }
         } break;
     }
-    code->level = code::parse;
     return true;
 }
 
@@ -391,15 +430,22 @@ prescanned_var_decl() {
 
     v->type = e->type;
 
+    node::change_parent(l, e->last_child());
+
     if(e->is<CompileTime>()) {
         v->is_compile_time = true;
         v->memory = (u8*)memory::allocate(v->type->size());
         memory::copy(v->memory, e->code->machine->stack, v->type->size());
         e->code->machine->destroy();
+    } else {
+        // we still need to bring this variable into memory since it is global
+        v->is_global = true;
+        v->memory = (u8*)memory::allocate(v->type->size());
+        // and also evaluate it too, so that it is initialized 
+        code->level = code::parse;
+        if(!compiler::funnel(code, code::machine)) return false;
+        code->machine->destroy();
     }
-
-    node::change_parent(l, e->last_child());
-
     return true;
 }
 
@@ -915,6 +961,8 @@ expression() {
             if(e->type->is<Scalar>()) {
                 auto sl = ScalarLiteral::create();
                 sl->value.kind = e->first_child<Expr>()->type->as<Scalar>()->kind;
+                sl->start = e->start;
+                sl->end = e->end;
                 switch(sl->value.kind) {
                     case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
                     case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
@@ -970,6 +1018,7 @@ expression() {
     while(search) {
         switch(token.current_kind()) {
             case token::dot: if(!access()) return false; break;
+            case token::percent:
             case token::asterisk:
             case token::solidus: if(!term()) return false; break;
             case token::plus:

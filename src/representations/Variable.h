@@ -22,6 +22,7 @@ struct Var : public Entity {
     // that any references to it should take on its value, not store
     // a VarRef to it 
     b32 is_compile_time;
+    b32 is_global;
     u8* memory;
     
 

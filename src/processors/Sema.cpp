@@ -361,6 +361,7 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
         case expr::binary_minus:
         case expr::binary_division: 
         case expr::binary_multiply:
+        case expr::binary_modulo:
         case expr::binary_equal: 
         case expr::binary_not_equal: 
         case expr::binary_less_than:
@@ -413,10 +414,21 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                     auto l = lhs->type->as<Scalar>(), 
                          r = rhs->type->as<Scalar>();
                     
+                    switch(root->kind) {
+                        case expr::binary_modulo: {
+                            if(l->is_float() || r->is_float()) {
+                                diagnostic::sema::
+                                    modulo_not_defined_on_floats(lhs->start);
+                                return false;
+                            }
+                        } break;
+                    }
+                    
                     if(l == r) {
                         root->type = l;
                         return true;
                     }
+
 
                     b32 take_left = l->kind > r->kind;
                     if(take_left) {
@@ -489,9 +501,6 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                         pointer_on_rhs_of_arithmetic(root->start);
                     return false;
                 }},
-
-                
-
             };
 
             forI(sizeof(rules)/sizeof(Rule)) {
@@ -520,6 +529,7 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                        e->kind == expr::binary_minus                 ? string::init("Sub") :
                        e->kind == expr::binary_multiply              ? string::init("Mul") :
                        e->kind == expr::binary_division              ? string::init("Div") :
+                       e->kind == expr::binary_modulo                ? string::init("Mod") :
                        e->kind == expr::binary_equal                 ? string::init("Equal") : 
                        e->kind == expr::binary_not_equal             ? string::init("NotEqual") :
                        e->kind == expr::binary_less_than             ? string::init("LessThan") :
@@ -753,7 +763,6 @@ label(Code* code, Label* node) { announce_stage(node);
         } break;
     }
 
-
     auto l = (Label*)node;
     switch(l->entity->kind) {
         case entity::var: {
@@ -797,9 +806,12 @@ start(Code* code) {
             }
         } break;
 
+        case ast::label: {
+            if(!label(code, code->parser->root->as<Label>())) return false;
+        } break;
+
         default: DebugBreakpoint;
     }
-    code->level = code::sema;
     return true;
 }
 

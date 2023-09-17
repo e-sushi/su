@@ -662,6 +662,13 @@ group sema {
             en: "unknown member %identifier%. the only members of a static array are 'data' and 'count'";
         }
     }
+
+    diagnostic modulo_not_defined_on_floats {
+        type: error;
+        message: {
+            en: "modulo is not defined to act on floats (for now)";
+        }
+    }
 }
 
 group internal {

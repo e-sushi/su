@@ -43,6 +43,7 @@ start() {
     switch(code->kind) {
         case code::source: {
             for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
+                if(n->level >= code::air) continue;
                 if(!n->air_gen) create(n);
                 n->air_gen->generate();
             }
@@ -109,7 +110,27 @@ start() {
         } break;
 
         case code::var_decl: {
+            auto l = code->parser->root->as<Label>();
+            auto v = l->entity->as<Var>();
+            auto e = l->last_child<Expr>();
+            // forI(code->tac_gen->locals.count) {
+            //     auto v = code->tac_gen->locals.read(i);
+            //     v->stack_offset = stack_offset;
+            //     e->frame.locals.push(v);
+            //     stack_offset += v->type->size();
+            // }
 
+            // if(stack_offset) {
+            //     BC* bc = seq.push();
+            //     bc->tac = code->tac_gen->seq.read(0);
+            //     bc->node = e;
+            //     bc->instr = air::pushn;
+            //     bc->lhs = stack_offset;
+            //     bc->flags.left_is_const = true;
+            //     bc->comment = "make room for global var initialization locals";
+            // }
+
+            body();
         } break;
 
         default: {
@@ -244,6 +265,7 @@ body() {
             case tac::addition:
             case tac::subtraction:
             case tac::multiplication:
+            case tac::modulo:
             case tac::division: {
                 push_temp(tac);
                 
@@ -254,6 +276,7 @@ body() {
                     (tac->op == tac::addition ?       air::add :
                      tac->op == tac::subtraction ?    air::sub :
                      tac->op == tac::multiplication ? air::mul :
+                     tac->op == tac::modulo ?         air::mod :
                                                       air::div);
                 bc1->lhs = tac->temp_pos;
 
@@ -279,29 +302,13 @@ body() {
                         bc1->rhs = tac->arg1.literal;
                     } break;
                     case arg::var: {
-                        TODO("fix var arithmetic");
-                        // auto v = tac->arg1.var;
-                        // if(v->is_compile_time) {
-                        //     if(!code->compile_time) {
-                        //         s64 lhs = bc1->lhs;
-                        //         forI(v->type->size()) {
-                        //             bc1->flags.right_is_const = true;
-                        //             bc1->w = width::byte;
-                        //             bc1->rhs = *(v->memory + i);
-                        //             bc1->lhs = lhs + i;
-                        //             if(i != v->type->size() - 1) {
-                        //                 bc1 = seq.push();
-                        //                 bc1->instr = air::copy;
-                        //                 bc1->node = tac->node;
-                        //             }
-                        //         }
-                        //     } else {
-                        //         bc1->flags.right_is_ptr = true;
-                        //         bc1->rhs = (s64)v->memory;
-                        //     }
-                        // } else {
-                        //     bc1->rhs = v->stack_offset;
-                        // }
+                        auto v = tac->arg1.var;
+                        if(v->is_compile_time) {
+                            bc1->rhs = (u64)v->memory;
+                            bc1->flags.right_is_ptr = true;
+                        } else {
+                            bc1->rhs = v->stack_offset;
+                        }
                     } break;
                     case arg::stack_offset: {
                         bc1->rhs = tac->arg1.stack_offset;
@@ -364,7 +371,7 @@ body() {
                         bc->copy.dst = tac->arg0.temporary->temp_pos;
                     } break;
                     case arg::var: {
-                        if(tac->arg0.var->is_compile_time) {
+                        if(tac->arg0.var->is_compile_time || tac->arg0.var->is_global) {
                             bc->flags.left_is_ptr = true;
                             bc->copy.dst = (s64)tac->arg0.var->memory;
                         } else {
@@ -385,17 +392,13 @@ body() {
                         bc->copy.size = tac->arg1.temporary->temp_size;
                     } break;
                     case arg::var: {
-                        if(tac->arg1.var->is_compile_time) {
-                            if(!code->compile_time) {
-                                bc->copy.src = tac->arg1.var->stack_offset;
-                                bc->copy.size = tac->arg1.var->type->size();
-                            } else {
-                                bc->flags.right_is_ptr = true;
-                                bc->rhs = (s64)tac->arg1.var->memory;
-                            }
+                        if(tac->arg1.var->is_compile_time || tac->arg1.var->is_global) {
+                            bc->flags.right_is_ptr = true;
+                            bc->copy.src = (s64)tac->arg1.var->memory;
                         } else {
-                            bc->rhs = tac->arg1.var->stack_offset;
+                            bc->copy.src = tac->arg1.var->stack_offset;
                         }
+                        bc->copy.size = tac->arg1.var->type->size();
                     } break;
                     case arg::literal: {
                         bc->flags.right_is_const = true;
@@ -668,26 +671,10 @@ push_temp(TAC* tac) {
         } break;
         case arg::var: {
             auto v = tac->arg0.var;
-            if(v->is_compile_time) {
-                TODO("fix var temps");
-                // if(!code->compile_time) {
-                //     s64 lhs = out->lhs;
-                //     forI(v->type->size()) {
-                //         out->flags.left_is_const = true;
-                //         out->w = width::byte;
-                //         out->lhs = *(v->memory + i);
-                //         out->rhs = 1;
-                //         if(i != v->type->size() - 1) {
-                //             out = seq.push();
-                //             out->instr = air::push;
-                //             out->node = tac->node;
-                //         }
-                //     }
-                // } else {
-                //     out->flags.left_is_ptr = true;
-                //     out->lhs = (s64)v->memory;
-                //     out->rhs = v->type->size();
-                // }
+            if(v->is_compile_time || v->is_global) {
+                out->flags.left_is_ptr = true;
+                out->lhs = (u64)v->memory;
+                out->rhs = v->type->size();
             } else {
                 out->lhs = tac->arg0.var->stack_offset;
                 out->rhs = tac->arg0.var->type->size();

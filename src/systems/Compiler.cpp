@@ -267,22 +267,27 @@ funnel(Code* code, code::level level) {
             case code::none: {
                 if(!code->lexer) Lexer::create(code);
                 code->lexer->start();
+                code->level = code::lex;
             } break;
             case code::lex: {
                 if(!code->parser) Parser::create(code);
                 if(!code->parser->parse()) return false;
+                code->level = code::parse;
             } break;
             case code::parse: {
                 if(!code->sema) code->sema = sema::create();
                 if(!sema::analyze(code)) return false;
+                code->level = code::sema;
             } break;
             case code::sema: {
                 if(!code->tac_gen) GenTAC::create(code);
                 code->tac_gen->generate();
+                code->level = code::tac;
             } break;
             case code::tac: {
                 if(!code->air_gen) GenAIR::create(code);
                 code->air_gen->generate();
+                code->level = code::air;
             } break;
             case code::air: {
                 if(!code->machine) VM::create(code);

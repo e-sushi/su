@@ -58,6 +58,7 @@ enum op {
     multiplication,
     subtraction,
     division,
+    modulo,
 
     equal,
     not_equal,

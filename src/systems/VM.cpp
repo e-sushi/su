@@ -13,6 +13,8 @@ create(Code* entry) {
     } else if(entry->is(code::expression)) {
         // we create a frame for this expr
         out->frame.identifier = DString::create("ExprFrame<", (void*)entry->parser->root, ">");
+    } else if(entry->is(code::var_decl)) {
+        out->frame.identifier = DString::create("GlobalVarFrame<", (void*)entry->parser->root, ">");
     }
     out->frame.ip = entry->air_gen->seq.data;
     out->frame.fp = out->stack;
@@ -38,9 +40,9 @@ run() {
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         BC* instr = frame.ip;
-        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.identifier, " with sp ", sp - frame.fp));
-        util::println(instr->node->underline());
-        util::println(ScopedDeref(to_string(*frame.ip)).x);
+        // util::println(DString::create("----------------------- ", frame.ip, " of ", frame.identifier, " with sp ", sp - frame.fp));
+        // util::println(instr->node->underline());
+        // util::println(ScopedDeref(to_string(*frame.ip)).x);
         switch(instr->instr) {
             case air::op::push: {
                 u8* dst = sp;
@@ -110,7 +112,12 @@ run() {
                         case scalar::unsigned64: *(u64*)dst = instr->copy.literal._u64; break;
                     }
                 } else {
-                    u8* src = frame.fp + instr->copy.src;
+                    u8* src;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->copy.src;
+                    } else {
+                        src = frame.fp + instr->copy.src;
+                    }
                     if(instr->flags.deref_right) {
                         src = frame.fp + *(u64*)src;
                     }
@@ -134,7 +141,12 @@ run() {
                         case scalar::unsigned64: *(u64*)dst += instr->rhs._u64; break;
                     }
                 } else {
-                    u8* src = frame.fp + frame.ip->rhs._u64;
+                    u8* src;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->rhs._u64;
+                    } else {
+                        src = frame.fp + instr->rhs._u64;
+                    }
                     switch(instr->rhs.kind) {
                         case scalar::float32: *(f32*)dst += *(f32*)src; break;
                         case scalar::float64: *(f64*)dst += *(f64*)src; break;
@@ -166,7 +178,12 @@ run() {
                         case scalar::unsigned64: *(u64*)dst -= instr->rhs._u64; break;
                     }
                 } else {
-                    u8* src = frame.fp + frame.ip->rhs._u64;
+                    u8* src;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->rhs._u64;
+                    } else {
+                        src = frame.fp + instr->rhs._u64;
+                    }
                     switch(instr->rhs.kind) {
                         case scalar::float32: *(f32*)dst -= *(f32*)src; break;
                         case scalar::float64: *(f64*)dst -= *(f64*)src; break;
@@ -198,7 +215,12 @@ run() {
                         case scalar::unsigned64: *(u64*)dst *= instr->rhs._u64; break;
                     }
                 } else {
-                    u8* src = frame.fp + frame.ip->rhs._u64;
+                    u8* src;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->rhs._u64;
+                    } else {
+                        src = frame.fp + instr->rhs._u64;
+                    }
                     switch(instr->rhs.kind) {
                         case scalar::float32: *(f32*)dst *= *(f32*)src; break;
                         case scalar::float64: *(f64*)dst *= *(f64*)src; break;
@@ -230,7 +252,12 @@ run() {
                         case scalar::unsigned64: *(u64*)dst /= instr->rhs._u64; break;
                     }
                 } else {
-                    u8* src = frame.fp + frame.ip->rhs._u64;
+                    u8* src;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->rhs._u64;
+                    } else {
+                        src = frame.fp + instr->rhs._u64;
+                    }
                     switch(instr->rhs.kind) {
                         case scalar::float32: *(f32*)dst /= *(f32*)src; break;
                         case scalar::float64: *(f64*)dst /= *(f64*)src; break;
@@ -242,6 +269,39 @@ run() {
                         case scalar::unsigned32: *(u32*)dst /= *(u32*)src; break;
                         case scalar::signed64: 
                         case scalar::unsigned64: *(u64*)dst /= *(u64*)src; break;
+                    }
+                }
+            } break;
+
+            case air::op::mod: {
+                u8* dst = frame.fp + frame.ip->lhs._u64;
+                if(frame.ip->flags.right_is_const) {
+                    switch(instr->rhs.kind) {
+                        case scalar::signed8: 
+                        case scalar::unsigned8: *(u8*)dst %= instr->rhs._u8; break;
+                        case scalar::signed16: 
+                        case scalar::unsigned16: *(u16*)dst %= instr->rhs._u16; break;
+                        case scalar::signed32: 
+                        case scalar::unsigned32: *(u32*)dst %= instr->rhs._u32; break;
+                        case scalar::signed64: 
+                        case scalar::unsigned64: *(u64*)dst %= instr->rhs._u64; break;
+                    }
+                } else {
+                    u8* src;
+                    if(instr->flags.right_is_ptr) {
+                        src = (u8*)instr->rhs._u64;
+                    } else {
+                        src = frame.fp + instr->rhs._u64;
+                    }
+                    switch(instr->rhs.kind) {
+                        case scalar::signed8: 
+                        case scalar::unsigned8: *(u8*)dst %= *(u8*)src; break;
+                        case scalar::signed16: 
+                        case scalar::unsigned16: *(u16*)dst %= *(u16*)src; break;
+                        case scalar::signed32: 
+                        case scalar::unsigned32: *(u32*)dst %= *(u32*)src; break;
+                        case scalar::signed64: 
+                        case scalar::unsigned64: *(u64*)dst %= *(u64*)src; break;
                     }
                 }
             } break;

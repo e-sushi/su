@@ -45,6 +45,7 @@ start() {
     switch(code->kind) {
         case code::source: {
             for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
+                if(n->level >= code::tac) continue;
                 if(!n->tac_gen) n->tac_gen = create(n);
                 n->tac_gen->generate();
             }
@@ -83,7 +84,19 @@ start() {
         case code::var_decl: {
             // this is a global variable so for now we'll just make room for it on the stack 
             // and initialize it to whatever its value needs to be 
-            TODOsoft("handle runtime global vars");
+            auto l = code->parser->root->as<Label>();
+            auto v = l->entity->as<Var>();
+            auto e = l->last_child<Expr>();
+            auto stmt = Stmt::create();
+            stmt->kind = stmt::label;
+            node::insert_last(stmt, l);
+            stmt->start = l->start;
+            stmt->end = l->end;
+            statement(stmt);
+            TAC* ret = make_and_place();
+            ret->op = tac::ret;
+            ret->node = e;
+            ret->arg0 = v;
         } break;
         default: {
             TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
@@ -234,6 +247,7 @@ expression(Expr* e) {
         case expr::binary_minus:
         case expr::binary_multiply:
         case expr::binary_division:
+        case expr::binary_modulo:
         case expr::binary_equal:
         case expr::binary_not_equal:
         case expr::binary_less_than:
@@ -248,6 +262,7 @@ expression(Expr* e) {
                        e->kind == expr::binary_minus                 ? tac::subtraction :
                        e->kind == expr::binary_multiply              ? tac::multiplication :
                        e->kind == expr::binary_division              ? tac::division :
+                       e->kind == expr::binary_modulo                ? tac::modulo :
                        e->kind == expr::binary_equal                 ? tac::equal : 
                        e->kind == expr::binary_not_equal             ? tac::not_equal :
                        e->kind == expr::binary_less_than             ? tac::less_than :

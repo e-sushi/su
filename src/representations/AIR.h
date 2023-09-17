@@ -24,6 +24,18 @@
     I made sometime in the future setup a map that associates BC with various other representations that generated
     it for debug information. For now, though, printing BC and registers only shows their numeric values.
 
+
+    NOTES
+    ---------
+    quirks and such 
+
+    Compile time values are always referenced by their address in memory. Backends are meant to take this 
+    memory and put it into whatever temporary thing the backend target supports. For example:
+        width :: 5;
+        main::()->s32 { a = 5; }
+    'width' exists in memory somewhere and the AIR for 'a = 5' will involve a 'push' from that memory address 
+    with size 8.
+
 */
 
 #ifndef AMU_AIR_H
@@ -56,6 +68,7 @@ enum op {
     sub, // sub B from A and store in A
     mul, // multiply B by A and store in A
     div, // divide B from A and store in A
+    mod, // divide B from A and store remainder in A
 
     // TODO(sushi) consider replacing this 
     eq,  // sets A to one if A == B
