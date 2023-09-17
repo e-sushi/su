@@ -1685,6 +1685,7 @@ subscript() {
     }
 
     node.push(e);
+    e->end = token.current();
     token.increment();
     return true;
 }

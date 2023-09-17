@@ -19,6 +19,7 @@ struct Expr;
 
 namespace type {
 enum class kind {
+    null,
     void_, // the type representing nothing 
     whatever, // when we might need a type but we don't care what it would be 
     scalar,
@@ -87,6 +88,9 @@ struct Type : public Entity {
 template<> inline b32 Base::
 is<Type>() { return is<Entity>() && as<Entity>()->kind == entity::type; }
 
+template<> inline b32 Base::
+is(type::kind k) { return is<Type>() && as<Type>()->kind == k; }
+
 // type representing nothing 
 struct Void : public Type { 
     Void() : Type(type::kind::void_) {} 
@@ -130,6 +134,7 @@ global Whatever whatever;
 } // namespace type
 
 namespace scalar {
+// @genstrings(data/scalar-strings.generated)
 enum kind {
     unsigned8,
     unsigned16,
@@ -142,6 +147,9 @@ enum kind {
     float32,
     float64,
 };
+
+#include "data/scalar-strings.generated"
+
 } // namespace scalar
 
 // a singular number. Underlies ScalarValue

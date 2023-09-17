@@ -27,7 +27,7 @@ struct GenAIR {
     Array<BC> seq;
 
     // stack_offset in bytes 
-    u32 stack_offset;
+    u64 stack_offset;
 
     Array<u64> scoped_temps;
 

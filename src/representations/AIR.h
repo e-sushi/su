@@ -80,7 +80,20 @@ enum op {
     ftou, // float to unsigned
     ftos, // float to signed 
     itof, // integer to float
-    resz, // resize a value at position A to the width B and create a temp for it 
+
+    // a 4 operand instruction wow!
+    // A: dest of result
+    // B: src of result
+    // C: type to cast to
+    // D: type to cast from
+    // this uses the 'resz' struct on BC
+    // initially I was just using 2, and then 3, operands omitting the source; which was
+    // meant to have been pushed as a temporary that 'destination' pointed at.
+    // but this meant that when resizing downwards, the temp spot needed to take on the 
+    // larger size to fit its temporary, but then the size of the temp TAC is the size of the
+    // original type, so anything using this temporary thinks the size is still the same as it originally was.
+    // maybe try and rework this to not use 4 operands later 
+    resz, 
 };
 
 #include "data/airop_strings.generated"
@@ -138,14 +151,8 @@ struct BC {
     union{
         struct {
             // either a byte offset into the stack, or a literal value 
-            union {
-                s64 lhs;
-                f64 lhs_f;
-            };
-            union {
-                s64 rhs;
-                f64 rhs_f;
-            };
+            ScalarValue lhs;
+            ScalarValue rhs;
         };
 
         struct { // three operands for copy instructions 
@@ -156,6 +163,13 @@ struct BC {
             };
             s64 size;
         }copy;
+
+        struct {
+            s64 dst;
+            s64 src;
+            scalar::kind to;
+            scalar::kind from;
+        } resz;
 
         // large literal value 
         u64 constant;
@@ -180,36 +194,36 @@ to_string(DString* current, BC bc) {
 
     auto loffset = [&]() {
         if(bc.flags.left_is_const) {
-            current->append(bc.lhs, " ");
+            current->append(ScopedDeref(bc.lhs.display()).x, " ");
         } else if(bc.flags.left_is_ptr) { 
             if(bc.flags.deref_left) {
-                current->append("[", (void*)bc.lhs, "] ");
+                current->append("[", (void*)bc.lhs._u64, "] ");
             } else {
-                current->append("[", (void*)bc.lhs, "] ");
+                current->append("[", (void*)bc.lhs._u64, "] ");
             }
         } else {
             if(bc.flags.deref_left) {
-                current->append("[", bc.lhs, "sp] ");
+                current->append("[", ScopedDeref(bc.lhs.display()).x, "sp] ");
             } else {
-                current->append(bc.lhs, "sp ");
+                current->append(ScopedDeref(bc.lhs.display()).x, "sp ");
             }
         }
     };
 
     auto roffset = [&]() {
         if(bc.flags.right_is_const) {
-            current->append(bc.rhs, " ");
+            current->append(ScopedDeref(bc.rhs.display()).x, " ");
         } else if(bc.flags.right_is_ptr) { 
             if(bc.flags.deref_right) {
-                current->append("[", (void*)bc.rhs, "] ");
+                current->append("[", (void*)bc.rhs._u64, "] ");
             } else {
-                current->append("[", (void*)bc.rhs, "] ");
+                current->append("[", (void*)bc.rhs._u64, "] ");
             }
         } else {
             if(bc.flags.deref_right) {
-                current->append("[", bc.rhs, "sp] ");
+                current->append("[", ScopedDeref(bc.rhs.display()).x, "sp] ");
             } else {
-                current->append(bc.rhs, "sp ");
+                current->append(ScopedDeref(bc.rhs.display()).x, "sp ");
             }
         }
     };
@@ -231,17 +245,33 @@ to_string(DString* current, BC bc) {
         case air::copy:{
             current->append("copy ");
             if(bc.flags.left_is_ptr) {
-                current->append((void*)bc.copy.dst, " ");   
+                if(bc.flags.deref_left) {
+                    current->append("[", (void*)bc.copy.dst, "] ");   
+                } else {
+                    current->append((void*)bc.copy.dst, " ");   
+                }
             } else {
-                current->append(bc.copy.dst, "sp ");
+                if(bc.flags.deref_left) {
+                    current->append("[", bc.copy.dst, "sp] ");
+                } else {
+                    current->append(bc.copy.dst, "sp ");
+                }
             }
 
             if(bc.flags.right_is_ptr) {
-                current->append((void*)bc.copy.src, " ");   
+                if(bc.flags.deref_right) {
+                    current->append("[", (void*)bc.copy.src, "] ");   
+                } else {
+                    current->append((void*)bc.copy.src, " ");   
+                }
             } else if(bc.flags.right_is_const) {
                 current->append(ScopedDeref(bc.copy.literal.display()).x, " ");
             } else {
-                current->append(bc.copy.src, "sp ");
+                if(bc.flags.deref_right) {
+                    current->append("[", bc.copy.src, "sp] ");
+                } else {
+                    current->append(bc.copy.src, "sp ");
+                }
             }
 
             current->append(bc.copy.size, " bytes");
@@ -320,9 +350,7 @@ to_string(DString* current, BC bc) {
             roffset();
         }break;
         case air::resz: {
-            current->append("resz ");
-            loffset();
-            roffset();
+            current->append("resz ", bc.resz.src, "sp(", scalar::strings[bc.resz.from], ") -> ", bc.resz.dst, "sp(", scalar::strings[bc.resz.to], ")");
         } break;
     }
 

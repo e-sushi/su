@@ -270,7 +270,7 @@ class ASTNode_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call ((ASTNode*){val.address})->dump()", to_string = True)
+            s = gdb.execute(f"call *((ASTNode*){val.address})->dump()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")

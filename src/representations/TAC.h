@@ -134,6 +134,7 @@ enum kind {
     literal,
     width,
     stack_offset,
+    cast,
 };
 } // namespace arg
 
@@ -146,6 +147,7 @@ struct Arg {
         ScalarValue literal;
         u64 stack_offset;
         width w;
+        scalar::kind scalar_kind;
 
         // a Variable with an offset and the Type of that offset
         // the reason we don't just store a Member here is because
@@ -155,7 +157,16 @@ struct Arg {
             u64 offset;
             Type* type;
         } offset_var;
+        
+        struct {
+            scalar::kind to;
+            scalar::kind from;
+        } cast;
     };
+
+    // set true when this argument should be dealt with directly instead of being
+    // put into a temporary
+    b32 deref;
 
     Arg() : kind(arg::none) {}
     Arg(Var* p) : kind(arg::var), var(p) {}
@@ -178,6 +189,8 @@ struct TAC {
     TAC* from;
     TAC* next;
     TAC* to;
+
+    b32 lvalue;
 
     // when a TAC generates a temporary, this will determine its size
     u64 temp_size;
@@ -239,6 +252,9 @@ to_string(DString* current, Arg* arg) {
             } else {
                 current->append(arg->offset_var.var->display(),"+",arg->offset_var.offset);
             }
+        } break;
+        case arg::cast: {
+            current->append(scalar::strings[arg->cast.from], "->", scalar::strings[arg->cast.to]);
         } break;
     }
 }

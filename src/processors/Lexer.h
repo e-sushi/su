@@ -31,25 +31,6 @@ struct Lexer {
     output(b32 human, String path);
 };
 
-namespace lex {
-
-// Lexer*
-// create();
-
-// void
-// destroy(Lexer* lexer);
-
-// // ask a Lexer to perform its analysis, storing information
-// // in the provided Code object
-// void
-// execute(Code* code);
-
-// // output the data emitted by the Lexer to the given path
-// // human: true to emit a human readable format, false to emit binary data
-// void
-// output(Code* code, b32 human, String path);
-
-} // namespace lexer
 } // namespace amu
 
 #endif // AMU_LEXER_H

@@ -226,6 +226,30 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
         } break;
         case type::kind::structured: {
             auto stype = lhs_type->as<Structured>();
+            if(stype->is<StaticArray>()) {
+                if(rhs->start->raw.equal("count")) {
+                    auto nu = ScalarLiteral::create();
+                    nu->value = stype->as<StaticArray>()->count;
+                    nu->type = &scalar::_u64;
+                    node::insert_above(e, nu);
+                    e->type = nu->type;
+                    // TODO(sushi) clear up the weird behavoir here
+                    //             even though we replace e with nu, the caller doesn't know that
+                    //             for now I just reset lhs and rhs where this is called (one case)
+                    //             so eventually I'll need to handle all the cases
+                } else if(rhs->start->raw.equal("data")) {
+                    auto nu = Expr::create(expr::unary_reference);
+                    node::change_parent(nu, e->first_child());
+                    node::insert_above(e, nu);
+                    nu->type = Pointer::create(stype->as<StaticArray>()->type);
+                } else {
+                    diagnostic::sema::
+                        static_array_invalid_member(rhs->start, rhs->start->raw);
+                    return false;
+                }
+                return true;
+            }
+
             Member* m = stype->structure->find_member(rhs->start->raw);
             if(!m) {
                 diagnostic::sema::
@@ -302,6 +326,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
             } else {
                 e->type = lhs->type;
             }
+
+            lhs->lvalue = true;
         } break;
 
         case expr::binary_access: {
@@ -332,15 +358,136 @@ expr(Code* code, Expr* e) { announce_stage(e);
             auto rhs = e->last_child<Expr>();
             if(!expr(code, lhs)) return false;
             if(!expr(code, rhs)) return false;
+            lhs = e->first_child<Expr>();
+            rhs = e->last_child<Expr>();
 
-            if(lhs->type->is<Whatever>()) {
-                diagnostic::sema::cant_use_whatever_as_value(lhs->start);
-                return false;
-            }
+            // Rules define different patters of the form 
+            //     <lhs_type> <op> <rhs_type>
+            // that are iterated and checked so we can handle
+            // certain cases such as handling arithmetic between
+            // any kind of scalar, checking for use of void/whatever
+            // etc. If type::kind::null or expr::null are used, then
+            // the Rule will match anything in that position.
+            //
+            // This is experimental to see if it's nicer to write than
+            // what I was doing previously and the fact that the rule
+            // list is iterated linearly probably makes this very 
+            // inefficient
+            struct Rule {
+                type::kind lhs_type;
+                type::kind rhs_type;
+                expr::kind op;
 
-            if(rhs->type->is<Whatever>()) {
-                diagnostic::sema::cant_use_whatever_as_value(rhs->start);
-                return false;
+                b32 (*action)(Expr*,Expr*,Expr*);
+            };
+
+            Rule rules[] = {
+                
+                {type::kind::whatever, type::kind::null, expr::null, 
+                [](Expr* root, Expr* lhs, Expr* rhs)->b32 {
+                    diagnostic::sema::cant_use_whatever_as_value(lhs->start);
+                    return false;
+                }},
+                
+                {type::kind::null, type::kind::whatever, expr::null, 
+                [](Expr* root, Expr* lhs, Expr* rhs)->b32 {
+                    diagnostic::sema::cant_use_whatever_as_value(rhs->start);
+                    return false;
+                }},
+
+                {type::kind::scalar, type::kind::scalar, expr::null,
+                [](Expr* root, Expr* lhs, Expr* rhs)->b32 {
+                    auto l = lhs->type->as<Scalar>(), 
+                         r = rhs->type->as<Scalar>();
+                    
+                    if(l == r) {
+                        root->type = l;
+                        return true;
+                    }
+
+                    b32 take_left = l->kind > r->kind;
+                    if(take_left) {
+                        if(rhs->is<ScalarLiteral>()) {
+                            rhs->as<ScalarLiteral>()->cast_to(l->kind);
+                            root->type = l;
+                            return true;
+                        }
+                    } else {
+                        if(lhs->is<ScalarLiteral>()) {
+                            lhs->as<ScalarLiteral>()->cast_to(r->kind);
+                            root->type = r;
+                            return true;
+                        }
+                    }
+
+                    auto cast = Expr::create(expr::cast);
+                    cast->type = (take_left? l : r);
+                    cast->start = root->start;
+                    cast->end = root->end;
+                    node::insert_above((take_left? rhs : lhs), cast);
+                    root->type = cast->type;
+
+                    return true;
+                }},
+
+                {type::kind::pointer, type::kind::scalar, expr::null,
+                [](Expr* root, Expr* lhs, Expr* rhs)->b32 {
+                    if(rhs->type->as<Scalar>()->is_float()) {
+                        diagnostic::sema::
+                            float_in_pointer_arithmetic(rhs->start);
+                        return false;
+                    }
+                    switch(root->kind) {
+                        case expr::binary_plus: 
+                        case expr::binary_minus: {
+                            root->type = lhs->type;
+                        } break;    
+
+                        case expr::binary_less_than:
+                        case expr::binary_greater_than:
+                        case expr::binary_less_than_or_equal:
+                        case expr::binary_greater_than_or_equal: {
+                            diagnostic::sema::
+                                comparison_between_pointer_and_scalar(root->start);
+                            return false;
+                        } break;
+
+                        case expr::binary_equal: 
+                        case expr::binary_not_equal: {
+                            if(!rhs->is<ScalarLiteral>() || rhs->as<ScalarLiteral>()->value._u64 != 0) {
+                                diagnostic::sema::
+                                    pointer_equality_non_zero_integer(rhs->start);
+                                return false;
+                            }
+                        } break;
+
+                        default: {
+                            diagnostic::sema::
+                                pointer_arithmetic_not_additive(root->start);
+                            return false;
+                        } break;
+                    }
+                    return true;
+                }},
+
+                {type::kind::scalar, type::kind::pointer, expr::null,
+                [](Expr* root, Expr* lhs, Expr* rhs)->b32 {
+                    diagnostic::sema::
+                        pointer_on_rhs_of_arithmetic(root->start);
+                    return false;
+                }},
+
+                
+
+            };
+
+            forI(sizeof(rules)/sizeof(Rule)) {
+                Rule r = rules[i];
+                if(r.lhs_type != type::kind::null && lhs->type->is_not(r.lhs_type)) continue;
+                if(r.rhs_type != type::kind::null && rhs->type->is_not(r.rhs_type)) continue;
+                if(r.op != expr::null && e->is_not(r.op)) continue;
+
+                return r.action(e, lhs, rhs);
             }
 
             if(lhs->type == rhs->type) { 
@@ -353,18 +500,6 @@ expr(Code* code, Expr* e) { announce_stage(e);
                     return false;
                 }
                 e->type = lhs->type;
-            } else if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
-                // take the larger of the two, and prefer float > signed > unsigned
-                auto l = lhs->type->as<Scalar>(), 
-                     r = rhs->type->as<Scalar>();
-                
-                auto cast = Expr::create(expr::cast);
-                b32 take_left = l->kind > r->kind;
-                cast->type = (take_left? l : r);
-                cast->start = e->start;
-                cast->end = e->end;
-                node::insert_above((take_left? rhs : lhs), cast);
-                e->type = cast->type;
             } else {
                 diagnostic::sema::
                     cant_find_binop_trait(e->start, // C++ IS SO GARBAGE

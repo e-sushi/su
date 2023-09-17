@@ -44,9 +44,10 @@ length(){
 
 s64 String::
 compare(String s, u64 n){
-    if(this->str == s.str && this->count == s.count) return 0;
+    auto a = *this;
+    if(a.str == s.str && a.count == s.count) return 0;
     s64 diff = 0;
-    while(!diff && n-- && (*this || s)) diff = (s64)advance().codepoint - (s64)s.advance().codepoint;
+    while(!diff && n-- && (a || s)) diff = (s64)a.advance().codepoint - (s64)s.advance().codepoint;
     return diff;
 }
 

@@ -100,6 +100,9 @@ struct Expr : public Entity {
     // idk where else to put this atm 
     Member* member;
 
+    // when true, this expression represents a location in memory 
+    // and operations performed on it should directly affect it 
+    b32 lvalue;
 
     // ~~~~~~ interface ~~~~~~~
 

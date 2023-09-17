@@ -286,60 +286,22 @@ expression(Expr* e) {
             Arg arg = expression(e->first_child<Expr>());
             TAC* cast = make_and_place();
             new_temp(cast, e->type);
+            
             cast->node = e;
+            cast->op = tac::resz;
             if(e->type->is<Scalar>() && e->first_child<Expr>()->type->is<Scalar>()) {
                 auto to = e->type->as<Scalar>();
                 auto from = e->first_child<Expr>()->type->as<Scalar>();
-                switch(to->kind) {
-                    case scalar::unsigned64: {
-                        cast->temp_size = 4;
-                        cast->arg1 = width::quad;
-                        switch(from->kind) {
-                            case scalar::unsigned32: {
-                                cast->op = tac::resz;
-                                cast->arg0 = arg;
-                            } break;
-                            case scalar::unsigned16: {
-                                cast->op = tac::resz;
-                                cast->arg0 = arg;
-                            } break;
-                        }
-                    } break;
-                    case scalar::float32: {
-                        cast->temp_size = 4;
-                        cast->arg1 = width::dble;
-                        switch(from->kind) {
-                            case scalar::float64: {
-                                 // NOTE(sushi) even if we're casting to a smaller type, the temp 
-                                //             has to be large enough to hold the original value.
-                                //             Ideally we setup casting values that are already in
-                                //             temporaries in place soon, but for now this is fine
-                                //             since it's going to be cleared eventually anyways
-                                cast->temp_size = 8;
-                                cast->op = tac::resz;
-                                cast->arg0 = arg;
-                                cast->is_float = true;
-                            } break;
-                        }
-                    } break;
-                    case scalar::float64: {
-                        cast->temp_size = 8;
-                        cast->arg1 = width::quad;
-                        switch(from->kind) {
-                            case scalar::float32: {
-                                cast->op = tac::resz;
-                                cast->arg0 = arg;
-                                cast->is_float = true;
-                            } break;
-                        }
-                    } break;
-                }
+                cast->arg0 = arg;
+                cast->arg1.kind = arg::cast;
+                cast->arg1.cast.to = to->kind;
+                cast->arg1.cast.from = from->kind;
+                cast->temp_size = to->size();
             } else {
+                // I believe that anything other than a scalar cast
+                // will need to call a function 
                 TODO("handle non-scalar casts");
             }
-
-            // if(arg.kind == arg::temporary) return arg;
-            // else return cast;
             return cast;
         } break;
 
@@ -379,8 +341,16 @@ expression(Expr* e) {
             tac->op = tac::subscript;
             tac->arg0 = lhs;
             tac->arg1 = rhs;
-            tac->temp_size = e->last_child<Expr>()->type->size();
+
+            if(e->first_child<Expr>()->type->is<Pointer>()) {
+                tac->temp_size = e->first_child<Expr>()->type->as<Pointer>()->type->size();
+            } else if(e->first_child<Expr>()->type->is<StaticArray>()) {
+                tac->temp_size = e->first_child<Expr>()->type->as<StaticArray>()->type->size();
+            } else {
+                TODO("unhandled subscript subject");
+            }
             tac->node = e;
+            tac->lvalue = e->lvalue;
 
             return tac;
         } break;
