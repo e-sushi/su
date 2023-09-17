@@ -203,6 +203,9 @@ struct ScalarLiteral : public Expr {
     void
     cast_to(scalar::kind k);
 
+    void
+    cast_to(Type* t);
+
     // NOTE(sushi) this returns if the scalar is of signed INTEGER type
     b32 
     is_signed();
@@ -267,6 +270,13 @@ struct ArrayLiteral : public Expr {
 
     DString*
     dump();
+
+    // casts this array in place to an array of the given
+    // type and applies casts to each of its elements 
+    // count cannot change here and this doesn't do any checks
+    // to see if the cast is valid
+    void
+    cast_to(Type* t);
 
     ArrayLiteral() : Expr(expr::literal_array) {}
 };

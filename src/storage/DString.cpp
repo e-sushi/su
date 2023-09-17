@@ -125,6 +125,8 @@ indent(s64 n) {
 
             nl += last+n+2;
 
+            if(nl == this->count) return;
+
             forI(n) {
                 insert(nl, " ");
             }

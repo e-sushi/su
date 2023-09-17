@@ -23,10 +23,12 @@ can_cast_to(Type* to)  {
         return true;
 
     // arrays can coerce between each other as long as a conversion exists
-    // between their underlying types
+    // between their underlying types and the array being casted to is
+    // smaller than the other
     if(to->is<StaticArray>() && this->is<StaticArray>()) {
         auto ato = (StaticArray*)to;
         auto athis = (StaticArray*)this;
+        if(ato->count < athis->count) return false;
         if(ato->type->can_cast_to(athis->type)) return true;
     }
 
@@ -209,11 +211,13 @@ print_from_address(u8* addr) {
     auto out = DString::create();
     out->append("[");
     forI(count) {
-        out->append(ScopedDeref(type->print_from_address(addr + i * type->size())).x, ",");
+        out->append(ScopedDeref(type->print_from_address(addr + i * type->size())).x, (i==count-1?"":","));
     }
     out->append("]");
     return out;
 }
+
+
 
 Array<ViewArray*> ViewArray::set = Array<ViewArray*>::create();
 

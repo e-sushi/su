@@ -513,97 +513,34 @@ body() {
             } break;
 
             case tac::subscript: {
-                BC* out = 0;
+                u64 src = 0;
 
                 switch(tac->arg0.kind) {
                     case arg::var: {
                         auto v = tac->arg0.var;
-                        switch(tac->arg1.kind) {
-                            case arg::var: {
-                                auto vr = tac->arg1.var;
-                                BC* temp = seq.push();
-                                temp->tac = tac;
-                                temp->node = tac->node;
-                                temp->instr = air::push;
-                                temp->flags.left_is_const = true;
-                                temp->lhs = v->stack_offset;
-                                temp->rhs = u64(8);
-                                u64 temp_pos = stack_offset;
-                                stack_offset += 8;
-                                scoped_temps.readref(-1) += 8;
-                                tac->temp_pos = temp_pos;
-
-                                BC* add = seq.push();
-                                add->tac = tac;
-                                add->node = tac->node;
-                                add->instr = air::add;
-                                add->lhs = temp_pos;
-                                add->rhs = vr->stack_offset;
-
-                                BC* mult = seq.push();
-                                mult->tac = tac;
-                                mult->node = tac->node;
-                                mult->instr = air::mul;
-                                mult->lhs = temp_pos;
-                                mult->flags.right_is_const = true;
-                                mult->rhs = tac->temp_size;
-
-                                if(!tac->lvalue) {
-                                    out = seq.push();
-                                    out->tac = tac;
-                                    out->node = tac->node;
-                                    out->instr = air::push;
-                                    out->flags.deref_left = true;
-                                    out->lhs = temp_pos;
-                                    out->rhs = tac->temp_size;
-                                } else {
-                                    out = mult;
-                                }
-                                
-                            } break;
-                            case arg::temporary: {
-                                TAC* t = tac->arg1.temporary;
-
-                                BC* mult = seq.push();
-                                mult->tac = tac;
-                                mult->node = tac->node;
-                                mult->instr = air::mul;
-                                mult->lhs = t->temp_pos;
-                                mult->flags.right_is_const = true;
-                                mult->rhs = tac->temp_size;
-                                tac->temp_pos = t->temp_pos;
-
-                                if(!tac->lvalue) {
-                                    out = seq.push();
-                                    out->tac = tac;
-                                    out->node = tac->node;
-                                    out->instr = air::push;
-                                    out->flags.deref_left = true;
-                                    out->lhs = t->temp_pos;
-                                    out->rhs = tac->temp_size;
-                                } else {
-                                    // out = mult;
-                                }
-                            } break;
-                            case arg::literal: {
-                                out = seq.push();
-                                out->tac = tac;
-                                out->node = tac->node;
-                                out->instr = air::push;
-                                out->lhs = v->stack_offset + tac->arg1.literal._s64 * tac->temp_size;
-                                tac->temp_pos = stack_offset;
-                                
-                                if(tac->lvalue) {
-                                    out->flags.left_is_const = true;
-                                    out->rhs = u64(8);
-
-                                } else {
-                                    out->rhs = tac->temp_size;
-                                }
-
-                                stack_offset += out->rhs._u64;
-                                scoped_temps.readref(-1) += out->rhs._u64;
-                            } break;
+                        src = v->stack_offset;
+                        
+                    } break;
+                    case arg::member: {
+                        src = tac->arg0.offset_var.var->stack_offset + tac->arg0.offset_var.offset;
+                    } break;
+                    case arg::temporary: {
+                        TAC* t = tac->arg0.temporary;
+                        if( t == tac_seq.read(i-1) && 
+                            t->op == tac::subscript &&
+                            t->arg1.kind == arg::literal) {
+                            // this should be something like a[0][1][2]...
+                            // so we just take the last count and add to it 
+                            // the last BC will be a single push of the literal,
+                            // so we can just add to it and continue 
+                            // this is a really scuffed solution to this sort of thing
+                            // should probably come up with something better later 
+                            BC* last = seq.readptr(-1);
+                            last->lhs._u64 += tac->arg1.literal._u64 * tac->temp_size;
+                            tac->temp_pos = t->temp_pos;
+                            continue;
+                        } else {
+                            src = t->temp_pos;
                         }
                     } break;
                     default: {
@@ -611,12 +548,91 @@ body() {
                     } break;
                 }
 
-                // if(out) {
-                //     tac->temp_pos = stack_offset;
-                //     out->comment = DString::create("temp with pos ", tac->temp_pos);
-                //     stack_offset += tac->temp_size;
-                //     scoped_temps.readref(-1) += tac->temp_size;
-                // }
+                switch(tac->arg1.kind) {
+                    case arg::var: {
+                        auto vr = tac->arg1.var;
+                        BC* temp = seq.push();
+                        temp->tac = tac;
+                        temp->node = tac->node;
+                        temp->instr = air::push;
+                        temp->flags.left_is_const = true;
+                        temp->lhs = src;
+                        temp->rhs = u64(8);
+                        temp->comment = DString::create(stack_offset);
+                        u64 temp_pos = stack_offset;
+                        stack_offset += 8;
+                        scoped_temps.readref(-1) += 8;
+                        tac->temp_pos = temp_pos;
+
+                        BC* add = seq.push();
+                        add->tac = tac;
+                        add->node = tac->node;
+                        add->instr = air::add;
+                        add->lhs = temp_pos;
+                        add->rhs = vr->stack_offset;
+
+                        BC* mult = seq.push();
+                        mult->tac = tac;
+                        mult->node = tac->node;
+                        mult->instr = air::mul;
+                        mult->lhs = temp_pos;
+                        mult->flags.right_is_const = true;
+                        mult->rhs = tac->temp_size;
+
+                        if(!tac->lvalue) {
+                            BC* out = seq.push();
+                            out->tac = tac;
+                            out->node = tac->node;
+                            out->instr = air::push;
+                            out->flags.deref_left = true;
+                            out->lhs = temp_pos;
+                            out->rhs = tac->temp_size;
+                        }
+                        
+                    } break;
+                    case arg::temporary: {
+                        TAC* t = tac->arg1.temporary;
+
+                        BC* mult = seq.push();
+                        mult->tac = tac;
+                        mult->node = tac->node;
+                        mult->instr = air::mul;
+                        mult->lhs = t->temp_pos;
+                        mult->flags.right_is_const = true;
+                        mult->rhs = tac->temp_size;
+                        tac->temp_pos = t->temp_pos;
+
+                        if(!tac->lvalue) {
+                            BC* out = seq.push();
+                            out->tac = tac;
+                            out->node = tac->node;
+                            out->instr = air::push;
+                            out->flags.deref_left = true;
+                            out->lhs = t->temp_pos;
+                            out->rhs = tac->temp_size;
+                        }
+                    } break;
+                    case arg::literal: {
+                        BC* out = seq.push();
+                        out->tac = tac;
+                        out->node = tac->node;
+                        out->instr = air::push;
+                        out->comment = DString::create(stack_offset);
+                        out->lhs = src + tac->arg1.literal._s64 * tac->temp_size;
+                        tac->temp_pos = stack_offset;
+                        
+                        if(tac->lvalue) {
+                            out->flags.left_is_const = true;
+                            out->rhs = u64(8);
+
+                        } else {
+                            out->rhs = tac->temp_size;
+                        }
+
+                        stack_offset += out->rhs._u64;
+                        scoped_temps.readref(-1) += out->rhs._u64;
+                    } break;
+                }
             } break; 
         }
     }

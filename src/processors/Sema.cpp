@@ -45,14 +45,14 @@ u64 layers = 0;
 // }
 
 b32 label(Code* code, Label* l);
-b32 expr(Code* code, Expr* e);
+b32 expr(Code* code, Expr* e, b32 is_lvalue);
 
 b32
 statement(Code* code, Stmt* s) { announce_stage(s);
     switch(s->kind) {
         case stmt::label: return label(code, s->first_child<Label>());
         case stmt::block_final:
-        case stmt::expression: return expr(code, s->first_child<Expr>());
+        case stmt::expression: return expr(code, s->first_child<Expr>(), false);
     }
     return false;
 }
@@ -96,7 +96,7 @@ func_arg_tuple(Code* code, Tuple* t) { announce_stage(t);
     if(!t->child_count) return true;
     for(ASTNode* n = t->first_child(); n; n = n->next()) {
         if(n->is<Expr>()) {
-            if(!expr(code, n->as<Expr>())) return false;
+            if(!expr(code, n->as<Expr>(), false)) return false;
         } else {
             if(!label(code, n->as<Label>())) return false;
         }
@@ -138,7 +138,7 @@ call(Code* code, Call* e) {
     ASTNode* func_arg = f->parameters->first_child();
     ASTNode* call_arg = e->arguments->first_child();
     while(func_arg && call_arg) {
-        if(!expr(code, call_arg->as<Expr>())) return false;
+        if(!expr(code, call_arg->as<Expr>(), false)) return false;
         auto func_arg_t = func_arg->resolve_type();
         auto call_arg_t = call_arg->resolve_type();
         if(!func_arg_t->can_cast_to(call_arg_t)) {
@@ -169,7 +169,7 @@ typedef_(Code* code, Expr* e) {
         case type::kind::structured: {
             auto s = e->type->as<Structured>()->structure;
             for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
-                if(!expr(code, m->last_child<Expr>())) return false;
+                if(!expr(code, m->last_child<Expr>(), false)) return false;
                 m->type = m->last_child<Expr>()->type;
                 m->offset = s->size;
                 // if size is 0, then we must have ran into a case where we don't know the size of something yet
@@ -265,13 +265,16 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
 }
 
 b32 
-expr(Code* code, Expr* e) { announce_stage(e);
+expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
+    defer {
+        if(is_lvalue) e->lvalue = true;
+    };
     switch(e->kind) {
         case expr::unary_comptime: {
-            return expr(code, e->first_child<Expr>());
+            return expr(code, e->first_child<Expr>(), is_lvalue);
         } break;
         case expr::unary_assignment: {
-            if(!expr(code, e->first_child<Expr>())) return false;
+            if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
             e->type = e->first_child()->resolve_type();
         } break;
         case expr::block: {
@@ -289,8 +292,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::binary_assignment: {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
+            if(!expr(code, lhs, true)) return false;
+            if(!expr(code, rhs, is_lvalue)) return false;
 
             if(rhs->type->is<Whatever>()) {
                 diagnostic::sema::cant_use_whatever_as_value(rhs->start);
@@ -320,6 +323,16 @@ expr(Code* code, Expr* e) { announce_stage(e);
                         node::insert_above(rhs, cast);
                         e->type = cast->type;
                     }
+                } else if(lhs->type->is<StaticArray>() && rhs->type->is<StaticArray>()) {
+                    auto lsa = lhs->type->as<StaticArray>(),
+                         rsa = rhs->type->as<StaticArray>();
+
+                    if(lsa->type->is<Scalar>() && rsa->type->is<Scalar>()) {
+                        // TODO(sushi) this incorrectly assumes that rhs is an array literal
+                        rhs->as<ArrayLiteral>()->cast_to(lsa->type);
+                    } else {
+                        TODO("bulk cast with non-scalar arrays");
+                    }
                 } else {
                     TODO("handle other type casts in assignment");                    
                 }
@@ -333,7 +346,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::binary_access: {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
+            if(!expr(code, lhs, is_lvalue)) return false;
             auto lhs_type = lhs->resolve_type();
             if(!lhs_type) {
                  diagnostic::sema::
@@ -356,12 +369,12 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::binary_greater_than_or_equal:  {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
+            if(!expr(code, lhs, is_lvalue)) return false;
+            if(!expr(code, rhs, is_lvalue)) return false;
             lhs = e->first_child<Expr>();
             rhs = e->last_child<Expr>();
 
-            // Rules define different patters of the form 
+            // Rules define different patterns of the form 
             //     <lhs_type> <op> <rhs_type>
             // that are iterated and checked so we can handle
             // certain cases such as handling arithmetic between
@@ -525,8 +538,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::binary_and: {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
+            if(!expr(code, lhs, is_lvalue)) return false;
+            if(!expr(code, rhs, is_lvalue)) return false;
 
             // control statements can only appear on the very right
             if(lhs->type->is<Whatever>()) {
@@ -574,7 +587,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
         } break;
 
         case expr::conditional: {
-            if(!expr(code, e->first_child<Expr>())) return false;
+            if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
 
             if(e->first_child<Expr>()->type->is<Whatever>()) {
                 diagnostic::sema::cant_use_whatever_as_value(e->first_child()->start);
@@ -583,7 +596,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
 
             Type* first_type = 0;
             for(auto branch = e->first_child()->next<Expr>(); branch; branch = branch->next<Expr>()) {
-                if(!expr(code, branch)) return false;
+                if(!expr(code, branch, is_lvalue)) return false;
                 if(!first_type) first_type = branch->type;
                 else {
                     if(!first_type->can_cast_to(branch->type)) {
@@ -606,7 +619,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
         } break;
 
         case expr::loop: {
-            if(!expr(code, e->first_child<Expr>())) return false;
+            if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
 
             e->type = e->first_child<Expr>()->type;
         } break;
@@ -634,7 +647,7 @@ expr(Code* code, Expr* e) { announce_stage(e);
             Type* first_type = 0;
             u32 count = 0;
             for(Expr* elem = e->first_child<Expr>(); elem; elem = elem->next<Expr>()) {
-                if(!expr(code, elem)) return false;
+                if(!expr(code, elem, is_lvalue)) return false;
                 if(!first_type) first_type = elem->type;
 
                 if(!elem->type->can_cast_to(first_type)) {
@@ -658,8 +671,8 @@ expr(Code* code, Expr* e) { announce_stage(e);
         case expr::subscript: {
             auto lhs = e->first_child<Expr>();
             auto rhs = e->last_child<Expr>();
-            if(!expr(code, lhs)) return false;
-            if(!expr(code, rhs)) return false;
+            if(!expr(code, lhs, is_lvalue)) return false;
+            if(!expr(code, rhs, is_lvalue)) return false;
 
             if(rhs->type->is_not<Scalar>() || 
                rhs->type->as<Scalar>()->is_float()) {
@@ -734,7 +747,7 @@ label(Code* code, Label* node) { announce_stage(node);
                     if(!function(code, node->last_child<Function>())) return false;
                 } break;
                 case entity::expr: {
-                    if(!expr(code, node->last_child<Expr>())) return false;
+                    if(!expr(code, node->last_child<Expr>(), false)) return false;
                 } break;
             }
         } break;
@@ -777,7 +790,7 @@ start(Code* code) {
                 } break;
 
                 case entity::expr: {
-                    if(!expr(code, e->as<Expr>())) return false;
+                    if(!expr(code, e->as<Expr>(), false)) return false;
                 } break;
 
                 default: DebugBreakpoint;

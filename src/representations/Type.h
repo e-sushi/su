@@ -286,12 +286,10 @@ is<Pointer>() { return is<Type>() && as<Type>()->kind == type::kind::pointer; }
 // a StaticArray is an array of the form
 //      T[N]
 // where N is some integer. A StaticArray is allocated onto the stack
-// and its data pointer and count cannot be changed
+// and its data pointer and count cannot be changed, since they will
+// never exist to begin with
 struct StaticArray : public Structured {
     Type* type;
-    // NOTE(sushi) the size of an StaticArray does not matter when it comes to type checking
-    //             and unique storage of StaticArray, it is used to keep track of what size 
-    //             a static array was declared with 
     u64   count;
 
     static Array<StaticArray*> set;

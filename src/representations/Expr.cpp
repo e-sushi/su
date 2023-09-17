@@ -101,6 +101,12 @@ cast_to(scalar::kind k) {
     }
 }
 
+void ScalarLiteral::
+cast_to(Type* t) {
+    Assert(t->is<Scalar>());
+    cast_to(t->as<Scalar>()->kind);
+}
+
 b32 ScalarLiteral::
 is_signed() {
     return value.is_signed();
@@ -151,6 +157,23 @@ display() {
 DString* ArrayLiteral::
 dump() {
     return DString::create("ArrayLiteral<", ScopedDeref(display()).x, ">");
+}
+
+void ArrayLiteral::
+cast_to(Type* t) {
+    for(Expr* e = first_child<Expr>(); e; e = e->next<Expr>()) {
+        if(type->as<StaticArray>()->type->is<Scalar>()) {
+            if(e->is<ScalarLiteral>()) {
+                e->as<ScalarLiteral>()->cast_to(t);
+            } else {
+                auto cast = Expr::create(expr::cast);
+                cast->type = t;
+                cast->start = e->start;
+                cast->end = e->end;
+                node::insert_above(e, cast);
+            }
+        }
+    }
 }
 
 Block* Block::

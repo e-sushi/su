@@ -38,9 +38,9 @@ run() {
     while(!finished) { 
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         BC* instr = frame.ip;
-        // util::println(DString::create("----------------------- ", frame.ip, " of ", frame.identifier, " with sp ", sp - frame.fp));
-        // util::println(instr->node->underline());
-        // util::println(ScopedDeref(to_string(*frame.ip)).x);
+        util::println(DString::create("----------------------- ", frame.ip, " of ", frame.identifier, " with sp ", sp - frame.fp));
+        util::println(instr->node->underline());
+        util::println(ScopedDeref(to_string(*frame.ip)).x);
         switch(instr->instr) {
             case air::op::push: {
                 u8* dst = sp;
@@ -533,7 +533,7 @@ run() {
             break;
         }
 
-        // print_frame_vars();
+        print_frame_vars();
     } 
 
     util::println(util::format_time(util::stopwatch::peek(start)));

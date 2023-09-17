@@ -989,6 +989,7 @@ expression() {
             case token::logi_or: if(!logi_or()) return false; break;
             case token::equal: if(!assignment()) return false; break;
             case token::range: if(!range()) return false; break;
+            case token::open_square: if(!subscript()) return false; break;
             default: search = false;
         }
     }
@@ -1365,6 +1366,36 @@ range() {
     return true;
 }
 
+
+b32 Parser::
+subscript() {
+    if(token.is(token::open_square)) {
+        auto subj = node.pop();
+        auto e = Expr::create(expr::subscript);
+        e->start = token.current();
+
+        token.increment();
+
+        if(!expression()) return false;
+
+        node::insert_last(e, node.pop());
+
+        if(!token.is(token::close_square)) {
+            diagnostic::parser::
+                subscript_missing_close_square(token.current());
+            return false;
+        }
+        e->end = token.current();
+
+        node::insert_first(e, subj);
+
+        node.push(e);
+        token.increment();
+        if(!subscript()) return false;
+    }
+    return true;
+}
+
 b32 Parser::
 assignment() {
     if(token.is(token::equal)) {
@@ -1382,6 +1413,7 @@ assignment() {
         if(!logi_and()) return false;
         if(!logi_or()) return false;
         if(!range()) return false;
+        if(!subscript()) return false;
         auto e = Expr::create(expr::binary_assignment);
 
         node::insert_first(e, node.pop());
@@ -1500,6 +1532,7 @@ factor() {
                     e->start = e->end = token.current();
                     token.increment();
                     node.push(e);
+                    if(!typeref()) return false;
                 } break;
                 default: {
                     util::println(DString::create(
@@ -1598,17 +1631,15 @@ factor() {
             } else if(token.current()->group == token::group_type) {
                 reduce_builtin_type_to_typeref_expression();
                 token.increment();
+                if(!typeref()) return false;
             } else {
                 diagnostic::parser::unexpected_token(token.current(), token.current());
                 return false;
             }
         } break;
     }
-    if(token.is(token::open_square)) {
-        auto a = node.pop();
-        if(!subscript()) return false;
-        node::insert_first(node.current, a);
-    }
+    
+    
 
     return true;
 }
@@ -1667,28 +1698,6 @@ array_literal() {
     return true;
 }
 
-b32 Parser::
-subscript() {
-    auto e = Expr::create(expr::subscript);
-    e->start = token.current();
-
-    token.increment();
-
-    if(!expression()) return false;
-
-    node::insert_last(e, node.pop());
-
-    if(!token.is(token::close_square)) {
-        diagnostic::parser::
-            subscript_missing_close_square(token.current());
-        return false;
-    }
-
-    node.push(e);
-    e->end = token.current();
-    token.increment();
-    return true;
-}
 
 // expects to start at the opening brace and returns after the closing brace
 // TODO(sushi) it may be easier (or necessary) to just do a scan to the matching brace
@@ -1822,9 +1831,9 @@ typeref() {
             node.push(e);
         } break;
 
-        case token::open_brace: {
-            TODO("type restricted blocks <typeref> \"{\" ... \"}\"");
-        } break;
+        // case token::open_brace: {
+        //     TODO("type restricted blocks <typeref> \"{\" ... \"}\"");
+        // } break;
 
         case token::asterisk: {
             auto last = node.current->as<Expr>();
