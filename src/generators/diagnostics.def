@@ -27,6 +27,8 @@
 //
 // To parse this and generate 'data/diagnostics-impl.generated' and 'data/diagnostics-data.generated'
 // run 'raku diagnostics.raku' while inside the 'src/generators' directory
+//
+// TODO(sushi) line number and column aren't tracked correctly
 
 group path {
     diagnostic not_found {
@@ -609,6 +611,55 @@ group sema {
         type: error;
         message: {
             en: "negative subscripts on pointers aren't defined";
+        }
+    }
+
+    diagnostic comparison_between_pointer_and_scalar {
+        type: error;
+        message: {
+            en: "relational operators between pointers and integers are not defined";
+        }
+    }
+
+    diagnostic float_in_pointer_arithmetic {
+        type: error;
+        message: {
+            en: "floats cannot be used in pointer arithmetic";
+        }
+    }
+
+    diagnostic pointer_equality_non_zero_integer {
+        type: error;
+        message: {
+            en: "equality operators between a pointer and a non-zero integer are not defined";
+        }
+    }
+
+    diagnostic pointer_integer_not_additive {
+        type: error;
+        message: {
+            en: "only addition and subtraction are defined between a pointer and an integer";
+        }
+    }
+
+    diagnostic pointer_arithmetic_not_additive {
+        type: error;
+        message: {
+            en: "only addition and subtraction are defined between pointers and integers";
+        }
+    }
+
+    diagnostic pointer_on_rhs_of_arithmetic {
+        type: error;
+        message: {
+            en: "arithmetic with a pointer in the rhs is not defined";
+        }
+    }
+
+    diagnostic static_array_invalid_member {
+        type: error;
+        message: {
+            en: "unknown member %identifier%. the only members of a static array are 'data' and 'count'";
         }
     }
 }
