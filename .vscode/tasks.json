@@ -11,6 +11,8 @@
                 // "--r",
                 //"--v",
                 "--pch",
+                "-notcurses",
+                "/usr/include/ncpp/"
             ],
             "group":{
                 "kind": "build",

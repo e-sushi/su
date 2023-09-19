@@ -136,6 +136,8 @@ enum op {
 
     // an index into whatever the first operand is 
     subscript,
+
+    vm_break,
 };
 } // namespace tac
 
@@ -424,6 +426,9 @@ to_string(DString* current, TAC* tac) {
         } break;
         case tac::reference: {
             current->append("&", tac->arg0);
+        } break;
+        case tac::vm_break: {
+            current->append("BREAK");
         } break;
         default: {
             Assert(0);

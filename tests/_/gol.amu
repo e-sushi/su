@@ -1,0 +1,85 @@
+rnext: s32 = 121314;
+rand :: () -> s32 {
+    rnext = rnext * 1103515245 + 12345;
+    ret := (rnext/65536) % 32768;
+    ret
+}
+
+
+width :: (s32)3;
+height :: (s32)3;
+area :: width * height;
+
+A: u8[area];
+B: u8[area];
+active := &A;
+next := &B;
+
+coord :: (x: s32, y: s32) -> s32 {
+    ((x % width) + width) % width * width + (((y % height) + height) % height)
+}
+
+live :: (x: s32, y: s32) -> void { 
+    (*next)[coord(x,y)] = 1;
+}
+
+die :: (x: s32, y: s32) -> void { 
+    (*next)[coord(x,y)] = 0;
+}
+
+count_neighbors :: (x: s32, y: s32) -> s32 {
+    c0 := coord(x-1, y  );
+    c1 := coord(x+1, y  );
+    c2 := coord(x,   y+1);
+    c3 := coord(x,   y-1);
+    c4 := coord(x-1, y+1);
+    c5 := coord(x+1, y+1);
+    c6 := coord(x-1, y-1);
+    c7 := coord(x+1, y-1);
+
+
+    count := (*active)[c0] + 
+             (*active)[c1] + 
+             (*active)[c2] + 
+             (*active)[c3] + 
+             (*active)[c4] + 
+             (*active)[c5] + 
+             (*active)[c6] + 
+             (*active)[c7];
+    count
+}
+
+
+
+main :: () -> void {
+    for(i: 0..A.count)
+        (*active)[i] = rand() % 2;
+
+    coord(1,2);
+   
+    loop {
+        for(x: 0..width) {
+            for(y: 0..height) {
+                if(y > height || x > width) {
+                    #vm_break;
+                }
+                N := count_neighbors(x,y); 
+                if((*active)[coord(x,y)]) {
+                    if(N < 2 || N >= 4) {
+                        die(x,y);
+                    } else {
+                        live(x,y);
+                    }
+                } else if(N==3) {
+                    live(x,y);
+                } else {
+                    die(x,y);
+                }
+            }
+        }
+        save := active;
+        active = next;
+        next = save;
+        arr := *active;
+    }
+}

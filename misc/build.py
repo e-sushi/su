@@ -16,13 +16,13 @@
 #   --r    Build without debug info and with    optimization
 #   --sa   Enable static analysis
 #   --ba   Enable build analysis (currently only works with clang with ClangBuildAnalyzer installed)
-#   --pch  Generate a precompiled header from a selection of headers in the 'precompiled' array. If one of these files is found to be newer than its pch, it will be regenerated
+#   TODO this isn't implementaed yet --pch  Generate a precompiled header from a selection of headers in the 'precompiled' array. If one of these files is found to be newer than its pch, it will be regenerated
+#   
 #
 #   -platform <win32,mac,linux>           Build for specified OS: win32, mac, linux (default: builder's OS)
 #   -compiler <cl,gcc,clang,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
 #   -linker <link,ld,lld,lld-link>        Build using the specified linker (default: link on Windows, ld on Mac and Linux)
-
-# TODO(sushi) we need to regenerate pch stuff if the graphics api changes, not sure how to properly detect that though
+#   -notcurses <path>                     Build with support for a notcurses interface, requires providing a path to notcurses source files
 
 import os,sys,subprocess,platform,time
 from datetime import datetime
@@ -46,6 +46,7 @@ config = {
     "static_analysis": False,
     "build_analysis": False,
     "use_pch": False,
+    "use_notcurses": False,
 
     "compiler": "unknown",
     "linker":   "unknown",
@@ -84,6 +85,7 @@ while i < len(sys.argv):
         case "--sa":   config["static_analysis"] = True
         case "--ba":   config["build_analysis"] = True
         case "--pch":  config["use_pch"] = True
+        case "--nc":   config["use_notcurses"] = True
         
         case "-platform":
             if i != len(sys.argv) - 1:
@@ -114,6 +116,16 @@ while i < len(sys.argv):
                     quit()
             else:
                 print("expected a linker (cl, gcc, clang, clang-cl) after switch '-linker'")
+        
+        case "-notcurses":
+            if i != len(sys.argv) - 1:
+                i += 1
+                includes += "-I" + sys.argv[i] + " "
+                config["use_notcurses"] = True
+            else:
+                print("expected a path to notcurses source after -notcurses")
+                quit()
+
         case _:
             if sys.argv[i].startswith("-"):
                 print(f"unknown switch: {sys.argv[i]}")
@@ -181,7 +193,6 @@ parts = {
             }),
         }
     },
-
 
     "defines":{ 
         "buildmode": {
@@ -281,7 +292,7 @@ parts = {
                 "-O2 " # maximizes speed (O1 minimizes size)
             ),
             "debug":(
-                "-g " # output debug information for gdb
+                "-ggdb3 " # output debug information for gdb
                 "-O0 " # disable optimization completely
             ),
             "analyze": {
@@ -291,6 +302,12 @@ parts = {
         }
     }
 }
+
+# make this more general later idk man 
+if config["use_notcurses"]:
+    parts["link"]["linux"]["always"].append("notcurses-core")
+    parts["link"]["linux"]["always"].append("notcurses")
+
 
 # make sure that all the chosen options are compatible
 if config["compiler"] not in compatibility[config["platform"]]["compiler"]:
@@ -327,6 +344,9 @@ link = {
 defines = (
     parts["defines"]["buildmode"][config["buildmode"]]
 )
+
+if config["use_notcurses"]:
+    defines += "-DAMU_USE_NOTCURSES -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600"
 
 link_names = (
     parts["link"][config["platform"]]["always"]

@@ -21,6 +21,7 @@ struct Frame {
     DString* identifier;
     u64 return_size;
     Array<Var*> locals;
+    s64 stack_depth;
 }; 
 
 } // namespace amu

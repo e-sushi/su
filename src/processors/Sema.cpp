@@ -165,19 +165,28 @@ call(Code* code, Call* e) {
         if(!expr(code, call_arg->as<Expr>(), false)) return false;
         auto func_arg_t = func_arg->resolve_type();
         auto call_arg_t = call_arg->resolve_type();
-        if(!func_arg_t->can_cast_to(call_arg_t)) {
-            diagnostic::sema::
-                mismatch_argument_type(call_arg->start, 
-                    call_arg_t, 
-                    func_arg_t, 
-                    func_arg->display(), 
-                    e->callee->label->start->raw);
-            return false;
-        }
-        // TODO(sushi) we need to handle this better
-        if(call_arg->is<ScalarLiteral>()) {
-            // if this is a scalar literal just cast it in place 
-            call_arg->as<ScalarLiteral>()->cast_to(func_arg_t->as<Scalar>()->kind);
+
+        if(call_arg_t != func_arg_t) {
+            if(!func_arg_t->can_cast_to(call_arg_t)) {
+                diagnostic::sema::
+                    mismatch_argument_type(call_arg->start, 
+                        call_arg_t, 
+                        func_arg_t, 
+                        func_arg->display(), 
+                        e->callee->label->start->raw);
+                return false;
+            }
+            if(call_arg->is<ScalarLiteral>()) {
+                // if this is a scalar literal just cast it in place 
+                call_arg->as<ScalarLiteral>()->cast_to(func_arg_t->as<Scalar>()->kind);
+            } else {
+                auto cast = Expr::create(expr::cast);
+                cast->type = func_arg_t;
+                cast->start = call_arg->start;
+                cast->end = call_arg->end;
+                node::insert_above(call_arg, cast);
+                call_arg = cast;
+            }
         }
 
         func_arg = func_arg->next();
@@ -814,6 +823,7 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                                     subscript_out_of_bounds(rhs->start, sl->value._s64, s->as<StaticArray>()->count);
                             } 
                         }
+
                         e->type = s->as<StaticArray>()->type;
                     } break;
                 }
@@ -830,8 +840,16 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                     type_is_not_subscriptable(lhs->start, lhs->type);
                 return false;
             }
-
             
+            // If the subscript is not a u64 we cast it to one for now because it's going to be
+            // added to a pointer. This will probably break later 
+            if(rhs->type->as<Scalar>()->kind != scalar::unsigned64) {
+                auto cast = Expr::create(expr::cast);
+                cast->type = &scalar::_u64;
+                cast->start = rhs->start;
+                cast->end = rhs->end;
+                node::insert_above(rhs, cast);
+            }
         } break;
 
         case expr::cast: {
@@ -844,6 +862,8 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
 
             }
         } break;
+
+        case expr::vm_break: {} break;
 
         default: {
             TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));

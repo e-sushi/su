@@ -54,6 +54,7 @@ enum kind : u32 {
     unary_logi_not,
     unary_negate,
     unary_reference,
+    unary_dereference,
     unary_assignment,
     unary_comptime,
 
@@ -85,6 +86,8 @@ enum kind : u32 {
     cast,
     reinterpret,
 
+    // TODO(sushi) make this usable anywhere by allowing it be after and factor maybe 
+    vm_break,
 };
 
 #include "data/expression_strings.generated"

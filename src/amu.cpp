@@ -79,6 +79,10 @@
 #include <filesystem>
 #include <unistd.h>
 
+#ifdef AMU_USE_NOTCURSES
+#include "notcurses/notcurses.h"
+#endif
+
 #define AMU_IMPLEMENTATION
 #include "basic/Memory.h"
 #include "basic/Node.h"
@@ -116,6 +120,7 @@
 #include "processors/GenTAC.h"
 #include "processors/GenAIR.h"
 #include "systems/VM.h"
+#include "systems/Debugger.h"
 
 #include <thread>
 #include <chrono>
@@ -150,10 +155,14 @@
 #include "processors/GenTAC.cpp"
 #include "processors/GenAIR.cpp"
 #include "systems/VM.cpp"
+#include "systems/Debugger.cpp"
 
 
 int main(int argc, char* argv[]){
 	{using namespace amu;
+		Debugger dbg;
+		dbg.start();
+
 		compiler::init();
 		auto args = Array<String>::create(argc);
 		forI(argc) 

@@ -468,7 +468,6 @@ prescanned_var_decl() {
         }
     }
 
-
     if(e->is<CompileTime>()) {
         v->is_compile_time = true;
         v->type = e->type;
@@ -1932,6 +1931,13 @@ block() {
                 }
                 continue;
             } break;
+            case token::directive_vm_break: {
+                s->kind = stmt::expression;
+                auto e = Expr::create(expr::vm_break);
+                e->start = e->end = token.current();
+                node.push(e);
+                token.increment();
+            } break;
             default: {
                 if(!expression()) return false;
                 s->kind = stmt::expression;
@@ -2066,7 +2072,9 @@ typeref() {
                                     static_array_size_cannot_be_negative(e->start);
                                 return false;
                             }
-                            last->type = StaticArray::create(last->type, sl->value._u64);
+                            auto copy = sl->value;
+                            copy.cast_to(scalar::unsigned64);
+                            last->type = StaticArray::create(last->type, copy._u64);
                         } break;
                         default: {
                             // whatever expression we've found needs to be evaluated fully as a compile
@@ -2104,7 +2112,9 @@ typeref() {
                                         static_array_size_cannot_be_negative(e->start);
                                     return false;
                                 }
-                                last->type = StaticArray::create(last->type, sl->value._u64);
+                                auto copy = sl->value;
+                                copy.cast_to(scalar::unsigned64);
+                                last->type = StaticArray::create(last->type, copy._u64);
                                 node::insert_last(ct, sl);
                             } else {
                                 diagnostic::parser::

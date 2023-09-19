@@ -92,7 +92,8 @@
                 "DESHI_DISABLE_IMGUI",
                 "DESHI_OPENGL=1",
                 "SUUGU_USE_GRAPHVIZ",
-                "DESHI_RELOADABLE_UI"
+                "DESHI_RELOADABLE_UI",
+                "AMU_USE_NOTCURSES"
             ],
             "windowsSdkVersion": "10.0.22000.0",
             "compilerPath": "/usr/bin/clang++",

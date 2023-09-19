@@ -51,6 +51,7 @@ token_is_directive_or_identifier(String raw) {
 		strcase("print_type"):             return token::directive_print_type;
 		strcase("print_meta_type"):        return token::directive_print_meta_type;
 		strcase("compiler_break_air_gen"): return token::directive_compiler_break_air_gen;
+		strcase("vm_break"):               return token::directive_vm_break;
     }
 
     return token::identifier;

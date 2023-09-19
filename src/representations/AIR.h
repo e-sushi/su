@@ -113,6 +113,8 @@ enum op {
 
     // store the value of pointer B in A
     deref,
+
+    vm_break,
 };
 
 #include "data/airop_strings.generated"
@@ -385,6 +387,9 @@ to_string(DString* current, BC bc) {
             current->append("deref ");
             loffset();
             roffset();
+        } break;
+        case air::vm_break: {
+            current->append("BREAK");
         } break;
         default: {
             Assert(0);

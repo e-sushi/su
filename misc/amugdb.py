@@ -92,25 +92,6 @@ class Array_printer:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("Array", r"^amu::Array<.*>$", Array_printer)
 
-class SharedArray_printer:
-    def __init__(self, val): 
-        self.val = val
-    
-    def display_hint(self):
-        return 'array'
-
-    def to_string(self):
-        try:
-            val = self.val
-            if not val['count']:
-                return "{empty}"
-            type = str(val.type)
-            subtype = type[type.find("<")+1:type.rfind(">")]
-            return gdb.parse_and_eval(f"*(({subtype}*){val['data']})@{val['count']}")
-        except Exception as e:
-            print(f"{self.__class__.__name__} error: {e}")
-pp.add_printer("SharedArray", r"^amu::SharedArray<.*>$", SharedArray_printer)
-
 class MessagePart_printer:
     def __init__(self, val): 
         self.val = val
@@ -141,7 +122,7 @@ class Token_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *to_string((Token*){val.address})", to_string=True)
+            s = gdb.execute(f"call *to_string((amu::Token*){val.address})", to_string=True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -153,7 +134,7 @@ class Label_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *((Label*){val.address})->dump()", to_string=True)
+            s = gdb.execute(f"call *((amu::Label*){val.address})->dump()", to_string=True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -270,7 +251,7 @@ class ASTNode_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *((ASTNode*){val.address})->dump()", to_string = True)
+            s = gdb.execute(f"call *((amu::ASTNode*){val.address})->dump()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -281,7 +262,7 @@ class Expression_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *((Expr*){val.address})->dump()", to_string=True)
+            s = gdb.execute(f"call *((amu::Expr*){val.address})->dump()", to_string=True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -302,7 +283,7 @@ class TAC_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *to_string((TAC*){val.address})", to_string = True)
+            s = gdb.execute(f"call *to_string((amu::TAC*){val.address})", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -313,7 +294,7 @@ class Arg_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *to_string((Arg*){val.address})", to_string = True)
+            s = gdb.execute(f"call *to_string((amu::Arg*){val.address})", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -324,7 +305,7 @@ class BC_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *to_string(*(BC*){val.address})", to_string = True)
+            s = gdb.execute(f"call *to_string(*(amu::BC*){val.address})", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -335,7 +316,7 @@ class Member_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *((Member*){val.address})->dump()", to_string = True)
+            s = gdb.execute(f"call *((amu::Member*){val.address})->dump()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -346,7 +327,7 @@ class Type_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *((Type*){val.address})->dump()", to_string = True)
+            s = gdb.execute(f"call *((amu::Type*){val.address})->dump()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
@@ -357,7 +338,7 @@ class Var_printer:
     def to_string(self):
         try:
             val:gdb.Value = self.val
-            s = gdb.execute(f"call *((Var*){val.address})->dump()", to_string = True)
+            s = gdb.execute(f"call *((amu::Var*){val.address})->dump()", to_string = True)
             return s[s.find('=')+2:-1]
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")

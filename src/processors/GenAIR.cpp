@@ -19,19 +19,60 @@ destroy() {
     map::deinit(stack_things);
 }
 
+void 
+check_unbalanced_stack(Array<BC> seq) {
+    // this doesn't work well but come back to it later 
+
+    // auto push_stack = Array<BC*>::create();
+    // s64 balance = 0;
+    // forI(seq.count) {
+    //     BC* bc = seq.readptr(i);
+    //     switch(bc->instr) {
+    //         case air::push: {
+    //             balance += bc->rhs._u64;
+    //             push_stack.push(bc);  
+    //         } break;
+    //         case air::popn: {
+    //             balance -= bc->rhs._u64;
+    //             u64 acc = 0;
+    //             forI_reverse(push_stack.count) {
+    //                 if(acc >= bc->rhs._u64) break;
+    //                 if(!push_stack.count) {
+    //                     util::println("popped too much of the stack!");
+    //                     util::println(DString::create("  ", to_string(*bc)));
+    //                     Assert(0);
+    //                 }
+    //                 auto pop = push_stack.pop();
+    //                 acc += pop->rhs._u64;
+    //             }
+    //         } break;
+    //     }
+    // }
+    // if(balance) {
+    //     util::println("stack left hanging!");
+    //     forI(push_stack.count) {
+    //         auto bc = push_stack.read(i);
+    //         util::println(bc->node->first_line(true, true));
+    //         util::println(to_string(*bc));
+    //     }
+    //     Assert(0);
+    // }
+}
+
 void GenAIR::
 generate() {
     start();
 
     util::println(code->identifier);
+    // check_unbalanced_stack(seq);
     u32 last_line_num = -1;
     TAC* last_tac = 0;
     forI(seq.count) {
         BC bc = seq.read(i);
-        if(last_line_num == -1 || last_line_num != bc.node->start->l0) {
-            util::println(bc.node->first_line(true, true));
-            last_line_num = bc.node->start->l0;
-        }
+        // if(last_line_num == -1 || last_line_num != bc.node->start->l0) {
+        //     util::println(bc.node->first_line(true, true));
+        //     last_line_num = bc.node->start->l0;
+        // }
         // if(bc.tac && bc.tac != last_tac) {
         //     last_tac = bc.tac;
         //     util::println(to_string(bc.tac));
@@ -161,8 +202,12 @@ body() {
                     BC* bc = seq.readptr(from->bc_offset);
                     if(bc->instr == air::jump) {
                         bc->lhs = seq.count - from->bc_offset;
+                        bc->lhs.kind = scalar::signed64;
+                        bc->flags.left_is_const = true;
                     } else {
                         bc->rhs = seq.count - from->bc_offset;
+                        bc->rhs.kind = scalar::signed64;
+                        bc->flags.right_is_const = true;
                     }
                 }
                 from = from->next;
@@ -220,6 +265,8 @@ body() {
                 }
                 if(tac->to && tac->to->bc_offset != -1) {
                     bc->rhs = tac->to->bc_offset - seq.count + 1;
+                    bc->rhs.kind = scalar::signed64;
+                    bc->flags.right_is_const = true;
                 }
             } break;
 
@@ -251,6 +298,8 @@ body() {
                 }
                 if(tac->to && tac->to->bc_offset != -1) {
                     bc->rhs = tac->to->bc_offset - seq.count + 1;
+                    bc->rhs.kind = scalar::signed64;
+                    bc->flags.right_is_const = true;
                 }
             } break;
 
@@ -261,11 +310,13 @@ body() {
                 bc->instr = air::jump;
                 if(tac->to && tac->to->bc_offset != -1) {
                     bc->lhs = tac->to->bc_offset - seq.count + 1;
+                    bc->lhs.kind = scalar::signed64;
+                    bc->flags.left_is_const = true;
                 }
             } break;
 
             case tac::temp: {
-                // push_temp(tac);
+                push_temp(tac);
                 // FixMe; // map::add(offset_map, tac, (u32)registers.count);
                 // // tac->arg0.kind = arg::stack_offset;
                 // // tac->arg0.stack_offset = registers.count;
@@ -316,7 +367,7 @@ body() {
                     } break;
                     case arg::var: {
                         auto v = tac->arg1.var;
-                        if(v->is_compile_time) {
+                        if(v->is_compile_time || v->is_global) {
                             bc1->rhs = (u64)v->memory;
                             bc1->flags.right_is_ptr = true;
                         } else {
@@ -365,7 +416,7 @@ body() {
                     } break;
                     case arg::literal: {
                         bc1->flags.right_is_const = true;
-                        bc1->rhs = tac->arg1.literal._u64;
+                        bc1->rhs = tac->arg1.literal;
                     } break;
                     case arg::var: {
                         bc1->rhs = tac->arg1.var->stack_offset; 
@@ -538,7 +589,7 @@ body() {
                         auto v = tac->arg0.var;
                         if(v->is_compile_time || v->is_global) {
                             bc->flags.right_is_ptr = true;
-                            bc->resz.src= (u64)v->memory;
+                            bc->resz.src = (u64)v->memory;
                         } else {
                             bc->resz.src = tac->arg0.var->stack_offset;
                         }
@@ -590,6 +641,13 @@ body() {
                         TODO("handle referencing other things");
                     } break;
                 }
+            } break;
+
+            case tac::vm_break: {
+                BC* b = seq.push();
+                b->instr = air::vm_break;
+                b->tac = tac;
+                b->node = tac->node;
             } break;
 
             default: {

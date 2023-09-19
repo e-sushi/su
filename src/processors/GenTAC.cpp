@@ -237,13 +237,16 @@ expression(Expr* e) {
     switch(e->kind) {
         case expr::varref: {
             auto v = e->as<VarRef>()->var;
-            if(v->code != code) {
-                auto [idx, found] = array::util::search<Var*, Var*>(varrefs, v, [](Var* v){ return v; });
-                if(!found) {
-                    varrefs.insert(idx, v);
+            if(v->is_compile_time && !code->compile_time) {
+                if(v->type->is<Scalar>()) {
+                    auto expr = v->label->last_child<Expr>();
+                    if(expr->is<ScalarLiteral>()) {
+                        return expr->as<ScalarLiteral>()->value;
+                    }
+                } else {
+                    TODO("what to do with non-scalar compile time var refs");
                 }
-            }
-            return v;
+            } else return v;
         } break;
 
         case expr::binary_plus:
@@ -392,7 +395,7 @@ expression(Expr* e) {
             mul->node = e;
 
             add->arg1 = mul;
-            add->temp_size = e->type->size();
+            add->temp_size = 8;
 
             place(mul);
             place(add);
@@ -494,7 +497,16 @@ expression(Expr* e) {
                 auto true_body  = curr->first_child()->next<Expr>();;
                 auto false_body = curr->last_child<Expr>();
 
+                // start block so temporaries make for this conditional are scoped 
+                TAC* block_start = make_and_place();
+                block_start->op = tac::block_start;
+                block_start->node = cond;
+
                 Arg cond_eval = expression(cond);
+
+                TAC* block_end = make_and_place();
+                block_end->op = tac::block_end;
+                block_end->node = (true_body->last_child()? true_body->last_child() : true_body);
 
                 // create a conditional jump 
                 TAC* condjump = make_and_place();
@@ -512,6 +524,8 @@ expression(Expr* e) {
                     assign->arg1 = true_eval;
                     assign->node = e;
                 }
+
+                
 
                 // generate the jump out of the true body
                 if(true_body != false_body) {
@@ -786,6 +800,7 @@ expression(Expr* e) {
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
             success->arg1.literal = u64(1);
+            success->arg1.kind = arg::literal;
             success->node = e;
 
             if(fail_jump) {
@@ -797,7 +812,6 @@ expression(Expr* e) {
                 fail_jump->arg0.kind = arg::temporary;
                 fail_jump->arg0.temporary = fin;
             }
-
 
             if(jump_stack.count) {
                 TAC* last_jump = jump_stack.pop();
@@ -885,6 +899,7 @@ expression(Expr* e) {
             success->arg0.kind = arg::temporary;
             success->arg0.temporary = temp;
             success->arg1.literal = u64(1);
+            success->arg1.kind = arg::literal;
             success->node = e;
 
             TAC* fail_jump = make_and_place();
@@ -908,6 +923,13 @@ expression(Expr* e) {
 
         case expr::unary_comptime: {
             return expression(e->last_child<Expr>());
+        } break;
+
+        case expr::vm_break: {
+            TAC* t = make_and_place();
+            t->op = tac::vm_break;
+            t->node = e;
+            return t;
         } break;
     }
 
