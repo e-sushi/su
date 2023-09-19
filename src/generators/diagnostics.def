@@ -434,6 +434,13 @@ group parser {
             en: "subscript operator missing closing square ']'";
         }
     }
+
+    diagnostic runtime_variable_cannot_be_used_as_static_array_count {
+        type: error;
+        message: {
+            en: "a runtime variable cannot be used to create a static array";
+        }
+    }
 }
 
 group sema {
@@ -667,6 +674,41 @@ group sema {
         type: error;
         message: {
             en: "modulo is not defined to act on floats (for now)";
+        }
+    }
+
+    diagnostic cant_take_reference_of_value {
+        type: error;
+        message: {
+            en: "cannot reference a value (something that is not in memory). NOTE if this seems wrong let me know! Currently you can only take references of variables";
+        }
+    }
+
+    diagnostic dereference_operator_only_works_on_pointers {
+        type: error;
+        message: {
+            en: "dereference operator '*' may only be used on pointers";
+        }
+    }
+
+    diagnostic range_mismatched_types {
+        type: error;
+        message: {
+            en: "boths sides of a Range must have the same type or types castable to each other";
+        }
+    }
+
+    diagnostic range_non_scalar_not_supported {
+        type: error;
+        message: {
+            en: "non-scalar ranges are not supported yet";
+        }
+    }
+
+    diagnostic casting_between_non_scalar_types_not_supported {
+        type: error;
+        message: {
+            en: "casting between non-scalar types is not supported yet";
         }
     }
 }
