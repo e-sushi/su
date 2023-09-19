@@ -53,6 +53,7 @@ struct Compiler {
         Pool<Call>            calls;
         Pool<Block>           blocks; 
         Pool<VarRef>          varrefs; 
+        Pool<For>             fors; 
         Pool<Var>             vars;
         Pool<Tuple>           tuples;
         Pool<Scalar>          scalars;
@@ -61,12 +62,15 @@ struct Compiler {
         Pool<StaticArray>     static_array_types;
         Pool<ViewArray>       view_array_types;
         Pool<DynamicArray>    dynamic_array_types;
+        Pool<Range>           range_types;
         Pool<Variant>         variant_types;
         Pool<FunctionType>    function_types;
         Pool<TupleType>       tuple_types;
         Pool<MetaType>        meta_types;
     }storage;
 
+    // a global map of addresses to variables 
+    Map<u8*, Var*> global_symbols;
     Array<Diagnostic> diagnostics;
     
     // anything that is specified on the command line

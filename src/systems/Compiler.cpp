@@ -23,6 +23,8 @@ init() {
 
     */
 
+   instance.global_symbols = map::init<u8*, Var*>();
+
     instance.storage.sources             = pool::init<Source>(8);
     instance.storage.source_code         = pool::init<SourceCode>(8);
     instance.storage.virtual_code        = pool::init<VirtualCode>(8);
@@ -48,6 +50,7 @@ init() {
     instance.storage.calls               = pool::init<Call>(8);
     instance.storage.blocks              = pool::init<Block>(8);
     instance.storage.varrefs             = pool::init<VarRef>(8);
+    instance.storage.fors                = pool::init<For>(8);
     instance.storage.vars                = pool::init<Var>(8);
     instance.storage.tuples              = pool::init<Tuple>(8);
     instance.storage.scalars             = pool::init<Scalar>(8);
@@ -56,6 +59,7 @@ init() {
     instance.storage.static_array_types  = pool::init<StaticArray>(8);
     instance.storage.view_array_types    = pool::init<ViewArray>(8);
     instance.storage.dynamic_array_types = pool::init<DynamicArray>(8);
+    instance.storage.range_types         = pool::init<Range>(8);
     instance.storage.variant_types       = pool::init<Variant>(8);
     instance.storage.function_types      = pool::init<FunctionType>(8);
     instance.storage.tuple_types         = pool::init<TupleType>(8);
