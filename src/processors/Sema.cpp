@@ -111,11 +111,32 @@ function(Code* code, Function* f) {
     if(!func_arg_tuple(code, type->parameters->as<Tuple>()) ||
         !func_ret(code, type->returns) || 
         !block(code, be)) return false;
-    if(!type->return_type->can_cast_to(be->type)) {
-        diagnostic::sema::
-            return_value_of_func_block_cannot_be_coerced_to_func_return_type(
-                be->last_child()->start, type->return_type, be->type);
-        return false;
+    if(type->return_type != be->type) {
+        if(!type->return_type->can_cast_to(be->type)) {
+            diagnostic::sema::
+                return_value_of_func_block_cannot_be_coerced_to_func_return_type(
+                    be->last_child()->start, type->return_type, be->type);
+            return false;
+        }
+
+        if(!(type->return_type->is<Scalar>() && be->type->is<Scalar>())) {
+            diagnostic::sema::
+                casting_between_non_scalar_types_not_supported(be->last_child()->start);
+            return false;                
+        }
+        
+        auto retexpr = be->last_child()->last_child<Expr>();
+
+        if(retexpr->is<ScalarLiteral>()) {
+            retexpr->as<ScalarLiteral>()->cast_to(type->return_type);
+            return true;
+        }
+
+        auto cast = Expr::create(expr::cast);
+        cast->type = type->return_type;
+        cast->start = retexpr->start;
+        cast->end = retexpr->end;
+        node::insert_above(retexpr, cast);
     }
     return true;
 }
