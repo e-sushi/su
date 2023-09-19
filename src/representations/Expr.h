@@ -80,6 +80,7 @@ enum kind : u32 {
     binary_assignment,
     binary_comptime,
     binary_range,
+    binary_in,
 
     cast,
     reinterpret,
@@ -386,6 +387,34 @@ struct VarRef : public Expr {
 
 template<> inline b32 Base::
 is<VarRef>() { return is<Expr>() && as<Expr>()->kind == expr::varref; }
+
+// for loops hold a table
+struct For : public Expr {
+    LabelTable table;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static For*
+    create();
+
+    void
+    destroy();
+
+    DString*
+    display();
+
+    DString*
+    dump();
+
+    For() : Expr(expr::for_) {} 
+};
+
+struct IntegerRange : public Expr {
+    s64 left;
+    s64 right;
+};
 
 } // namespace amu
 

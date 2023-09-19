@@ -9,6 +9,9 @@ create(expr::kind kind, Type* type) {
     return out;
 }
 
+void Expr::
+destroy() {} 
+
 DString* Expr::
 display() { // TODO(sushi) switch on expr kind
     return DString::create("Expression");
@@ -234,6 +237,23 @@ display() { // !Leak TODO(sushi) get this to print something nicer
 DString* VarRef::
 dump() {
     return DString::create("VarRef<", (var? ScopedDeref(var->display()).x->fin : "null var"), ">");
+}
+
+For* For::
+create() {
+    auto out = pool::add(compiler::instance.storage.fors);
+    out->table = label::table::init(out->as<ASTNode>());
+    return out;
+}
+
+DString* For::
+display() {
+    return DString::create("for(", ScopedDeref(first_child()->display()).x, ")");
+}
+
+DString* For::
+dump() {
+    return DString::create("For<", ScopedDeref(first_child()->dump()).x, ">");
 }
 
 void

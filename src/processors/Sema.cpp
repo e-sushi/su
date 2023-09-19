@@ -111,6 +111,9 @@ function(Code* code, Function* f) {
     if(!func_arg_tuple(code, type->parameters->as<Tuple>()) ||
         !func_ret(code, type->returns) || 
         !block(code, be)) return false;
+    // TODO(sushi) this only handles functions that return at the very end!
+    //             return statements need to be aware of what function they are returning from
+    //             so they can handle the casting themselves
     if(type->return_type != be->type) {
         if(!type->return_type->can_cast_to(be->type)) {
             diagnostic::sema::
@@ -204,7 +207,6 @@ typedef_(Code* code, Expr* e) {
     return true;
 }
 
-// I honestly don't know what this function should do :/
 b32
 typeref(Code* code, Expr* e) { announce_stage(e);
     switch(e->type->kind) {
@@ -213,6 +215,11 @@ typeref(Code* code, Expr* e) { announce_stage(e);
         case type::kind::function: {
         } break;
         case type::kind::structured: {
+            auto st = e->type->as<Structured>();
+            if(st->is<StaticArray>()) {
+                auto sa = st->as<StaticArray>();
+
+            }
         } break;
         case type::kind::pointer: {
         } break;
@@ -302,7 +309,27 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
             return block(code, (Block*)e);
         } break;
         case expr::unary_reference: {
-            return false;
+            if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
+
+            if(e->first_child<Expr>()->is_not<VarRef>()) {
+                diagnostic::sema::
+                    cant_take_reference_of_value(e->start);
+                return false;
+            } 
+           
+            e->type = Pointer::create(e->first_child<Expr>()->type);
+        } break;
+        case expr::unary_dereference: {
+            if(!expr(code, e->first_child<Expr>(), true)) return false;
+
+            if(e->first_child<Expr>()->type->is_not<Pointer>()) {
+                diagnostic::sema::
+                    dereference_operator_only_works_on_pointers(e->start);
+                return false;
+            }
+
+            e->type = e->first_child<Expr>()->type->as<Pointer>()->type;
+            is_lvalue = true;
         } break;
         case expr::call: {
             return call(code, (Call*)e);
@@ -614,7 +641,14 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                     compile_time_code_cannot_reference_runtime_memory(e->start);
                 return false;
             }
-            e->type = e->as<VarRef>()->var->type;
+
+            auto v = e->as<VarRef>()->var;
+            if(v->type->is<Range>()) {
+                e->type = v->type->as<Range>()->type;
+            } else {
+                e->type = e->as<VarRef>()->var->type;
+            }
+
         } break;
 
         case expr::conditional: {
@@ -654,6 +688,16 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
 
             e->type = e->first_child<Expr>()->type;
         } break;
+
+        case expr::for_: {
+            if(e->first_child()->is<Label>()) {
+                if(!label(code, e->first_child<Label>())) return false;
+            } else {
+                if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
+            }
+            if(!expr(code, e->last_child<Expr>(), is_lvalue)) return false;
+            e->type = e->last_child<Expr>()->type; // TODO(sushi) handle for stuff more eventually
+        } break;
         
         case expr::break_: {
             auto iter = e->parent();
@@ -671,8 +715,38 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
             }
         } break;
 
-        case expr::literal_scalar:
-        case expr::literal_string: {} break;
+        case expr::binary_range: {
+            auto lhs = e->first_child<Expr>();
+            auto rhs = e->last_child<Expr>();
+            if(!expr(code, lhs, is_lvalue)) return false;
+            if(!expr(code, rhs, is_lvalue)) return false;
+            lhs = e->first_child<Expr>();
+            rhs = e->last_child<Expr>();
+
+            if(!lhs->type->can_cast_to(rhs->type)) {
+                diagnostic::sema::
+                    range_mismatched_types(lhs->start);
+                return false;
+            }
+
+            if(lhs->type->is_not<Scalar>() || rhs->type->is_not<Scalar>()) {
+                diagnostic::sema::
+                    range_non_scalar_not_supported(lhs->start);
+                return false;
+            }
+
+            e->type = Range::create(lhs->type);
+        } break;
+
+        case expr::literal_scalar: {
+            if(!e->type) {
+                
+            }
+        } break;
+
+        case expr::literal_string: {
+            
+        } break;
 
         case expr::literal_array: {
             Type* first_type = 0;
@@ -758,6 +832,17 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
             }
 
             
+        } break;
+
+        case expr::cast: {
+            if(e->type->is<Scalar>()) {
+                auto c = e->first_child<Expr>();
+                if(c->is<ScalarLiteral>()) {
+                    c->as<ScalarLiteral>()->cast_to(e->type);
+                    e->replace(c);
+                }
+
+            }
         } break;
 
         default: {

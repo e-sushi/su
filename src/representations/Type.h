@@ -26,6 +26,7 @@ enum class kind {
     structured,
     pointer,
     function,
+    range,
     tuple,
     meta,
 };
@@ -391,6 +392,46 @@ template<> b32 inline Base::
 is<ViewArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
 
 
+struct Range : public Type {
+    Type* type; // the type this Range's elements are 
+    // temp solution to implementing ranges
+    // when a range is assigned to a label (such as in a for loop)
+    // a coroutine is made for it internally and in order for calls to
+    // that coroutine to be made, we need to store the TAC representing it
+    // somewhere.
+    // this is sort of a HACK to get ranges working, a better implementation of 
+    // coroutines and how ranges use them will be worked on later 
+    TAC* coroutine; 
+
+
+    // TODO(sushi) we eventually need to make ranges unique based on their actual range 
+    static Array<Range*> set;
+
+
+    // ~~~~~~ interface ~~~~~~~
+
+
+    static Range*
+    create(Type* type);
+
+    DString*
+    display();
+
+    DString*
+    dump();
+
+    u64
+    size();
+
+    DString*
+    print_from_address(u8* addr);
+
+    Range() : Type(type::kind::range) {}
+};
+
+template<> b32 inline Base::
+is<Range>() { return is<Type>() && as<Type>()->kind == type::kind::range; }
+
 // a Type which may take on the form of some collection of Types
 // this is a tagged union
 /* for example:
@@ -457,9 +498,6 @@ struct FunctionType : public Type {
     FunctionType() : Type(type::kind::function) {}
 };
 
-namespace type::function {
-} // namespace type::function
-
 // a tuple acting as a type, eg. one that only contains references to types and not values
 struct TupleType : public Type {
     b32 is_named;
@@ -519,30 +557,6 @@ struct MetaType : public Type {
     type::meta::kind kind;
     Structure* s;
 };
-
-namespace type {
-
-extern Map<Type*, Type*> type_map;
-
-// struct Formatting {
-//     u32 max_parameter_nesting = -1;
-//     u32 col;
-//     String prefix = "'", suffix = "'";
-// }; 
-
-// void
-// display(DString* current, Type* type, Formatting format = Formatting(), b32 allow_color = true);
-
-// DString
-// display(Type* type, Formatting format = Formatting(), b32 allow_color = true) {
-//     DString out = DString::create();
-//     display(out, type, format, allow_color);
-//     return out;
-// }
-
-} // namespace type
-
-
 
 
 } // namespace amu
