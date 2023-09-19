@@ -28,6 +28,10 @@ generate() {
     TAC* last_tac = 0;
     forI(seq.count) {
         BC bc = seq.read(i);
+        if(last_line_num == -1 || last_line_num != bc.node->start->l0) {
+            util::println(bc.node->first_line(true, true));
+            last_line_num = bc.node->start->l0;
+        }
         // if(bc.tac && bc.tac != last_tac) {
         //     last_tac = bc.tac;
         //     util::println(to_string(bc.tac));
@@ -74,6 +78,7 @@ start() {
                 f->frame.locals.push(v);
                 stack_offset += v->type->size();
             }
+
             BC* bc = seq.push();
             bc->tac = code->tac_gen->seq.read(0);
             bc->node = f->code->parser->root;
@@ -213,6 +218,9 @@ body() {
                         }
                     } break;
                 }
+                if(tac->to && tac->to->bc_offset != -1) {
+                    bc->rhs = tac->to->bc_offset - seq.count + 1;
+                }
             } break;
 
             case tac::jump_not_zero: {
@@ -241,7 +249,9 @@ body() {
                         }
                     } break;
                 }
-
+                if(tac->to && tac->to->bc_offset != -1) {
+                    bc->rhs = tac->to->bc_offset - seq.count + 1;
+                }
             } break;
 
             case tac::jump: {
@@ -295,6 +305,9 @@ body() {
                         bc1->comment = "add with member";
                     } break;
                     case arg::temporary: {
+                        if(tac->arg1.deref) {
+                            bc1->flags.deref_right = true;
+                        }
                         bc1->rhs = tac->arg1.temporary->temp_pos;
                     } break;
                     case arg::literal: {
@@ -308,6 +321,16 @@ body() {
                             bc1->flags.right_is_ptr = true;
                         } else {
                             bc1->rhs = v->stack_offset;
+                        }   
+                        // TODO(sushi) this sucks and I feel like there's going to be more cases like this.
+                        //             a reference to a Range variable should probably be marked 
+                        //             with the proper type, but since we just store the variable
+                        //             we're referencing and not the VarRef itself, im not sure 
+                        //             how to do this in a nice way.
+                        if(v->type->is<Range>()) {
+                            bc1->rhs.kind = v->type->as<Range>()->type->as<Scalar>()->kind;
+                        } else {
+                            bc1->rhs.kind = v->type->as<Scalar>()->kind;
                         }
                     } break;
                     case arg::stack_offset: {
@@ -365,7 +388,7 @@ body() {
 
                 switch(tac->arg0.kind) {
                     case arg::temporary: {
-                        if(tac->arg0.temporary->lvalue){
+                        if(tac->arg0.deref) {
                             bc->flags.deref_left = true;
                         }
                         bc->copy.dst = tac->arg0.temporary->temp_pos;
@@ -388,6 +411,9 @@ body() {
 
                 switch(tac->arg1.kind) {
                     case arg::temporary: {
+                        if(tac->arg1.deref) {
+                            bc->flags.deref_right = true;
+                        }
                         bc->copy.src = tac->arg1.temporary->temp_pos;
                         bc->copy.size = tac->arg1.temporary->temp_size;
                     } break;
@@ -398,11 +424,20 @@ body() {
                         } else {
                             bc->copy.src = tac->arg1.var->stack_offset;
                         }
-                        bc->copy.size = tac->arg1.var->type->size();
+                        if(tac->arg1.deref) {
+                            bc->flags.deref_right = true;
+                            // TODO(sushi) this might become wrong at some point if we ever allow dereferencing something
+                            //             that is not typed as a pointer for whatever reason
+                            Assert(tac->arg1.var->type->is<Pointer>()); 
+                            bc->copy.size = tac->arg1.var->type->as<Pointer>()->type->size();
+                        } else {
+                            bc->copy.size = tac->arg1.var->type->size();
+                        }
                     } break;
                     case arg::literal: {
                         bc->flags.right_is_const = true;
                         bc->copy.literal = tac->arg1.literal;
+                        bc->copy.size = bc->copy.literal.size();
                         bc->flags.float_op = tac->arg1.literal.is_float();
                     } break;
                     case arg::stack_offset: {
@@ -451,19 +486,20 @@ body() {
                         case arg::literal: {
                             bc->flags.right_is_const = true;
                             bc->copy.literal = tac->arg0.literal;
-                            ret_size = bc->copy.literal.size();
+                            bc->copy.size = bc->copy.literal.size();
                         } break;
 
                         case arg::temporary: {
                             bc->copy.src = tac->arg0.temporary->temp_pos;
-                            ret_size = tac->arg0.temporary->temp_size;
+                            bc->copy.size = tac->arg0.temporary->temp_size;
                         } break;
 
                         case arg::var: {
                             bc->copy.src = tac->arg0.var->stack_offset;
-                            ret_size = tac->arg0.var->type->size();
+                            bc->copy.size = tac->arg0.var->type->size();
                         } break;
                     }
+                    ret_size = bc->copy.size;
                 }
 
                 BC* ret = seq.push();
@@ -499,7 +535,13 @@ body() {
                         bc->resz.src = tac->arg0.temporary->temp_pos;
                     } break;
                     case arg::var: {
-                        bc->resz.src = tac->arg0.var->stack_offset;
+                        auto v = tac->arg0.var;
+                        if(v->is_compile_time || v->is_global) {
+                            bc->flags.right_is_ptr = true;
+                            bc->resz.src= (u64)v->memory;
+                        } else {
+                            bc->resz.src = tac->arg0.var->stack_offset;
+                        }
                     } break;
                 }
                 
@@ -515,128 +557,44 @@ body() {
                 tac->temp_pos = tac->arg0.temporary->temp_pos;
             } break;
 
-            case tac::subscript: {
-                u64 src = 0;
+            case tac::reference: {
+                push_temp(tac);
+
+                BC* bc = seq.push();
+                bc->tac = tac;
+                bc->node = tac->node;
+                bc->instr = air::ref;
+                bc->lhs = tac->temp_pos;
+                tac->temp_size = 8;
 
                 switch(tac->arg0.kind) {
                     case arg::var: {
+                        if(tac->arg0.deref) {
+                            bc->flags.deref_right = true;
+                        }
                         auto v = tac->arg0.var;
-                        src = v->stack_offset;
-                        
-                    } break;
-                    case arg::member: {
-                        src = tac->arg0.offset_var.var->stack_offset + tac->arg0.offset_var.offset;
+                        if(v->is_compile_time || v->is_global) {
+                            bc->flags.right_is_ptr = true;
+                            bc->rhs = (u64)v->memory;
+                        } else {
+                            bc->rhs = tac->arg0.var->stack_offset;
+                        }
                     } break;
                     case arg::temporary: {
-                        TAC* t = tac->arg0.temporary;
-                        if( t == tac_seq.read(i-1) && 
-                            t->op == tac::subscript &&
-                            t->arg1.kind == arg::literal) {
-                            // this should be something like a[0][1][2]...
-                            // so we just take the last count and add to it 
-                            // the last BC will be a single push of the literal,
-                            // so we can just add to it and continue 
-                            // this is a really scuffed solution to this sort of thing
-                            // should probably come up with something better later 
-                            BC* last = seq.readptr(-1);
-                            last->lhs._u64 += tac->arg1.literal._u64 * tac->temp_size;
-                            tac->temp_pos = t->temp_pos;
-                            continue;
-                        } else {
-                            src = t->temp_pos;
+                        if(tac->arg0.deref) {
+                            bc->flags.deref_right = true;
                         }
+                        bc->rhs = tac->arg0.temporary->temp_pos;
                     } break;
                     default: {
-                        TODO("handle subscripting things other than direct arrays");
+                        TODO("handle referencing other things");
                     } break;
                 }
+            } break;
 
-                switch(tac->arg1.kind) {
-                    case arg::var: {
-                        auto vr = tac->arg1.var;
-                        BC* temp = seq.push();
-                        temp->tac = tac;
-                        temp->node = tac->node;
-                        temp->instr = air::push;
-                        temp->flags.left_is_const = true;
-                        temp->lhs = src;
-                        temp->rhs = u64(8);
-                        temp->comment = DString::create(stack_offset);
-                        u64 temp_pos = stack_offset;
-                        stack_offset += 8;
-                        scoped_temps.readref(-1) += 8;
-                        tac->temp_pos = temp_pos;
-
-                        BC* add = seq.push();
-                        add->tac = tac;
-                        add->node = tac->node;
-                        add->instr = air::add;
-                        add->lhs = temp_pos;
-                        add->rhs = vr->stack_offset;
-
-                        BC* mult = seq.push();
-                        mult->tac = tac;
-                        mult->node = tac->node;
-                        mult->instr = air::mul;
-                        mult->lhs = temp_pos;
-                        mult->flags.right_is_const = true;
-                        mult->rhs = tac->temp_size;
-
-                        if(!tac->lvalue) {
-                            BC* out = seq.push();
-                            out->tac = tac;
-                            out->node = tac->node;
-                            out->instr = air::push;
-                            out->flags.deref_left = true;
-                            out->lhs = temp_pos;
-                            out->rhs = tac->temp_size;
-                        }
-                        
-                    } break;
-                    case arg::temporary: {
-                        TAC* t = tac->arg1.temporary;
-
-                        BC* mult = seq.push();
-                        mult->tac = tac;
-                        mult->node = tac->node;
-                        mult->instr = air::mul;
-                        mult->lhs = t->temp_pos;
-                        mult->flags.right_is_const = true;
-                        mult->rhs = tac->temp_size;
-                        tac->temp_pos = t->temp_pos;
-
-                        if(!tac->lvalue) {
-                            BC* out = seq.push();
-                            out->tac = tac;
-                            out->node = tac->node;
-                            out->instr = air::push;
-                            out->flags.deref_left = true;
-                            out->lhs = t->temp_pos;
-                            out->rhs = tac->temp_size;
-                        }
-                    } break;
-                    case arg::literal: {
-                        BC* out = seq.push();
-                        out->tac = tac;
-                        out->node = tac->node;
-                        out->instr = air::push;
-                        out->comment = DString::create(stack_offset);
-                        out->lhs = src + tac->arg1.literal._s64 * tac->temp_size;
-                        tac->temp_pos = stack_offset;
-                        
-                        if(tac->lvalue) {
-                            out->flags.left_is_const = true;
-                            out->rhs = u64(8);
-
-                        } else {
-                            out->rhs = tac->temp_size;
-                        }
-
-                        stack_offset += out->rhs._u64;
-                        scoped_temps.readref(-1) += out->rhs._u64;
-                    } break;
-                }
-            } break; 
+            default: {
+                TODO(DString::create("unhandled TAC: ", tac));
+            } break;
         }
     }
 }
@@ -659,8 +617,13 @@ push_temp(TAC* tac) {
     out->node = tac->node;
     out->instr = air::push;
 
-    switch(tac->arg0.kind) {
+    if(tac->op == tac::reference) {
+        out->rhs._u64 = 8;
+    } else switch(tac->arg0.kind) {
         case arg::temporary: {
+            if(tac->arg0.deref) {
+                out->flags.deref_left = true;
+            }
             out->lhs = tac->arg0.temporary->temp_pos;
             out->rhs = tac->arg0.temporary->temp_size;
         } break;
@@ -686,15 +649,24 @@ push_temp(TAC* tac) {
         } break;
         case arg::stack_offset: {
             out->lhs = tac->arg0.stack_offset;
-            TestMe; // TODO(sushi) confirm this is correct
             out->rhs = tac->temp_size;
+        } break;
+        case arg::none: {
+            // this is *probably* fine
+            // this solves function return slots, which don't have any arguments and 
+            // determine the amount of space to make by their temp_size
+
+            out->lhs = u64(0);
+            out->flags.left_is_const = true;
+            out->rhs = tac->temp_size;
+            out->rhs.kind = scalar::unsigned64;
         } break;
     }
 
     tac->temp_pos = stack_offset;
     out->comment = DString::create("temp with pos ", tac->temp_pos);
-    stack_offset += tac->temp_size;
-    scoped_temps.readref(-1) += tac->temp_size;
+    stack_offset += out->rhs._u64;
+    scoped_temps.readref(-1) += out->rhs._u64;
 }
 
 void GenAIR::

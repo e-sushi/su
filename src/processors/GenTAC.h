@@ -44,6 +44,7 @@ struct GenTAC {
     Array<Var*> locals;
     Array<Var*> params; 
 
+    Array<Var*> varrefs;
 
     u64 register_offset;
 

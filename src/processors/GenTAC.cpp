@@ -113,6 +113,9 @@ label(Label* l) {
         case entity::var: {
             TODO("var label");
         } break;
+        default: {
+            TODO("unhandled label case");
+        } break;
     }
 }
 
@@ -165,7 +168,7 @@ statement(Stmt* s) {
                 case entity::var: {
                     auto v = l->entity->as<Var>();
                     // a compile time variable should not appear in runtime code
-                    if(!code->compile_time && v->is_compile_time) {
+                    if(v->is_compile_time && !code->compile_time) {
                         return;
                     }
                     locals.push(v);
@@ -192,13 +195,6 @@ statement(Stmt* s) {
                     tac->arg0.var = v;
                     tac->arg1 = arg;
                     tac->node = s;
-
-                    // initialize special types such as StaticArrays 
-                    switch(v->type->kind) {
-                        case type::kind::structured: {
-
-                        } break;
-                    }
                 } break;
                 default: {
                     TODO("unhandled label kind"); // unhandled label kind 
@@ -240,7 +236,14 @@ Arg GenTAC::
 expression(Expr* e) {
     switch(e->kind) {
         case expr::varref: {
-            return e->as<VarRef>()->var;
+            auto v = e->as<VarRef>()->var;
+            if(v->code != code) {
+                auto [idx, found] = array::util::search<Var*, Var*>(varrefs, v, [](Var* v){ return v; });
+                if(!found) {
+                    varrefs.insert(idx, v);
+                }
+            }
+            return v;
         } break;
 
         case expr::binary_plus:
@@ -276,6 +279,23 @@ expression(Expr* e) {
 
             add->node = e;
             return add;
+        } break;
+
+        case expr::unary_reference: {
+            Arg arg = expression(e->first_child<Expr>());
+
+            TAC* ref = make_and_place();
+            ref->op = tac::reference;
+            ref->arg0 = arg;
+            ref->node = e;
+
+            return ref;
+        } break;
+
+        case expr::unary_dereference: {
+            Arg arg = expression(e->first_child<Expr>());
+            arg.deref = true;
+            return arg;
         } break;
 
         case expr::binary_access: {
@@ -349,25 +369,38 @@ expression(Expr* e) {
         } break;
 
         case expr::subscript: {
-            Arg lhs = expression(e->first_child<Expr>());
-            Arg rhs = expression(e->last_child<Expr>());
-            
-            TAC* tac = make_and_place();
-            tac->op = tac::subscript;
-            tac->arg0 = lhs;
-            tac->arg1 = rhs;
+            TAC* add = make();
+            add->op = tac::addition;
+            add->node = e;
 
-            if(e->first_child<Expr>()->type->is<Pointer>()) {
-                tac->temp_size = e->first_child<Expr>()->type->as<Pointer>()->type->size();
-            } else if(e->first_child<Expr>()->type->is<StaticArray>()) {
-                tac->temp_size = e->first_child<Expr>()->type->as<StaticArray>()->type->size();
-            } else {
-                TODO("unhandled subscript subject");
+            add->arg0 = expression(e->first_child<Expr>());
+
+            if(e->first_child<Expr>()->type->is_not<Pointer>()) {
+                TAC* ref = make_and_place();
+                ref->op = tac::reference;
+                ref->arg0 = add->arg0;
+                add->arg0 = ref;
+                ref->node = e;
+                ref->temp_size = 8;
             }
-            tac->node = e;
-            tac->lvalue = e->lvalue;
 
-            return tac;
+            TAC* mul = make();
+            mul->op = tac::multiplication;
+            mul->arg0 = expression(e->last_child<Expr>());
+            mul->arg1.kind = arg::literal;
+            mul->arg1.literal = e->type->size();
+            mul->node = e;
+
+            add->arg1 = mul;
+            add->temp_size = e->type->size();
+
+            place(mul);
+            place(add);
+
+            Arg out = add;
+            out.deref = true;
+
+            return out;
         } break;
 
         case expr::literal_tuple: {
@@ -441,6 +474,9 @@ expression(Expr* e) {
 
             if(!e->first_child()->next<Expr>()
                  ->type->is_any<Void,Whatever>()) {
+                // the logic for temp TAC in air gen is commented out so I'm not sure
+                // if this works correctly anymore 
+                FixMe; 
                 temp = make_and_place();
                 temp->op = tac::temp;
                 temp->node = e;
@@ -560,7 +596,6 @@ expression(Expr* e) {
 
             loop_start_stack.push(nop);
             loop_end_stack.push(end);
-            temps.push(Array<TAC*>::create());
 
             b32 make_block = e->first_child()->is_not<Block>();
             if(make_block) {
@@ -590,6 +625,83 @@ expression(Expr* e) {
             place(end);
 
             return Arg();
+        } break;
+
+        // TODO(sushi) handle non-integer range for loops and C style for loops 
+        case expr::for_: {
+            TAC* end = make();
+            end->node = e;
+
+            auto range = e->first_child()->last_child<Expr>();
+            auto v = e->first_child<Label>()->entity->as<Var>();
+
+            locals.push(v);
+
+            TAC* init = make_and_place();
+            init->node = v;
+            init->op = tac::assignment;
+            init->arg0 = v;
+            init->arg1 = expression(range->first_child<Expr>());
+
+            u32 count = seq.count;
+            TAC* nop = make_and_place();
+            nop->node = e;
+
+            loop_start_stack.push(nop);
+            loop_end_stack.push(end);
+
+            b32 make_block = e->first_child()->is_not<Block>();
+            if(make_block) {
+                // if this loop is not scoped, we must manually place blocks
+                // so that any temporaries made inside of it can be cleaned up 
+                // in AIR generation later 
+                TAC* t = make_and_place();
+                t->op = tac::block_start;
+                t->node = e;
+            }
+
+            Arg expr = expression(e->last_child<Expr>());
+
+            TAC* inc = make_and_place();
+            inc->node = range;
+            inc->op = tac::addition;
+            inc->arg0 = v;
+            inc->arg1.kind = arg::literal;
+            inc->arg1.literal = u64(1);
+            inc->temp_size = v->type->size();
+
+            TAC* assign = make_and_place();
+            assign->node = range;
+            assign->op = tac::assignment;
+            assign->arg0 = v;
+            assign->arg1 = inc;
+
+            TAC* cond = make_and_place();
+            cond->node = range;
+            cond->op = tac::greater_than_or_equal;
+            cond->arg0 = inc;
+            cond->arg1 = expression(range->last_child<Expr>());
+
+            if(make_block) {
+                TAC* t = make_and_place();
+                t->op = tac::block_end;
+                t->node = e;
+            }
+
+            TAC* tac = make_and_place();
+            tac->op = tac::jump_zero;
+            tac->arg0 = cond;
+            tac->arg1 = seq.read(count);
+            tac->to = nop;
+            tac->node = e;
+
+            place(end);
+
+            return Arg();
+        } break;
+
+        case expr::binary_range: {
+           TODO("binary ranges outside of for loops");
         } break;
 
         case expr::break_: {

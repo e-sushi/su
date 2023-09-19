@@ -41,11 +41,6 @@ enum op {
     // instead, so that jumps jump directly to the next instruction rather than a label
     nop,
 
-    // a TAC that represents a local variable on the stack
-    // information about where it is on the stack is not decided yet
-    // the first operand points to a Var representing the variable
-    local_var,
-
     // a TAC that just creates a temp value for later TAC to refer to 
     temp,
 
@@ -73,11 +68,30 @@ enum op {
     // assignment between 2 things
     assignment, 
 
+    // get the address of the first first argument
+    reference,
+
     // a parameter for an upcoming call
     param,
 
     // a call to a function
     call,
+
+    // begin a coroutine, that is, a function that may 'yield' to the caller
+    // and continues where it left off when called again.
+    // these functions store and retrieve their state from the stack 
+    coroutine_start,
+    
+    // yield from a coroutine, possibly with some value
+    // this stores the functions entire stack on the heap
+    // which is then retrieved when the function is called
+    // again
+    yield,
+
+    // same as a function call, but expects to be used on a coroutine
+    // and, besides the first call, will load its state from the heap
+    call_coroutine,
+
 
     // markers for block start and end
     // this does not only represent literal blocks from amu
@@ -137,6 +151,12 @@ enum kind {
     stack_offset,
     cast,
 };
+
+enum class refb {
+    none,
+    ref,
+    deref,
+};
 } // namespace arg
 
 struct Arg {
@@ -165,11 +185,9 @@ struct Arg {
         } cast;
     };
 
-    // set true when this argument should be dealt with directly instead of being
-    // put into a temporary
-    b32 deref;
+    b32 deref = 0;
 
-    Arg() : kind(arg::none) {}
+    Arg() {memory::zero(this, sizeof(Arg));}
     Arg(Var* p) : kind(arg::var), var(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
@@ -222,6 +240,8 @@ struct TAC {
 
 void
 to_string(DString* current, Arg* arg) {
+    if(arg->deref) current->append("*");
+
     switch(arg->kind) {
         case arg::literal: {
             current->append(arg->literal.display());
@@ -256,6 +276,9 @@ to_string(DString* current, Arg* arg) {
         } break;
         case arg::cast: {
             current->append(scalar::strings[arg->cast.from], "->", scalar::strings[arg->cast.to]);
+        } break;
+        case arg::stack_offset: {
+            current->append(arg->literal.display());
         } break;
     }
 }
@@ -296,6 +319,9 @@ to_string(DString* current, TAC* tac) {
         } break;
         case tac::division: {
             current->append(tac->arg0, " / ", tac->arg1);
+        } break;
+        case tac::modulo: {
+            current->append(tac->arg0, " % ", tac->arg1);
         } break;
         case tac::assignment: {
             current->append(tac->arg0, " = ", tac->arg1);
@@ -384,7 +410,24 @@ to_string(DString* current, TAC* tac) {
         case tac::subscript: {
             current->append("subscript ", tac->arg0, " ", tac->arg1);
         } break;
-
+        case tac::coroutine_start:{
+            current->append("coroutine_start ", tac->arg0);
+        } break;
+        case tac::yield:{
+            current->append("yield ");
+            if(tac->arg0.kind) {
+                current->append(tac->arg0);
+            }
+        } break;
+        case tac::call_coroutine:{
+            current->append("cocall ", tac->arg0);
+        } break;
+        case tac::reference: {
+            current->append("&", tac->arg0);
+        } break;
+        default: {
+            Assert(0);
+        } break;
     }
 
     if(tac->comment.str) {

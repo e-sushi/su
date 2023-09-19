@@ -107,6 +107,12 @@ enum op {
     // original type, so anything using this temporary thinks the size is still the same as it originally was.
     // maybe try and rework this to not use 4 operands later 
     resz, 
+
+    // store a pointer to B in A 
+    ref,
+
+    // store the value of pointer B in A
+    deref,
 };
 
 #include "data/airop_strings.generated"
@@ -145,13 +151,13 @@ struct BC {
     air::op instr : 6;
 
     struct {
-        b32 left_is_const : 1 = false; // lhs is actually representing a constant value 
+        b32 left_is_const : 1 = false; // lhs is actually representing a constant value
         b32 left_is_ptr : 1 = false;
         b32 left_is_stack_ptr : 1 = false;
         // the left value is a pointer to something and we want to use the value at that address
         // if 'left_is_ptr' is not set, then we add lhs to the frame pointer and take the value that's there
-        b32 deref_left : 1 = false; 
-        b32 right_is_const : 1 = false; // rhs is actually representing a constant value 
+        b32 deref_left : 1 = false;
+        b32 right_is_const : 1 = false; // rhs is actually representing a constant value
         b32 right_is_ptr : 1 = false;
         b32 right_is_stack_ptr : 1 = false;
         b32 deref_right : 1 = false;
@@ -160,6 +166,8 @@ struct BC {
 
     // the width of the data we're about to operate on 
     width w : 2;
+
+    u64 hi = 123;
 
     union{
         struct {
@@ -184,8 +192,6 @@ struct BC {
             scalar::kind from;
         } resz;
 
-        // large literal value 
-        u64 constant;
         struct { // this sucks, setup a way to store functions in 4 bytes instead of 8
             Function* f;
             u32 n_params;
@@ -212,7 +218,7 @@ to_string(DString* current, BC bc) {
             if(bc.flags.deref_left) {
                 current->append("[", (void*)bc.lhs._u64, "] ");
             } else {
-                current->append("[", (void*)bc.lhs._u64, "] ");
+                current->append((void*)bc.lhs._u64, " ");
             }
         } else {
             if(bc.flags.deref_left) {
@@ -230,7 +236,7 @@ to_string(DString* current, BC bc) {
             if(bc.flags.deref_right) {
                 current->append("[", (void*)bc.rhs._u64, "] ");
             } else {
-                current->append("[", (void*)bc.rhs._u64, "] ");
+                current->append((void*)bc.rhs._u64);
             }
         } else {
             if(bc.flags.deref_right) {
@@ -309,6 +315,11 @@ to_string(DString* current, BC bc) {
             loffset();
             roffset();
         }break;
+        case air::mod: {
+            current->append("mod ");
+            loffset();
+            roffset();
+        } break;
         case air::eq:{
             current->append("eq ");
             loffset();
@@ -364,6 +375,19 @@ to_string(DString* current, BC bc) {
         }break;
         case air::resz: {
             current->append("resz ", bc.resz.src, "sp(", scalar::strings[bc.resz.from], ") -> ", bc.resz.dst, "sp(", scalar::strings[bc.resz.to], ")");
+        } break;
+        case air::ref: {
+            current->append("ref ");
+            loffset();
+            roffset();
+        } break;
+        case air::deref: {
+            current->append("deref ");
+            loffset();
+            roffset();
+        } break;
+        default: {
+            Assert(0);
         } break;
     }
 
