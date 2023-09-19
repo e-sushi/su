@@ -175,6 +175,21 @@ stream_next;                     \
 			case '0': case '1': case '2': case '3': case '4': 
 			case '5': case '6': case '7': case '8': case '9':{
 				while(isdigit(*stream.str) || *stream.str == '_') stream_next;
+				
+				if(*stream.str == '.' && *(stream.str+1) == '.') {
+					// this must be an access token, so quit here
+					token.raw.count = stream.str - token.raw.str;
+					token.kind = token::literal_integer;
+					token.s64_val = token.raw.to_f64();
+
+					token.l1 = line_num;
+					token.c1 = line_col;
+					token.group = token::group_literal;
+					tokens.push(token);
+					last_token = token;
+					continue;
+				}
+
 				if(*stream.str == '.' || *stream.str == 'e' || *stream.str == 'E'){
 					stream_next;
 					while(isdigit(*stream.str)){ stream_next; } //skip to non-digit
