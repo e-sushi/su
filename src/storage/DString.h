@@ -148,18 +148,48 @@ to_string(T x) {
 		out->str   = (u8*)memory::allocate(out->count+1);
 		Assert(out->str, "Failed to allocate memory");
 		snprintf((char*)out->str, out->count+1, "%ld", x);
+	}else if constexpr(std::is_same_v<T, s8>){
+		out->count = snprintf(nullptr, 0, "%hhi", x);
+		out->space = out->count+1;
+		out->str   = (u8*)memory::allocate(out->count+1);
+		Assert(out->str, "Failed to allocate memory");
+		snprintf((char*)out->str, out->count+1, "%hhi", x);
+	}else if constexpr(std::is_same_v<T, s16>){
+		out->count = snprintf(nullptr, 0, "%i", x);
+		out->space = out->count+1;
+		out->str   = (u8*)memory::allocate(out->count+1);
+		Assert(out->str, "Failed to allocate memory");
+		snprintf((char*)out->str, out->count+1, "%i", x);
+	}else if constexpr(std::is_same_v<T, s32>){
+		out->count = snprintf(nullptr, 0, "%ld", x);
+		out->space = out->count+1;
+		out->str   = (u8*)memory::allocate(out->count+1);
+		Assert(out->str, "Failed to allocate memory");
+		snprintf((char*)out->str, out->count+1, "%ld", x);
 	}else if constexpr(std::is_same_v<T, s64>){
 		out->count = snprintf(nullptr, 0, "%lld", x);
 		out->space = out->count+1;
 		out->str   = (u8*)memory::allocate(out->count+1);
 		Assert(out->str, "Failed to allocate memory");
 		snprintf((char*)out->str, out->count+1, "%lld", x);
-	}else if constexpr(std::is_same_v<T, u32>){
+	}else if constexpr(std::is_same_v<T, u8>){
+		out->count = snprintf(nullptr, 0, "%hhu", x);
+		out->space = out->count+1;
+		out->str   = (u8*)memory::allocate(out->count+1);
+		Assert(out->str, "Failed to allocate memory");
+		snprintf((char*)out->str, out->count+1, "%hhu", x);
+	}else if constexpr(std::is_same_v<T, u16>){
 		out->count = snprintf(nullptr, 0, "%u", x);
 		out->space = out->count+1;
 		out->str   = (u8*)memory::allocate(out->count+1);
 		Assert(out->str, "Failed to allocate memory");
 		snprintf((char*)out->str, out->count+1, "%u", x);
+	}else if constexpr(std::is_same_v<T, u32>){
+		out->count = snprintf(nullptr, 0, "%lu", x);
+		out->space = out->count+1;
+		out->str   = (u8*)memory::allocate(out->count+1);
+		Assert(out->str, "Failed to allocate memory");
+		snprintf((char*)out->str, out->count+1, "%lu", x);
 	}else if constexpr(std::is_same_v<T, u64>){
 		out->count = snprintf(nullptr, 0, "%llu", x);
 		out->space = out->count+1;
@@ -201,17 +231,59 @@ to_string(DString* start, T x) {
 	}else if constexpr(std::is_same_v<T, char>){
         start->append(String(&x, 1));
     }else if constexpr(std::is_same_v<T, u8>){
-        u64 count = snprintf(nullptr, 0, "%d", x);
+        u64 count = snprintf(nullptr, 0, "%hhi", x);
 		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
 		Assert(start->str, "Failed to allocate memory");
-		snprintf((char*)start->str+start->count, count+1, "%d", x);
+		snprintf((char*)start->str+start->count, count+1, "%hhi", x);
+		start->count += count;
+		start->space = start->count + 1;
+	}else if constexpr(std::is_same_v<T, u16>){
+        u64 count = snprintf(nullptr, 0, "%hu", x);
+		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
+		Assert(start->str, "Failed to allocate memory");
+		snprintf((char*)start->str+start->count, count+1, "%hu", x);
+		start->count += count;
+		start->space = start->count + 1;
+	}else if constexpr(std::is_same_v<T, u32>){
+        u64 count = snprintf(nullptr, 0, "%u", x);
+		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
+		Assert(start->str, "Failed to allocate memory");
+		snprintf((char*)start->str+start->count, count+1, "%u", x);
+		start->count += count;
+		start->space = start->count + 1;
+	}else if constexpr(std::is_same_v<T, u64>){
+        u64 count = snprintf(nullptr, 0, "%llu", x);
+		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
+		Assert(start->str, "Failed to allocate memory");
+		snprintf((char*)start->str+start->count, count+1, "%llu", x);
+		start->count += count;
+		start->space = start->count + 1;
+	}else if constexpr(std::is_same_v<T, s8>){
+        u64 count = snprintf(nullptr, 0, "%hhi", x);
+		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
+		Assert(start->str, "Failed to allocate memory");
+		snprintf((char*)start->str+start->count, count+1, "%hhi", x);
+		start->count += count;
+		start->space = start->count + 1;
+	}else if constexpr(std::is_same_v<T, s16>){
+        u64 count = snprintf(nullptr, 0, "%hi", x);
+		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
+		Assert(start->str, "Failed to allocate memory");
+		snprintf((char*)start->str+start->count, count+1, "%hi", x);
 		start->count += count;
 		start->space = start->count + 1;
 	}else if constexpr(std::is_same_v<T, s32>){
-        u64 count = snprintf(nullptr, 0, "%d", x);
+        u64 count = snprintf(nullptr, 0, "%i", x);
 		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
 		Assert(start->str, "Failed to allocate memory");
-		snprintf((char*)start->str+start->count, count+1, "%d", x);
+		snprintf((char*)start->str+start->count, count+1, "%i", x);
+		start->count += count;
+		start->space = start->count + 1;
+	}else if constexpr(std::is_same_v<T, s64>){
+        u64 count = snprintf(nullptr, 0, "%lli", x);
+		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
+		Assert(start->str, "Failed to allocate memory");
+		snprintf((char*)start->str+start->count, count+1, "%lli", x);
 		start->count += count;
 		start->space = start->count + 1;
 	}else if constexpr(std::is_same_v<T, long>){
@@ -226,20 +298,6 @@ to_string(DString* start, T x) {
 		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
 		Assert(start->str, "Failed to allocate memory");
 		snprintf((char*)start->str+start->count, count+1, "%lld", x);
-        start->count += count;
-		start->space = start->count+1;
-	}else if constexpr(std::is_same_v<T, u32>){
-		u64 count = snprintf(nullptr, 0, "%u", x);
-		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
-		Assert(start->str, "Failed to allocate memory");
-		snprintf((char*)start->str+start->count, count+1, "%u", x);
-        start->count += count;
-		start->space = start->count+1;
-	}else if constexpr(std::is_same_v<T, u64>){
-		u64 count = snprintf(nullptr, 0, "%llu", x);
-		start->str   = (u8*)memory::reallocate(start->str, start->count + count + 1);
-		Assert(start->str, "Failed to allocate memory");
-		snprintf((char*)start->str+start->count, count+1, "%llu", x);
         start->count += count;
 		start->space = start->count+1;
 	}else if constexpr(std::is_same_v<T, f32> || std::is_same_v<T, f64>){
@@ -284,6 +342,24 @@ format_time(f64 ms){
 		out->append(ms, " ms");
 	}
     return out;
+}
+
+
+DString*
+format_metric(s64 x) {
+	auto out = DString::create();
+	if(x > s64(1e12)) {
+		out->append(x/s64(1e12), ".", x%s64(1e12), " tera");
+	} else if(x > s64(1e9)) {
+		out->append(x/s64(1e9), ".", x%s64(1e9), " giga");
+	} else if(x > s64(1e6)) {
+		out->append(x/s64(1e6), ".", x%s64(1e6), " mega");
+	} else if(x > s64(1e3)) {
+		out->append(x/s64(1e3), ".", x%s64(1e3), " kilo");
+	} else {
+		out->append(x);
+	}
+	return out;
 }
 
 // wraps a DString in ANSI terminal color

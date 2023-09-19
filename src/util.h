@@ -28,7 +28,7 @@ start() {
 
 f64
 peek(Stopwatch watch) {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - watch).count(); 
+	return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - watch).count(); 
 }
 
 void

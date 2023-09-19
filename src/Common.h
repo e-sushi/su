@@ -385,10 +385,6 @@ template <class F> deferrer<F> operator*(defer_dummy, F f) { return {f}; }
 #if COMPILER_FEATURE_TYPEOF
 #  define For(start,count) for(typeof(*(start))* it = start; it < start+(count); ++it)
 #  define ForX(var_name,start,count) for(typeof(*(start))* var_name = start; var_name < start+(count); ++var_name)
-#elif COMPILER_FEATURE_CPP
-#  define For(start,count) for(auto it = start; it < start+(count); ++it)
-#  define ForX(var_name,start,count) for(auto var_name = start; var_name < start+(count); ++var_name)
-#  define forE(iterable) for(auto it = iterable.begin(), it_begin = iterable.begin(), it_end = iterable.end(); it != it_end; ++it)
 #endif //#if COMPILER_FEATURE_TYPEOF
 
 //// terminal colors ////

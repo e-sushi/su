@@ -73,7 +73,7 @@ struct ScalarValue : public Base {
     void
     cast_to(scalar::kind k);
 
-    ScalarValue() : Base(base::scalar_value) {}
+    ScalarValue() : _u64(0), kind(scalar::unsigned64), Base(base::scalar_value) {}
 
     ScalarValue(u64 x) : _u64(x), kind(scalar::unsigned64), Base(base::scalar_value) {}
     ScalarValue(u32 x) : _u32(x), kind(scalar::unsigned32), Base(base::scalar_value) {}

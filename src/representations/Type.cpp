@@ -279,11 +279,11 @@ create(Type* type) {
     auto [idx, found] = amu::array::util::
         search<DynamicArray*, u64>(DynamicArray::set, hash, [](DynamicArray* a){return u64(a->type);});
 
-    if(found) return amu::DynamicArray::set.read(idx);
+    if(found) return DynamicArray::set.read(idx);
 
     DynamicArray* nu = pool::add(compiler::instance.storage.dynamic_array_types);
     nu->type = type;
-    amu::DynamicArray::set.insert(idx, nu);
+    DynamicArray::set.insert(idx, nu);
 
     auto s = Structure::create();
 
@@ -326,6 +326,43 @@ DString* DynamicArray::
 print_from_address(u8* addr) {
     TODO("print dynamic array from address");
     return 0;
+}
+
+Array<Range*> Range::set = Array<Range*>::create();
+
+Range* Range::
+create(Type* type) {
+    u64 hash = (u64)type;
+    auto [idx, found] = amu::array::util::
+        search<Range*, u64>(set, hash, [](Range* a){return u64(a->type);});
+
+    if(found) return set.read(idx);
+
+    auto out = pool::add(compiler::instance.storage.range_types);
+    out->type = type;
+    set.insert(idx, out);
+
+    return out;
+}
+
+DString* Range::
+display() {
+    return DString::create("Range(TODO)");
+}
+
+DString* Range::
+dump() {
+    return DString::create("Range<TODO>");
+}
+
+u64 Range::
+size() {
+    return type->size();
+}
+
+DString* Range::
+print_from_address(u8* addr) {
+    return type->print_from_address(addr);
 }
 
 // FunctionType does not try to be unique for now

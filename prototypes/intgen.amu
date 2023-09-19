@@ -1,0 +1,9 @@
+$integer impl Range;
+range :: (start: $integer, end: $integer) -> $integer {
+    current := start;
+    loop {
+        yield current;
+        current += 1;
+        return current if current == end;
+    }
+}

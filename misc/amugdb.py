@@ -495,8 +495,11 @@ class parser_track_stack(gdb.Command):
         super(parser_track_stack, self).__init__("tstack", gdb.COMMAND_USER)
     
     def invoke(self, args, tty):
-        gdb.rbreak(r'amu::parser::stack::pop(')
-        gdb.rbreak(r'amu::parser::stack::push(')
+        bps = gdb.rbreak(r'^amu::Parser::*')
+        for b in bps:
+            if 'display_stack' in b.location:
+                b.delete()
+        # gdb.rbreak(r'amu::Parser::*')
         gdb.execute("r")
         pps = parser_print_stack()
         dline = display_line()
@@ -512,9 +515,12 @@ class parser_track_stack(gdb.Command):
                 if "push" in curfunc.name:
                     out.write(f"push -------------------------------- {lastframe.older().function()} push\n")
                     gdb.execute("finish")
-                if "pop" in curfunc.name:
+                elif "pop" in curfunc.name:
                     out.write(f"pop -------------------------------- {lastframe.function()} pop\n")
                     lastframe.select()
+                else:
+                    gdb.execute("c")
+                    continue
 
                 stack = pps.invoke(None, False)
                 line = dline.invoke(None, False)

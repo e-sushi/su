@@ -1,23 +1,13 @@
-// width :: 5;
-// height :: 5;
-
-// vec2 :: struct {
-//     arr: f32[2];
-// }
-
-width :: 5;
-
-next: s32 = 1213513534;
-
-rand :: () -> s32 {
-    next = next * 1103515245 + 12345;
-    (next/65536) % 32768
-}
+width :: 2;
+height :: 2;
+area :: width*height;
 
 main::()->void { 
-    
-    loop {
-        a := rand();
-        if(a % 100 == 0) break;
-    }
+    A: u32[area] = [1,2,3,4];
+    arr := &A;
+    c := (*arr)[0];
+    d := (*arr)[1];
+    e := (*arr)[2];
+    f := (*arr)[3];
+
 }
