@@ -149,6 +149,46 @@ prescan_label() {
                                     // TODO(sushi) tuple constants
                                     NotImplemented;
                                 } break;
+                                default: {
+                                    // this is probably a cast, just treat this as an expression
+                                    Token* save = token.current();
+                                    if(token.is(token::open_brace)) {
+                                        token.skip_to_matching_pair();
+                                        if(!token.next()) {
+                                            diagnostic::parser::missing_close_brace(save);
+                                            return false;
+                                        }
+                                    } else {
+                                        token.skip_until(token::semicolon);
+                                        if(!token.next()) {
+                                            diagnostic::parser::missing_semicolon(save);
+                                            return false;
+                                        }
+                                    }
+
+                                    Code* nu = code::from(code, id, token.current());
+                                    nu->kind = code::var_decl;
+
+                                    Label* l = Label::create();
+                                    l->start = id;
+                                    l->end = token.current();
+
+                                    auto e = Expr::create(expr::identifier);
+                                    e->start = e->end = id;
+
+                                    node::insert_first(l, e);
+
+                                    auto v = Var::create();
+                                    v->label = l;
+                                    l->entity = v->as<Entity>();
+
+                                    Parser::create(nu);
+                                    nu->parser->root = l->as<ASTNode>();
+
+                                    table.add(id->raw, l);
+
+                                    node::insert_last(code, nu);
+                                } break;
                             }
                         } break;
                         case token::structdecl: {
@@ -428,21 +468,24 @@ prescanned_var_decl() {
         }
     }
 
-    v->type = e->type;
-
-    node::change_parent(l, e->last_child());
 
     if(e->is<CompileTime>()) {
         v->is_compile_time = true;
+        v->type = e->type;
         v->memory = (u8*)memory::allocate(v->type->size());
         memory::copy(v->memory, e->code->machine->stack, v->type->size());
         e->code->machine->destroy();
+        node::change_parent(l, e->last_child());
     } else {
-        // we still need to bring this variable into memory since it is global
+        // we still need to bring this variable into memory since it's global
         v->is_global = true;
-        v->memory = (u8*)memory::allocate(v->type->size());
         // and also evaluate it too, so that it is initialized 
         code->level = code::parse;
+        node::change_parent(l, e);
+        if(!compiler::funnel(code, code::sema)) return false;
+        v->type = e->type;
+        v->memory = (u8*)memory::allocate(v->type->size());
+        map::add(compiler::instance.global_symbols, v->memory, v);
         if(!compiler::funnel(code, code::machine)) return false;
         code->machine->destroy();
     }
@@ -613,6 +656,14 @@ label() {
                         } break;
                     }
                 } break;
+                case expr::binary_range: {
+                    auto v = Var::create();
+                    v->label = l;
+                    v->start = l->start;
+                    v->end = cand->end;
+                    l->entity = v->as<Entity>();
+                    node::insert_last(l, cand);
+                } break;
                 default: {
                     util::println(
                         DString::create("unhandled label case: ", expr::strings[expr->kind]));
@@ -711,28 +762,6 @@ label_group_after_comma() {
 b32 Parser::
 label_after_colon() {
     switch(token.current_kind()) {
-        case token::identifier: {
-            // this should be a typeref 
-            Label* l = table.search(token.current()->hash);
-            if(!l) {
-                diagnostic::parser::
-                    unknown_identifier(token.current(), token.current());
-                return false;
-            }
-
-            switch(l->entity->kind) {
-                case entity::type: {
-                    auto e = Expr::create(expr::typeref, l->entity->as<Type>());
-                    e->start = e->end = token.current();
-
-                    node.push(e);
-
-                    token.increment();
-                    if(!typeref()) return false;
-                } break;
-            }
-        } break;
-
         case token::colon:
         case token::equal: {
             if(!expression()) return false;
@@ -753,8 +782,13 @@ label_after_colon() {
                 token.increment();
                 typeref();
             } else {
-                diagnostic::parser::unexpected_token(token.current(), token.current());
-                return false;
+                // just expect an expression and hope for the best
+                // if something's wrong here, it will probably be 
+                // caught in Sema or in label() when we're checking
+                // what we got after it 
+                if(!expression()) return false;
+                // diagnostic::parser::unexpected_token(token.current(), token.current());
+                // return false;
             }
         } break;
     }
@@ -814,7 +848,7 @@ tuple() {
 
     if(found_label)
         table.pop();
-    
+
     forI(count) 
         node::insert_first(tuple, node.pop());
 
@@ -1092,6 +1126,7 @@ term() {
             token.increment();
             if(!factor()) return false;
             if(!access()) return false;
+            if(!subscript()) return false;
             auto e = Expr::create(
                 kind == token::percent ? expr::binary_modulo : 
                 kind == token::solidus ? expr::binary_division : 
@@ -1122,6 +1157,7 @@ additive() {
             token.increment();
             if(!factor()) return false;
             if(!access()) return false;
+            if(!subscript()) return false;
             if(!term()) return false;
             auto e = Expr::create(
                 kind == token::plus 
@@ -1152,6 +1188,7 @@ bit_shift() {
             token.increment(); 
             if(!factor()) return false;
             if(!access()) return false;
+            if(!subscript()) return false;
             if(!term()) return false;
             if(!additive()) return false;
             auto e = Expr::create(
@@ -1185,6 +1222,7 @@ relational() {
             token.increment();
             if(!factor()) return false;
             if(!access()) return false;
+            if(!subscript()) return false;
             if(!term()) return false;
             if(!additive()) return false;
             if(!bit_shift()) return false;
@@ -1221,6 +1259,7 @@ equality() {
             token.increment();
             if(!factor()) return false;
             if(!access()) return false;
+            if(!subscript()) return false;
             if(!term()) return false;
             if(!additive()) return false;
             if(!bit_shift()) return false;
@@ -1251,6 +1290,7 @@ bit_and() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1278,6 +1318,7 @@ bit_xor() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1306,6 +1347,7 @@ bit_or() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1335,6 +1377,7 @@ logi_and() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1365,6 +1408,7 @@ logi_or() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1393,6 +1437,7 @@ range() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1451,6 +1496,7 @@ assignment() {
         token.increment();
         if(!factor()) return false;
         if(!access()) return false;
+        if(!subscript()) return false;
         if(!term()) return false;
         if(!additive()) return false;
         if(!bit_shift()) return false;
@@ -1462,7 +1508,6 @@ assignment() {
         if(!logi_and()) return false;
         if(!logi_or()) return false;
         if(!range()) return false;
-        if(!subscript()) return false;
         auto e = Expr::create(expr::binary_assignment);
 
         node::insert_first(e, node.pop());
@@ -1583,6 +1628,9 @@ factor() {
                     node.push(e);
                     if(!typeref()) return false;
                 } break;
+                case entity::expr: {
+
+                } break;
                 default: {
                     util::println(DString::create(
                         token.current(), " unhandled identifier reference: ", entity::strings[l->entity->kind]));
@@ -1593,6 +1641,22 @@ factor() {
         
         case token::open_paren: {
             if(!tuple()) return false;
+
+             if(node.current->is<Tuple>() &&
+                node.current->child_count == 1 &&
+                node.current->first_child()->is(expr::typeref)) {
+                // this is just a cast probably
+                auto cast = Expr::create(expr::cast);
+                auto n = node.pop();
+                cast->type = n->first_child<Expr>()->type;
+                cast->start = n->start;
+                if(!factor()) return false;
+                node::insert_last(cast, node.pop());
+                cast->end = cast->last_child()->end;
+                node.push(cast);
+                n->first_child<Expr>()->destroy();
+                n->as<Tuple>()->destroy();
+            }
 
             if(node.current->is<Tuple>() && 
                node.current->child_count == 1 &&
@@ -1631,7 +1695,53 @@ factor() {
         } break;
 
         case token::for_: {
-            TODO("for parsing");
+            auto save = token.current();
+            token.increment();
+
+            if(!token.is(token::open_paren)) {
+                diagnostic::parser::
+                    for_missing_open_paren(token.current());
+                return false;
+            }
+
+            token.increment();
+
+            auto e = For::create();
+            e->table.last = table.last;
+            e->start = save;
+            table.push(&e->table);
+
+            // TODO(sushi) handle label groups (a,b,c,...)
+            if(token.is(token::identifier) && 
+               token.next_is(token::colon)) {
+                if(!label()) return false;
+                node::insert_last(e, node.pop());
+            } else {
+                TODO("non-label for thing");
+                if(!expression()) return false;
+            }
+
+            if(token.is(token::semicolon)) {
+                TODO("C-style for loops");
+            }
+
+            if(!token.is(token::close_paren)) {
+                diagnostic::parser::
+                    for_missing_close_paren(token.current());
+                return false;
+            }
+
+            token.increment();
+
+            if(!expression()) return false;
+
+            table.pop();
+
+            node::insert_last(e, node.pop());
+
+            e->end = token.current();
+
+            node.push(e);
         } break;
 
         case token::open_brace: {
@@ -1646,7 +1756,18 @@ factor() {
             if(!factor()) return false;
 
             node::insert_last(e, node.pop());
-            e->type = Pointer::create(e->last_child()->resolve_type());
+            e->end = e->last_child()->end;
+            node.push(e);
+        } break;
+
+        case token::asterisk: {
+            auto e = Expr::create(expr::unary_dereference);
+            e->start = token.current();
+
+            token.increment();
+            if(!factor()) return false;
+
+            node::insert_last(e, node.pop());
             e->end = e->last_child()->end;
             node.push(e);
         } break;
@@ -1880,10 +2001,6 @@ typeref() {
             node.push(e);
         } break;
 
-        // case token::open_brace: {
-        //     TODO("type restricted blocks <typeref> \"{\" ... \"}\"");
-        // } break;
-
         case token::asterisk: {
             auto last = node.current->as<Expr>();
             last->type = Pointer::create(last->type);
@@ -1930,6 +2047,27 @@ typeref() {
                             // value SHOULD be fine, but idk it might break
                             last->type = StaticArray::create(last->type, e->as<ScalarLiteral>()->value._u64);
                         } break;
+                        case expr::varref: {
+                            auto v = e->as<VarRef>()->var;
+                            if(!v->is_compile_time) {
+                                diagnostic::parser::
+                                    runtime_variable_cannot_be_used_as_static_array_count(e->start);
+                                return false;
+                            }
+                            auto ve = v->label->last_child<Expr>();
+                            if(ve->is_not<ScalarLiteral>() || ve->as<ScalarLiteral>()->is_float()) {
+                                diagnostic::parser::
+                                    static_array_count_must_eval_to_integer(e->start, e->type);
+                                return false;
+                            }
+                            auto sl = ve->as<ScalarLiteral>();
+                            if(sl->is_negative()) {
+                                diagnostic::parser::
+                                    static_array_size_cannot_be_negative(e->start);
+                                return false;
+                            }
+                            last->type = StaticArray::create(last->type, sl->value._u64);
+                        } break;
                         default: {
                             // whatever expression we've found needs to be evaluated fully as a compile
                             // time expression
@@ -1945,12 +2083,12 @@ typeref() {
                             if(!compiler::funnel(nu, code::machine)) return false;
 
                             // now we need to figure out exactly what was returned from the expression
-                            e->type = e->first_child<Expr>()->type;
+                            e->type = ct->first_child<Expr>()->type;
 
                             // a scalar type will just resolve into a scalar literal
                             if(e->type->is<Scalar>() && !e->type->as<Scalar>()->is_float()) {
                                 auto sl = ScalarLiteral::create();
-                                sl->value.kind = e->first_child<Expr>()->type->as<Scalar>()->kind;
+                                sl->value.kind = ct->first_child<Expr>()->type->as<Scalar>()->kind;
                                 switch(sl->value.kind) {
                                     case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
                                     case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
@@ -2050,31 +2188,31 @@ reduce_builtin_type_to_typeref_expression() {
     return true;
 }
 
-FORCE_INLINE void Parser::NodeStack::
+FORCE_INLINE void NodeStack::
 push(ASTNode* n) { 
     stack.push(current); 
     current = n; 
 }
 
-FORCE_INLINE ASTNode* Parser::NodeStack::
+FORCE_INLINE ASTNode* NodeStack::
 pop() { 
     ASTNode* save = current; 
     current = stack.pop(); 
     return save; 
 } 
 
-void Parser::TableStack::
+void TableStack::
 push(LabelTable* l) {
     stack.push(last); 
     last = l;
 
 }
-void Parser::TableStack::
+void TableStack::
 pop() { 
     last = stack.pop(); 
 }
 
-Label* Parser::TableStack::
+Label* TableStack::
 search(u64 hashed_id) { 
     LabelTable* table = last;
     while(table) {
@@ -2087,7 +2225,7 @@ search(u64 hashed_id) {
     return 0;
 }
 
-void Parser::TableStack::
+void TableStack::
 add(String id, Label* l) {
     map::add(last->map, id, l);
 }

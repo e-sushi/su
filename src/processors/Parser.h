@@ -9,32 +9,32 @@
 
 namespace amu {
 
+struct TableStack {
+    Array<LabelTable*> stack;
+    LabelTable* last;
 
+    void push(LabelTable* l);
+    void pop();
+    void add(String id, Label* l);
+    Label* search(u64 hashed_id);
+};
+
+
+struct NodeStack {
+    Array<ASTNode*> stack;
+    ASTNode* current;
+
+    void push(ASTNode* n);
+    ASTNode* pop();
+};
 
 struct Parser {
     Code* code;
 
     ASTNode* root;
 
-    // this is really ugly, split them up into different types 
-    // or just prefix the names 
-    struct TableStack {
-        Array<LabelTable*> stack;
-        LabelTable* last;
-
-        void push(LabelTable* l);
-        void pop();
-        void add(String id, Label* l);
-        Label* search(u64 hashed_id);
-    } table;
-
-    struct NodeStack {
-        Array<ASTNode*> stack;
-        ASTNode* current;
-
-        void push(ASTNode* n);
-        ASTNode* pop();
-    } node;
+    TableStack table;
+    NodeStack node;
 
     // array of Tokens representing identifiers that refer to something
     // unknown when we come across it in parsing 
