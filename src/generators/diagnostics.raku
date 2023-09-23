@@ -110,6 +110,10 @@ my $funcs =
     "namespace amu \{\n" ~
     "namespace diagnostic \{\n" ~
     "language lang;\n";
+my $funcs-header = 
+	"namespace amu \{\n" ~
+	"struct MessageSender;\n" ~ # need to forward include this
+	"namespace diagnostic \{\n";
 my $enum = "enum kind \{\n\tOK=0,\n";
 my $strs = "const global String strings[] = \{\n";
 
@@ -124,14 +128,15 @@ sub construct-diagnostics {
 }
 
 sub construct-group($group) {
-    $funcs ~= "namespace {$group[0]} \{\n"; 
+
+	($funcs, $funcs-header) >>~=>> "namespace {$group[0]} \{\n"; 
     $enum-prefix ~= "{$group[0]}_";
     for $group[1..*] -> $child {
         when $child.key eq 'group' {construct-group($child.value)}
         when $child.key eq 'diagnostic' {construct-diag($child.value)}
     }
     $enum-prefix = $enum-prefix.chop: $group[0].chars+1;
-    $funcs ~= "\} // namespace {$group[0]}\n\n";
+    ($funcs, $funcs-header) >>~=>> "\} // namespace {$group[0]}\n\n";
 }
 
 sub construct-diag(@diag) {
@@ -273,8 +278,12 @@ sub construct-diag(@diag) {
         @message-commands.push: $command;
     }
     
+	my $prototype = "FORCE_INLINE global void {@diag[0]}(MessageSender sender$sig)";
+
+	$funcs-header ~= "$prototype;\n";
+
     $funcs ~= 
-    "FORCE_INLINE global void\n{@diag[0]}(MessageSender sender$sig) \{\n" ~
+    "$prototype \{\n" ~
     "\tDiagnostic diag = \{0\};\n" ~
     "\tdiag.code = $count;\n" ~
     "\tdiag.severity = diagnostic::$type;\n" ~
@@ -295,7 +304,8 @@ sub construct-diag(@diag) {
 }
 
 
-
+$funcs-header ~= "\} // namespace diagnostic\n\} // namespace amu";
+$funcs-header = $header ~ $funcs-header;
 $funcs ~= "\} // namespace diagnostic\n\} // namespace amu";
 $funcs = $header ~ $funcs;
 ($enum, $strs) >>~=>> "\};";
@@ -312,7 +322,9 @@ $data ~=
 "};\n";
 
 my $funcs-out = open "../src/data/diagnostic-impl.generated", :w or die "unable to open impl file";
+my $funcs-header-out = open "../src/data/diagnostic-header.generated", :w or die "unable to open header file";
 my $data-out = open "../src/data/diagnostics-data.generated", :w or die "unable to open data file";
 
+$funcs-header-out.say($funcs-header);
 $funcs-out.say($funcs);
 $data-out.say($data);

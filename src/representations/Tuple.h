@@ -30,7 +30,7 @@
 #ifndef AMU_TUPLE_H
 #define AMU_TUPLE_H
 
-#include "basic/Node.h"
+#include "representations/AST.h"
 #include "Label.h"
 
 namespace amu {

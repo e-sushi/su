@@ -52,7 +52,6 @@ prescan_start() {
             // function(code, token);
         } break;
         case code::statement: {
-
         } break;
     }
     return true;
@@ -66,6 +65,7 @@ prescan_source() {
     defer { table.pop(); };
 
     code->parser->root = m->as<ASTNode>();
+	m->as<Function>();
 
     while(1) {
         switch(token.current_kind()) {
@@ -118,6 +118,9 @@ prescan_label() {
                                         token.skip_to_matching_pair();
 
                                         Code* nu = code::from(code, id, token.current());
+										
+										nu->as<Function>();
+
                                         nu->kind = code::function;
 
                                         auto f = Function::create();
@@ -597,6 +600,7 @@ label() {
                             auto v = Var::create();
                             v->label = l;
                             v->type = expr->type;
+							cand->last_child();
                             l->entity = v->as<Entity>();
                             v->is_compile_time = true;
                             if(cand->last_child<Expr>()->type->is<Whatever>()) {

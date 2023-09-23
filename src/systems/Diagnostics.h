@@ -1,6 +1,8 @@
 #ifndef AMU_DIAGNOSTICS_H
 #define AMU_DIAGNOSTICS_H
 
+// #include "Messenger.h"
+
 namespace amu {
 
 namespace diagnostic {
@@ -12,6 +14,8 @@ struct Diagnostic {
     u64 code;
     diagnostic::severity severity;
 };
-} // namespace 
+} // namespace amu
+  
+#include "data/diagnostic-header.generated"
 
 #endif // AMU_DIAGNOSTICS_H

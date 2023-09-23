@@ -1,3 +1,4 @@
+#include "representations/AIR.h"
 namespace amu {
 
 VM* VM::
@@ -19,6 +20,7 @@ create(Code* entry) {
     out->frame.ip = entry->air_gen->seq.data;
     out->frame.fp = out->stack;
     out->sp = out->frame.fp;
+	out->finished = false;
 
     return out;
 }
@@ -29,740 +31,668 @@ destroy() {
     pool::remove(compiler::instance.storage.vm, this);
 }
 
-void VM::
-run() {
+BC* VM::
+step() {
+	if(finished) return 0;
 
-    auto start = util::stopwatch::start();
-
-    fclose(fopen("stack_pos", "w"));
-
-    auto stack_positions = Array<u8*>::create();
-    u8* max_stack = sp;
-
-    auto move_sp_direct = [&](u8* pos) {
+	auto move_sp_direct = [&](u8* pos) {
         sp = pos;
-        if(sp > max_stack) max_stack = sp;
-        if(max_stack - sp > 100) max_stack = sp;
-        stack_positions.push(sp);
     };
 
     auto move_sp = [&](s64 offset) {
         move_sp_direct(sp + offset);
     };
 
-    auto print_stack_positions = [&]() {
-        auto out = DString::create();
-        forI(max_stack - stack) {
-            int n = snprintf(0, 0, "%#04hhx ", stack[i]);
-            out->grow(n);
-            sprintf((char*)out->str + out->count, "%#04hhx ", stack[i]);
-            out->count += n;
-        }
-
-        // if(out->count) out->count -= 1;
-
-        if(out->count) {
-            out->append("\n");
-
-            u64 linelen = out->count;
-
-            forI(frames.count+20) {
-                forI(linelen-1) out->append(" ");
-                out->append("\n");
-            }
-
-            auto coorda = [&](u64 x, u64 y) {
-                return linelen * y + x * 5;
-            };
-
-            auto coord = [&](u64 x, u64 y) {
-                return linelen * y + x;
-            };
-
-            auto draw_frame = [&](Frame f, u32 index, u64 width) {
-                auto stack_pos = f.fp - stack;
-                out->str[coorda(stack_pos, 1)] = '^';
-                forX(j, index) {
-                    out->str[coorda(stack_pos, 2 + j)] = '|'; 
-                }
-
-                memory::copy(out->str + coorda(stack_pos, index + 1) + 2, f.identifier->str, util::Min(f.identifier->count, width));
-
-                forX(l, f.locals.count) {
-                    auto v = f.locals.read(l);
-                    auto s = v->display();
-                    s->append(": ", ScopedDeref(v->type->print_from_address(f.fp + v->stack_offset)).x);
-
-                    memory::copy(out->str + coorda(stack_pos, index + l + 2) + 2, s->str, s->count);
-                    s->deref();
-                }
-            };
-
-            forI(frames.count) {
-                u64 width = 0;
-                if(i != frames.count - 1) {
-                    width = 5 * (frames.read(i+1).fp - frames.read(i).fp);
-                } else {
-                    width = 5 * (max_stack - frames.read(i).fp);
-                }
-                draw_frame(frames.read(i), i, width);
-            }
-
-            u64 width = 0;
-            if(frames.count) {
-                width = 5 * (frames.read(-1).fp - frame.fp);
-            } else {
-                width = 5 * (max_stack - frame.fp);
-            }
-
-            draw_frame(frame, frames.count, width);
-
-            out->append("\n\n");
-            
-            auto f = fopen("stack_pos", "a");
-            fwrite(out->str, out->count, 1, f);
-            fclose(f);
-
-            out->deref();
-        }
-    };
-
     // return;
 
-    u64 stack_depth = 0;
     u64 instr_count = 0;
-    b32 finished = 0;
-    while(!finished) { 
-        // std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        BC* instr = frame.ip;
-        // util::println(DString::create("----------------------- ", instr, " of ", frame.identifier, " with sp ", sp - frame.fp));
-        util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
-        util::println(instr->node->underline());
-        util::println(ScopedDeref(to_string(*instr)).x);
-        // print_stack_positions();
-        switch(instr->instr) {
-            case air::op::push: {
-                u8* dst = sp;
-                if(instr->flags.left_is_const) {
-                    switch(instr->lhs.kind) {
-                        case scalar::float32: *(f32*)dst = instr->lhs._f32; break;
-                        case scalar::float64: *(f64*)dst = instr->lhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = instr->lhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = instr->lhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = instr->lhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = instr->lhs._u64; break;
-                    }
-                    move_sp(instr->rhs._u64);
-                } else {
-                    u8* src = 0;
-                    if(instr->flags.left_is_ptr) {
-                        if(instr->flags.deref_left) {
-                            src = (u8*)*(u64*)instr->lhs._u64;
-                        } else {
-                            src = (u8*)instr->lhs._u64;
-                        }
-                    } else {
-                        if(instr->flags.deref_left) {
-                            src = (u8*)*(u64*)(frame.fp + instr->lhs._u64);
-                        } else {
-                            src = frame.fp + instr->lhs._u64;
-                        }
-                    }
-                    memory::copy(dst, src, instr->rhs._u64);
-                    move_sp(instr->rhs._u64);
-                }
-            } break;
+// std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	BC* instr = frame.ip;
+	// util::println(DString::create("----------------------- ", instr, " of ", frame.identifier, " with sp ", sp - frame.fp));
+	util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
+	util::println(instr->node->underline());
+	util::println(ScopedDeref(to_string(*instr)).x);
+	// print_stack_positions();
+	switch(instr->instr) {
+		case air::op::push: {
+			u8* dst = sp;
+			if(instr->flags.left_is_const) {
+				switch(instr->lhs.kind) {
+					case scalar::float32: *(f32*)dst = instr->lhs._f32; break;
+					case scalar::float64: *(f64*)dst = instr->lhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = instr->lhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = instr->lhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = instr->lhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = instr->lhs._u64; break;
+				}
+				move_sp(instr->rhs._u64);
+			} else {
+				u8* src = 0;
+				if(instr->flags.left_is_ptr) {
+					if(instr->flags.deref_left) {
+						src = (u8*)*(u64*)instr->lhs._u64;
+					} else {
+						src = (u8*)instr->lhs._u64;
+					}
+				} else {
+					if(instr->flags.deref_left) {
+						src = (u8*)*(u64*)(frame.fp + instr->lhs._u64);
+					} else {
+						src = frame.fp + instr->lhs._u64;
+					}
+				}
+				memory::copy(dst, src, instr->rhs._u64);
+				move_sp(instr->rhs._u64);
+			}
+		} break;
 
-            case air::op::pushn: {
-                // this causes a segfault so WHATEVER for now 
-                // memory::zero(sp, instr->lhs._u64); 
-                move_sp(instr->lhs._u64);
-            } break;
+		case air::op::pushn: {
+			// this causes a segfault so WHATEVER for now 
+			// memory::zero(sp, instr->lhs._u64); 
+			move_sp(instr->lhs._u64);
+		} break;
 
-            case air::op::popn: {
-                move_sp(-instr->lhs._u64); 
-                
-            } break;
+		case air::op::popn: {
+			move_sp(-instr->lhs._u64); 
+			
+		} break;
 
-            case air::op::copy: {
-                u8* dst = 0;
-                if(instr->flags.left_is_ptr) {
-                    if(instr->flags.deref_left) {
-                        dst = (u8*)*(u64*)instr->lhs._u64;
-                    } else {
-                        dst = (u8*)instr->copy.dst;
-                    }
-                } else {
-                    if(instr->flags.deref_left) {
-                        dst = (u8*)*(u64*)(frame.fp + instr->copy.dst);
-                    } else {
-                        dst = frame.fp + instr->copy.dst;
-                    }
-                }
-                if(instr->flags.right_is_const) {
-                    switch(instr->copy.literal.kind) {
-                        case scalar::float32: *(f32*)dst = instr->copy.literal._f32; break;
-                        case scalar::float64: *(f64*)dst = instr->copy.literal._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = instr->copy.literal._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = instr->copy.literal._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = instr->copy.literal._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = instr->copy.literal._u64; break;
-                    }
-                } else {
-                    u8* src;
-                    if(instr->flags.right_is_ptr) {
-                        src = (u8*)instr->copy.src;
-                    } else {
-                        src = frame.fp + instr->copy.src;
-                    }
-                    if(instr->flags.deref_right) {
-                        src = (u8*)*(u64*)src;
-                    }
-                    memory::copy(dst, src, instr->copy.size);
-                }
-            } break;
+		case air::op::copy: {
+			u8* dst = 0;
+			if(instr->flags.left_is_ptr) {
+				if(instr->flags.deref_left) {
+					dst = (u8*)*(u64*)instr->lhs._u64;
+				} else {
+					dst = (u8*)instr->copy.dst;
+				}
+			} else {
+				if(instr->flags.deref_left) {
+					dst = (u8*)*(u64*)(frame.fp + instr->copy.dst);
+				} else {
+					dst = frame.fp + instr->copy.dst;
+				}
+			}
+			if(instr->flags.right_is_const) {
+				switch(instr->copy.literal.kind) {
+					case scalar::float32: *(f32*)dst = instr->copy.literal._f32; break;
+					case scalar::float64: *(f64*)dst = instr->copy.literal._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = instr->copy.literal._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = instr->copy.literal._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = instr->copy.literal._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = instr->copy.literal._u64; break;
+				}
+			} else {
+				u8* src;
+				if(instr->flags.right_is_ptr) {
+					src = (u8*)instr->copy.src;
+				} else {
+					src = frame.fp + instr->copy.src;
+				}
+				if(instr->flags.deref_right) {
+					src = (u8*)*(u64*)src;
+				}
+				memory::copy(dst, src, instr->copy.size);
+			}
+		} break;
 
-            case air::op::add: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst += instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst += instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst += instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst += instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst += instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst += instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src;
-                    if(instr->flags.right_is_ptr) {
-                        src = (u8*)instr->rhs._u64;
-                    } else if(instr->flags.deref_right) {
-                        src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
-                    } else {
-                        src = frame.fp + instr->rhs._u64;
-                    }
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst += *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst += *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst += *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst += *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst += *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst += *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::add: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst += instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst += instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst += instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst += instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst += instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst += instr->rhs._u64; break;
+				}
+			} else {
+				u8* src;
+				if(instr->flags.right_is_ptr) {
+					src = (u8*)instr->rhs._u64;
+				} else if(instr->flags.deref_right) {
+					src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
+				} else {
+					src = frame.fp + instr->rhs._u64;
+				}
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst += *(f32*)src; break;
+					case scalar::float64: *(f64*)dst += *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst += *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst += *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst += *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst += *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::sub: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst -= instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst -= instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst -= instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst -= instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst -= instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst -= instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src;
-                    if(instr->flags.right_is_ptr) {
-                        src = (u8*)instr->rhs._u64;
-                    } else if(instr->flags.deref_right) {
-                        src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
-                    } else {
-                        src = frame.fp + instr->rhs._u64;
-                    }
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst -= *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst -= *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst -= *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst -= *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst -= *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst -= *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::sub: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst -= instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst -= instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst -= instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst -= instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst -= instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst -= instr->rhs._u64; break;
+				}
+			} else {
+				u8* src;
+				if(instr->flags.right_is_ptr) {
+					src = (u8*)instr->rhs._u64;
+				} else if(instr->flags.deref_right) {
+					src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
+				} else {
+					src = frame.fp + instr->rhs._u64;
+				}
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst -= *(f32*)src; break;
+					case scalar::float64: *(f64*)dst -= *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst -= *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst -= *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst -= *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst -= *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::mul: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst *= instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst *= instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst *= instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst *= instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst *= instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst *= instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src;
-                    if(instr->flags.right_is_ptr) {
-                        src = (u8*)instr->rhs._u64;
-                    } else if(instr->flags.deref_right) {
-                        src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
-                    } else {
-                        src = frame.fp + instr->rhs._u64;
-                    }
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst *= *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst *= *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst *= *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst *= *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst *= *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst *= *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::mul: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst *= instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst *= instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst *= instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst *= instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst *= instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst *= instr->rhs._u64; break;
+				}
+			} else {
+				u8* src;
+				if(instr->flags.right_is_ptr) {
+					src = (u8*)instr->rhs._u64;
+				} else if(instr->flags.deref_right) {
+					src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
+				} else {
+					src = frame.fp + instr->rhs._u64;
+				}
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst *= *(f32*)src; break;
+					case scalar::float64: *(f64*)dst *= *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst *= *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst *= *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst *= *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst *= *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::div: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst /= instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst /= instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst /= instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst /= instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst /= instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst /= instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src;
-                    if(instr->flags.right_is_ptr) {
-                        src = (u8*)instr->rhs._u64;
-                    } else if(instr->flags.deref_right) {
-                        src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
-                    } else {
-                        src = frame.fp + instr->rhs._u64;
-                    }
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst /= *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst /= *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst /= *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst /= *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst /= *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst /= *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::div: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst /= instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst /= instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst /= instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst /= instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst /= instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst /= instr->rhs._u64; break;
+				}
+			} else {
+				u8* src;
+				if(instr->flags.right_is_ptr) {
+					src = (u8*)instr->rhs._u64;
+				} else if(instr->flags.deref_right) {
+					src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
+				} else {
+					src = frame.fp + instr->rhs._u64;
+				}
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst /= *(f32*)src; break;
+					case scalar::float64: *(f64*)dst /= *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst /= *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst /= *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst /= *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst /= *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::mod: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::signed8: *(s8*)dst %= instr->rhs._s8; break;
-                        case scalar::unsigned8: *(u8*)dst %= instr->rhs._u8; break;
-                        case scalar::signed16: *(s16*)dst %= instr->rhs._s16; break;
-                        case scalar::unsigned16: *(u16*)dst %= instr->rhs._u16; break;
-                        case scalar::signed32: *(s32*)dst %= instr->rhs._s32; break;
-                        case scalar::unsigned32: *(u32*)dst %= instr->rhs._u32; break;
-                        case scalar::signed64: *(s64*)dst %= instr->rhs._s64; break;
-                        case scalar::unsigned64: *(u64*)dst %= instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src;
-                    if(instr->flags.right_is_ptr) {
-                        src = (u8*)instr->rhs._u64;
-                    } else if(instr->flags.deref_right) {
-                        src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
-                    } else {
-                        src = frame.fp + instr->rhs._u64;
-                    }
-                    switch(instr->rhs.kind) {
-                        case scalar::signed8: *(s8*)dst %= *(s8*)src; break;
-                        case scalar::unsigned8: *(u8*)dst %= *(u8*)src; break;
-                        case scalar::signed16: *(s16*)dst %= *(s16*)src; break;
-                        case scalar::unsigned16: *(u16*)dst %= *(u16*)src; break;
-                        case scalar::signed32: *(s32*)dst %= *(s32*)src; break;
-                        case scalar::unsigned32: *(u32*)dst %= *(u32*)src; break;
-                        case scalar::signed64: *(s64*)dst %= *(s64*)src; break;
-                        case scalar::unsigned64: *(u64*)dst %= *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::mod: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::signed8: *(s8*)dst %= instr->rhs._s8; break;
+					case scalar::unsigned8: *(u8*)dst %= instr->rhs._u8; break;
+					case scalar::signed16: *(s16*)dst %= instr->rhs._s16; break;
+					case scalar::unsigned16: *(u16*)dst %= instr->rhs._u16; break;
+					case scalar::signed32: *(s32*)dst %= instr->rhs._s32; break;
+					case scalar::unsigned32: *(u32*)dst %= instr->rhs._u32; break;
+					case scalar::signed64: *(s64*)dst %= instr->rhs._s64; break;
+					case scalar::unsigned64: *(u64*)dst %= instr->rhs._u64; break;
+				}
+			} else {
+				u8* src;
+				if(instr->flags.right_is_ptr) {
+					src = (u8*)instr->rhs._u64;
+				} else if(instr->flags.deref_right) {
+					src = (u8*)*(u64*)(frame.fp + instr->rhs._u64);
+				} else {
+					src = frame.fp + instr->rhs._u64;
+				}
+				switch(instr->rhs.kind) {
+					case scalar::signed8: *(s8*)dst %= *(s8*)src; break;
+					case scalar::unsigned8: *(u8*)dst %= *(u8*)src; break;
+					case scalar::signed16: *(s16*)dst %= *(s16*)src; break;
+					case scalar::unsigned16: *(u16*)dst %= *(u16*)src; break;
+					case scalar::signed32: *(s32*)dst %= *(s32*)src; break;
+					case scalar::unsigned32: *(u32*)dst %= *(u32*)src; break;
+					case scalar::signed64: *(s64*)dst %= *(s64*)src; break;
+					case scalar::unsigned64: *(u64*)dst %= *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::jump_zero: {
-                if(instr->flags.left_is_const) {
-                    if(!instr->lhs._u64) instr += instr->rhs._u64 - 1;
-                } else {
-                    u8* src = frame.fp + instr->lhs._u64;
-                    b32 cond = 0;
-                    switch(instr->w) {
-                        case byte: cond = cond == *src; break;
-                        case word: cond = cond == *(u16*)src; break;
-                        case dble: cond = cond == *(u32*)src; break;
-                        case quad: cond = cond == *(u64*)src; break;
-                    }
-                    if(cond) instr += instr->rhs._u64 - 1;
-                }
-            } break;
+		case air::op::jump_zero: {
+			if(instr->flags.left_is_const) {
+				if(!instr->lhs._u64) instr += instr->rhs._u64 - 1;
+			} else {
+				u8* src = frame.fp + instr->lhs._u64;
+				b32 cond = 0;
+				switch(instr->w) {
+					case byte: cond = cond == *src; break;
+					case word: cond = cond == *(u16*)src; break;
+					case dble: cond = cond == *(u32*)src; break;
+					case quad: cond = cond == *(u64*)src; break;
+				}
+				if(cond) instr += instr->rhs._u64 - 1;
+			}
+		} break;
 
-            case air::op::jump_not_zero: {
-                if(instr->flags.left_is_const) {
-                    if(instr->lhs._u64) instr += instr->rhs._u64 - 1;
-                } else {
-                    u8* src = frame.fp + instr->lhs._u64;
-                    b32 cond = 1;
-                    switch(instr->w) {
-                        case byte: cond = cond == *src; break;
-                        case word: cond = cond == *(u16*)src; break;
-                        case dble: cond = cond == *(u32*)src; break;
-                        case quad: cond = cond == *(u64*)src; break;
-                    }
-                    if(cond) instr += instr->rhs._u64 - 1;
-                }
-            } break;
+		case air::op::jump_not_zero: {
+			if(instr->flags.left_is_const) {
+				if(instr->lhs._u64) instr += instr->rhs._u64 - 1;
+			} else {
+				u8* src = frame.fp + instr->lhs._u64;
+				b32 cond = 1;
+				switch(instr->w) {
+					case byte: cond = cond == *src; break;
+					case word: cond = cond == *(u16*)src; break;
+					case dble: cond = cond == *(u32*)src; break;
+					case quad: cond = cond == *(u64*)src; break;
+				}
+				if(cond) instr += instr->rhs._u64 - 1;
+			}
+		} break;
 
-            case air::op::jump: {
-                instr += instr->lhs._u64 - 1;
-            } break;
+		case air::op::jump: {
+			instr += instr->lhs._u64 - 1;
+		} break;
 
-            // TODO(sushi) this sucks do it better later 
-            case air::op::eq: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst == instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst == instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst == instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst == instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst == instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst == instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src = frame.fp + instr->rhs._u64;
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst == *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst == *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst == *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst == *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst == *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst == *(u64*)src; break;
-                    }
-                }
-            } break;
+		// TODO(sushi) this sucks do it better later 
+		case air::op::eq: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst == instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst == instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst == instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst == instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst == instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst == instr->rhs._u64; break;
+				}
+			} else {
+				u8* src = frame.fp + instr->rhs._u64;
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst == *(f32*)src; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst == *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst == *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst == *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst == *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst == *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::neq: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst != instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst != instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst != instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst != instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst != instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst != instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src = frame.fp + instr->rhs._u64;
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst != *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst != *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst != *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst != *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst != *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst != *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::neq: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst != instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst != instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst != instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst != instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst != instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst != instr->rhs._u64; break;
+				}
+			} else {
+				u8* src = frame.fp + instr->rhs._u64;
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst != *(f32*)src; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst != *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst != *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst != *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst != *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst != *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::lt: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst < instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst < instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst < instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst < instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst < instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst < instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src = frame.fp + instr->rhs._u64;
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst < *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst < *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst < *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst < *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst < *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst < *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::lt: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst < instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst < instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst < instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst < instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst < instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst < instr->rhs._u64; break;
+				}
+			} else {
+				u8* src = frame.fp + instr->rhs._u64;
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst < *(f32*)src; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst < *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst < *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst < *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst < *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst < *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::gt: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst > instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst > instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst > instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst > instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst > instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst > instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src = frame.fp + instr->rhs._u64;
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst > *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst > *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst > *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst > *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst > *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst > *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::gt: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst > instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst > instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst > instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst > instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst > instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst > instr->rhs._u64; break;
+				}
+			} else {
+				u8* src = frame.fp + instr->rhs._u64;
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst > *(f32*)src; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst > *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst > *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst > *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst > *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst > *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::le: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst <= instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst <= instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst <= instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst <= instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst <= instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst <= instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src = frame.fp + instr->rhs._u64;
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst <= *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst <= *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst <= *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst <= *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst <= *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst <= *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::le: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst <= instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst <= instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst <= instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst <= instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst <= instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst <= instr->rhs._u64; break;
+				}
+			} else {
+				u8* src = frame.fp + instr->rhs._u64;
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst <= *(f32*)src; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst <= *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst <= *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst <= *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst <= *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst <= *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::ge: {
-                u8* dst = frame.fp + instr->lhs._u64;
-                if(instr->flags.right_is_const) {
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst >= instr->rhs._f32; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst >= instr->rhs._f64; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst >= instr->rhs._u8; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst >= instr->rhs._u16; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst >= instr->rhs._u32; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst >= instr->rhs._u64; break;
-                    }
-                } else {
-                    u8* src = frame.fp + instr->rhs._u64;
-                    switch(instr->rhs.kind) {
-                        case scalar::float32: *(f32*)dst = *(f32*)dst >= *(f32*)src; break;
-                        case scalar::float64: *(f64*)dst = *(f64*)dst >= *(f64*)src; break;
-                        case scalar::signed8: 
-                        case scalar::unsigned8: *(u8*)dst = *(u8*)dst >= *(u8*)src; break;
-                        case scalar::signed16: 
-                        case scalar::unsigned16: *(u16*)dst = *(u16*)dst >= *(u16*)src; break;
-                        case scalar::signed32: 
-                        case scalar::unsigned32: *(u32*)dst = *(u32*)dst >= *(u32*)src; break;
-                        case scalar::signed64: 
-                        case scalar::unsigned64: *(u64*)dst = *(u64*)dst >= *(u64*)src; break;
-                    }
-                }
-            } break;
+		case air::op::ge: {
+			u8* dst = frame.fp + instr->lhs._u64;
+			if(instr->flags.right_is_const) {
+				switch(instr->rhs.kind) {
+					case scalar::float32: *(f32*)dst = *(f32*)dst >= instr->rhs._f32; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst >= instr->rhs._f64; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst >= instr->rhs._u8; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst >= instr->rhs._u16; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst >= instr->rhs._u32; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst >= instr->rhs._u64; break;
+				}
+			} else {
+				u8* src = frame.fp + instr->rhs._u64;
+				switch(instr->rhs.kind) { 
+					case scalar::float32: *(f32*)dst = *(f32*)dst >= *(f32*)src; break;
+					case scalar::float64: *(f64*)dst = *(f64*)dst >= *(f64*)src; break;
+					case scalar::signed8: 
+					case scalar::unsigned8: *(u8*)dst = *(u8*)dst >= *(u8*)src; break;
+					case scalar::signed16: 
+					case scalar::unsigned16: *(u16*)dst = *(u16*)dst >= *(u16*)src; break;
+					case scalar::signed32: 
+					case scalar::unsigned32: *(u32*)dst = *(u32*)dst >= *(u32*)src; break;
+					case scalar::signed64: 
+					case scalar::unsigned64: *(u64*)dst = *(u64*)dst >= *(u64*)src; break;
+				}
+			}
+		} break;
 
-            case air::op::call: {
-                frames.push(frame);
-                u8* next_fp = sp - instr->n_params;
-                frame = instr->f->frame;
-                frame.fp = next_fp;
-                frame.stack_depth = 0;
-                move_sp_direct(frame.fp);
-                continue; // we don't want to increment the ip
-            } break;
+		case air::op::call: {
+			frames.push(frame);
+			u8* next_fp = sp - instr->n_params;
+			frame = instr->f->frame;
+			frame.fp = next_fp;
+			frame.stack_depth = 0;
+			move_sp_direct(frame.fp);
+			return instr; // we don't want to increment the ip
+		} break;
 
-            case air::op::ret: {
-                if(!frames.count){
-                    finished = true;
-                    break;
-                }
-                Frame last = frame;
-                move_sp_direct(frame.fp + instr->lhs._u64);
-                frame = frames.pop();
-            } break;
+		case air::op::ret: {
+			if(!frames.count){
+				finished = true;
+				break;
+			}
+			Frame last = frame;
+			move_sp_direct(frame.fp + instr->lhs._u64);
+			frame = frames.pop();
+		} break;
 
-            case air::op::resz: {
-                
-                u8* dst = 0;
-                if(instr->flags.left_is_ptr) {
-                    dst = (u8*)instr->resz.dst;
-                } else if(instr->flags.deref_right) {
-                    dst = (u8*)*(u64*)(frame.fp + instr->resz.dst);
-                } else {
-                    dst = frame.fp + instr->resz.dst;
-                }
-                u8* src = 0;
-                if(instr->flags.right_is_ptr) {
-                    src = (u8*)instr->resz.src;
-                } else if(instr->flags.deref_right) {
-                    src = (u8*)*(u64*)(frame.fp + instr->resz.src);
-                } else {
-                    src = frame.fp + instr->resz.src;
-                }
-                #define inner(blah)                                        \
-                    switch(instr->resz.to) {                               \
-                        case scalar::unsigned64: *(u64*)dst = blah; break; \
-                        case scalar::unsigned32: *(u32*)dst = blah; break; \
-                        case scalar::unsigned16: *(u16*)dst = blah; break; \
-                        case scalar::unsigned8 : *(u8*)dst  = blah; break; \
-                        case scalar::signed64: *(s64*)dst = blah; break;   \
-                        case scalar::signed32: *(s32*)dst = blah; break;   \
-                        case scalar::signed16: *(s16*)dst = blah; break;   \
-                        case scalar::signed8 : *(s8*)dst  = blah; break;   \
-                        case scalar::float64: *(f64*)dst = blah; break;    \
-                        case scalar::float32: *(f32*)dst = blah; break;    \
-                    }
-                switch(instr->resz.from) {
-                    case scalar::unsigned64: inner(*(u64*)src); break;
-                    case scalar::unsigned32: inner(*(u32*)src); break;
-                    case scalar::unsigned16: inner(*(u16*)src); break;
-                    case scalar::unsigned8: inner(*(u8*)src); break;
-                    case scalar::signed64: inner(*(s64*)src); break;
-                    case scalar::signed32: inner(*(s32*)src); break;
-                    case scalar::signed16: inner(*(s16*)src); break;
-                    case scalar::signed8: inner(*(s8*)src); break;
-                    case scalar::float64: inner(*(f64*)src); break;
-                    case scalar::float32: inner(*(f32*)src); break;
-                }
-            } break;
+		case air::op::resz: {
+			
+			u8* dst = 0;
+			if(instr->flags.left_is_ptr) {
+				dst = (u8*)instr->resz.dst;
+			} else if(instr->flags.deref_right) {
+				dst = (u8*)*(u64*)(frame.fp + instr->resz.dst);
+			} else {
+				dst = frame.fp + instr->resz.dst;
+			}
+			u8* src = 0;
+			if(instr->flags.right_is_ptr) {
+				src = (u8*)instr->resz.src;
+			} else if(instr->flags.deref_right) {
+				src = (u8*)*(u64*)(frame.fp + instr->resz.src);
+			} else {
+				src = frame.fp + instr->resz.src;
+			}
+			#define inner(blah)                                        \
+				switch(instr->resz.to) {                               \
+					case scalar::unsigned64: *(u64*)dst = blah; break; \
+					case scalar::unsigned32: *(u32*)dst = blah; break; \
+					case scalar::unsigned16: *(u16*)dst = blah; break; \
+					case scalar::unsigned8 : *(u8*)dst  = blah; break; \
+					case scalar::signed64: *(s64*)dst = blah; break;   \
+					case scalar::signed32: *(s32*)dst = blah; break;   \
+					case scalar::signed16: *(s16*)dst = blah; break;   \
+					case scalar::signed8 : *(s8*)dst  = blah; break;   \
+					case scalar::float64: *(f64*)dst = blah; break;    \
+					case scalar::float32: *(f32*)dst = blah; break;    \
+				}
+			switch(instr->resz.from) {
+				case scalar::unsigned64: inner(*(u64*)src); break;
+				case scalar::unsigned32: inner(*(u32*)src); break;
+				case scalar::unsigned16: inner(*(u16*)src); break;
+				case scalar::unsigned8: inner(*(u8*)src); break;
+				case scalar::signed64: inner(*(s64*)src); break;
+				case scalar::signed32: inner(*(s32*)src); break;
+				case scalar::signed16: inner(*(s16*)src); break;
+				case scalar::signed8: inner(*(s8*)src); break;
+				case scalar::float64: inner(*(f64*)src); break;
+				case scalar::float32: inner(*(f32*)src); break;
+			}
+		} break;
 
-            case air::ref: {
-                u8* dst = 0;
-                if(instr->flags.left_is_ptr) {
-                    dst = (u8*)instr->lhs._u64;
-                } else {
-                    dst = frame.fp + instr->lhs._u64;
-                }
-                if(instr->flags.deref_left) {
-                    dst = (u8*)*(u64*)dst;
-                }
-                u8* src = 0;
-                if(instr->flags.right_is_ptr) {
-                    src = (u8*)instr->rhs._u64;
-                } else {
-                    src = frame.fp + instr->rhs._u64;
-                }
-                if(instr->flags.deref_right) {
-                    src = (u8*)*(u64*)src;
-                }
-                *(u64*)dst = (u64)src;
-                
-            } break;
+		case air::ref: {
+			u8* dst = 0;
+			if(instr->flags.left_is_ptr) {
+				dst = (u8*)instr->lhs._u64;
+			} else {
+				dst = frame.fp + instr->lhs._u64;
+			}
+			if(instr->flags.deref_left) {
+				dst = (u8*)*(u64*)dst;
+			}
+			u8* src = 0;
+			if(instr->flags.right_is_ptr) {
+				src = (u8*)instr->rhs._u64;
+			} else {
+				src = frame.fp + instr->rhs._u64;
+			}
+			if(instr->flags.deref_right) {
+				src = (u8*)*(u64*)src;
+			}
+			*(u64*)dst = (u64)src;
+			
+		} break;
 
-            case air::vm_break: {
-                util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
-                util::println(instr->node->underline());
-                util::println(ScopedDeref(to_string(*instr)).x);
-                print_frame_vars();
-                DebugBreakpoint;
-            } break;
+		case air::vm_break: {
+			util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
+			util::println(instr->node->underline());
+			util::println(ScopedDeref(to_string(*instr)).x);
+			print_frame_vars();
+			DebugBreakpoint;
+		} break;
 
-            default: {
-                TODO(DString::create("unhandled instruction: ", to_string(*instr)));
-            } break;
-        }
+		default: {
+			TODO(DString::create("unhandled instruction: ", to_string(*instr)));
+		} break;
+	}
 
-        frame.ip += 1;
-        instr_count += 1;
-        print_frame_vars();
+	frame.ip += 1;
+	instr_count += 1;
+	print_frame_vars();
 
-        if(sp - frame.fp > Megabytes(10)) {
-            util::println("reached end of stack (10mb)");
-            break;
-        }
-    } 
+	if(sp - frame.fp > Megabytes(10)) {
+		util::println("reached end of stack (10mb)");
+		return 0;
+	}
+ 
+	return instr;
+}
 
-    auto time = util::stopwatch::peek(start);
-    util::println(DString::create("took ", util::format_time(time/1e6), " to execute ", instr_count, " instructions, giving ", util::format_metric(f64(instr_count)/time*1e9), " IPS"));
+
+BC* VM::
+run() {
+    //auto start = util::stopwatch::start();
+
+	while(!finished) {
+		auto instr = step();
+		if(!instr) return 0;
+		if(instr->instr == air::vm_break) {
+			return instr;
+		}
+	}
+
+	return 0;
+
+    // auto time = util::stopwatch::peek(start);
+    // util::println(DString::create("took ", util::format_time(time/1e6), " to execute ", instr_count, " instructions, giving ", util::format_metric(f64(instr_count)/time*1e9), " IPS"));
 } 
 
 void VM::

@@ -20,6 +20,11 @@
 
 namespace amu {
 
+struct Code;
+struct Var;
+struct Function;
+struct Module;
+
 // standard terminal colors, numbers correspond to the escape code that activates them
 namespace message{
 enum : u32{

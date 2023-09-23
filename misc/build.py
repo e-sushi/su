@@ -17,7 +17,7 @@
 #   --sa   Enable static analysis
 #   --ba   Enable build analysis (currently only works with clang with ClangBuildAnalyzer installed)
 #   TODO this isn't implementaed yet --pch  Generate a precompiled header from a selection of headers in the 'precompiled' array. If one of these files is found to be newer than its pch, it will be regenerated
-#   
+#   --cc   Generate compile_commands.json for use with clangd (requires Build EAR and clang)
 #
 #   -platform <win32,mac,linux>           Build for specified OS: win32, mac, linux (default: builder's OS)
 #   -compiler <cl,gcc,clang,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
@@ -47,6 +47,7 @@ config = {
     "build_analysis": False,
     "use_pch": False,
     "use_notcurses": False,
+    "gen_compcmd": False,
 
     "compiler": "unknown",
     "linker":   "unknown",
@@ -86,6 +87,7 @@ while i < len(sys.argv):
         case "--ba":   config["build_analysis"] = True
         case "--pch":  config["use_pch"] = True
         case "--nc":   config["use_notcurses"] = True
+        case "--cc":   config["gen_compcmd"] = True
         
         case "-platform":
             if i != len(sys.argv) - 1:
@@ -286,7 +288,6 @@ parts = {
                 "-Wno-undefined-inline "
                 "-Wno-return-type-c-linkage "
                 "-Wno-reorder-init-list "
-
             ),
             "release":(
                 "-O2 " # maximizes speed (O1 minimizes size)
@@ -398,8 +399,43 @@ if config["use_pch"]:
 full_app = (
     f'{config["compiler"]} -c '
     f'{sources["app"]} ' + shared +
-    f'-o {folders["build"]}/{app_name}.o' 
+    f'-o {folders["build"]}/{app_name}.o'
 )
+
+if config["gen_compcmd"]:
+    import re
+    shared_args = []
+    shared_args.append(config["compiler"])
+    for s in shared.split(' '):
+        if s and not s.isspace():
+            shared_args.append(s)
+    out = "["
+    cfiles = []
+    hfiles = []
+    with open(sources["app"], "r") as f:
+        includes = re.findall(r'#include\s*?["|<](.*?)["|>]', f.read())
+        print(includes)
+        for include in includes:
+            if include.endswith('.cpp'):
+                cfiles.append(include)
+            else:
+                hfiles.append(include)
+    includes = ""
+    for h in hfiles:
+        includes += '"-include' + h + '",\n'
+    for c in cfiles:
+        out += '{\n"arguments": [\n'
+        out += "".join(['"' + arg + '",\n' for arg in shared_args])
+        out += includes
+        out += '"-c",'
+        out += '"' + os.path.abspath(c[0]) + '/' + c[1] + '"\n'
+        out += '],'
+        out += f'"file": "{os.path.abspath(c[0])}/{c[1]}",'
+        out += f'"directory": "{folders["root"]}"}},'
+    out = out[0:-1]
+    out += "]"
+    with open('compile_commands.json', "w") as f:
+        f.write(out)
 
 full_link = (
     f'{config["compiler"]} ' # NOTE(sushi) this should not be the compiler, but it is for now cause that is how it is on linux for me so fix later please
@@ -453,3 +489,4 @@ lproc.start()
 lproc.join()
 
 print(f"time: {format_time(round(time.time()-start, 3))}")
+

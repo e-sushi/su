@@ -19,12 +19,17 @@ struct VM {
 
     Array<Frame> frames;
     Frame frame;
+	
+	// set false when the VM still has instructions left to
+	// process. this is set true when the final frame of the 
+	// VM is returned from.
+	b32 finished;
 
 
     // ~~~~~~~ interface ~~~~~~~
 
 
-    // creates a machine with some entry Code object
+    // creates a VM with some entry Code object
     // places the instruction pointer at the start of the code's AIR
     static VM*
     create(Code* entry); 
@@ -32,8 +37,14 @@ struct VM {
     void
     destroy();
 
-    // begins execution of the code 
-    void
+	// executes one instruction and returns that instruction
+	BC*
+	step();
+
+    // executes the code until it finishes or until a break instruction is encountered
+	// returns 0 if the machine finished, otherwise returns the last instruction 
+	// encountered
+    BC*
     run();
 
     void

@@ -10,9 +10,27 @@
 namespace amu {
 
 struct Debugger {
+	Code* code;
+
+	notcurses* nc;
+
+	struct {
+		ncplane* top;
+		ncplane* src;
+		ncplane* cli;
+	} planes;
+
+	ncreader* input;
+
+	static Debugger*
+	create(Code* code);
 
     void
     start();
+	
+	// refreshes the source view
+	void
+	refresh_src();
 };
 
 

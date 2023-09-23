@@ -42,3 +42,4 @@ docs/doc.html
 temp
 src/secret
 docs/amu.dox
+compile_commands.json

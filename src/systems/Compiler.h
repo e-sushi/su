@@ -19,6 +19,7 @@
 #include "processors/GenAIR.h"
 #include "representations/Code.h"
 #include "systems/VM.h"
+#include "systems/Debugger.h"
 
 namespace amu {
 
@@ -67,6 +68,7 @@ struct Compiler {
         Pool<FunctionType>    function_types;
         Pool<TupleType>       tuple_types;
         Pool<MetaType>        meta_types;
+		Pool<Debugger>        debuggers;
     }storage;
 
     // a global map of addresses to variables 

@@ -11,6 +11,8 @@
 #ifndef AMU_AST_H
 #define AMU_AST_H
 
+#include "Base.h"
+
 namespace amu {
 
 struct Type;

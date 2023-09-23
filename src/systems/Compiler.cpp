@@ -64,6 +64,7 @@ init() {
     instance.storage.function_types      = pool::init<FunctionType>(8);
     instance.storage.tuple_types         = pool::init<TupleType>(8);
     instance.storage.meta_types          = pool::init<MetaType>(8);
+	instance.storage.debuggers           = pool::init<Debugger>(8);
 
     instance.options.deliver_debug_immediately = true;
 
@@ -254,8 +255,10 @@ begin(Array<String> args) {
     GenTAC::create(entry_source->code)->generate();
     GenAIR::create(entry_source->code)->generate();
 
-    VM::create(entry_source->code->last_child<Code>())
-        ->run();
+	Debugger::create(entry_source->code)->start();
+
+    // VM::create(entry_source->code->last_child<Code>())
+    //    ->run();
 
     if(instance.options.dump_diagnostics.path.str) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;

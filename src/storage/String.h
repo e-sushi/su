@@ -39,7 +39,7 @@ struct String {
     s64 count;
 
 
-    String(){str=0;count=0;} // i wish i could avoid this
+    String(){str=0;count=0; } // i wish i could avoid this
 	// NOTE(sushi) this results in a weak reference to the given DString
 	//             eg. the DString does not care if this String is still using it !
     String(const DString* dstr);
