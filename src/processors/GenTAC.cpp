@@ -1,3 +1,4 @@
+#include "representations/TAC.h"
 namespace amu {
 
 GenTAC* GenTAC::
@@ -431,13 +432,6 @@ expression(Expr* e) {
             u64 param_size = 0;
             auto ce = e->as<Call>();
 
-            TAC* ret = make();
-            ret->op = tac::param;
-            ret->node = e;
-            ret->arg0.literal = u64(0);
-            ret->comment = DString::create("return slot for ", ce->callee->display());
-            new_temp(ret, e->type);
-
             auto params = Array<TAC*>::create();
 
             for(auto n = ce->arguments->last_child<Expr>(); n; n = n->prev<Expr>()) {
@@ -452,7 +446,13 @@ expression(Expr* e) {
                 params.push(tac);
             }
 
-            place(ret);
+            TAC* ret = make_and_place();
+            ret->op = tac::param;
+            ret->node = e;
+            ret->arg0.literal = u64(0);
+            ret->comment = DString::create("return slot for ", ce->callee->display());
+			new_temp(ret, e->type);
+
             forI(params.count) {
                 place(params.read(i));
             }
@@ -497,7 +497,7 @@ expression(Expr* e) {
                 auto true_body  = curr->first_child()->next<Expr>();;
                 auto false_body = curr->last_child<Expr>();
 
-                // start block so temporaries make for this conditional are scoped 
+                // start block so temporaries made for this conditional are scoped 
                 TAC* block_start = make_and_place();
                 block_start->op = tac::block_start;
                 block_start->node = cond;
@@ -525,8 +525,6 @@ expression(Expr* e) {
                     assign->node = e;
                 }
 
-                
-
                 // generate the jump out of the true body
                 if(true_body != false_body) {
                     TAC* truejump = make_and_place();
@@ -536,8 +534,9 @@ expression(Expr* e) {
                 }
 
                 TAC* placeholder = make_and_place();
-                placeholder->op = tac::nop;
+                placeholder->op = tac::jump_label;
                 placeholder->from = condjump;
+				placeholder->node = e;
 
                 condjump->arg1.kind = arg::temporary;
                 condjump->arg1.temporary = placeholder;
@@ -579,7 +578,8 @@ expression(Expr* e) {
                 }
 
                 placeholder = make_and_place();
-                placeholder->op = tac::nop;
+                placeholder->op = tac::jump_label;
+				placeholder->node = e;
 
                 TAC* last_jump = truejumps.pop();
                 last_jump->arg0.kind = arg::temporary;
@@ -603,12 +603,14 @@ expression(Expr* e) {
         case expr::loop: {
             TAC* end = make();
             end->node = e;
+			end->op = tac::jump_label;
 
             u32 count = seq.count;
-            TAC* nop = make_and_place();
-            nop->node = e;
+            TAC* start = make_and_place();
+            start->node = e;
+			start->op = tac::jump_label;
 
-            loop_start_stack.push(nop);
+            loop_start_stack.push(start);
             loop_end_stack.push(end);
 
             b32 make_block = e->first_child()->is_not<Block>();
@@ -633,7 +635,7 @@ expression(Expr* e) {
             tac->op = tac::jump;
             tac->arg0.kind = arg::temporary;
             tac->arg0.temporary = seq.read(count);
-            tac->to = nop;
+            tac->to = start;
             tac->node = e;
 
             place(end);
@@ -644,6 +646,7 @@ expression(Expr* e) {
         // TODO(sushi) handle non-integer range for loops and C style for loops 
         case expr::for_: {
             TAC* end = make();
+			end->op = tac::jump_label;
             end->node = e;
 
             auto range = e->first_child()->last_child<Expr>();
@@ -658,10 +661,11 @@ expression(Expr* e) {
             init->arg1 = expression(range->first_child<Expr>());
 
             u32 count = seq.count;
-            TAC* nop = make_and_place();
-            nop->node = e;
+            TAC* start = make_and_place();
+            start->node = e;
+			start->op = tac::jump_label;
 
-            loop_start_stack.push(nop);
+            loop_start_stack.push(start);
             loop_end_stack.push(end);
 
             b32 make_block = e->first_child()->is_not<Block>();
@@ -706,7 +710,7 @@ expression(Expr* e) {
             tac->op = tac::jump_zero;
             tac->arg0 = cond;
             tac->arg1 = seq.read(count);
-            tac->to = nop;
+            tac->to = start;
             tac->node = e;
 
             place(end);
@@ -755,8 +759,16 @@ expression(Expr* e) {
 
             left = left_stack.pop();
 
+			TAC* clean = make_and_place();
+			clean->op = tac::block_start;
+			clean->node = e;
+
             // get deepest lhs expression result 
             Arg lhs = expression(left->first_child<Expr>());
+			
+			TAC* clean_end = make_and_place();
+			clean_end->op = tac::block_end;
+			clean_end->node = e;
 
             TAC* ljump = make_and_place();
             ljump->op = tac::jump_not_zero;
@@ -769,7 +781,15 @@ expression(Expr* e) {
 
             // gather the rhs of each level
             while(1) {
+				clean = make_and_place();
+				clean->op = tac::block_start;
+				clean->node = left->last_child<Expr>();
+
                 Arg rhs = expression(left->last_child<Expr>());
+
+				clean_end = make_and_place();
+				clean_end->op = tac::block_end;
+				clean_end->node = left->last_child<Expr>();
 
                 // the user has already setup the exit for us 
                 if(left->last_child()->is_any(expr::break_, expr::return_)) {
@@ -805,7 +825,7 @@ expression(Expr* e) {
 
             if(fail_jump) {
                 TAC* fin = make_and_place();
-                fin->op = tac::nop;
+                fin->op = tac::jump_label;
                 fin->node = e;
                 fin->from = fail_jump;
 
@@ -941,16 +961,17 @@ expression(Expr* e) {
 
 TAC* GenTAC::
 make() {
-    if(seq.count) {
-        TAC* last = seq.read(-1);
-        if(last->op == tac::nop)
-            return last;
-    } 
+    //if(seq.count) {
+    //    TAC* last = seq.read(-1);
+    //    if(last->op == tac::nop)
+    //        return last;
+    //}
+	//		
 
     TAC* out = pool::add(pool);
     out->id = count++;
     out->bc_offset = -1;
-    return out;
+	return out;
 }
 
 void GenTAC::
@@ -961,9 +982,10 @@ place(TAC* t) {
 TAC* GenTAC::
 make_and_place() {
     TAC* out = make();
+	place(out);
     // TODO(sushi) do this better
-    if(!seq.count || seq.read(-1)->op != tac::nop) 
-        place(out);
+    //if(!seq.count || seq.read(-1)->op != tac::nop) 
+    //    place(out);
     return out;
 }
 

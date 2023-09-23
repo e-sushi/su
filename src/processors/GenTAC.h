@@ -71,7 +71,6 @@ private:
     TAC*
     make();
 
-    // pushes a created tac into the sequence
     void
     place(TAC* t);
 

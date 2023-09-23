@@ -68,16 +68,20 @@ generate() {
     u32 last_line_num = -1;
     TAC* last_tac = 0;
     forI(seq.count) {
-        BC bc = seq.read(i);
-        // if(last_line_num == -1 || last_line_num != bc.node->start->l0) {
-        //     util::println(bc.node->first_line(true, true));
-        //     last_line_num = bc.node->start->l0;
-        // }
-        // if(bc.tac && bc.tac != last_tac) {
-        //     last_tac = bc.tac;
-        //     util::println(to_string(bc.tac));
-        // }
-        util::println(to_string(bc));
+        BC* bc = seq.readptr(i);
+        if(last_line_num == -1 || last_line_num != bc->node->start->l0) {
+            util::println(bc->node->first_line(true, true));
+            last_line_num = bc->node->start->l0;
+        }
+        if(bc->tac && bc->tac != last_tac) {
+            last_tac = bc->tac;
+			auto out = to_string(bc->tac); 
+			out->indent(2);
+            util::println(out);
+        }
+		auto out = to_string(bc);
+		out->indent(4);
+        util::println(out);
     }
 
     code->level = code::air;
@@ -314,6 +318,10 @@ body() {
                     bc->flags.left_is_const = true;
                 }
             } break;
+
+			case tac::jump_label: {
+				
+			} break;
 
             case tac::temp: {
                 push_temp(tac);
@@ -582,6 +590,10 @@ body() {
                 bc->resz.dst = tac->temp_pos;
 
                 switch(tac->arg0.kind) {
+					case arg::literal: {
+						bc->flags.left_is_const = true;
+						bc->resz.src = tac->arg0.literal._u64;
+					} break;
                     case arg::temporary: {
                         bc->resz.src = tac->arg0.temporary->temp_pos;
                     } break;
@@ -732,15 +744,16 @@ clean_temps() {
     u64& temp_count = scoped_temps.readref(-1);
     if(!temp_count) return;
     BC* last = seq.readptr(-1);
-    if(last->instr == air::popn) {
-        last->lhs._u64 += temp_count;
-    } else {
+   // if(last->instr == air::popn) {
+   //     last->lhs._u64 += temp_count;
+   // } else {
         BC* clean = seq.push();
         clean->instr = air::popn;
         clean->lhs = temp_count;
         clean->flags.left_is_const = true;
         clean->node = last->node;
-    }
+		clean->tac = last->tac;
+   // }
     stack_offset -= temp_count;
     temp_count = 0;
 }

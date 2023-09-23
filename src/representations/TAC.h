@@ -43,7 +43,7 @@ enum op {
 
     // a TAC that just creates a temp value for later TAC to refer to 
     temp,
-
+	
     // indicates the start of a function
     // first operand denotes the size of the parameters + returns + local variables
     // second operand denotes an offset into this size where returns start
@@ -118,6 +118,12 @@ enum op {
     // conditional jumps
     jump_zero,
     jump_not_zero,
+	
+	// a TAC explicitly meant to be jumped to
+	// this replaces the placeholder system I had setup before where a NOP TAC
+	// was meant to be replaced by whatever was placed next. We ran into a lot 
+	// of issues with that so I'm getting rid of it for now.
+	jump_label,
 
     // I'm not sure how to handle this better atm
     // casts the first operand to float or vice versa with the size specified by the second operand 
@@ -391,6 +397,9 @@ to_string(DString* current, TAC* tac) {
                 current->append("...");
             }
         } break;
+		case tac::jump_label: {
+			current->append("jump_label");
+		} break;
         case tac::resz: {
             current->append("resize ", tac->arg0, " ", tac->arg1);
         } break;
