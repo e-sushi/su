@@ -129,6 +129,11 @@ struct String {
 
 	Array<s32>
 	find_line_offsets(String s);
+	
+	// seeks backwards in a string until we either pass
+	// 'n' newlines or the boundry is reached
+	u8*
+	seek_n_lines_backward(u64 n, u8* boundry);
 
 	u64 
 	hash(u64 seed = 14695981039346656037) {

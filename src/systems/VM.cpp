@@ -49,9 +49,10 @@ step() {
 // std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	BC* instr = frame.ip;
 	// util::println(DString::create("----------------------- ", instr, " of ", frame.identifier, " with sp ", sp - frame.fp));
-	util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
-	util::println(instr->node->underline());
-	util::println(ScopedDeref(to_string(*instr)).x);
+//	util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
+//	util::println(instr->node->underline());
+//	util::println(to_string(instr->tac));
+//	util::println(ScopedDeref(to_string(*instr)).x);
 	// print_stack_positions();
 	switch(instr->instr) {
 		case air::op::push: {
@@ -336,7 +337,7 @@ step() {
 
 		case air::op::jump_zero: {
 			if(instr->flags.left_is_const) {
-				if(!instr->lhs._u64) instr += instr->rhs._u64 - 1;
+				if(!instr->lhs._u64) frame.ip += instr->rhs._u64 - 1;
 			} else {
 				u8* src = frame.fp + instr->lhs._u64;
 				b32 cond = 0;
@@ -346,13 +347,13 @@ step() {
 					case dble: cond = cond == *(u32*)src; break;
 					case quad: cond = cond == *(u64*)src; break;
 				}
-				if(cond) instr += instr->rhs._u64 - 1;
+				if(cond) frame.ip += instr->rhs._u64 - 1;
 			}
 		} break;
 
 		case air::op::jump_not_zero: {
 			if(instr->flags.left_is_const) {
-				if(instr->lhs._u64) instr += instr->rhs._u64 - 1;
+				if(instr->lhs._u64) frame.ip += instr->rhs._u64 - 1;
 			} else {
 				u8* src = frame.fp + instr->lhs._u64;
 				b32 cond = 1;
@@ -362,12 +363,12 @@ step() {
 					case dble: cond = cond == *(u32*)src; break;
 					case quad: cond = cond == *(u64*)src; break;
 				}
-				if(cond) instr += instr->rhs._u64 - 1;
+				if(cond) frame.ip += instr->rhs._u64 - 1;
 			}
 		} break;
 
 		case air::op::jump: {
-			instr += instr->lhs._u64 - 1;
+			frame.ip += instr->lhs._u64 - 1;
 		} break;
 
 		// TODO(sushi) this sucks do it better later 
@@ -584,7 +585,6 @@ step() {
 		} break;
 
 		case air::op::resz: {
-			
 			u8* dst = 0;
 			if(instr->flags.left_is_ptr) {
 				dst = (u8*)instr->resz.dst;
@@ -593,6 +593,7 @@ step() {
 			} else {
 				dst = frame.fp + instr->resz.dst;
 			}
+		
 			u8* src = 0;
 			if(instr->flags.right_is_ptr) {
 				src = (u8*)instr->resz.src;
@@ -614,17 +615,32 @@ step() {
 					case scalar::float64: *(f64*)dst = blah; break;    \
 					case scalar::float32: *(f32*)dst = blah; break;    \
 				}
-			switch(instr->resz.from) {
-				case scalar::unsigned64: inner(*(u64*)src); break;
-				case scalar::unsigned32: inner(*(u32*)src); break;
-				case scalar::unsigned16: inner(*(u16*)src); break;
-				case scalar::unsigned8: inner(*(u8*)src); break;
-				case scalar::signed64: inner(*(s64*)src); break;
-				case scalar::signed32: inner(*(s32*)src); break;
-				case scalar::signed16: inner(*(s16*)src); break;
-				case scalar::signed8: inner(*(s8*)src); break;
-				case scalar::float64: inner(*(f64*)src); break;
-				case scalar::float32: inner(*(f32*)src); break;
+			if(instr->flags.left_is_const) {
+				switch(instr->resz.from) {
+					case scalar::unsigned64: inner((u64)instr->resz.src); break;
+					case scalar::unsigned32: inner((u32)instr->resz.src); break;
+					case scalar::unsigned16: inner((u16)instr->resz.src); break;
+					case scalar::unsigned8: inner((u8)instr->resz.src); break;
+					case scalar::signed64: inner((s64)instr->resz.src); break;
+					case scalar::signed32: inner((s32)instr->resz.src); break;
+					case scalar::signed16: inner((s16)instr->resz.src); break;
+					case scalar::signed8: inner((s8)instr->resz.src); break;
+					case scalar::float64: inner((f64)instr->resz.src); break;
+					case scalar::float32: inner((f32)instr->resz.src); break;
+				}
+			} else {
+				switch(instr->resz.from) {
+					case scalar::unsigned64: inner(*(u64*)src); break;
+					case scalar::unsigned32: inner(*(u32*)src); break;
+					case scalar::unsigned16: inner(*(u16*)src); break;
+					case scalar::unsigned8: inner(*(u8*)src); break;
+					case scalar::signed64: inner(*(s64*)src); break;
+					case scalar::signed32: inner(*(s32*)src); break;
+					case scalar::signed16: inner(*(s16*)src); break;
+					case scalar::signed8: inner(*(s8*)src); break;
+					case scalar::float64: inner(*(f64*)src); break;
+					case scalar::float32: inner(*(f32*)src); break;
+				}
 			}
 		} break;
 
@@ -666,7 +682,7 @@ step() {
 
 	frame.ip += 1;
 	instr_count += 1;
-	print_frame_vars();
+	//print_frame_vars();
 
 	if(sp - frame.fp > Megabytes(10)) {
 		util::println("reached end of stack (10mb)");
@@ -684,9 +700,9 @@ run() {
 	while(!finished) {
 		auto instr = step();
 		if(!instr) return 0;
-		if(instr->instr == air::vm_break) {
-			return instr;
-		}
+		// if(instr->instr == air::vm_break) {
+		//	return instr;
+	    //	}
 	}
 
 	return 0;

@@ -231,7 +231,7 @@ begin(Array<String> args) {
             not_found(MessageSender::Compiler, instance.options.entry_path);
         return;
     }
-
+	
     entry_source->code = code::from(entry_source);
     
     auto lexer = Lexer::create(entry_source->code);
@@ -255,9 +255,9 @@ begin(Array<String> args) {
     GenTAC::create(entry_source->code)->generate();
     GenAIR::create(entry_source->code)->generate();
 
-	Debugger::create(entry_source->code)->start();
+	Debugger::create(entry_source->code->last_child<Code>())->start();
 
-    // VM::create(entry_source->code->last_child<Code>())
+    //VM::create(entry_source->code->last_child<Code>())
     //    ->run();
 
     if(instance.options.dump_diagnostics.path.str) {

@@ -1,4 +1,4 @@
-rnext: s32 = 121314;
+rnext: s32 = 121312314;
 rand :: () -> s32 {
     rnext = rnext * 1103515245 + 12345;
     ret := (rnext/65536) % 32768;
@@ -52,17 +52,12 @@ count_neighbors :: (x: s32, y: s32) -> s32 {
 
 
 main :: () -> void {
-    for(i: 0..A.count)
+	for(i: 0..A.count)
         (*active)[i] = rand() % 2;
-
-    coord(1,2);
-   
+	
     loop {
         for(x: 0..width) {
             for(y: 0..height) {
-                if(y > height || x > width) {
-                    #vm_break;
-                }
                 N := count_neighbors(x,y); 
                 if((*active)[coord(x,y)]) {
                     if(N < 2 || N >= 4) {
@@ -77,6 +72,7 @@ main :: () -> void {
                 }
             }
         }
+		#vm_break;
         save := active;
         active = next;
         next = save;

@@ -255,9 +255,11 @@ find_lines() {
         if(*s.str == '\n') {
             out.push(cur);
             cur = {s.str + 1, 0};
-        } else cur.count++;
+        } 
         s.advance();
+		cur.count++;
     }
+	if(cur) out.push(cur);
     return out;
 }
 
@@ -272,6 +274,24 @@ find_line_offsets(String s) {
         s.advance();
     }
     return out;
+}
+
+u8* String::
+seek_n_lines_backward(u64 n, u8* boundry) {
+	u8* step_left = this->str;
+	
+	u64 count = 0;
+	while(1) {
+		if(*step_left == '\n') {
+			count++;
+			if(count == n) {
+				return step_left + 1;
+			}
+		} else if(step_left == boundry) {
+			return step_left;
+		}
+		step_left--;
+	}
 }
 
 } // namespace amu

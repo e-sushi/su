@@ -414,7 +414,6 @@ if config["gen_compcmd"]:
     hfiles = []
     with open(sources["app"], "r") as f:
         includes = re.findall(r'#include\s*?["|<](.*?)["|>]', f.read())
-        print(includes)
         for include in includes:
             if include.endswith('.cpp'):
                 cfiles.append(include)

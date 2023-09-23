@@ -1,13 +1,6 @@
-width :: 2;
-height :: 2;
-area :: width*height;
-
-main::()->void { 
-    A: u32[area] = [1,2,3,4];
-    arr := &A;
-    c := (*arr)[0];
-    d := (*arr)[1];
-    e := (*arr)[2];
-    f := (*arr)[3];
-
+main :: () -> void {
+	a := 0;
+	for(i: 0..10) {
+		a = i;
+	}
 }
