@@ -1,3 +1,4 @@
+#include "representations/Token.h"
 namespace amu {
 namespace lexer::internal {
 
@@ -52,6 +53,7 @@ token_is_directive_or_identifier(String raw) {
 		strcase("print_meta_type"):        return token::directive_print_meta_type;
 		strcase("compiler_break_air_gen"): return token::directive_compiler_break_air_gen;
 		strcase("vm_break"):               return token::directive_vm_break;
+		strcase("rand_int"):               return token::directive_rand_int;
     }
 
     return token::identifier;

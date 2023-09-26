@@ -160,6 +160,7 @@
 
 int main(int argc, char* argv[]){
 	{using namespace amu;
+		srand(time(0));
 		compiler::init();
 		auto args = Array<String>::create(argc);
 		forI(argc) 

@@ -144,6 +144,8 @@ enum op {
     subscript,
 
     vm_break,
+
+	intrinsic_rand_int,
 };
 } // namespace tac
 
@@ -158,6 +160,7 @@ enum kind {
     width,
     stack_offset,
     cast,
+	rand_int,
 };
 
 enum class refb {
@@ -439,6 +442,9 @@ to_string(DString* current, TAC* tac) {
         case tac::vm_break: {
             current->append("BREAK");
         } break;
+		case tac::intrinsic_rand_int:{
+			current->append("rand_int");
+		} break;
         default: {
             Assert(0);
         } break;

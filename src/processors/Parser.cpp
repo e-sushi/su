@@ -9,6 +9,7 @@
 
 */
 
+#include "representations/Token.h"
 namespace amu {
 
 Parser* Parser::
@@ -1685,6 +1686,13 @@ factor() {
         case token::loop: {
             if(!loop()) return false;
         } break;
+
+		case token::directive_rand_int:{
+			auto e = Expr::create(expr::intrinsic_rand_int);
+			e->start = e->end = token.current();
+			node.push(e);
+			token.increment();
+		} break;
 
         case token::break_: {
             auto e = Expr::create(expr::break_);

@@ -1,3 +1,4 @@
+#include "representations/Expr.h"
 #include "representations/TAC.h"
 namespace amu {
 
@@ -951,6 +952,13 @@ expression(Expr* e) {
             t->node = e;
             return t;
         } break;
+
+		case expr::intrinsic_rand_int: {
+			TAC* t = make_and_place();
+			t->op = tac::intrinsic_rand_int;
+			t->node = e;
+			return t;
+		} break;
     }
 
     // an expression didn't return anything or this is a

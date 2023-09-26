@@ -1,4 +1,4 @@
-rnext: s32 = 121312314;
+rnext: s32 = 1213314;
 rand :: () -> s32 {
     rnext = rnext * 1103515245 + 12345;
     ret := (rnext/65536) % 32768;
@@ -6,8 +6,8 @@ rand :: () -> s32 {
 }
 
 
-width :: (s32)3;
-height :: (s32)3;
+width :: (s32)10;
+height :: (s32)10;
 area :: width * height;
 
 A: u8[area];
@@ -28,33 +28,43 @@ die :: (x: s32, y: s32) -> void {
 }
 
 count_neighbors :: (x: s32, y: s32) -> s32 {
-    c0 := coord(x-1, y  );
-    c1 := coord(x+1, y  );
-    c2 := coord(x,   y+1);
-    c3 := coord(x,   y-1);
-    c4 := coord(x-1, y+1);
-    c5 := coord(x+1, y+1);
-    c6 := coord(x-1, y-1);
-    c7 := coord(x+1, y-1);
-
-
-    count := (*active)[c0] + 
-             (*active)[c1] + 
-             (*active)[c2] + 
-             (*active)[c3] + 
-             (*active)[c4] + 
-             (*active)[c5] + 
-             (*active)[c6] + 
-             (*active)[c7];
-    count
+    (*active)[coord(x-1, y  )] +
+	(*active)[coord(x+1, y  )] +
+	(*active)[coord(x,   y+1)] +
+	(*active)[coord(x,   y-1)] +
+	(*active)[coord(x-1, y+1)] +
+	(*active)[coord(x+1, y+1)] +
+	(*active)[coord(x-1, y-1)] +
+	(*active)[coord(x+1, y-1)]
 }
 
 
 
 main :: () -> void {
+
 	for(i: 0..A.count)
-        (*active)[i] = rand() % 2;
+       (*active)[i] = #rand_int % 2;
+
+	A = [
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,1,0,0,0,0,0,
+		0,0,0,0,1,0,0,0,0,0,
+		0,0,0,0,1,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+	];
 	
+	#vm_break;
+
+	test := count_neighbors(3,2);
+	
+	arr := *active;
+	n := *next;
+
     loop {
         for(x: 0..width) {
             for(y: 0..height) {
@@ -70,12 +80,31 @@ main :: () -> void {
                 } else {
                     die(x,y);
                 }
+				n = *next;
             }
         }
-		#vm_break;
         save := active;
         active = next;
         next = save;
-        arr := *active;
+        arr = *active;
+
+		//for(i: 0..area) {
+		//	(*next)[i] = 0;
+		//}
+		
+		alive := 0;
+		for(i: 0..area) {
+			if((*active)[i]) {
+				alive = 1;
+				break;
+			}
+		}
+
+		if(alive == 0) {
+			for(i: 0..area) {
+				(*active)[i] = #rand_int % 2;
+			}
+		}
+		#vm_break;
     }
 }

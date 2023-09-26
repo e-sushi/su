@@ -34,7 +34,6 @@ struct Array {
     void
     push(const T& val);
 
-
     // pops 'count' items from the end of the array
     // and returns the last item popped's value
     T

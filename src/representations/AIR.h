@@ -107,7 +107,7 @@ enum op {
     // original type, so anything using this temporary thinks the size is still the same as it originally was.
     // maybe try and rework this to not use 4 operands later 
     resz, 
-
+ 
     // store a pointer to B in A 
     ref,
 
@@ -115,6 +115,9 @@ enum op {
     deref,
 
     vm_break,
+	
+	// generates a random integer and places the result in A
+	intrinsic_rand_int,
 };
 
 #include "data/airop_strings.generated"
@@ -391,6 +394,10 @@ to_string(DString* current, BC bc) {
         case air::vm_break: {
             current->append("BREAK");
         } break;
+		case air::intrinsic_rand_int: {
+			current->append("rand_int ");
+			loffset();
+		} break;
         default: {
             Assert(0);
         } break;

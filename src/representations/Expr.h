@@ -88,6 +88,8 @@ enum kind : u32 {
 
     // TODO(sushi) make this usable anywhere by allowing it be after and factor maybe 
     vm_break,
+
+	intrinsic_rand_int,
 };
 
 #include "data/expression_strings.generated"

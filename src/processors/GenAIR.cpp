@@ -1,3 +1,5 @@
+#include "representations/AIR.h"
+#include "representations/TAC.h"
 namespace amu {
 
 GenAIR* GenAIR::
@@ -79,7 +81,7 @@ generate() {
 			out->indent(2);
             util::println(out);
         }
-		auto out = to_string(bc);
+		auto out = to_string(*bc);
 		out->indent(4);
         util::println(out);
     }
@@ -272,6 +274,9 @@ body() {
                     bc->rhs.kind = scalar::signed64;
                     bc->flags.right_is_const = true;
                 }
+				if(tac->arg0.deref) {
+					bc->flags.deref_left = true;
+				}
             } break;
 
             case tac::jump_not_zero: {
@@ -305,6 +310,9 @@ body() {
                     bc->rhs.kind = scalar::signed64;
                     bc->flags.right_is_const = true;
                 }
+				if(tac->arg0.deref) {
+					bc->flags.deref_left = true;
+				}
             } break;
 
             case tac::jump: {
@@ -317,6 +325,9 @@ body() {
                     bc->lhs.kind = scalar::signed64;
                     bc->flags.left_is_const = true;
                 }
+				if(tac->arg0.deref) {
+					bc->flags.deref_left = true;
+				}
             } break;
 
 			case tac::jump_label: {
@@ -435,10 +446,6 @@ body() {
                 }
             } break;
             
-            case tac::logical_or: {
-
-            } break;
-
             case tac::assignment: {
                 BC* bc = seq.push();
                 bc->tac = tac;
@@ -661,6 +668,26 @@ body() {
                 b->tac = tac;
                 b->node = tac->node;
             } break;
+
+			case tac::intrinsic_rand_int: {
+				BC* temp = seq.push();
+				temp->tac =tac;
+				temp->node = tac->node;
+				temp->instr = air::push;
+				temp->flags.left_is_const = true;
+				temp->lhs = 0;
+				temp->rhs = u64(8);
+				tac->temp_pos = stack_offset;
+				stack_offset += 8;
+				scoped_temps.readref(-1) += 8;
+				tac->temp_size = 8;
+
+				BC* b = seq.push();
+				b->instr = air::intrinsic_rand_int;
+				b->tac = tac;
+				b->node = tac->node;
+				b->lhs = tac->temp_pos;
+			} break;
 
             default: {
                 TODO(DString::create("unhandled TAC: ", tac));

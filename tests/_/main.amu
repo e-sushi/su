@@ -1,6 +1,15 @@
+add :: (x: s64, y: s64) -> s64 {
+	a := x;
+	b := y;
+	a + b
+}
+
+
 main :: () -> void {
 	a := 0;
 	for(i: 0..10) {
-		a = i;
+		for(j: 0..10) {
+			a = add(i, j);
+		}
 	}
 }

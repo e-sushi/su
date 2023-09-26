@@ -339,7 +339,15 @@ step() {
 			if(instr->flags.left_is_const) {
 				if(!instr->lhs._u64) frame.ip += instr->rhs._u64 - 1;
 			} else {
-				u8* src = frame.fp + instr->lhs._u64;
+				u8* src = 0;
+				if(instr->flags.left_is_ptr) {
+					src = (u8*)instr->lhs._u64;
+				} else {
+					src = frame.fp + instr->lhs._u64;
+				}
+				if(instr->flags.deref_left) {
+					src = (u8*)*(u64*)src;
+				}
 				b32 cond = 0;
 				switch(instr->w) {
 					case byte: cond = cond == *src; break;
@@ -355,7 +363,15 @@ step() {
 			if(instr->flags.left_is_const) {
 				if(instr->lhs._u64) frame.ip += instr->rhs._u64 - 1;
 			} else {
-				u8* src = frame.fp + instr->lhs._u64;
+				u8* src = 0;
+				if(instr->flags.left_is_ptr) {
+					src = (u8*)instr->lhs._u64;
+				} else {
+					src = frame.fp + instr->lhs._u64;
+				}
+				if(instr->flags.deref_left) {
+					src = (u8*)*(u64*)src;
+				}
 				b32 cond = 1;
 				switch(instr->w) {
 					case byte: cond = cond == *src; break;
@@ -668,11 +684,18 @@ step() {
 		} break;
 
 		case air::vm_break: {
-			util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
-			util::println(instr->node->underline());
-			util::println(ScopedDeref(to_string(*instr)).x);
-			print_frame_vars();
-			DebugBreakpoint;
+			// util::println(ScopedDeref(DString::create("-------------------------------- sp: ", sp - frame.fp)).x);
+			// util::println(instr->node->underline());
+			// util::println(ScopedDeref(to_string(*instr)).x);
+			// print_frame_vars();
+			// DebugBreakpoint;
+		} break;
+
+		case air::intrinsic_rand_int: {
+			// NOTE(sushi) since we're using C's rand, we don't actually get
+			//             a u64, but since I consider this temporary idrc for now
+			u64* dst = (u64*)(frame.fp + instr->lhs._u64);
+			*dst = rand();
 		} break;
 
 		default: {
@@ -700,9 +723,9 @@ run() {
 	while(!finished) {
 		auto instr = step();
 		if(!instr) return 0;
-		// if(instr->instr == air::vm_break) {
-		//	return instr;
-	    //	}
+		if(instr->instr == air::vm_break) {
+			return instr;
+		}
 	}
 
 	return 0;

@@ -278,7 +278,7 @@ sub construct-diag(@diag) {
         @message-commands.push: $command;
     }
     
-	my $prototype = "FORCE_INLINE global void {@diag[0]}(MessageSender sender$sig)";
+	my $prototype = "FORCE_INLINE void {@diag[0]}(MessageSender sender$sig)";
 
 	$funcs-header ~= "$prototype;\n";
 

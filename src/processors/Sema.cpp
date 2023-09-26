@@ -7,6 +7,7 @@
 
 */
 
+#include "representations/Expr.h"
 namespace amu {
 namespace sema {
 
@@ -863,7 +864,12 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
             }
         } break;
 
+		case expr::intrinsic_rand_int: {
+			e->type = &scalar::_u64;
+		} break;
+
         case expr::vm_break: {} break;
+
 
         default: {
             TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
