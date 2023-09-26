@@ -4,6 +4,7 @@
 This document covers all features of the language of amu as well as the standard library that ships with it. The style of this document is somewhat non-linear. You are encouraged to click around to go to different sections that are linked. This may change in the future when it becomes more clear how this document should be laid out.
 
 = Labels {label}
+{{feature Labels}}
 A label is an identifier that points to some [[entity]]. A label declaration is always of the form
 ```
 <id> : 
@@ -11,6 +12,7 @@ A label is an identifier that points to some [[entity]]. A label declaration is 
 that is, an identifier followed by a colon. What follows must be some form of [[expression]].
 
 == Identifiers
+{{feature Labels.Identifiers>}}
 The identifier of a label is restricted to a subset of unicode characters and must not start with a number. These characters are: all alphanumeric ascii characters, the underscore, and, excluding whitespace, all other characters outside of the range of ascii. For example, the following are all valid identifiers to use as labels: 
 ```
 a
@@ -35,9 +37,11 @@ What kind of entity may be given to a label depends on the context in which the 
 An expression is an [[entity]] that returns a [[type]]d value. Amu is an expression-oriented language, which means that nearly everything you write will be classified as an expression. 
 
 === Literals
+{{feature Literals}}
 The most basic expressions are the literals.
 
-==== Integers 
+==== Integers
+{{feature Literals.Integers}}
 Integer literals are contiguous numbers that may be separated by underscores, for example: 
 ```
 123

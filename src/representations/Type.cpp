@@ -210,20 +210,12 @@ DString* StaticArray::
 print_from_address(u8* addr) {
     auto out = DString::create();
     out->append("[\n");
-	forX(i,10) {
-		forX(j,10) {
-			out->append(ScopedDeref(type->print_from_address(addr + (i * 10 + j) * type->size())).x, " ");
-		}
-		out->append("\n");
-	}
-    //forI(count) {
-    //    out->append(ScopedDeref(type->print_from_address(addr + i * type->size())).x, (i==count-1?"":","));
-    //}
+    forI(count) {
+        out->append(ScopedDeref(type->print_from_address(addr + i * type->size())).x, (i==count-1?"":","));
+    }
     out->append("]");
     return out;
 }
-
-
 
 Array<ViewArray*> ViewArray::set = Array<ViewArray*>::create();
 

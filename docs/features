@@ -1,12 +1,139 @@
-"conditional expressions": [
-    support: parsing
-]
+functions
+	definition 
+		with arguments - partial
+			defaults - planned
+		with returns
+			single return - implemented
+			multi return - planned
+	
+	function calls - implemented
+	function overloading - planned
+	UFCS - planned
+	specialization - planned
+	return expression - planned
+	first class - planned
 
+types
+	traits - planned
+	methods - planned
+	structured
+		plain data - implemented
+		defaults - planned
+		tuple initializers - planned 
+	variant - planned
+	enum - planned
+	
+	arrays 
+		static - implemented (some behavoir needs redone, though)
+		dynamic - partial (up to Parsing)
+		view - partial (up to Parsing)
+		implicit cast to underlying pointer - planned
 
-= expressions 
+		indexing
+			integer literal - implemented
+			runtime integer - implemented
+			comptime integer - implemented
+			range - planned 
 
-== literals
+	pointers
+		taking a reference - implemented
+		dereferencing - implemented, change planned
+			"
+			the syntax currently implemented is *<pointer>, but we want to experiment with using
+			a dot suffix to replace this syntax in the near future. Currently, to avoid needing a 
+			syntax like C's '->', we allow using '.' to dereference a pointer when accessing a member
+			but we want to try allowing this to be used in general, so that when you have a case like
+				a := [1,2,3,4];
+				b := &a;
+			you don't have to do
+				(*b)[N];
+			you could do
+				b.[N];
+			instead.
+			"
+		arithmetic - implemented
 
-* Integers
+generics
+	types - planned
+	functions - planned
 
-support: lexing, parsing, typing
+expressions
+	literals
+		integers - implemented
+		
+		floats - implemented
+		
+		string - partial (up to SemanticAnalysis)
+			fixed value - implemented
+			affixes - planned
+		
+		array - partial
+			fixed value - implemented
+			affixes - planned
+
+		tuples - partial
+			valued - partial (up to Parsing)
+			typed - partial (up to Parsing)
+			affixes - planned
+
+	blocks
+		usable as expr - implemented
+		last expression returns - implemented
+		early return from block - design problem (syntax)
+
+	conditionals
+		if/else - partial
+			returning a value - implemented
+
+			post-expr syntax - planned
+				"
+				syntax of the form
+					<expr> if <expr>; 
+					<expr> if <expr> else <expr>;
+				"
+
+	loop constructs - partial
+		plain loop - implemented
+			returning a value - design problem (dependent on blocks early return)
+
+		for loop - partial
+			with a range - implemented
+			C style - planned
+
+		while loop - planned
+
+		break expression - partial
+			control flow - implemented
+			returning a value - planned
+			break on label - planned
+
+		continue expression - planned
+
+		being labeled - planned
+
+	switch - planned
+
+	variables
+		implicit typing - implemented
+		explicit typing - implemented
+		mutation - implemented
+
+	arithmetic operators - partial
+		for builtin scalar types - implemented
+		overloading - planned
+	
+	logical operators - partial
+		for builtin scalar types - implemented (except unary operators (~, !, ...))
+		overloading - planned
+	
+	casting - partial
+		cast prefix - implemented (I belive, need to check this)
+		casting within access - planned
+	
+	reinterpretting - planned
+
+	function calls - (see functions)
+
+	using - planned 
+
+	

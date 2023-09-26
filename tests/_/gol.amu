@@ -1,10 +1,5 @@
-rnext: s32 = 1213314;
-rand :: () -> s32 {
-    rnext = rnext * 1103515245 + 12345;
-    ret := (rnext/65536) % 32768;
-    ret
-}
-
+// TODO(sushi) add printing the board once we figure out how to handle 
+//             printing in the VM
 
 width :: (s32)10;
 height :: (s32)10;
@@ -38,32 +33,10 @@ count_neighbors :: (x: s32, y: s32) -> s32 {
 	(*active)[coord(x+1, y-1)]
 }
 
-
-
 main :: () -> void {
 
 	for(i: 0..A.count)
        (*active)[i] = #rand_int % 2;
-
-	A = [
-		0,0,0,0,0,0,0,0,0,0,
-		0,0,0,0,0,0,0,0,0,0,
-		0,0,0,0,1,0,0,0,0,0,
-		0,0,0,0,1,0,0,0,0,0,
-		0,0,0,0,1,0,0,0,0,0,
-		0,0,0,0,0,0,0,0,0,0,
-		0,0,0,0,0,0,0,0,0,0,
-		0,0,0,0,0,0,0,0,0,0,
-		0,0,0,0,0,0,0,0,0,0,
-		0,0,0,0,0,0,0,0,0,0,
-	];
-	
-	#vm_break;
-
-	test := count_neighbors(3,2);
-	
-	arr := *active;
-	n := *next;
 
     loop {
         for(x: 0..width) {
@@ -87,11 +60,8 @@ main :: () -> void {
         active = next;
         next = save;
         arr = *active;
-
-		//for(i: 0..area) {
-		//	(*next)[i] = 0;
-		//}
 		
+		// if the board is empty randomize it again
 		alive := 0;
 		for(i: 0..area) {
 			if((*active)[i]) {
@@ -105,6 +75,5 @@ main :: () -> void {
 				(*active)[i] = #rand_int % 2;
 			}
 		}
-		#vm_break;
     }
 }
