@@ -9,6 +9,7 @@
 
 */
 
+#include "representations/Expr.h"
 #include "representations/Token.h"
 namespace amu {
 
@@ -671,6 +672,7 @@ label() {
                 default: {
                     util::println(
                         DString::create("unhandled label case: ", expr::strings[expr->kind]));
+					util::println(expr->print_tree(true));
                     return false;
                 }
             }
@@ -678,7 +680,10 @@ label() {
     } else {   
         TODO("a label returned to a node that is not an Entity"); 
     }
-
+	
+	l->entity->code = code;
+	l->entity->start = l->last_child()->start;
+	l->entity->end = l->last_child()->end;
     l->start = l->first_child()->start;
     l->end = l->last_child()->end;
 
@@ -872,7 +877,7 @@ tuple() {
     while(1) {
         if(!factor()) return false;
         count++;
-        if(!token.is(token::comma)) break;
+   if(!token.is(token::comma)) break;
         token.increment();
     }
 
@@ -1805,6 +1810,31 @@ factor() {
             node.push(e);
         } break;
 
+		case token::sid_print: {
+			auto e = Expr::create(expr::intrinsic_print);
+			e->start = token.current();
+
+			token.increment();
+
+			if(!token.is(token::open_paren)) {
+				diagnostic::parser::
+					intrinsic_print_missing_parenthesis(token.current());
+				return false;
+			}
+
+			if(!tuple()) return false;
+
+			node::insert_last(e, node.pop());
+
+			if(!e->last_child()->child_count) {
+				diagnostic::parser::
+					intrinsic_print_empty(e->start);
+				return false;
+			}
+
+			node.push(e);
+		} break;
+
         default: {
             if(token.current()->group == token::group_literal) {
                 reduce_literal_to_literal_expression();
@@ -2028,6 +2058,7 @@ typeref() {
 
         case token::open_square: {
             auto last = node.current->as<Expr>();
+			Token* save = token.current();
             token.increment();
             switch(token.current_kind()) {
                 case token::close_square: {
@@ -2089,50 +2120,66 @@ typeref() {
                             last->type = StaticArray::create(last->type, copy._u64);
                         } break;
                         default: {
+							// the expression is one which needs to be computed, so we need to 
+							// defer setting the type to Sema where we guarantee that everthing
+							// before this has also been through Sema
+							// we just shove the expression under a subscript
+							// which Sema looks for as the child of a typeref, since doing this 
+							// is the grammar for an array type
+
+							auto ss = Expr::create(expr::subscript);
+							ss->start = save;
+							ss->end = token.current();
+							node::insert_last(ss, e);
+							node::insert_last(node.current, ss);
+
+							// TODO(sushi) remove this when done with it
+							//             doing this this early was a mistake
+
                             // whatever expression we've found needs to be evaluated fully as a compile
                             // time expression
-                            auto ct = CompileTime::create();
-                            ct->start = e->start;
-                            ct->end = e->end;
-                            node::insert_first(ct, e);
+                            // auto ct = CompileTime::create();
+                            // ct->start = e->start;
+                            // ct->end = e->end;
+                            // node::insert_first(ct, e);
 
-                            Code* nu = code::from(code, ct);
-                            nu->parser->table.last = table.last;
-                            nu->compile_time = true;
+                            // Code* nu = code::from(code, ct);
+                            // nu->parser->table.last = table.last;
+                            // nu->compile_time = true;
 
-                            if(!compiler::funnel(nu, code::machine)) return false;
+                            // if(!compiler::funnel(nu, code::machine)) return false;
 
-                            // now we need to figure out exactly what was returned from the expression
-                            e->type = ct->first_child<Expr>()->type;
+                            // // now we need to figure out exactly what was returned from the expression
+                            // e->type = ct->first_child<Expr>()->type;
 
-                            // a scalar type will just resolve into a scalar literal
-                            if(e->type->is<Scalar>() && !e->type->as<Scalar>()->is_float()) {
-                                auto sl = ScalarLiteral::create();
-                                sl->value.kind = ct->first_child<Expr>()->type->as<Scalar>()->kind;
-                                switch(sl->value.kind) {
-                                    case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
-                                    case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
-                                    case scalar::unsigned32: sl->value = *(u32*)nu->machine->stack; break;
-                                    case scalar::unsigned64: sl->value = *(u64*)nu->machine->stack; break;
-                                    case scalar::signed8:    sl->value = *(s8*)nu->machine->stack; break;
-                                    case scalar::signed16:   sl->value = *(s16*)nu->machine->stack; break;
-                                    case scalar::signed32:   sl->value = *(s32*)nu->machine->stack; break;
-                                    case scalar::signed64:   sl->value = *(s64*)nu->machine->stack; break;
-                                }   
-                                if(sl->is_negative()) {
-                                    diagnostic::parser::
-                                        static_array_size_cannot_be_negative(e->start);
-                                    return false;
-                                }
-                                auto copy = sl->value;
-                                copy.cast_to(scalar::unsigned64);
-                                last->type = StaticArray::create(last->type, copy._u64);
-                                node::insert_last(ct, sl);
-                            } else {
-                                diagnostic::parser::
-                                    static_array_count_must_eval_to_integer(e->start, e->type);
-                                return false;
-                            }
+                            // // a scalar type will just resolve into a scalar literal
+                            // if(e->type->is<Scalar>() && !e->type->as<Scalar>()->is_float()) {
+                            //     auto sl = ScalarLiteral::create();
+                            //     sl->value.kind = ct->first_child<Expr>()->type->as<Scalar>()->kind;
+                            //     switch(sl->value.kind) {
+                            //         case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
+                            //         case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
+                            //         case scalar::unsigned32: sl->value = *(u32*)nu->machine->stack; break;
+                            //         case scalar::unsigned64: sl->value = *(u64*)nu->machine->stack; break;
+                            //         case scalar::signed8:    sl->value = *(s8*)nu->machine->stack; break;
+                            //         case scalar::signed16:   sl->value = *(s16*)nu->machine->stack; break;
+                            //         case scalar::signed32:   sl->value = *(s32*)nu->machine->stack; break;
+                            //         case scalar::signed64:   sl->value = *(s64*)nu->machine->stack; break;
+                            //     }   
+                            //     if(sl->is_negative()) {
+                            //         diagnostic::parser::
+                            //             static_array_size_cannot_be_negative(e->start);
+                            //         return false;
+                            //     }
+                            //     auto copy = sl->value;
+                            //     copy.cast_to(scalar::unsigned64);
+                            //     last->type = StaticArray::create(last->type, copy._u64);
+                            //     node::insert_last(ct, sl);
+                            // } else {
+                            //     diagnostic::parser::
+                            //         static_array_count_must_eval_to_integer(e->start, e->type);
+                            //     return false;
+                            // }
                         } break;
                     }
                     if(!token.is(token::close_square)) {

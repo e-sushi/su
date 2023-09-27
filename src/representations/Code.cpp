@@ -1,3 +1,4 @@
+#include "representations/Code.h"
 namespace amu {
 
 DString* SourceCode::
@@ -72,8 +73,15 @@ from(Code* code, ASTNode* node) {
                 case entity::expr: {
                     out->kind = code::expression;
                 } break;
+				case entity::var: {
+					FixMe; // this is probably wrong or just shouldn't happen at all
+					out->kind = code::label;
+				} break;
             }
         } break;
+		case ast::label: {
+			out->kind = code::label;
+		} break;
     }
 
     out->level = code::parse;

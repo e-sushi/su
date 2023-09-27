@@ -362,6 +362,23 @@ format_metric(s64 x) {
 	return out;
 }
 
+DString*
+format_metric(u64 x) { // TODO(sushi) these functions can give large numbers since we don't round the remainder and it looks bad
+	auto out = DString::create();
+	if(x > u64(1e12)) {
+		out->append(x/u64(1e12), ".", x%u64(1e12), " tera");
+	} else if(x > u64(1e9)) {
+		out->append(x/u64(1e9), ".", x%u64(1e9), " giga");
+	} else if(x > u64(1e6)) {
+		out->append(x/u64(1e6), ".", x%u64(1e6), " mega");
+	} else if(x > u64(1e3)) {
+		out->append(x/u64(1e3), ".", x%u64(1e3), " kilo");
+	} else {
+		out->append(x);
+	}
+	return out;
+}
+
 // wraps a DString in ANSI terminal color
 // TODO(sushi) need to setup using the 8 original colors so that terminal themes work properly
 void

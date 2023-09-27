@@ -51,7 +51,9 @@ b32 expr(Code* code, Expr* e, b32 is_lvalue);
 b32
 statement(Code* code, Stmt* s) { announce_stage(s);
     switch(s->kind) {
-        case stmt::label: return label(code, s->first_child<Label>());
+        case stmt::label: {
+			return label(code, s->first_child<Label>());
+		} break;
         case stmt::block_final:
         case stmt::expression: return expr(code, s->first_child<Expr>(), false);
     }
@@ -225,15 +227,77 @@ typeref(Code* code, Expr* e) { announce_stage(e);
         case type::kind::function: {
         } break;
         case type::kind::structured: {
-            auto st = e->type->as<Structured>();
-            if(st->is<StaticArray>()) {
-                auto sa = st->as<StaticArray>();
-
-            }
         } break;
         case type::kind::pointer: {
         } break;
     }
+	
+	if(e->first_child() && 
+	   e->first_child()->is(expr::subscript)) {
+		// this is a static array containing an expression that
+		// must be computable at compile time 
+		auto ss = e->first_child<Expr>();
+		auto se = ss->first_child<Expr>();
+		
+
+		if(!expr(code, se, false)) return false;
+
+		if(!se->compile_time) {
+			diagnostic::sema::
+				static_array_count_expr_not_compile_time(se->start);
+			return false;
+		}
+
+		auto ct = CompileTime::create();
+		ct->start = e->start;
+		ct->end = e->end;
+
+		node::insert_first(ct, se);
+			
+		auto nu = code::from(code, ct);
+		if(!compiler::funnel(nu, code::machine)) return false;
+
+		if(se->type->is_not<Scalar>() || se->type->as<Scalar>()->is_float()) {
+			diagnostic::sema::
+				static_array_expr_must_resolve_to_integer(se->start, se->type);
+			return false;
+		}
+		
+		auto sl = ScalarLiteral::create();
+		sl->value.kind = se->type->as<Scalar>()->kind;
+		switch(sl->value.kind) {
+			 case scalar::unsigned8:  sl->value = *(u8*)nu->machine->stack; break;
+			 case scalar::unsigned16: sl->value = *(u16*)nu->machine->stack; break;
+			 case scalar::unsigned32: sl->value = *(u32*)nu->machine->stack; break;
+			 case scalar::unsigned64: sl->value = *(u64*)nu->machine->stack; break;
+			 case scalar::signed8:    sl->value = *(s8*)nu->machine->stack; break;
+			 case scalar::signed16:   sl->value = *(s16*)nu->machine->stack; break;
+			 case scalar::signed32:   sl->value = *(s32*)nu->machine->stack; break;
+			 case scalar::signed64:   sl->value = *(s64*)nu->machine->stack; break;
+		}
+
+		if(sl->is_negative()) {
+			sl->cast_to(scalar::signed64); // NOTE(sushi) just cast so we don't have to switch
+			diagnostic::sema:: 
+				static_array_size_cannot_be_negative(se->start, sl->value._s64);
+			return false;
+		}
+
+		node::insert_last(ct, sl);
+		sl->cast_to(scalar::unsigned64);
+		e->type = StaticArray::create(e->type, sl->value._u64);
+		
+		if(e->type->size() > Gigabytes(1)) {
+			auto sa = e->type->as<StaticArray>();
+			diagnostic::sema::
+				static_array_unusally_large(e->start,
+						DString::create(util::format_metric(e->type->size()), "bytes (",
+							sa->type->display(), "$.size * ", sa->count, ") > 1 Gb"));
+			return false;
+		}
+
+	}
+
     return true;
 }
 
@@ -241,6 +305,7 @@ b32
 access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
     switch(lhs_type->kind) {
         case type::kind::scalar: {
+			// TODO(sushi) this becomes incorrect when UFCS is implemented
             diagnostic::sema::
                 cannot_access_members_scalar_type(lhs->start);
             return false;
@@ -255,6 +320,7 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
             if(ptype->type->is<Pointer>()) {
                 diagnostic::sema::
                     too_many_levels_of_indirection_for_access(lhs->start);
+				return false;
             }
             return access(code, e, lhs, ptype->type, rhs);
         } break;
@@ -270,10 +336,12 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
                     nu->value = stype->as<StaticArray>()->count;
                     nu->type = &scalar::_u64;
                     node::insert_above(e, nu);
+					nu->compile_time = true;
                     e->type = nu->type;
+					
                     // TODO(sushi) clear up the weird behavoir here
                     //             even though we replace e with nu, the caller doesn't know that
-                    //             for now I just reset lhs and rhs where this is called (one case)
+                    //             for now I just reset lhs and rhs where this is called 
                     //             so eventually I'll need to handle all the cases
                 } else if(rhs->start->raw.equal("data")) {
                     auto nu = Expr::create(expr::unary_reference);
@@ -310,6 +378,11 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
     switch(e->kind) {
         case expr::unary_comptime: {
             return expr(code, e->first_child<Expr>(), is_lvalue);
+			if(!e->compile_time) {
+				diagnostic::sema::
+					unary_comptime_expr_not_comptime(e->start);
+				return false;
+			}
         } break;
         case expr::unary_assignment: {
             if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
@@ -432,6 +505,8 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
             if(!expr(code, rhs, is_lvalue)) return false;
             lhs = e->first_child<Expr>();
             rhs = e->last_child<Expr>();
+
+			e->compile_time = lhs->compile_time && rhs->compile_time;
 
             // Rules define different patterns of the form 
             //     <lhs_type> <op> <rhs_type>
@@ -646,19 +721,16 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
         } break;
 
         case expr::varref: {
-            if(code->compile_time && !e->as<VarRef>()->var->is_compile_time) {
-                diagnostic::sema::
-                    compile_time_code_cannot_reference_runtime_memory(e->start);
-                return false;
-            }
-
-            auto v = e->as<VarRef>()->var;
+			auto v = e->as<VarRef>()->var;
             if(v->type->is<Range>()) {
+				// TODO(sushi) this is scuffed, need to setup for loops to set their variable to be of the 
+				//             correct type instead of doing that here
                 e->type = v->type->as<Range>()->type;
             } else {
                 e->type = e->as<VarRef>()->var->type;
             }
 
+			e->compile_time = v->is_compile_time;
         } break;
 
         case expr::conditional: {
@@ -749,13 +821,11 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
         } break;
 
         case expr::literal_scalar: {
-            if(!e->type) {
-                
-            }
-        } break;
+			e->compile_time = true;
+		} break;
 
         case expr::literal_string: {
-            
+			e->compile_time = true; 
         } break;
 
         case expr::literal_array: {
@@ -779,7 +849,7 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
 
                 count++;
             }
-
+			e->compile_time = true;
             e->type = StaticArray::create(first_type, count);
         } break;
 
@@ -795,7 +865,7 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                     subscript_must_evaluate_to_integer(rhs->start, rhs->type);
                 return false;
             }
-
+			
             if(lhs->type->is<Structured>()) {
                 auto s = lhs->type->as<Structured>();
                 switch(s->kind) {
@@ -859,9 +929,13 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                 if(c->is<ScalarLiteral>()) {
                     c->as<ScalarLiteral>()->cast_to(e->type);
                     e->replace(c);
-                }
-
-            }
+				} else {
+					if(!expr(code, e->first_child<Expr>(), is_lvalue)) return false;
+				}
+				e->compile_time = true;
+            } else {
+				TODO("handle casts other than scalars");
+			}
         } break;
 
 		case expr::intrinsic_rand_int: {
@@ -870,6 +944,18 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
 
         case expr::vm_break: {} break;
 
+		case expr::intrinsic_print: { 
+			e->type = &type::void_;
+			auto child = e->first_child<Tuple>();
+			for(auto n = child->first_child(); n; n = n->next()) {
+				if(n->is<Label>()) {
+					diagnostic::sema::
+						intrinsic_print_named_arg(n->start);
+					return false;
+				}
+				if(!expr(code, n->as<Expr>(), is_lvalue)) return false;
+			}
+		} break;
 
         default: {
             TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
@@ -927,12 +1013,15 @@ start(Code* code) {
             switch(e->kind) {
                 case entity::module: {
                     if(!module(code, code->parser->root)) return false;
-                    // util::println(code->parser->root->print_tree(true));
                 } break;
 
                 case entity::expr: {
                     if(!expr(code, e->as<Expr>(), false)) return false;
                 } break;
+
+				case entity::var: {
+					if(!label(code, e->as<Label>())) return false;	
+				} break;	
 
                 default: DebugBreakpoint;
             }

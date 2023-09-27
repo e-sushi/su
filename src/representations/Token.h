@@ -134,6 +134,11 @@ enum kind : u32 {
     directive_compiler_break_air_gen,
     directive_vm_break,
 	directive_rand_int,
+
+	// svar_file, // $file
+	// svar_line, // $line
+	// intrinsic printing function 
+	sid_print, // $print
 };
 
 #include "data/token_strings.generated"

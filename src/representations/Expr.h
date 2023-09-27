@@ -90,6 +90,7 @@ enum kind : u32 {
     vm_break,
 
 	intrinsic_rand_int,
+	intrinsic_print,
 };
 
 #include "data/expression_strings.generated"
@@ -109,6 +110,11 @@ struct Expr : public Entity {
     // when true, this expression represents a location in memory 
     // and operations performed on it should directly affect it 
     b32 lvalue;
+	
+	// set true on expressions in Sema that can be considered 
+	// computable at compile time
+	b32 compile_time;
+
 
     // ~~~~~~ interface ~~~~~~~
 

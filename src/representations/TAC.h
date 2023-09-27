@@ -146,6 +146,7 @@ enum op {
     vm_break,
 
 	intrinsic_rand_int,
+	intrinsic_vm_stdout,
 };
 } // namespace tac
 

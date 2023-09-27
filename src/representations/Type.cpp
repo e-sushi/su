@@ -209,7 +209,7 @@ size() {
 DString* StaticArray::
 print_from_address(u8* addr) {
     auto out = DString::create();
-    out->append("[\n");
+    out->append("[");
     forI(count) {
         out->append(ScopedDeref(type->print_from_address(addr + i * type->size())).x, (i==count-1?"":","));
     }

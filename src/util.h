@@ -51,7 +51,7 @@ constexpr upt
 round_up_to(s64 value, s64 multiple) {
 	return  (((upt)((value) + (((upt)(multiple))-1)) / (upt)(multiple)) * (upt)(multiple));
 }
-
+							
 // specializable generic hash functions
 template<typename T> u64
 hash(const T& x) {

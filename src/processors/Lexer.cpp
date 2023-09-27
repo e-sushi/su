@@ -59,6 +59,15 @@ token_is_directive_or_identifier(String raw) {
     return token::identifier;
 }
 
+local token::kind
+token_is_sid_or_identifier(String raw) {
+	switch(raw.hash()) {
+		strcase("print"): return token::sid_print;
+	}
+
+	return token::identifier;
+}
+
 FORCE_INLINE b32 
 is_identifier_char(u32 codepoint) {
     if(isalnum(codepoint) || codepoint == '_' || codepoint > 127) 
@@ -406,12 +415,20 @@ stream_next;                     \
                 	token.raw.count = stream.str - token.raw.str;
                 	token.kind = lexer::internal::token_is_keyword_or_identifier(token.raw);
 					token.hash = token.raw.hash();
-
-					if(tokens.count && tokens.read(-1).kind == token::pound){
+					
+					if(last_token.kind == token::pound) {
 						token::kind kind = lexer::internal::token_is_directive_or_identifier(token.raw);
 						if(kind == token::identifier){
                             diagnostic::lexer::
 								unknown_directive(&token, token.raw);
+						}
+						token.kind = kind;
+						tokens.pop();
+					} else if(last_token.kind == token::dollar) {
+						token::kind kind = lexer::internal::token_is_sid_or_identifier(token.raw);
+						if(kind == token::identifier) {
+							diagnostic::lexer::
+								unknown_svar(&token, token.raw);
 						}
 						token.kind = kind;
 						tokens.pop();

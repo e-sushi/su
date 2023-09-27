@@ -255,7 +255,7 @@ begin(Array<String> args) {
     GenTAC::create(entry_source->code)->generate();
     GenAIR::create(entry_source->code)->generate();
 
-	Debugger::create(entry_source->code->last_child<Code>())->start();
+	// Debugger::create(entry_source->code->last_child<Code>())->start();
 
     //VM::create(entry_source->code->last_child<Code>())
     //    ->run();

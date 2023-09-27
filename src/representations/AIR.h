@@ -118,6 +118,7 @@ enum op {
 	
 	// generates a random integer and places the result in A
 	intrinsic_rand_int,
+	intrinsic_vm_stdout,
 };
 
 #include "data/airop_strings.generated"

@@ -350,7 +350,25 @@ expression(Expr* e) {
         } break;
 
         case expr::literal_string: {
-            TODO("handle string literals");
+			TAC* first = 0;
+			auto sl = e->as<StringLiteral>();
+			forI(sl->raw.count) {
+				TAC* t = make_and_place();
+				t->op = tac::array_element;
+				t->arg0.kind = arg::literal;
+				t->arg0.literal = sl->raw.str[i];
+				t->temp_size = 1;
+				t->node = e;
+				if(!first) first = t;
+			}
+
+			TAC* arr = make_and_place();
+			arr->op = tac::array_literal;
+			arr->temp_size = sl->raw.count;
+			arr->node = e;
+			arr->arg0 = first;
+
+			return arr;
         } break;
 
         case expr::literal_array: {
@@ -958,6 +976,10 @@ expression(Expr* e) {
 			t->op = tac::intrinsic_rand_int;
 			t->node = e;
 			return t;
+		} break;
+
+		case expr::intrinsic_print: {
+			
 		} break;
     }
 
