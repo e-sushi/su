@@ -775,6 +775,41 @@ group sema {
 			en: "static array defined with an unusually large size: %String%. possible unsigned underflow";
 		}
 	}
+
+	diagnostic tuple_struct_initializer_unknown_member {
+		type: error;
+		message: {
+			en: "the id %identifier% used in tuple initializer does not match any member of type %type%";
+		}
+	}
+
+	diagnostic tuple_struct_initializer_cannot_cast_expr_to_member {
+		type: error;
+		message: {
+			en: "expression of type %type% cannot be casted to the matching structure member %identifier% of type %type%";
+		}
+	}
+
+	diagnostic tuple_struct_initializer_named_member_already_satisfied {
+		type: error;
+		message: {
+			en: "member %identifier% was previously set by an element of this tuple literal";
+		}
+	}
+
+	diagnostic tuple_struct_initializer_too_many_elements {
+		type: error;
+		message: {
+			en: "too many elements provided in struct initializer";
+		}
+	}
+
+	diagnostic tuple_cast_to_structured_not_yet_supported {
+		type: error;
+		message : {
+			en: "casting a non literal Tuple to a Structured type is not supported yet";
+		}
+	}
 }
 
 group internal {
