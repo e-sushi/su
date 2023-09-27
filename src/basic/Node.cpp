@@ -143,6 +143,10 @@ insert_first(TNode* parent, TNode* child) {
 
 global inline void
 insert_above(TNode* below, TNode* above) {
+	if(!below->parent) {
+		node::change_parent(above, below);
+		return;
+	}
 	TNode copy = *below;
 	copy.parent->child_count++;
 	change_parent(0, below);
