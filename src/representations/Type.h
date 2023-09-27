@@ -16,6 +16,7 @@ namespace amu {
 struct Function;
 struct Member;
 struct Expr;
+struct Tuple;
 
 namespace type {
 enum class kind {
@@ -55,6 +56,15 @@ struct Type : public Entity {
     // conversion to another
     b32
     can_cast_to(Type* to);
+	
+	// generic function for handling the casting of whatever is at 'n'
+	// to the type 'to'. Returns 0 if the cast isn't possible, otherwise
+	// returns a pointer to an ASTNode that may have taken the original
+	// node's place.
+	// So, this should generally be used like this:
+	// 		my_casted_node = thing->type->cast_to(other_thing->type, my_casted_node);
+	virtual b32
+	cast_to(Type* to, Expr*& n) = 0;
 
     u64
     hash();
@@ -97,6 +107,7 @@ struct Void : public Type {
     Void() : Type(type::kind::void_) {} 
 
     u64      size() { return 0; }
+	b32      cast_to(Type* to, Expr*& n) { return 0; } // this should never happen
     ASTNode* deep_copy() { return this; }
     DString* display() { return DString::create("void"); }
     DString* dump() { return DString::create("Void<>"); }
@@ -121,6 +132,7 @@ struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
     u64      size() { return 0; }
+	b32      cast_to(Type* to, Expr*& n) { return true; }
     ASTNode* deep_copy() { return this; }
     DString* display() { return DString::create("whatever"); }
     DString* dump() { return DString::create("Whatever<>"); }
@@ -160,12 +172,15 @@ struct Scalar : public Type {
 
     // ~~~~~~ interface ~~~~~~~
 
-
+ 
     DString*
     display();
 
     DString*
     dump();
+
+	b32
+	cast_to(Type* to, Expr*& n);
 
     u64
     size();
@@ -211,7 +226,10 @@ enum kind {
 };
 } // namespace structured
 
-// a Type which is defined by a user-defined structure
+// a Type which consists of 'members'. Members 
+// are named offsets from the base pointer of 
+// a value with this Type.
+// see Structure.h for further info on how Structures work
 struct Structured : public Type {
     structured::kind kind;
 
@@ -232,6 +250,9 @@ struct Structured : public Type {
 
     DString*
     dump();
+
+	b32
+	cast_to(Type* t, Expr*& e);
 
     u64
     size();
@@ -268,6 +289,9 @@ struct Pointer : public Type {
 
     DString*
     dump();
+
+	b32
+	cast_to(Type* t, Expr*& e);
 
     u64
     size();
@@ -306,6 +330,9 @@ struct StaticArray : public Structured {
 
     DString*
     dump();
+	
+	b32
+	cast_to(Type* t, Expr*& e);
 
     u64
     size();
@@ -344,6 +371,9 @@ struct DynamicArray : public Structured {
     DString*
     dump();
 
+	b32
+	cast_to(Type* t, Expr*& e);
+
     u64
     size();
 
@@ -378,6 +408,9 @@ struct ViewArray : public Structured {
 
     DString*
     dump();
+
+	b32
+	cast_to(Type* t, Expr*& e);
 
     u64
     size();
@@ -422,6 +455,9 @@ struct Range : public Type {
 
     u64
     size();
+
+	b32
+	cast_to(Type* t, Expr*& e);
 
     DString*
     print_from_address(u8* addr);
@@ -492,31 +528,48 @@ struct FunctionType : public Type {
     u64
     size();
 
+	b32
+	cast_to(Type* t, Expr*& e);
+
     DString*
     print_from_address(u8* addr);
 
     FunctionType() : Type(type::kind::function) {}
 };
 
-// a tuple acting as a type, eg. one that only contains references to types and not values
+struct Element {
+	Type* type;
+	u64 offset; // offset in bytes from the beginning of the Tuple
+};
+
+// the underlying type of any Tuple
+// TupleTypes can be seen as generalizations 
+// of Structured types in that they consist
+// of an ordered set of subtypes and represent 
+// continguous data, but they may omit names for 
+// some or all of their elements.
+// TupleTypes also cannot inherit members
+// from other types like Structured types can
 struct TupleType : public Type {
-    b32 is_named;
-    union {
-        Array<Type*> types;
-        LabelTable table;
-    };
+	// a map storing the named elements of
+	// this TupleType to its index
+	Map<String, u64> named_elements;
+
+	Array<Element> elements;
+	
+	// total size in bytes
+	u64 bytes;
 
     static Array<TupleType*> set;
 
 
     // ~~~~~~ interface ~~~~~~~
 
-
-    // creates a Tuple type from an array of Type*
-    // this takes ownership of the 'types' array
-    // if the TupleType already exists, the array is deinitialized
+	
+	// creates a TupleType from a Tuple which has 
+	// ALREADY BEEN semantically analyzed!!!
     static TupleType*
-    create(Array<Type*>& types);
+    create(Tuple* tuple);
 
     DString*
     display();
@@ -527,11 +580,20 @@ struct TupleType : public Type {
     u64
     size();
 
+	b32
+	cast_to(Type* t, Expr*& e);
+
     DString*
     print_from_address(u8* addr);
+	
+	FORCE_INLINE u64
+	n_positional() { return elements.count - named_elements.keys.count; }
 
     TupleType() : Type(type::kind::tuple) {}
 };
+
+template<> inline b32 Base::
+is<TupleType>() { return is<Type>() && as<Type>()->kind == type::kind::tuple; }
 
 namespace type::tuple {
 struct ExistantTupleType {
@@ -553,6 +615,7 @@ enum class kind {
 
 // a Type which represents information about the language
 // planned to be mapped 1:1 with the types we use in the compiler
+// if that's even practical!
 struct MetaType : public Type {
     type::meta::kind kind;
     Structure* s;

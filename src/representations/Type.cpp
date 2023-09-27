@@ -40,6 +40,13 @@ can_cast_to(Type* to)  {
         return pto->type == pthis->type;
     }
 
+	// TupleTypes can usually cast to Structured types, but whether or not 
+	// the given TupleType can cast to it is determined later during the 
+	// actual cast
+	if(to->is<Structured>() && this->is<TupleType>()) {
+		return true;
+	}
+
     return false;
 }
 
@@ -122,6 +129,27 @@ is_float() {
     return kind == scalar::float32 || kind == scalar::float64;
 }
 
+b32 Scalar::
+cast_to(Type* t, Expr*& n) {
+	if(n->is<ScalarLiteral>()) {
+		// we can just cast in place
+		n->as<ScalarLiteral>()->cast_to(t);
+	} else switch(t->kind) {
+		case type::kind::scalar: {
+			auto cast = Expr::create(expr::cast);
+			cast->type = t;
+			cast->start = n->start;
+			cast->end = n->end;
+			node::insert_above(n, cast);
+			n = cast;
+		} break;
+		default: {
+			TODO("throw diagnostic unable to cast");
+		} break;
+	}	
+	return true;
+}
+
 Array<Pointer*> Pointer::set = Array<Pointer*>::create();
 
 Pointer* Pointer::
@@ -148,6 +176,12 @@ dump() {
 u64 Pointer::
 size() {
     return sizeof(void*);
+}
+
+b32 Pointer::
+cast_to(Type* t, Expr*& e) {
+	TODO("handle whatever happens here");
+	return 0;
 }
 
 DString* Pointer::
@@ -204,6 +238,16 @@ dump() {
 u64 StaticArray::
 size() {
     return type->size() * count;
+}
+
+b32 StaticArray::
+cast_to(Type* t, Expr*& e) {
+	if(e->is<ArrayLiteral>()) {
+		e->as<ArrayLiteral>()->cast_to(t);
+	} else {
+		TODO("unhandled StaticArray cast to something");
+	}
+	return true;
 }
 
 DString* StaticArray::
@@ -263,6 +307,12 @@ size() {
     return sizeof(void*) + sizeof(u64);
 }
 
+b32 ViewArray::
+cast_to(Type* t, Expr*& e) {
+	TODO("handle ViewArrays casting to something");
+	return 0;
+}
+
 DString* ViewArray::
 print_from_address(u8* addr) {
     TODO("print view array from address");
@@ -320,6 +370,12 @@ size() { // TODO(sushi) size of Allocators when they are implemented
     return sizeof(void*) + sizeof(u64) + sizeof(u64);
 }
 
+b32 DynamicArray::
+cast_to(Type* t, Expr*& e) {
+	TODO("handle DynamicArrays casting to something");
+	return 0;
+}
+
 DString* DynamicArray::
 print_from_address(u8* addr) {
     TODO("print dynamic array from address");
@@ -356,6 +412,12 @@ dump() {
 u64 Range::
 size() {
     return type->size();
+}
+
+b32 Range::
+cast_to(Type* t, Expr*& e) {
+	TODO("handle Ranges casting to something");
+	return 0;
 }
 
 DString* Range::
@@ -397,6 +459,12 @@ size() {
     return sizeof(void*); // treated as pointers for now 
 }
 
+b32 FunctionType::
+cast_to(Type* t, Expr*& e) {
+	TODO("handle FunctionTypes casting to something");
+	return 0;
+}
+
 DString* FunctionType::
 print_from_address(u8* addr) {
     return DString::create((u8*)*(u64*)addr);
@@ -405,47 +473,183 @@ print_from_address(u8* addr) {
 Array<TupleType*> TupleType::set = Array<TupleType*>::create();
 
 TupleType* TupleType::
-create(Array<Type*>& types) {
-    // extremely bad, awful, no good
-    u64 hash = 1212515131534;
-    forI(types.count) {
-        hash <<= (u64)types.read(i) * 167272723;
-    }
-    auto [idx, found] = amu::array::util::
-        search<TupleType*, u64>(TupleType::set, hash, [](TupleType* t){
-            u64 hash = 1212515131534;
-            forI(t->types.count) {
-                hash <<= (u64)t->types.read(i) * 167272723;
-            }
-            return hash;
-        });
-    
-    if(found) {
-        types.destroy();
-        return TupleType::set.read(idx);
-    } 
-    TupleType* nu = pool::add(compiler::instance.storage.tuple_types);
-    nu->types = types;
-    return nu;
+create(Tuple* tuple) {
+
+	TupleType* nu = pool::add(compiler::instance.storage.tuple_types);
+	nu->named_elements = map::init<String, u64>();
+	nu->elements = Array<Element>::create();
+
+	b32 found_label = 0;
+	b32 sizeacc = 0;
+	for(ASTNode* n = tuple->first_child(); n; n = n->next()) {
+		Type* t = 0;
+		if(n->is<Label>()) {
+			found_label = 1;
+			t = n->last_child<Expr>()->type;
+			u32 index = nu->elements.count;
+			map::add(nu->named_elements, n->start->raw, (u64)nu->elements.count);
+		} else if(found_label) {
+			Assert(0); // all elements after a label should also be labels
+		} else {
+			t = n->as<Expr>()->type;
+		}
+
+		auto elem = nu->elements.push();
+		elem->type = t;
+		elem->offset = sizeacc;
+		sizeacc += t->size();
+	}
+	
+	nu->bytes = sizeacc;
+
+	return nu;
 }
 
 DString* TupleType::
 display() { // TODO(sushi) this sucks
-    return DString::create(String{start->raw.str, end->raw.str - start->raw.str});
+	auto out = DString::create("(");
+	forI(elements.count-1) {
+		out->append(ScopedDeref(elements.read(i).type->display()).x, ", ");
+	}
+
+	out->append(ScopedDeref(elements.read(-1).type->display()).x, ")");
+	return out;
 }
 
 DString* TupleType::
 dump() {
-    return DString::create("TupleType<TODO>");
+    return DString::create("TupleType<", ScopedDeref(display()).x, ">");
 }
 
 u64 TupleType::
 size() {
-    u64 count = 0;
-    forI(types.count) {
-        count += types.read(i)->size();
-    }
-    return count;
+    return bytes;
+
+}
+
+namespace type::internal {
+
+b32
+structure_initializer(Structured* st, TupleLiteral* from) {
+	auto t = from->first_child<Tuple>();
+	auto tt = t->type->as<TupleType>();
+
+	// TODO(sushi) this can probably be done better
+	//             but this is the cleanest solution I can
+	//             currently think of.
+
+	// the method here is to reorganize the TupleLiteral
+	// so that its elements are correctly positioned and 
+	// sized to be directly copied to the thing we are initializing
+
+	auto ordered = Array<Expr*>::create();
+	ordered.resize(st->structure->members.keys.count);
+	auto to_be_filled = Array<Member*>::create();
+	
+	for(auto m = st->structure->first_member; m; m = m->next<Member>()) {
+		to_be_filled.push(m);
+	}
+
+	auto titer = t->first_child();
+	auto miter = st->structure->first_member;
+	while(titer && titer->is_not<Label>()) {
+		if(!miter) {
+			diagnostic::sema::
+				tuple_struct_initializer_too_many_elements(titer->start);
+			return false;
+		}
+		auto e = titer->as<Expr>();
+		if(!e->type->can_cast_to(miter->type)) {
+			diagnostic::sema::
+				tuple_struct_initializer_cannot_cast_expr_to_member(e->start, e->type, miter->start->raw, miter->type);
+			return false;
+		}
+
+		if(!e->type->cast_to(miter->type, e)) return false;
+
+		to_be_filled.readref(miter->index) = 0;
+		ordered.readref(miter->index) = e;	
+		
+		titer = e->next();
+		miter = miter->next<Member>();
+	}
+
+	// at this point, any remaining tuple elements are named
+	// so we just search for them
+	while(titer) {
+		if(!miter) {
+			diagnostic::sema::
+				tuple_struct_initializer_too_many_elements(titer->start);
+			return false;
+		}
+		auto m = st->find_member(titer->start->raw);
+		if(!m) {
+			diagnostic::sema::
+				tuple_struct_initializer_unknown_member(titer->start, titer->start->raw, m->type);
+			return false;
+		}
+
+		if(!to_be_filled.read(m->index)) {
+			// TODO(sushi) show which element already satisfied the member
+			diagnostic::sema::
+				tuple_struct_initializer_named_member_already_satisfied(titer->start, m->start->raw);
+			return false;
+		}
+
+		auto e = titer->last_child<Expr>();
+
+		if(e->type != m->type) {
+			if(!e->type->can_cast_to(m->type)) {
+				diagnostic::sema::
+					tuple_struct_initializer_cannot_cast_expr_to_member(e->start, e->type, miter->start->raw, miter->type);
+				return false;
+			}
+
+			if(!e->type->cast_to(m->type, e)) return false;
+		}
+
+		ordered.readref(m->index) = e;
+		to_be_filled.readref(m->index) = 0;
+		titer = titer->next();
+	}
+
+	forI(to_be_filled.count) {
+		auto m = to_be_filled.read(i);
+		if(m) {
+			// TODO(sushi) handle zero filling/initializing other types
+			auto e = ScalarLiteral::create()->as<Expr>();
+			e->as<ScalarLiteral>()->cast_to(&scalar::_u64);
+			e->as<ScalarLiteral>()->value._u64 = 0;
+			if(!e->type->cast_to(m->type, e)) return false;
+			ordered.readref(i) = e;
+		}
+	}
+
+	while(t->first_child()) {
+		node::change_parent(0, t->first_child());
+	}
+
+	forI(ordered.count) {
+		node::insert_last(t, ordered.read(i));
+	}
+
+	t->type = TupleType::create(t);
+
+	return true;
+}
+
+} // namespace type::internal
+
+b32 TupleType::
+cast_to(Type* t, Expr*& e) {
+	if(t->is<Structured>() && e->is<TupleLiteral>()) {
+		return type::internal::structure_initializer(t->as<Structured>(), e->as<TupleLiteral>());
+	} else if(t->is<Structured>() && e->type->is<TupleType>()) {
+		diagnostic::sema::
+			tuple_cast_to_structured_not_yet_supported(e->start);
+		return false;
+	}
+	return 0;
 }
 
 DString* TupleType::
@@ -497,6 +701,12 @@ dump() {
 u64 Structured::
 size() {
     return structure->size;
+}
+
+b32 Structured::
+cast_to(Type* t, Expr*& e) {
+	TODO("handled Structured types casting to something");
+	return 0;
 }
 
 DString* Structured::

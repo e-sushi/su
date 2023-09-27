@@ -3,7 +3,6 @@ namespace amu {
 Tuple* Tuple::
 create() {
     Tuple* out = pool::add(compiler::instance.storage.tuples);
-    out->ASTNode::kind = ast::tuple;
     out->table = label::table::init(out->as<ASTNode>());
     return out;
 }
@@ -16,17 +15,25 @@ destroy() {
 
 DString* Tuple::
 display() { 
-    return dump();
-}
-
-DString* Tuple::
-dump() {
-    DString* out = DString::create("(");
+	DString* out = DString::create("(");
     for(ASTNode* n = first_child(); n; n = n->next()) {
         out->append(ScopedDeref(n->dump()).x, (n->next()? ", " : ""));
     }
     out->append(")");
     return out;
+}
+
+DString* Tuple::
+dump() {
+	auto out = DString::create("Tuple<type: ");
+	if(type) {
+		out->append(ScopedDeref(type->display()).x);
+	} else {
+		out->append("unknown");
+	}
+	
+	out->append(">");
+	return out;
 }
 
 } // namespace amu::tuple

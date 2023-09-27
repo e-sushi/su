@@ -35,6 +35,7 @@ struct Member : public Entity {
     b32 inherited = false; 
     // offset in bytes from the start of the structure
     u64 offset = MEMBER_OFFSET_UNKNOWN; 
+	u64 index; // the index of this member into the Structure
 
     static Member*
     create();

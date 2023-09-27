@@ -179,11 +179,39 @@ cast_to(Type* t) {
     }
 }
 
+TupleLiteral* TupleLiteral::
+create() {
+	auto out = pool::add(compiler::instance.storage.tuple_literals);
+	return out;
+}
+
+DString* TupleLiteral::
+display() {
+	auto out = DString::create();
+	out->append("(");
+	auto t = first_child<Tuple>();
+	for(ASTNode* n = t->first_child(); n; n = n->next()) {
+		if(n->is<Label>()) {
+			out->append(n->display(), ": ", n->last_child()->display());
+		} else {
+			out->append(n->display());
+		}
+		if(n->next()) {
+			out->append(", ");
+		}
+	}
+	out->append(")");
+	return out;
+}
+
+DString* TupleLiteral::
+dump() {
+	return DString::create("TupleLiteral<", ScopedDeref(display()).x, ">");
+}
+
 Block* Block::
 create() {
     Block* out = pool::add(compiler::instance.storage.blocks);
-    // node::init(&out->node);
-    // out->node.kind = node::expression;
     out->kind = expr::block;
     out->table = label::table::init(out->as<ASTNode>());
     return out;

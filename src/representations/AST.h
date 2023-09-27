@@ -79,11 +79,11 @@ struct ASTNode : public TNode, public Base {
     template<typename T = ASTNode> inline T*
     last_child() { return (T*)TNode::last_child; }
 
-    // attempts to resolve the AST node into a Type 
+    // Attempts to resolve the AST node into a Type 
     // by default this returns 0, but children that 
     // have some Type or can discern a type from one 
-    // of its children should implement this 
-    // this is primarily for finding a Type when you don't care
+    // of its children should implement this.
+    // This is primarily for finding a Type when you don't care
     // about what that Type comes from, like with printing
     // This shouldn't be used in any real logic. Do NOT use this to 
     // check if an ASTNode HAS a type, because things like Label and Statement
@@ -120,6 +120,14 @@ struct ASTNode : public TNode, public Base {
 
 template<> b32 inline Base::
 is<ASTNode>() { return kind == base::ast; }
+
+struct ASTNodeRef {
+	ASTNode* ref;
+
+	ASTNode* operator->() {
+		return ref;
+	}
+};
 
 } // namespace amu
 

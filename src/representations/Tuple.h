@@ -24,7 +24,6 @@
                  ~~~~~~~~~~~~~~~~Tuple
 
     The elements of a Tuple are its children in the AST.
-    
 */
 
 #ifndef AMU_TUPLE_H
@@ -58,6 +57,14 @@ struct Tuple : public ASTNode {
     LabelTable table;
     // when this is a valued Tuple, this points to the underlying type
     TupleType* type;
+
+	// the number of positional elements this tuple has
+	// if this is not zero and less than the length of the tuple,
+	// then all elements following the n_positional'th element 
+	// are bound to names
+	// named elements can be accessed either by subscripting 
+	// or by name.
+	u64 n_positional;
 
 
     // ~~~~~~ interface ~~~~~~~

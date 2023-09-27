@@ -512,10 +512,13 @@ struct_decl() {
 
     // structures do sort of special parsing, because we want to make Members, not Labels pointing to Vars
     // since the content of a structure does not exist in memory yet (what a Var represents)
+	u64 count = 0;
     while(1) {
         if(token.is(token::close_brace)) break;
         if(token.is(token::identifier)) {
             auto mem = Member::create();
+			mem->index = count++;
+			mem->start = token.current();
 
             // just retrieve the label
             if(!label_get()) return false;
@@ -546,8 +549,7 @@ struct_decl() {
                 return false;
             }
 
-            mem->start = mem->first_child()->start;
-            mem->end = mem->last_child()->end;
+            mem->end = token.current();
 
             node::insert_last(e, mem);
         } else {
@@ -572,7 +574,10 @@ label() {
     
     if(!label_after_colon()) return false;
 
-    // TODO(sushi) all of this stuff should be condensed somehow 
+    // TODO(sushi) all of this stuff should be condensed somehow
+	//             all this does is create entities for certain
+	//             things that can appear after a label
+	//             this can probably be replaced by a ruleset/table
     ASTNode* cand = node.pop();
     if(cand->is<Entity>()) switch(cand->as<Entity>()->kind) {
         case entity::expr: {
@@ -669,14 +674,24 @@ label() {
                     l->entity = v->as<Entity>();
                     node::insert_last(l, cand);
                 } break;
+				case expr::literal_scalar: {
+					node::insert_last(l, cand);
+					cand->as<Expr>()->label = l;
+					l->entity = cand->as<Entity>();
+				} break;
+				case expr::literal_tuple: {
+					node::insert_last(l, cand);
+					cand->as<Expr>()->label = l;
+					l->entity = cand->as<Entity>();
+				} break;
                 default: {
                     util::println(
                         DString::create("unhandled label case: ", expr::strings[expr->kind]));
 					util::println(expr->print_tree(true));
                     return false;
                 }
-            }
-        }
+			}
+		}
     } else {   
         TODO("a label returned to a node that is not an Entity"); 
     }
@@ -778,6 +793,13 @@ label_after_colon() {
 
         case token::open_paren: {
             if(!tuple()) return false;
+			if(node.current->is<Tuple>()) {
+				// this is probably just a tuple literal expression
+				// but IDK this could go wrong sorry!
+				auto e = TupleLiteral::create();
+				node::insert_last(e, node.pop());
+				node.push(e);
+			}
         } break;
 
         case token::structdecl: {
@@ -830,19 +852,23 @@ tuple() {
                             tuple->table.last = table.last;
                             table.push(&tuple->table);
                             found_label = 1;
+							tuple->n_positional = count;
                         }
                         if(!label()) return false;
                     } break;
                     default: {
-                        if(found_label) {
-                            diagnostic::parser::tuple_positional_arg_but_found_label(token.current());
-                            return false;
-                        }
-                        if(!expression()) return false;
+						goto expr;
                     } break;
                 }
             } break;
             default: {
+expr:
+				if(found_label) {
+					diagnostic::parser::
+						tuple_positional_arg_but_found_label(token.current());
+					return false;
+
+				}
                 if(!expression()) return false;
             } break;
         }
@@ -1678,6 +1704,15 @@ factor() {
                 node.push(n->first_child());
                 n->as<Tuple>()->destroy();
             }
+
+			// otherwise, we just create an Expr representing a 
+			// tuple literal
+			auto n = node.pop();
+			auto e = TupleLiteral::create();
+			e->start = n->start;
+			e->end = n->end;
+			node::insert_last(e, n);
+			node.push(e);
         } break;
 
         case token::open_square: {

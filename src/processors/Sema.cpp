@@ -119,31 +119,32 @@ function(Code* code, Function* f) {
     //             return statements need to be aware of what function they are returning from
     //             so they can handle the casting themselves
     if(type->return_type != be->type) {
-        if(!type->return_type->can_cast_to(be->type)) {
+		auto retexpr = be->last_child()->last_child<Expr>();
+        if(!be->type->cast_to(type->return_type, retexpr)) {
             diagnostic::sema::
                 return_value_of_func_block_cannot_be_coerced_to_func_return_type(
                     be->last_child()->start, type->return_type, be->type);
             return false;
         }
 
-        if(!(type->return_type->is<Scalar>() && be->type->is<Scalar>())) {
-            diagnostic::sema::
-                casting_between_non_scalar_types_not_supported(be->last_child()->start);
-            return false;                
-        }
-        
-        auto retexpr = be->last_child()->last_child<Expr>();
+        //if(!(type->return_type->is<Scalar>() && be->type->is<Scalar>())) {
+        //    diagnostic::sema::
+        //        casting_between_non_scalar_types_not_supported(be->last_child()->start);
+        //    return false;                
+        //}
+        //
+//      //  auto retexpr = be->last_child()->last_child<Expr>();
 
-        if(retexpr->is<ScalarLiteral>()) {
-            retexpr->as<ScalarLiteral>()->cast_to(type->return_type);
-            return true;
-        }
+        //if(retexpr->is<ScalarLiteral>()) {
+        //    retexpr->as<ScalarLiteral>()->cast_to(type->return_type);
+        //    return true;
+        //}
 
-        auto cast = Expr::create(expr::cast);
-        cast->type = type->return_type;
-        cast->start = retexpr->start;
-        cast->end = retexpr->end;
-        node::insert_above(retexpr, cast);
+        //auto cast = Expr::create(expr::cast);
+        //cast->type = type->return_type;
+        //cast->start = retexpr->start;
+        //cast->end = retexpr->end;
+        //node::insert_above(retexpr, cast);
     }
     return true;
 }
@@ -171,7 +172,8 @@ call(Code* code, Call* e) {
         auto call_arg_t = call_arg->resolve_type();
 
         if(call_arg_t != func_arg_t) {
-            if(!func_arg_t->can_cast_to(call_arg_t)) {
+			auto temp = call_arg->as<Expr>();
+            if(!call_arg_t->cast_to(func_arg_t, temp)) {
                 diagnostic::sema::
                     mismatch_argument_type(call_arg->start, 
                         call_arg_t, 
@@ -180,17 +182,7 @@ call(Code* code, Call* e) {
                         e->callee->label->start->raw);
                 return false;
             }
-            if(call_arg->is<ScalarLiteral>()) {
-                // if this is a scalar literal just cast it in place 
-                call_arg->as<ScalarLiteral>()->cast_to(func_arg_t->as<Scalar>()->kind);
-            } else {
-                auto cast = Expr::create(expr::cast);
-                cast->type = func_arg_t;
-                cast->start = call_arg->start;
-                cast->end = call_arg->end;
-                node::insert_above(call_arg, cast);
-                call_arg = cast;
-            }
+			call_arg = temp;
         }
 
         func_arg = func_arg->next();
@@ -374,6 +366,109 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
     return false;
 }
 
+// called when we are using a tuple literal to initialize something of Structured type
+// this is distinct from setting something equal to a variable of TupleType
+b32
+structure_initializer(Code* code, Expr* to, Expr* from) {
+	return from->type->cast_to(to->type, from);
+//	auto st = to->type->as<Structured>();
+//	auto t = from->first_child<Tuple>();
+//	auto tt = t->type->as<TupleType>();
+//
+//	// TODO(sushi) this can probably be done better
+//	//             but this is the cleanest solution I can
+//	//             currently think of.
+//
+//	// the method here is to reorganize the TupleLiteral
+//	// so that its elements are correctly positioned and 
+//	// sized to be directly copied to the thing we are initializing
+//
+//	auto ordered = Array<Expr*>::create();
+//	ordered.resize(st->structure->members.keys.count);
+//	auto to_be_filled = Array<Member*>::create();
+//	
+//	for(auto m = st->structure->first_member; m; m = m->next<Member>()) {
+//		to_be_filled.push(m);
+//	}
+//
+//	auto titer = t->first_child();
+//	auto miter = st->structure->first_member;
+//	while(titer && titer->is_not<Label>()) {
+//		auto e = titer->as<Expr>();
+//		if(!e->type->can_cast_to(miter->type)) {
+//			diagnostic::sema::
+//				tuple_struct_initializer_cannot_cast_expr_to_member(e->start, e->type, miter->start->raw, miter->type);
+//			return false;
+//		}
+//
+//		e = e->type->cast_to(miter->type, e);
+//
+//		to_be_filled.readref(miter->index) = 0;
+//		ordered.readref(miter->index) = e;	
+//		
+//		titer = e->next();
+//		miter = miter->next<Member>();
+//	}
+//
+//	// at this point, any remaining tuple elements are named
+//	// so we just search for them
+//	while(titer) {
+//		auto m = st->find_member(titer->start->raw);
+//		if(!m) {
+//			diagnostic::sema::
+//				tuple_struct_initializer_unknown_member(titer->start, titer->start->raw, m->type);
+//			return false;
+//		}
+//
+//		if(!to_be_filled.read(m->index)) {
+//			// TODO(sushi) show which element already satisfied the member
+//			diagnostic::sema::
+//				tuple_struct_initializer_named_member_already_satisfied(titer->start, m->start->raw);
+//			return false;
+//		}
+//
+//		auto e = titer->last_child<Expr>();
+//
+//		if(e->type != m->type) {
+//			if(!e->type->can_cast_to(m->type)) {
+//				diagnostic::sema::
+//					tuple_struct_initializer_cannot_cast_expr_to_member(e->start, e->type, miter->start->raw, miter->type);
+//				return false;
+//			}
+//
+//			e = e->type->cast_to(m->type, e);
+//		}
+//
+//		ordered.readref(m->index) = e;
+//		to_be_filled.readref(m->index) = 0;
+//		titer = titer->next();
+//	}
+//
+//	forI(to_be_filled.count) {
+//		auto m = to_be_filled.read(i);
+//		if(m) {
+//			// TODO(sushi) handle zero filling/initializing other types
+//			auto e = ScalarLiteral::create();
+//			e->cast_to(&scalar::_u64);
+//			e->value._u64 = 0;
+//			e->type->cast_to(m->type, e);
+//			ordered.readref(i) = e;
+//		}
+//	}
+//
+//	while(t->first_child()) {
+//		node::change_parent(0, t->first_child());
+//	}
+//
+//	forI(ordered.count) {
+//		node::insert_last(t, ordered.read(i));
+//	}
+//
+//	t->type = TupleType::create(t);
+//
+//	return true;
+}
+
 b32 
 expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
     defer {
@@ -436,41 +531,52 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
             }
 
             if(lhs->type != rhs->type) {
-                if(!lhs->type->can_cast_to(rhs->type)) {
-                    diagnostic::sema::
-                        cannot_implict_coerce(lhs->start, rhs->type, lhs->type);
-                    return false;
-                }
-                
-                if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
-                    // always take the left because we need to match the type that we are assigning to
-                    if(rhs->is<ScalarLiteral>()) {
-                        // if we're dealing with a literal, we just have to ask it to cast its value
-                        // for us, no cast node is needed
-                        rhs->as<ScalarLiteral>()->cast_to(lhs->type->as<Scalar>()->kind);
-                        e->type = rhs->type;
-                    } else {
-                        // otherwise we have to insert an actual cast
-                        auto cast = Expr::create(expr::cast);
-                        cast->type = lhs->type;
-                        cast->start = e->start;
-                        cast->end = e->end;
-                        node::insert_above(rhs, cast);
-                        e->type = cast->type;
-                    }
-                } else if(lhs->type->is<StaticArray>() && rhs->type->is<StaticArray>()) {
-                    auto lsa = lhs->type->as<StaticArray>(),
-                         rsa = rhs->type->as<StaticArray>();
+				if(lhs->type->is<Structured>() && rhs->is<TupleLiteral>()) {
+					// special case where we need to check if the given Tuple 
+					// can represent the thing we are trying to assign to
+					return structure_initializer(code, lhs, rhs);
+				}
 
-                    if(lsa->type->is<Scalar>() && rsa->type->is<Scalar>()) {
-                        // TODO(sushi) this incorrectly assumes that rhs is an array literal
-                        rhs->as<ArrayLiteral>()->cast_to(lsa->type);
-                    } else {
-                        TODO("bulk cast with non-scalar arrays");
-                    }
-                } else {
-                    TODO("handle other type casts in assignment");                    
-                }
+				return !!rhs->type->cast_to(lhs->type, rhs);
+
+				// all of the following shouldn't be needed due to the prev call,
+				// but im keeping it around just in case I need to look back at it 
+
+                //if(!lhs->type->can_cast_to(rhs->type)) {
+                //    diagnostic::sema::
+                //        cannot_implict_coerce(lhs->start, rhs->type, lhs->type);
+                //    return false;
+                //}
+                //
+                //if(lhs->type->is<Scalar>() && rhs->type->is<Scalar>()) {
+                //    // always take the left because we need to match the type that we are assigning to
+                //    if(rhs->is<ScalarLiteral>()) {
+                //        // if we're dealing with a literal, we just have to ask it to cast its value
+                //        // for us, no cast node is needed
+                //        rhs->as<ScalarLiteral>()->cast_to(lhs->type->as<Scalar>()->kind);
+                //        e->type = rhs->type;
+                //    } else {
+                //        // otherwise we have to insert an actual cast
+                //        auto cast = Expr::create(expr::cast);
+                //        cast->type = lhs->type;
+                //        cast->start = e->start;
+                //        cast->end = e->end;
+                //        node::insert_above(rhs, cast);
+                //        e->type = cast->type;
+                //    }
+                //} else if(lhs->type->is<StaticArray>() && rhs->type->is<StaticArray>()) {
+                //    auto lsa = lhs->type->as<StaticArray>(),
+                //         rsa = rhs->type->as<StaticArray>();
+
+                //    if(lsa->type->is<Scalar>() && rsa->type->is<Scalar>()) {
+                //        // TODO(sushi) this incorrectly assumes that rhs is an array literal
+                //        rhs->as<ArrayLiteral>()->cast_to(lsa->type);
+                //    } else {
+                //        TODO("bulk cast with non-scalar arrays");
+                //    }
+                //} else {
+                //    TODO("handle other type casts in assignment");                    
+                //}
             } else {
                 e->type = lhs->type;
             }
@@ -847,6 +953,27 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
         case expr::literal_string: {
 			e->compile_time = true; 
         } break;
+
+		case expr::literal_tuple: {
+			// we need to do some work to figure out what kind of tuple is being used here
+			// it's possible that this is either a type tuple or a valued tuple
+			// and on top of this it could either have named elements, a mix of named and positional
+			// elements, or only positional elements
+			auto t = e->first_child<Tuple>();
+
+			for(ASTNode* n = t->first_child(); n; n = n->next()) {
+				if(n->is<Label>()) {
+					if(!expr(code, n->last_child<Expr>(), is_lvalue)) return false;
+				} else {
+					if(!expr(code, n->as<Expr>(), is_lvalue)) return false;
+				}
+			}
+
+			e->type = TupleType::create(t);
+
+			t->type = e->type->as<TupleType>();
+				
+		} break;
 
         case expr::literal_array: {
             Type* first_type = 0;
