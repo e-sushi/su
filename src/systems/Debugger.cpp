@@ -173,14 +173,16 @@ void Debugger::
 parse_command(String s) {
 	auto word = s.eat_word();
 	switch(word.hash()) {
+		case string::static_hash("nb"):
+			DebugBreakpoint;
 		case string::static_hash("n"):{
-			last_instr = vm->step();
-			refresh_src(last_instr);
 			auto out = DString::create(
 				"next instruction: \n\t",
-				to_string(*last_instr) , "\n"
+				to_string(*vm->frame.ip) , "\n"
 			);
 			ncplane_putnstr(planes.console, out->count, (char*)out->str);
+			last_instr = vm->step();
+			refresh_src(last_instr);
 		} break;
 		case string::static_hash("nl"): {
 			auto last_line_num = vm->frame.ip->node->start->l0;
@@ -266,6 +268,12 @@ parse_command(String s) {
 			vm->destroy();
 			vm = VM::create(code);
 			refresh_src(vm->frame.ip);
+		} break;
+		case string::static_hash("pair"): {
+			// TODO(sushi) take in a count to print
+			auto out = DString::create();
+			out->append("> ", to_string(*(vm->frame.ip)), "\n");
+			ncplane_putnstr(planes.console, out->count, (char*)out->str);
 		} break;
 	}
 	ncreader_clear(input);

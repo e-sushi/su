@@ -614,7 +614,9 @@ body() {
                         }
                     } break;
                 }
-                
+				if(tac->arg0.deref) {
+					bc->flags.deref_right = true;
+				}
                 bc->resz.from = tac->arg1.cast.from;
                 bc->resz.to = tac->arg1.cast.to;
             } break;

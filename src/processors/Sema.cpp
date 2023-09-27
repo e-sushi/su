@@ -8,6 +8,7 @@
 */
 
 #include "representations/Expr.h"
+#include "representations/Type.h"
 namespace amu {
 namespace sema {
 
@@ -239,7 +240,6 @@ typeref(Code* code, Expr* e) { announce_stage(e);
 		auto ss = e->first_child<Expr>();
 		auto se = ss->first_child<Expr>();
 		
-
 		if(!expr(code, se, false)) return false;
 
 		if(!se->compile_time) {
@@ -336,8 +336,10 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
                     nu->value = stype->as<StaticArray>()->count;
                     nu->type = &scalar::_u64;
                     node::insert_above(e, nu);
-					nu->compile_time = true;
+					nu->compile_time = e->compile_time = true;
                     e->type = nu->type;
+					nu->start = e->start;
+					nu->end = e->end;
 					
                     // TODO(sushi) clear up the weird behavoir here
                     //             even though we replace e with nu, the caller doesn't know that
@@ -348,6 +350,8 @@ access(Code* code, Expr* e, Expr* lhs, Type* lhs_type, Expr* rhs) {
                     node::change_parent(nu, e->first_child());
                     node::insert_above(e, nu);
                     nu->type = Pointer::create(stype->as<StaticArray>()->type);
+					nu->start = e->start;
+					nu->end = e->end;
                 } else {
                     diagnostic::sema::
                         static_array_invalid_member(rhs->start, rhs->start->raw);
@@ -599,7 +603,23 @@ expr(Code* code, Expr* e, b32 is_lvalue) { announce_stage(e);
                         case expr::binary_plus: 
                         case expr::binary_minus: {
                             root->type = lhs->type;
-                        } break;    
+							// need to insert a multiplication by the pointer's underlying type size
+							// TODO(sushi) this is very inefficient because in a case like 
+							//             *(a + b + c)
+							//             where 'a' is a pointer, this will cause us to 
+							//             multiply b and c by the size of a's underlying type,
+							//             rather than just multiplying (b + c)
+							//             i dont want to just change associativity to be right sided, though
+							auto mul = Expr::create(expr::binary_multiply);
+							auto lit = ScalarLiteral::create();
+							lit->cast_to(scalar::unsigned64);
+							lit->value._u64 = lhs->type->as<Pointer>()->type->size();
+							node::insert_above(rhs, mul);
+							node::insert_first(mul, lit);
+							mul->start = lit->start = rhs->start;
+							mul->end = lit->end = rhs->end;
+							mul->type = &scalar::_u64;
+						} break;    
 
                         case expr::binary_less_than:
                         case expr::binary_greater_than:
@@ -1013,6 +1033,7 @@ start(Code* code) {
             switch(e->kind) {
                 case entity::module: {
                     if(!module(code, code->parser->root)) return false;
+					util::println(code->parser->root->print_tree(true));
                 } break;
 
                 case entity::expr: {

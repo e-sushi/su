@@ -2124,8 +2124,7 @@ typeref() {
 							// defer setting the type to Sema where we guarantee that everthing
 							// before this has also been through Sema
 							// we just shove the expression under a subscript
-							// which Sema looks for as the child of a typeref, since doing this 
-							// is the grammar for an array type
+							// which Sema looks for as the child of a typeref
 
 							auto ss = Expr::create(expr::subscript);
 							ss->start = save;

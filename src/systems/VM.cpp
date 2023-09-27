@@ -604,7 +604,7 @@ step() {
 			u8* dst = 0;
 			if(instr->flags.left_is_ptr) {
 				dst = (u8*)instr->resz.dst;
-			} else if(instr->flags.deref_right) {
+			} else if(instr->flags.deref_left) {
 				dst = (u8*)*(u64*)(frame.fp + instr->resz.dst);
 			} else {
 				dst = frame.fp + instr->resz.dst;

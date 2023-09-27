@@ -152,7 +152,7 @@ size() {
 
 DString* Pointer::
 print_from_address(u8* addr) {
-    return DString::create((u8*)*(u64*)addr);
+    return DString::create("(", type->display(), "*)", (u8*)*(u64*)addr);
 }
 
 Array<StaticArray*> StaticArray::set = Array<StaticArray*>::create();
