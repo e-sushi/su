@@ -20,6 +20,7 @@
 //      %identifier% - a String representing an identifier must be passed 
 //      %token% - a Token must be passed
 //      %type% - a Type must be passed
+//      %num% - a number of type s64 must be passed
 //
 //      
 // A message may backreference any argument it requested using the syntax $<id>$
@@ -104,6 +105,13 @@ group lexer {
             jp: "不明の命令%identifier%";
         }
     }
+
+	diagnostic unknown_svar {
+		type: error;
+		message: {
+			en: "unknown special id %identifier%";
+		}
+	}
 
     diagnostic invalid_token {
         type: error;
@@ -438,9 +446,23 @@ group parser {
     diagnostic runtime_variable_cannot_be_used_as_static_array_count {
         type: error;
         message: {
-            en: "a runtime variable cannot be used to create a static array";
+            en: "a runtime variable cannot be used to size a static array";
         }
     }
+
+	diagnostic intrinsic_print_missing_parenthesis {
+		type: error;
+		message: {
+			en: "special id $print is a function but is not followed by an argument tuple";
+		}
+	}
+
+	diagnostic intrinsic_print_empty {
+		type: error;
+		message: {
+			en: "empty intrinsic print";
+		}
+	}
 }
 
 group sema {
@@ -593,6 +615,27 @@ group sema {
         }
     }
 
+	diagnostic static_array_count_expr_not_compile_time {
+		type: error;
+		message: {
+			en: "an expression used to set the size of a static array must be computable at compile time";
+		}
+	}
+
+	diagnostic static_array_expr_must_resolve_to_integer {
+		type: error;
+		message: {
+			en: "the expression of a static array must result in an integer, but this expression results in a %type%";
+		}
+	}
+
+	diagnostic static_array_size_cannot_be_negative {
+		type: error;
+		message: {
+			en: "static array size cannot be negative, but this expression results in: %num%";
+		}
+	}
+
     diagnostic type_is_not_subscriptable {
         type: error;
         message: {
@@ -711,6 +754,27 @@ group sema {
             en: "casting between non-scalar types is not supported yet";
         }
     }
+
+	diagnostic intrinsic_print_named_arg {
+		type: error;
+		message: {
+			en: "naming an argument to intrinsic print is not defined yet";
+		}
+	}
+
+	diagnostic unary_comptime_expr_not_comptime {
+		type: error;
+		message: {
+			en: "the expression following this ':' is not able to be computed at compile time";
+		}
+	}
+
+	diagnostic static_array_unusally_large {
+		type: warning;
+		message: {
+			en: "static array defined with an unusually large size: %String%. possible unsigned underflow";
+		}
+	}
 }
 
 group internal {
