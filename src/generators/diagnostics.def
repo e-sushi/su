@@ -317,6 +317,13 @@ group parser {
         }
     }
 
+	diagnostic for_cannot_declare_variables {
+		type: error;
+		message: {
+			en: "cannot declare variables in for clause TODO(sushi) this may be confusing, we just don't allow ':' or '=' after labels in for clauses"; 
+		}
+	}
+
     diagnostic tuple_expected_comma_or_close_paren {
         type: error;
         message: {
@@ -461,6 +468,20 @@ group parser {
 		type: error;
 		message: {
 			en: "empty intrinsic print";
+		}
+	}
+
+	diagnostic tuple_type_plain_expression {
+		type: error;
+		message: {
+			en: "elements of a type tuple cannot be plain expressions";
+		}
+	}
+
+	diagnostic tuple_type_expression_must_be_explicitly_typed {
+		type: error;
+		message: {
+			en: "a type tuple element declared without a label must be explicitly typed (via a cast, binary assignment with a type on the lhs, etc.)";
 		}
 	}
 }

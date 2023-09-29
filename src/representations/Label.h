@@ -22,7 +22,6 @@ struct Label : public ASTNode {
 
     b32 is_virtual;
 
-
     // ~~~~~~ interface ~~~~~~~
 
 

@@ -37,6 +37,7 @@ enum kind : u32 {
     typedef_,
     func_def,
     varref, // a reference to a variable 
+	label_ref, 
     call,
     
     block,

@@ -17,6 +17,7 @@ struct TableStack {
     void pop();
     void add(String id, Label* l);
     Label* search(u64 hashed_id);
+	Label* search_local(u64 hashed_id);
 };
 
 
@@ -85,10 +86,14 @@ private:
     b32 prescanned_var_decl();
     b32 struct_decl();
     b32 label();
+	b32 label_in_tuple();
+	b32 label_in_tuple_type();
+	b32 label_in_for();
     b32 label_get();
     b32 label_group_after_comma();
     b32 label_after_colon();
     b32 tuple();
+	b32 tuple_type();
     b32 expression();
     b32 access();
     b32 term();

@@ -1,4 +1,36 @@
-#import array;
+string :: module;
+
+import memory;
+import array;
+
+/*
+	clears the content of 's'
+*/
+clear :: (s: u8[]) -> void {
+	memory.zero(s.data, s.count);	
+}
+
+/*
+	inserts the codepoint 'c' at the position 'i'
+	'i' may be negative, which indexes the string in reverse
+*/
+insert :: (s: u8[], c: u32, i: s64) {
+		
+}
+
+/*
+	returns a dynamic string where 'x' has been appended to 's'
+*/
+append :: (s: u8[], x: u8[]) -> u8[..] {
+	len := s.count + x.count;
+	out := u8[..].create(len);
+	memory.copy(out.data, s.data, s.count);
+	memory.copy(out.data + s.count, x.data, x.count);
+	out
+}
+
+
+
 
 find :: (s: u8[]; codepoint: u32) -> s64 {
     for(c,i in enumerate(s))

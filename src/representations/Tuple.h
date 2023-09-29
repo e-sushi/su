@@ -23,7 +23,24 @@
         thing : (u32, b32, u8[..]);
                  ~~~~~~~~~~~~~~~~Tuple
 
-    The elements of a Tuple are its children in the AST.
+    The elements of a Tuple are its children in the AST. 
+
+	Tuples are used extensively and are probably the most flexible part of amu. Pretty much any 
+	contiguous grouping of things that is not already grouped by something else is represented 
+	by a Tuple. A lot of stuff is generically parsed as a tuple and is semantically analyzed later.
+
+	Tuple elements can take labels in any order but whether or not the Tuple is valid depends on the 
+	context in which it is used. For example:
+		func :: (u32, a: s32, 1) -> void {...}
+	is a specialization of 'func' where the first and third parameters match u32 and 1 exactly, and 
+	the second matches any s32. But here:
+		thing: vec2 = (y: 1, 2);
+	The tuple is invalid, because we don't allow unlabeled elements after labeled elements when using 
+	a tuple as a struct initializer, because it becomes confusing when trying to fill out the struct.
+	The same thing applies to function calls. 
+
+
+
 */
 
 #ifndef AMU_TUPLE_H
@@ -58,16 +75,8 @@ struct Tuple : public ASTNode {
     // when this is a valued Tuple, this points to the underlying type
     TupleType* type;
 
-	// the number of positional elements this tuple has
-	// if this is not zero and less than the length of the tuple,
-	// then all elements following the n_positional'th element 
-	// are bound to names
-	// named elements can be accessed either by subscripting 
-	// or by name.
-	u64 n_positional;
 
-
-    // ~~~~~~ interface ~~~~~~~
+	// ~~~~~~ interface ~~~~~~~
 
 
     static Tuple*

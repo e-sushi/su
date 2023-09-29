@@ -1,5 +1,128 @@
+/*
+	
+	prototype of the standard memory module of amu
+
+*/
+
 memory :: module;
 
-Region :: struct {
-    
+import os;
+import utils;
+import context;
+
+/*
+
+	Global memory object containing the state of the 
+	entire memory system.
+
+*/
+g: Context;
+
+Context :: struct {
+	
+}
+
+ptr_size :: void*$.size;
+byte_alignment :: 2 * ptr_size;
+byte_alignment_mask :: byte_alignment - 1;
+max_generic_size :: utils.Kilobytes(64) - 1;
+
+/*
+	
+	Representation of a region of memory that 
+	is either owned by the memory system or 
+	by the application.
+
+*/
+Chunk :: struct {
+    prev_size: u64;
+	size: u64;
+
+	next: Chunk*;
+	prev: Chunk*;
+}
+
+
+/*
+	constants, macros, etc. supporting chunks
+*/
+chunk :: module {
+	flags :: module {
+		prevused :: (1 << 0);
+		mmapd    :: (1 << 1);
+		arenad   :: (1 << 2);
+	}
+
+	size_bits :: flags.prevused | flags.mmapd | flags.arenad;
+	size_bitmask :: ~size_bits; 
+	memory_offset :: Chunk$.members.next.offset;
+	min_size :: (Chunk$.size + byte_alignment_mask) & ~byte_alignment_mask;
+	alignment :: min_size;
+
+	size :: $macro(c: Chunk*) => $code{
+		c.size & size_bitmask
+	};
+	
+	next :: $macro(c: Chunk*) => $code{
+		(Chunk*)((u8*)c + size(c))
+	};
+
+	prev :: $macro(c: Chunk*) => $code{
+		c.prev
+	};
+
+	is_mmapd       :: $macro(c: Chunk*) => $code{c.prev_size & flags.mmapd};
+	is_prev_in_use :: $macro(c: Chunk*) => $code{c.prev_size & flags.prevused};
+	is_areanad     :: $macro(c: Chunk*) => $code{c.prev_size & flags.arenad};
+
+	to_memory :: $macro(c: Chunk*) => $code{
+		(void*)((u8*)c + memory_offset)
+	};
+
+	from_memory :: $macro(m: void*) => $code {
+		(Chunk*)((u8*)m - memory_offset)
+	};
+}
+
+/*
+	Final allocate function which all other variations of allocate will converge on
+*/
+allocate :: (size: u64) -> result(void*) ? void* ~ 0 {
+	using utils;
+
+	return 0 unless size;
+
+	aligned_size := min(chunk.min_size, round_up_to(size + chunk.overhead, byte_alignment));
+
+	void* res = 0;
+
+	if aligned_size > max_generic_size {
+		arena := Arena.create(aligned_size);
+		arena.used = aligned_size;
+		chunk := arena.(Chunk*)start;
+		result = .chunk.to_memory(chunk);
+
+		return res;
+	}
+	
+
+	for node := g.generic_heap.empty_nodes.next; 
+	    node != &g.generic_heap.empty_nodes;
+		node = node.next; {
+		chunk := 
+	}
+
+
+}
+
+
+/*
+
+	Errors that may be returned by the memory system
+
+*/
+
+result :: variant(?T) {
+	Ok(T),
+	OutOfMemory,
 }

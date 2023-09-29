@@ -386,6 +386,9 @@ if config["use_pch"]:
 
     buff = buff.split("*/")[1]
     includes = list(filter(len, [a.strip().strip('"') for a in buff.split("#include")]))
+    # TODO(sushi) this doesn't detect changes to files that may not exist within the 
+    #             project's directory like the stdlib, so this should really 
+    #             be checking for changes to the list of includes we create 
     def regen_pch():
         for include in includes:
             if os.path.getmtime(f"{include}") > pchlasttime:

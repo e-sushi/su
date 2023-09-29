@@ -20,7 +20,7 @@ create(Code* code) {
     out->table.last = 0;
     out->node.stack = Array<ASTNode*>::create();
     out->node.current = 0;
-    out->code = code;
+    out->code = code; 
     code->parser = out;
     out->token = code::TokenIterator(code);
     return out;
@@ -94,6 +94,16 @@ prescan_module() {
     }
 }
 
+// TODO(sushi) this shouldn't scan over the entire definition
+//             we really shouldn't be trying to figure out what
+//             something is until we find something that 
+//             references it. 
+//             I think it'd be best to not prescan at all
+//             and also allow Code objects to be unbounded
+//             So, just create a Code object for each
+//             global label and only parse enough to figure out
+//             what it is either when we find something that
+//             references it or we get around to parsing it normally.
 b32 Parser::
 prescan_label() {
     Token* id = token.current();
@@ -563,13 +573,26 @@ struct_decl() {
     return true;
 }
 
-// parses a label and whatever comes after it 
+// A label does not create its entity
+// because it's difficult for us to know 
+// what context a label is being created in.
+// It is up to whoever calls this to determine 
+// what the label should be representing 
+// and create it there.
 b32 Parser::
 label() {
+	auto start = token.current();
+
     if(!label_get()) return false;
     
     Label* l = (Label*)node.pop();
     
+	if(table.search_local(l->start->hash)) {
+		diagnostic::parser::
+			label_already_defined(start, start);
+		return false;
+	}
+
     table.add(l->start->raw, l);
     
     if(!label_after_colon()) return false;
@@ -579,126 +602,130 @@ label() {
 	//             things that can appear after a label
 	//             this can probably be replaced by a ruleset/table
     ASTNode* cand = node.pop();
-    if(cand->is<Entity>()) switch(cand->as<Entity>()->kind) {
-        case entity::expr: {
-            auto expr = cand->as<Expr>();
-            switch(expr->kind) {
-                case expr::unary_assignment: {
-                    auto v = Var::create();
-                    v->label = l;
-                    v->type = expr->type;
-                    l->entity = v->as<Entity>();
-                    node::insert_last(l, cand);
-                } break;
-                case expr::unary_comptime: {
-                    // it's possible this a function def
-                    switch(expr->type->kind) {
-                        case type::kind::function: {
-                            auto f = Function::create();
-                            f->label = l;
-                            f->type = expr->type->as<FunctionType>();
-                            f->start = f->type->parameters->start;
-                            l->entity = (Entity*)f;
-                            node::insert_last(l, cand);
-                        } break;
-                        default: {
-                            // since this is a compile time variable, we can do some type
-                            // checking a little early 
-                            auto v = Var::create();
-                            v->label = l;
-                            v->type = expr->type;
-							cand->last_child();
-                            l->entity = v->as<Entity>();
-                            v->is_compile_time = true;
-                            if(cand->last_child<Expr>()->type->is<Whatever>()) {
-                                diagnostic::sema::
-                                    cant_use_whatever_as_variable_type(cand->start);
-                                return false;
-                            } else if(cand->last_child<Expr>()->type->is<Void>()) {
-                                diagnostic::sema::
-                                    cannot_have_a_variable_of_void_type(cand->start);
-                                return false;
-                            }
-                            v->memory = (u8*)memory::allocate(v->type->size());
-                            node::insert_last(l, cand->last_child());
-                        } break;
-                    }
-                } break;
-                case expr::binary_assignment: {
-                    auto v = Var::create();
-                    v->label = l;
-                    l->entity = v->as<Entity>();
-                    node::insert_last(l, cand);
-                } break;
-                case expr::typeref: {
-                    // this is probably when we have 
-                    // <id> : <type> ;
-                    Type* t = expr->type;
-                    switch(t->kind) {
-                        case type::kind::scalar:
-                        case type::kind::pointer: 
-                        case type::kind::structured: {
-                            auto v = Var::create();
-                            v->label = l;
-                            v->type = t;
-                            l->entity = v->as<Entity>();
-                            node::insert_last(l, cand);
-                        } break;
-                        case type::kind::function: {
-                            // if the last child of the typeref is not a block, then
-                            // we do not create a function entity, this is simply a variable
-                            // representing a function
-
-                            if(!cand->last_child()->is<Block>()) {
-                                auto v = Var::create();
-                                v->label = l;
-                                v->type = t;
-                                l->entity = v->as<Entity>();
-                                node::insert_last(l, cand);
-                            } else {
-                                auto f = Function::create();
-                                f->label = l;
-                                f->type = t->as<FunctionType>();
-                                f->start = f->type->parameters->start;
-                                l->entity = f->as<Entity>();
-                                node::insert_last(l, cand);
-                            }
-                        } break;
-                    }
-                } break;
-                case expr::binary_range: {
-                    auto v = Var::create();
-                    v->label = l;
-                    v->start = l->start;
-                    v->end = cand->end;
-                    l->entity = v->as<Entity>();
-                    node::insert_last(l, cand);
-                } break;
-				case expr::literal_scalar: {
-					node::insert_last(l, cand);
-					cand->as<Expr>()->label = l;
-					l->entity = cand->as<Entity>();
-				} break;
-				case expr::literal_tuple: {
-					node::insert_last(l, cand);
-					cand->as<Expr>()->label = l;
-					l->entity = cand->as<Entity>();
-				} break;
-                default: {
-                    util::println(
-                        DString::create("unhandled label case: ", expr::strings[expr->kind]));
-					util::println(expr->print_tree(true));
-                    return false;
-                }
-			}
-		}
-    } else {   
+	if(cand->is_not<Entity>()) {
         TODO("a label returned to a node that is not an Entity"); 
-    }
+	}
+
+	node::insert_last(l, cand);
+
+    //switch(cand->as<Entity>()->kind) {
+    //    case entity::expr: {
+    //        auto expr = cand->as<Expr>();
+    //        switch(expr->kind) {
+    //            case expr::unary_assignment: {
+    //                auto v = Var::create();
+    //                v->label = l;
+    //                v->type = expr->type;
+    //                l->entity = v->as<Entity>();
+    //                node::insert_last(l, cand);
+    //            } break;
+    //            case expr::unary_comptime: {
+    //                // it's possible this a function def
+    //                switch(expr->type->kind) {
+    //                    case type::kind::function: {
+    //                        auto f = Function::create();
+    //                        f->label = l;
+    //                        f->type = expr->type->as<FunctionType>();
+    //                        f->start = f->type->parameters->start;
+    //                        l->entity = (Entity*)f;
+    //                        node::insert_last(l, cand);
+    //                    } break;
+    //                    default: {
+    //                        // since this is a compile time variable, we can do some type
+    //                        // checking a little early 
+    //                        auto v = Var::create();
+    //                        v->label = l;
+    //                        v->type = expr->type;
+	//						cand->last_child();
+    //                        l->entity = v->as<Entity>();
+    //                        v->is_compile_time = true;
+    //                        if(cand->last_child<Expr>()->type->is<Whatever>()) {
+    //                            diagnostic::sema::
+    //                                cant_use_whatever_as_variable_type(cand->start);
+    //                            return false;
+    //                        } else if(cand->last_child<Expr>()->type->is<Void>()) {
+    //                            diagnostic::sema::
+    //                                cannot_have_a_variable_of_void_type(cand->start);
+    //                            return false;
+    //                        }
+    //                        v->memory = (u8*)memory::allocate(v->type->size());
+    //                        node::insert_last(l, cand->last_child());
+    //                    } break;
+    //                }
+    //            } break;
+    //            case expr::binary_assignment: {
+    //                auto v = Var::create();
+    //                v->label = l;
+    //                l->entity = v->as<Entity>();
+    //                node::insert_last(l, cand);
+    //            } break;
+    //            case expr::typeref: {
+    //                // this is probably when we have 
+    //                // <id> : <type> ;
+    //                Type* t = expr->type;
+    //                switch(t->kind) {
+    //                    case type::kind::scalar:
+    //                    case type::kind::pointer: 
+    //                    case type::kind::structured: {
+    //                        auto v = Var::create();
+    //                        v->label = l;
+    //                        v->type = t;
+    //                        l->entity = v->as<Entity>();
+    //                        node::insert_last(l, cand);
+    //                    } break;
+    //                    case type::kind::function: {
+    //                        // if the last child of the typeref is not a block, then
+    //                        // we do not create a function entity as this must be a variable
+    //                        // representing a function
+
+    //                        if(!cand->last_child()->is<Block>()) {
+    //                            auto v = Var::create();
+    //                            v->label = l;
+    //                            v->type = t;
+    //                            l->entity = v->as<Entity>();
+    //                            node::insert_last(l, cand);
+    //                        } else {
+    //                            auto f = Function::create();
+    //                            f->label = l;
+    //                            f->type = t->as<FunctionType>();
+    //                            f->start = f->type->parameters->start;
+    //                            l->entity = f->as<Entity>();
+    //                            node::insert_last(l, cand);
+    //                        }
+    //                    } break;
+    //                }
+    //            } break;
+    //            case expr::binary_range: {
+    //                auto v = Var::create();
+    //                v->label = l;
+    //                v->start = l->start;
+    //                v->end = cand->end;
+    //                l->entity = v->as<Entity>();
+    //                node::insert_last(l, cand);
+    //            } break;
+	//		//	case expr::literal_scalar: {
+	//		//		node::insert_last(l, cand);
+	//		//		cand->as<Expr>()->label = l;
+	//		//		l->entity = cand->as<Entity>();
+	//		//	} break;
+	//		//	case expr::literal_tuple: {
+	//		//		node::insert_last(l, cand);
+	//		//		cand->as<Expr>()->label = l;
+	//		//		l->entity = cand->as<Entity>();
+	//		//	} break;
+    //            default: {
+    //                util::println(
+    //                    DString::create("unhandled label case: ", expr::strings[expr->kind]));
+	//				util::println(expr->print_tree(true));
+    //                return false;
+    //            }
+	//		}
+	//	}
+    //}
 	
-	l->entity->code = code;
-	l->entity->start = l->last_child()->start;
-	l->entity->end = l->last_child()->end;
+	//l->entity->code = code;
+	//l->entity->start = l->last_child()->start;
+	//l->entity->end = l->last_child()->end;
     l->start = l->first_child()->start;
     l->end = l->last_child()->end;
 
@@ -722,7 +749,8 @@ label_get() {
             if(!label_group_after_comma()) return false;
         } break;
         default: {
-            diagnostic::parser::expected_colon_for_label(token.current());
+            diagnostic::parser::
+				expected_colon_for_label(token.current());
             return false;
         } break;
     }
@@ -782,7 +810,6 @@ label_group_after_comma() {
     return true;
 }
 
-
 b32 Parser::
 label_after_colon() {
     switch(token.current_kind()) {
@@ -796,6 +823,10 @@ label_after_colon() {
 			if(node.current->is<Tuple>()) {
 				// this is probably just a tuple literal expression
 				// but IDK this could go wrong sorry!
+				// this DOES break trying to make a variable of 
+				// a TupleType entirely
+				// maybe, maybe we just check for this in place of typerefs 
+				// layer?
 				auto e = TupleLiteral::create();
 				node::insert_last(e, node.pop());
 				node.push(e);
@@ -803,7 +834,8 @@ label_after_colon() {
         } break;
 
         case token::structdecl: {
-            diagnostic::parser::runtime_structures_not_allowed(token.current());
+            diagnostic::parser::
+				runtime_structures_not_allowed(token.current());
             return false;
         } break;
 
@@ -969,7 +1001,6 @@ expr:
     }
     return true;
 }
-
 
 b32 Parser::
 expression() {
@@ -1677,43 +1708,46 @@ factor() {
         case token::open_paren: {
             if(!tuple()) return false;
 
-             if(node.current->is<Tuple>() &&
-                node.current->child_count == 1 &&
-                node.current->first_child()->is(expr::typeref)) {
-                // this is just a cast probably
-                auto cast = Expr::create(expr::cast);
-                auto n = node.pop();
-                cast->type = n->first_child<Expr>()->type;
-                cast->start = n->start;
-                if(!factor()) return false;
-                node::insert_last(cast, node.pop());
-                cast->end = cast->last_child()->end;
-                node.push(cast);
-                n->first_child<Expr>()->destroy();
-                n->as<Tuple>()->destroy();
-            }
-
-            if(node.current->is<Tuple>() && 
-               node.current->child_count == 1 &&
-               node.current->first_child()->is<Expr>()) {
-                // if we come across a single value tuple that only holds an expression, we take it
-                // as an expression wrapped in parenthesis
-                // this may mess up some stuff down the road but it should work for now 
-
-                auto n = node.pop();
-                node.push(n->first_child());
-                n->as<Tuple>()->destroy();
-            }
-
-			// otherwise, we just create an Expr representing a 
-			// tuple literal
-			auto n = node.pop();
-			auto e = TupleLiteral::create();
-			e->start = n->start;
-			e->end = n->end;
-			node::insert_last(e, n);
-			node.push(e);
-        } break;
+			if(node.current->is<Tuple>() &&
+			   node.current->child_count == 1) {
+				if(node.current->first_child()->is(expr::typeref)) {
+					// this is likely just a cast
+					// however, this may case problems later on. If a function wants 
+					// to take a variadic tuple of types, then you won't be able to
+					// pass one type because it will interpret it as a cast and 
+					// expect a factor to follow, prevent us from just saying it's a cast 
+					// and trying to figure it out later. This may force us to change 
+					// casting syntax later, probably to use <>
+					auto cast = Expr::create(expr::cast);
+					auto n = node.pop();
+					cast->type = n->first_child<Expr>()->type;
+					cast->start = n->start;
+					if(!factor()) return false;
+					node::insert_last(cast, node.pop());
+					cast->end = cast->last_child()->end;
+					node.push(cast);
+					n->first_child<Expr>()->destroy();
+					n->as<Tuple>()->destroy();
+				} else {
+					// if we come across a single value tuple that only holds an expression, we take it
+					// as an expression wrapped in parenthesis
+					// this may mess up some stuff down the road but it should work for now 
+					// this also catches *anything*, which may also be bad behavoir
+					auto n = node.pop();
+					node.push(n->first_child());
+					n->as<Tuple>()->destroy();
+				}
+			} else {
+				// otherwise, we just create an Expr representing a 
+				// tuple literal
+				auto n = node.pop();
+				auto e = TupleLiteral::create();
+				e->start = n->start;
+				e->end = n->end;
+				node::insert_last(e, n);
+				node.push(e);
+			}
+		} break;
 
         case token::open_square: {
             array_literal();
@@ -1984,6 +2018,20 @@ block() {
                     if(token.prev_is(token::close_brace)) {
                         need_semicolon = false;
                     }
+					// this label may either represent a Var or Function
+					// so we need to figure this out then make the Entity 
+					// for it 
+					//auto l = node.pop()->as<Label>();
+					//switch(l->last_child<Expr>()->kind) {
+					//	case expr::typeref: {
+					//		
+					//	} break;
+					//}
+					auto v = Var::create();
+					v->label = node.current->as<Label>();
+					node.current->as<Label>()->entity = v->as<Entity>();
+					v->start = node.current->start;
+					v->end = node.current->end;
                 } else {
                     if(!expression()) return false;
                     s->kind = stmt::expression;
@@ -2326,6 +2374,15 @@ search(u64 hashed_id) {
         table = table->last;
     }
     return 0;
+}
+
+Label* TableStack::
+search_local(u64 hashed_id) {
+	auto [idx, found] = map::find(last->map, hashed_id);
+	if(found) {
+		return last->map.values.read(idx);
+	}
+	return 0;
 }
 
 void TableStack::

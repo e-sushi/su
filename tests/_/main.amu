@@ -1,10 +1,5 @@
-set :: (a: u8*, i: s64, v: u8) -> void {
-	*(a + i) = v;
-}
-
 main :: () -> void {
-	arr: u8[10];
-	set(arr, 0, 1);
-	set(arr, 1, 2);
-	set(arr, 2, 3);
+	a := 1;
+	b := 2;
+	c := a + b;
 }
