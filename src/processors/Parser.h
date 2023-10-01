@@ -9,26 +9,6 @@
 
 namespace amu {
 
-struct TableStack {
-    Array<LabelTable*> stack;
-    LabelTable* last;
-
-    void push(LabelTable* l);
-    void pop();
-    void add(String id, Label* l);
-    Label* search(u64 hashed_id);
-	Label* search_local(u64 hashed_id);
-};
-
-
-struct NodeStack {
-    Array<ASTNode*> stack;
-    ASTNode* current;
-
-    void push(ASTNode* n);
-    ASTNode* pop();
-};
-
 struct Parser {
     Code* code;
 

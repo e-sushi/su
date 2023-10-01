@@ -248,7 +248,7 @@ begin(Array<String> args) {
     
     messenger::deliver();
 
-    if(!sema::analyze(entry_source->code)) return;
+    if(!Sema::create(entry_source->code)->start()) return;
 
     messenger::deliver();
     
@@ -282,8 +282,8 @@ funnel(Code* code, code::level level) {
                 code->level = code::parse;
             } break;
             case code::parse: {
-                if(!code->sema) code->sema = sema::create();
-                if(!sema::analyze(code)) return false;
+                if(!code->sema) Sema::create(code);
+                if(!code->sema->start()) return false;
                 code->level = code::sema;
             } break;
             case code::sema: {

@@ -17,7 +17,7 @@ Parser* Parser::
 create(Code* code) {
     Parser* out = pool::add(compiler::instance.storage.parsers);
     out->table.stack = Array<LabelTable*>::create();
-    out->table.last = 0;
+    out->table.current = 0;
     out->node.stack = Array<ASTNode*>::create();
     out->node.current = 0;
     out->code = code; 
@@ -82,7 +82,7 @@ prescan_source() {
 b32 Parser::
 prescan_module() {
     auto m = Module::create();
-    m->table.last = table.last;
+    m->table.last = table.current ;
     table.push(&m->table);
     defer { table.pop(); };
 
@@ -881,10 +881,11 @@ tuple() {
                 switch(token.next_kind()) {
                     case token::colon: {
                         if(!found_label) {
-                            tuple->table.last = table.last;
+                            tuple->table.last = table.current;
                             table.push(&tuple->table);
                             found_label = 1;
-							tuple->n_positional = count;
+							FixMe; // figure out how tuples will store names, in the type or on the tuple itself
+							// tuple->n_positional = count;
                         }
                         if(!label()) return false;
                     } break;
@@ -980,7 +981,7 @@ expr:
     if(token.is(token::open_brace)) {
         // the symbol table of the block will go through the tuple's symbol table, regardless of if
         // it generated one or not 
-        tuple->table.last = table.last;
+        tuple->table.last = table.current;
         table.push(&tuple->table);
 
         if(!block()) return false;
@@ -1048,7 +1049,7 @@ expression() {
             // we need to evaluate this compile time expression, so we segment it into
             // its own Code object and send it down the pipeline 
             Code* nu = code::from(code, e);
-            nu->parser->table.last = table.last;
+            nu->parser->table.current = table.current ;
             nu->compile_time = true;
             e->code = nu;
 
@@ -1792,7 +1793,7 @@ factor() {
             token.increment();
 
             auto e = For::create();
-            e->table.last = table.last;
+            e->table.last = table.current ;
             e->start = save;
             table.push(&e->table);
 
@@ -1987,7 +1988,7 @@ b32 Parser::
 block() {
     auto e = Block::create();
     e->start = token.current();
-    e->table.last = table.last;
+    e->table.last = table.current ;
     table.push(&e->table);
 
     token.increment();
@@ -2226,7 +2227,7 @@ typeref() {
                             // node::insert_first(ct, e);
 
                             // Code* nu = code::from(code, ct);
-                            // nu->parser->table.last = table.last;
+                            // nu->parser->table.current = table.last;
                             // nu->compile_time = true;
 
                             // if(!compiler::funnel(nu, code::machine)) return false;
@@ -2337,57 +2338,6 @@ reduce_builtin_type_to_typeref_expression() {
     }
     node.push(e);
     return true;
-}
-
-FORCE_INLINE void NodeStack::
-push(ASTNode* n) { 
-    stack.push(current); 
-    current = n; 
-}
-
-FORCE_INLINE ASTNode* NodeStack::
-pop() { 
-    ASTNode* save = current; 
-    current = stack.pop(); 
-    return save; 
-} 
-
-void TableStack::
-push(LabelTable* l) {
-    stack.push(last); 
-    last = l;
-
-}
-void TableStack::
-pop() { 
-    last = stack.pop(); 
-}
-
-Label* TableStack::
-search(u64 hashed_id) { 
-    LabelTable* table = last;
-    while(table) {
-        auto [idx, found] = map::find(table->map, hashed_id);
-        if(found) {
-            return table->map.values.read(idx);
-        }
-        table = table->last;
-    }
-    return 0;
-}
-
-Label* TableStack::
-search_local(u64 hashed_id) {
-	auto [idx, found] = map::find(last->map, hashed_id);
-	if(found) {
-		return last->map.values.read(idx);
-	}
-	return 0;
-}
-
-void TableStack::
-add(String id, Label* l) {
-    map::add(last->map, id, l);
 }
 
 DString* Parser::

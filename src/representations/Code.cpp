@@ -95,7 +95,7 @@ void
 destroy(Code* c) {
     if(c->lexer) c->lexer->destroy();
     if(c->parser) c->parser->destroy();
-    if(c->sema) sema::destroy(c->sema);
+    if(c->sema) c->sema->destroy();
     if(c->tac_gen) c->tac_gen->destroy();
     if(c->air_gen) c->air_gen->destroy();
     if(c->machine) c->machine->destroy();
