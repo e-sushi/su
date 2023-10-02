@@ -1,0 +1,94 @@
+TODO(sushi) finish this
+
+lex :: (input: u8[]) -> token {
+	scan := input.data;
+	loop {
+		switch *scan {
+			'+' => yield token.plus;
+			'-' => yield token.minus;
+			'*' => yield token.asterisk;
+			'/' => yield token.solidus;
+			whitespace => {
+				// skip whitespace
+				scan += 1 while *scan in whitespace;
+			}
+			// pretend this also handles negative numbers
+			number, '.' => {
+				len := 0;
+				buff: u8[255]; 
+				// while the current character is in the set 'number' unioned with 2 extra elements of characters
+				// we allow in floating point literals
+				allowed_chars := set.union(number, '.', '_');
+				while *scan in allowed_chars {
+					// when we find the first dot remove it from allowed chars
+					if *scan == '.' then allowed_chars = set.subtract(allowed_chars, '.');
+					scan += 1;
+				}
+
+				yield token.literal(f64(buff));
+			}
+		}
+		scan += 1;
+	}
+}
+
+parse :: () -> node {
+	// create a lex coroutine
+	// we shadow the name 'lex' here, which is ok because we're not going 
+	// to need it again
+	// create requires passing in the coroutine's initial input
+	lex := create lex("1 + 2 - 3 * 4 / 5");
+	
+	stack: token[255];
+	current: token;
+	
+	// calling a coroutine object is equivalent to 
+	// calling 'resume <coroutine>'
+	tok := lex();
+	
+	// first token needs to be a literal
+	if tok != token.literal then
+		say("expected a literal") and die;
+
+	// push the literal to the stack
+	stack.push(node.literal(tok[0]));
+
+	loop {
+		// first state in which we expect an operator
+		switch current {
+			node.literal => {
+				tok = lex();
+				switch tok {
+					token.literal => {
+						say("expected an operator") then die;
+					}
+
+					_ => {
+						// hm...	
+					}
+				}
+			}
+		}
+	}
+	
+}
+
+token :: variant {
+	literal(f64),
+	plus,
+	minus,
+	asterisk,
+	solidus,
+}
+
+node :: variant {
+	add(node, node),
+	sub(node, node),
+	mul(node, node),
+	div(node, node),
+	num(token.literal),
+}
+
+// alias different standard sets
+whitespace :: $stl.sets.unicode.whitespace;
+number :: $stl.sets.unicode.numbers;
