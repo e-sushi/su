@@ -824,7 +824,7 @@ typeref() {
 	
 		// TODO(sushi) handle obvious cases like ScalarLiterals standing alone
 		auto nu = Code::from(code, ct);
-		if(!compiler::funnel(nu, code::machine)) return false;
+		if(!nu->process_to(code::machine)) return false;
 
 		if(se->type->is_not<Scalar>() || se->type->as<Scalar>()->is_float()) {
 			diagnostic::sema::
@@ -856,6 +856,9 @@ typeref() {
 		sl->cast_to(scalar::unsigned64);
 		e->type = StaticArray::create(e->type, sl->value._u64);
 
+		// send a warning if this static array has an unusual size
+		// typically happens when unsigned underflow occurs
+		// TODO(sushi) make the size which triggers this customizable
 		if(e->type->size() > Gigabytes(1)) {
 			auto sa = e->type->as<StaticArray>();
 			diagnostic::sema::

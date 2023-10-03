@@ -114,13 +114,6 @@ deinit();
 global void
 begin(Array<String> args);
 
-// attempts to compile a Code object up to the given level
-// this doesn't clean up anything as it is expected that whatever is calling it
-// needs information from whatever is generated here. All information generated
-// here can be cleaned up by just calling code::destroy(<code ptr>)
-b32
-funnel(Code* code, code::level level);
-
 // the global compiler object, referred to by anything in the program
 // later on, we may allow creating multiple instances of the Compiler
 // at the moment, I don't think I want this to be used directly,

@@ -127,6 +127,17 @@ struct Code : public ASTNode {
 
 	void
 	add_diagnostic(Diagnostic d);
+	
+	// Attempts to send this Code object through each level of compilation
+	// up to and including 'level'. If something fails during this process
+	// false is returned.
+	// Note that this doesn't clean up anything from any of the stages, as 
+	// some of that information may be desired by whatever calls this.
+	// This should be the only function ever used to process Code to some point
+	// because we allow Code to be arbitrarily processed at any point. Only using
+	// this function ensures that Code won't go through any stage more than once.
+	b32
+	process_to(code::level level);
 
 	DString*
 	display() = 0;

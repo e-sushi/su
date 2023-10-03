@@ -1,5 +1,6 @@
 
 #include "processors/Lexer.h"
+#include "systems/Messenger.h"
 namespace amu {
 namespace compiler {
 
@@ -235,27 +236,27 @@ begin(Array<String> args) {
     }
 	
     entry_source->code = Code::from(entry_source);
+
+	if(!entry_source->code->process_to(code::lex)) return;
+    messenger::deliver();
     
-    auto lexer = Lexer::create(entry_source->code);
-    lexer->start();
-    
-    if(instance.options.dump_tokens.path.str) {
-        lexer->output(instance.options.dump_tokens.human, instance.options.dump_tokens.path);
+	if(instance.options.dump_tokens.path.str) {
+        entry_source->code->lexer->
+			output(instance.options.dump_tokens.human, instance.options.dump_tokens.path);
         if(instance.options.dump_tokens.exit) return;
     }
 
+	if(!entry_source->code->process_to(code::parse)) return;
     messenger::deliver();
 
-    if(!Parser::create(entry_source->code)->parse()) return;
-    
+	if(!entry_source->code->process_to(code::sema)) return;
     messenger::deliver();
 
-    if(!Sema::create(entry_source->code)->start()) return;
+	if(!entry_source->code->process_to(code::tac)) return;
+	messenger::deliver();
 
-    messenger::deliver();
-    
-    GenTAC::create(entry_source->code)->generate();
-    GenAIR::create(entry_source->code)->generate();
+	if(!entry_source->code->process_to(code::air)) return;
+	messenger::deliver();
 
 	// Debugger::create(entry_source->code->last_child<Code>())->start();
 
@@ -266,45 +267,6 @@ begin(Array<String> args) {
         if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
     }
 
-}
-
-b32
-funnel(Code* code, code::level level) {
-    while(1) {
-        if(code->level >= level) return true;
-        switch(code->level) {
-            case code::none: {
-                if(!code->lexer) Lexer::create(code);
-                code->lexer->start();
-                code->level = code::lex;
-            } break;
-            case code::lex: {
-                if(!code->parser) Parser::create(code);
-                if(!code->parser->parse()) return false;
-                code->level = code::parse;
-            } break;
-            case code::parse: {
-                if(!code->sema) Sema::create(code);
-                if(!code->sema->start()) return false;
-                code->level = code::sema;
-            } break;
-            case code::sema: {
-                if(!code->tac_gen) GenTAC::create(code);
-                code->tac_gen->generate();
-                code->level = code::tac;
-            } break;
-            case code::tac: {
-                if(!code->air_gen) GenAIR::create(code);
-                code->air_gen->generate();
-                code->level = code::air;
-            } break;
-            case code::air: {
-                if(!code->machine) VM::create(code);
-                code->machine->run();
-                code->level = code::machine;
-            } break;
-        }
-    }
 }
 
 } // namespace compiler

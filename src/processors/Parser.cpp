@@ -429,7 +429,7 @@ start() {
 		case code::source: {
 			for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
 				c->parser->table.push(&code->parser->root->as<Module>()->table);
-				if(!c->parser->parse()) return false;
+				if(!c->process_to(code::parse)) return false;
 				c->parser->table.pop();
 				node::insert_last(code->parser->root, c->parser->root);
 			}
@@ -539,11 +539,11 @@ prescanned_var_decl() {
 		// and also evaluate it too, so that it is initialized 
 		code->level = code::parse;
 		node::change_parent(l, e);
-		if(!compiler::funnel(code, code::sema)) return false;
+		if(!code->process_to(code::sema)) return false;
 		v->type = e->type;
 		v->memory = (u8*)memory::allocate(v->type->size());
 		map::add(compiler::instance.global_symbols, v->memory, v);
-		if(!compiler::funnel(code, code::machine)) return false;
+		if(!code->process_to(code::machine)) return false;
 		code->machine->destroy();
 	}
 	return true;
@@ -1139,7 +1139,7 @@ expression() {
 			nu->compile_time = true;
 			e->code = nu;
 
-			if(!compiler::funnel(nu, code::machine)) return false;
+			if(!nu->process_to(code::machine)) return false;
 
 			// now we need to figure out exactly what was returned from the expression
 			e->type = e->first_child<Expr>()->type;
@@ -1746,7 +1746,7 @@ factor() {
 			}
 
 			if(!l->entity) {
-				if(!compiler::funnel(l->code, code::parse)) return false;
+				if(!l->code->process_to(code::parse)) return false;
 			}
 
 			switch(l->entity->kind) {
