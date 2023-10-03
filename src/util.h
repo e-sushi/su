@@ -19,6 +19,16 @@ namespace util {
 
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> Stopwatch;
 
+template<typename A, typename... B> b32
+any(A v, B... args) {
+	return ((v == args) || ...);
+}
+
+template<typename A, typename... B> b32
+all(A v, B... args) {
+	return ((v == args) && ...);
+}
+
 namespace stopwatch {
 
 Stopwatch 

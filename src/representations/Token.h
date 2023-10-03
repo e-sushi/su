@@ -137,7 +137,9 @@ enum kind : u32 {
 
 	// svar_file, // $file
 	// svar_line, // $line
+	
 	// intrinsic printing function 
+	// TODO(sushi) actually implement this
 	sid_print, // $print
 };
 
@@ -145,12 +147,16 @@ enum kind : u32 {
 
 } // namespace token
 
+struct LexicalScope;
+
 struct Token {
     String raw;
     u64 hash;
 
     token::kind kind; 
     token::kind group;
+
+	LexicalScope* scope;
 
     Code* code; 
     u64 l0, l1;
@@ -163,6 +169,8 @@ struct Token {
         s64 s64_val;
         u64 u64_val;
     };
+
+
 };
 
 FORCE_INLINE void 

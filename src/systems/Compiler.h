@@ -33,6 +33,7 @@ struct Compiler {
         Pool<VirtualCode>     virtual_code;
         Pool<Source>          sources;
         Pool<Lexer>           lexers;
+		Pool<LexicalScope>    lexical_scopes;
         Pool<Parser>          parsers;
         Pool<Sema>            semas;
         Pool<GenTAC>          tac_gens;

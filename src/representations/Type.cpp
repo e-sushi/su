@@ -648,6 +648,10 @@ cast_to(Type* t, Expr*& e) {
 		diagnostic::sema::
 			tuple_cast_to_structured_not_yet_supported(e->start);
 		return false;
+	} else if(t->is<TupleType>()){
+		TODO("handle tuple to tuple casting");
+	} else {
+		TODO("unhandled TupleType cast case");
 	}
 	return 0;
 }

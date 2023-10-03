@@ -823,7 +823,7 @@ typeref() {
 		node::insert_first(ct, se);
 	
 		// TODO(sushi) handle obvious cases like ScalarLiterals standing alone
-		auto nu = code::from(code, ct);
+		auto nu = Code::from(code, ct);
 		if(!compiler::funnel(nu, code::machine)) return false;
 
 		if(se->type->is_not<Scalar>() || se->type->as<Scalar>()->is_float()) {

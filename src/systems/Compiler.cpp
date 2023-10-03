@@ -1,4 +1,5 @@
 
+#include "processors/Lexer.h"
 namespace amu {
 namespace compiler {
 
@@ -29,6 +30,7 @@ init() {
     instance.storage.source_code         = pool::init<SourceCode>(8);
     instance.storage.virtual_code        = pool::init<VirtualCode>(8);
     instance.storage.lexers              = pool::init<Lexer>(8);
+	instance.storage.lexical_scopes      = pool::init<LexicalScope>(8);
     instance.storage.parsers             = pool::init<Parser>(8);
     instance.storage.semas               = pool::init<Sema>(8);
     instance.storage.tac_gens            = pool::init<GenTAC>(8);
@@ -232,7 +234,7 @@ begin(Array<String> args) {
         return;
     }
 	
-    entry_source->code = code::from(entry_source);
+    entry_source->code = Code::from(entry_source);
     
     auto lexer = Lexer::create(entry_source->code);
     lexer->start();

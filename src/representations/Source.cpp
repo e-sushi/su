@@ -48,7 +48,7 @@ unload(Source* source) {
     source->diagnostics.destroy();
 
     // module::destroy(*source->module);
-    code::destroy(source->code);
+    source->code->destroy();
 }
 
 // TODO(sushi) we can store a map String -> Source* and do this more efficiently

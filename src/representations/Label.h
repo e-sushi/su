@@ -15,6 +15,7 @@ namespace amu{
 
 struct Token;
 struct Label : public ASTNode {
+	Code* code;
     Entity* entity;
 
     // if this label is an alias of another label, this is the original

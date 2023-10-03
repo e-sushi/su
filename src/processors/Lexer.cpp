@@ -1,4 +1,5 @@
 #include "representations/Token.h"
+#include <any>
 namespace amu {
 namespace lexer::internal {
 
@@ -160,6 +161,18 @@ stream_next;                     \
 	b32 label_latch = false; // true when a label has been found, set back to false when a label ending token is crossed (a semicolon or close brace)
 
 	auto tokens = Array<Token>::create();
+	
+	auto lexscope_stack = Array<LexicalScope*>::create();
+	LexicalScope* current_lexscope = pool::add(compiler::instance.storage.lexical_scopes);
+
+	auto push_lexscope = [&]() {
+		lexscope_stack.push(current_lexscope);
+		current_lexscope = pool::add(compiler::instance.storage.lexical_scopes);
+	};
+
+	auto pop_lexscope = [&]() {
+		current_lexscope = lexscope_stack.pop();
+	};
 
     while(stream) {
         Token token = {};
@@ -167,6 +180,7 @@ stream_next;                     \
         token.l0 = line_num;
         token.c0 = line_col;
         token.raw.str = stream.str;
+		token.scope = current_lexscope;
 
         switch(string::codepoint(stream)) {
 			case '\t': case '\n': case '\v': case '\f':  case '\r':
@@ -174,7 +188,7 @@ stream_next;                     \
 			case 8193: case 8194: case 8195: case 8196: case 8197:
 			case 8198: case 8199: case 8200: case 8201: case 8202:
 			case 8232: case 8239: case 8287: case 12288:{
-				while(isspace(string::codepoint(stream))){
+				while(isspace(string::codepoint(stream))) {
 					if(*stream.str == '\n'){
 						line_start = stream.str+1;
 						line_num++;
@@ -279,11 +293,13 @@ stream_next;                     \
 			case '(':{ 
 				token.kind = token::open_paren;
 				scope_level++;
+				push_lexscope();
 				stream_next;
 			}break;
 			case ')':{ 
 				token.kind = token::close_paren; 
 				scope_level--;
+				pop_lexscope();
 				stream_next;
 			}break;
 
@@ -298,6 +314,13 @@ stream_next;                     \
 				// 	current_module.label_latch = true;
 				// 	code->lexer->labels.push(tokens.count-1);
 				// }
+				// we need to determine if this colon is following a label
+				if(last_token.kind == token::identifier) {
+					if(tokens.count == 1 || 
+						!util::any(tokens.read(-2).kind, token::colon, token::ampersand)) {
+					   current_lexscope->labels.push(tokens.count-1);	
+					}
+				}
 				stream_next; 
 			}break;
 			
@@ -310,6 +333,7 @@ stream_next;                     \
 			case '{':{ //NOTE special for scope tracking and internals 
 				token.kind = token::open_brace;
 				scope_level++;
+				push_lexscope();
 				stream_next;
 			}break;
 			
@@ -318,6 +342,7 @@ stream_next;                     \
 				scope_level--;
 				//if(scope_level+1 == current_module.scope_level) pop_module();
 				//else if(scope_level == current_module.scope_level) current_module.label_latch = false;
+				pop_lexscope();
 				stream_next;
 			}break;
 			
@@ -484,7 +509,7 @@ stream_next;                     \
 	eof.c0 = line_col;
 	tokens.push(eof);
 
-	if(code::is_virtual(code)) {
+	if(code->is_virtual()) {
 		((VirtualCode*)code)->tokens = tokens;
 	} else {
 		code->source->tokens = tokens;
@@ -508,7 +533,7 @@ output(b32 human, String path) {
         return;
     }
 
-	Array<Token>& tokens = code::get_token_array(code);
+	Array<Token>& tokens = code->get_token_array();
 
 	if(human) {
 		DString* buffer = DString::create();

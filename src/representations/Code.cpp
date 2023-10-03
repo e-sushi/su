@@ -1,40 +1,7 @@
 #include "representations/Code.h"
 namespace amu {
 
-DString* SourceCode::
-display() {
-    return DString::create(identifier);
-}
-
-DString* SourceCode::
-dump() {
-    return DString::create("SourceCode<", ScopedDStringRef(display()).x, ">");
-}
-
-DString* VirtualCode::
-display() { return DString::create(Code::identifier); }
-
-DString* VirtualCode::
-dump() {
-    return DString::create("VirtualCode<>");
-}
-
-
-
-namespace code {
-
-SourceCode*
-from(Source* source) {
-    SourceCode* out = pool::add(compiler::instance.storage.source_code);
-    out->raw = source->buffer;
-    out->source = source;
-    out->kind = code::source;
-    out->ASTNode::kind = ast::code;
-    out->identifier = source->name;
-    return out;
-}
-
-Code*
+Code* Code::
 from(Code* code, Token* start, Token* end) {
     Code* out;
     if(code->source) {
@@ -59,9 +26,9 @@ from(Code* code, Token* start, Token* end) {
     return out;
 }
 
-Code*
+Code* Code::
 from(Code* code, ASTNode* node) {
-    Code* out = code::from(code, node->start, node->end);
+    auto out = Code::from(code, node->start, node->end);
 
     Parser::create(out);
     out->parser->root = node;
@@ -91,52 +58,206 @@ from(Code* code, ASTNode* node) {
     return out;
 }
 
-void
-destroy(Code* c) {
-    if(c->lexer) c->lexer->destroy();
-    if(c->parser) c->parser->destroy();
-    if(c->sema) c->sema->destroy();
-    if(c->tac_gen) c->tac_gen->destroy();
-    if(c->air_gen) c->air_gen->destroy();
-    if(c->machine) c->machine->destroy();
+SourceCode* Code::
+from(Source* source) {
+    SourceCode* out = pool::add(compiler::instance.storage.source_code);
+    out->raw = source->buffer;
+    out->source = source;
+    out->kind = code::source;
+    out->ASTNode::kind = ast::code;
+    out->identifier = source->name;
+    return out;
 }
 
-b32
-is_virtual(Code* code) {
-    return !code->source;
+//VirtualCode* Code::
+//from(String s) {
+//
+//}
+
+void Code::
+destroy() {
+	if(lexer) lexer->destroy();
+    if(parser) parser->destroy();
+    if(sema) sema->destroy();
+    if(tac_gen) tac_gen->destroy();
+    if(air_gen) air_gen->destroy();
+    if(machine) machine->destroy();
 }
 
-View<Token>
-get_tokens(Code* code) {
-    if(is_virtual(code)) {
-        return ((VirtualCode*)code)->tokens.view();
+//VirtualCode* Code::
+//make_virtual() {
+//
+//}
+
+b32 Code::
+is_virtual() {
+	return !this->source;
+}
+
+View<Token> Code::
+get_tokens() {
+    if(is_virtual()) {
+        return ((VirtualCode*)this)->tokens.view();
     } else {
-        return ((SourceCode*)code)->tokens;
+        return ((SourceCode*)this)->tokens;
     }
 }
 
-Array<Token>&
-get_token_array(Code* code) {
-    if(is_virtual(code)) {
-        return ((VirtualCode*)code)->tokens;
+Array<Token>& Code::
+get_token_array() {
+    if(is_virtual()) {
+        return ((VirtualCode*)this)->tokens;
     } else {
-        return code->source->tokens;
+        return this->source->tokens;
     }
 }
 
-void
-add_diagnostic(Code* code, Diagnostic d) {
-    if(code::is_virtual(code)) {
-        ((VirtualCode*)code)->diagnostics.push(d);
+void Code::
+add_diagnostic(Diagnostic d) {
+    if(is_virtual()) {
+        ((VirtualCode*)this)->diagnostics.push(d);
     } else {
-        code->source->diagnostics.push(d);
+        this->source->diagnostics.push(d);
     }
 }
+
+
+DString* SourceCode::
+display() {
+    return DString::create(identifier);
+}
+
+DString* SourceCode::
+dump() {
+    return DString::create("SourceCode<", ScopedDStringRef(display()).x, ">");
+}
+
+DString* VirtualCode::
+display() { return DString::create(Code::identifier); }
+
+DString* VirtualCode::
+dump() {
+    return DString::create("VirtualCode<>");
+}
+
+
+
+namespace code {
+
+//SourceCode*
+//from(Source* source) {
+//    SourceCode* out = pool::add(compiler::instance.storage.source_code);
+//    out->raw = source->buffer;
+//    out->source = source;
+//    out->kind = code::source;
+//    out->ASTNode::kind = ast::code;
+//    out->identifier = source->name;
+//    return out;
+//}
+//
+//Code*
+//from(Code* code, Token* start, Token* end) {
+//    Code* out;
+//    if(code->source) {
+//        SourceCode* sc = pool::add(compiler::instance.storage.source_code);
+//        sc->tokens.data = start;
+//        sc->tokens.count = end-start+1;
+//        out = (Code*)sc;
+//    } else {
+//        auto c = (VirtualCode*)code;
+//        VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
+//        vc->tokens = c->tokens.copy(start-c->tokens.data, end-start+1);
+//    }
+//
+//    out->source = code->source;
+//    out->raw.str = start->raw.str;
+//    out->raw.count = end->raw.str - start->raw.str;
+//
+//    if(end->kind == token::end_of_file) end--;
+//
+//    out->identifier = DString::create(code->identifier, ":subcode<", start, ",", end, ">");
+//
+//    return out;
+//}
+//
+//Code*
+//from(Code* code, ASTNode* node) {
+//    Code* out = code::from(code, node->start, node->end);
+//
+//    Parser::create(out);
+//    out->parser->root = node;
+//
+//    switch(node->kind) {
+//        case ast::entity: {
+//            auto e = node->as<Entity>();
+//            switch(e->kind) {
+//                case entity::expr: {
+//                    out->kind = code::expression;
+//                } break;
+//				case entity::var: {
+//					FixMe; // this is probably wrong or just shouldn't happen at all
+//					out->kind = code::label;
+//				} break;
+//            }
+//        } break;
+//		case ast::label: {
+//			out->kind = code::label;
+//		} break;
+//    }
+//
+//    out->level = code::parse;
+//
+//    // trying to create a Code object from an unhandled branch kind
+//    Assert(out->kind != code::unknown); 
+//    return out;
+//}
+//
+//void
+//destroy(Code* c) {
+//    if(c->lexer) c->lexer->destroy();
+//    if(c->parser) c->parser->destroy();
+//    if(c->sema) c->sema->destroy();
+//    if(c->tac_gen) c->tac_gen->destroy();
+//    if(c->air_gen) c->air_gen->destroy();
+//    if(c->machine) c->machine->destroy();
+//}
+//
+//b32
+//is_virtual(Code* code) {
+//    return !code->source;
+//}
+//
+//View<Token>
+//get_tokens(Code* code) {
+//    if(is_virtual(code)) {
+//        return ((VirtualCode*)code)->tokens.view();
+//    } else {
+//        return ((SourceCode*)code)->tokens;
+//    }
+//}
+//
+//Array<Token>&
+//get_token_array(Code* code) {
+//    if(is_virtual(code)) {
+//        return ((VirtualCode*)code)->tokens;
+//    } else {
+//        return code->source->tokens;
+//    }
+//}
+//
+//void
+//add_diagnostic(Code* code, Diagnostic d) {
+//    if(code::is_virtual(code)) {
+//        ((VirtualCode*)code)->diagnostics.push(d);
+//    } else {
+//        code->source->diagnostics.push(d);
+//    }
+//}
 
 TokenIterator::TokenIterator(Code* code) {
     this->code = code;
-    this->curt = view::readptr(code::get_tokens(code),  0);
-    this->stop = view::readptr(code::get_tokens(code), -1);
+    this->curt = view::readptr(code->get_tokens(),  0);
+    // this->stop = view::readptr(code::get_tokens(code), -1);
 }
 
 FORCE_INLINE Token*
@@ -151,7 +272,7 @@ TokenIterator::current_kind() {
 
 FORCE_INLINE Token* 
 TokenIterator::increment() {
-    if(this->curt == this->stop) return 0;
+    // if(this->curt == this->stop) return 0;
 #if BUILD_SLOW
     this->curt++;
     if(this->curt->kind == token::directive_compiler_break) {
@@ -168,7 +289,6 @@ FORCE_INLINE Token*
 TokenIterator::next() { 
     return lookahead(1); 
 }
-
 
 FORCE_INLINE token::kind
 TokenIterator::next_kind() { 
@@ -198,7 +318,7 @@ TokenIterator::lookahead(u64 n) {
         iter++;
         if(iter->kind == token::directive_compiler_break)
             iter++;
-        if(iter > this->stop) return 0;
+        // if(iter > this->stop) return 0;
     }
     return iter;
 #else
@@ -215,11 +335,11 @@ TokenIterator::lookback(u64 n) {
         iter--;
         if(iter->kind == token::directive_compiler_break)
             iter--;
-        if(iter < code::get_tokens(this->code).data) return 0;
+        if(iter < this->code->get_tokens().data) return 0;
     }
     return iter;
 #else
-    if(this->curt - n < code::get_tokens(this->code).data) return 0;
+    if(this->curt - n < this->code->get_tokens().data) return 0;
     return this->curt - n;
 #endif
 }
@@ -402,7 +522,7 @@ get(Token* t, Options opt) {
 
 void
 to_string(DString* current, Code* c) {
-    if(code::is_virtual(c)) { // TODO(sushi) more info for virtual code whenever its actually used
+    if(c->is_virtual()) { // TODO(sushi) more info for virtual code whenever its actually used
         auto vc = (VirtualCode*)c;
         current->append("VirtualCode<'", ScopedDeref(vc->display()).x, "'>");
     } else {

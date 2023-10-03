@@ -39,6 +39,9 @@
 	a tuple as a struct initializer, because it becomes confusing when trying to fill out the struct.
 	The same thing applies to function calls. 
 
+	TODO
+
+	A big problem with Tuples at the moment is that they need to store a LabelTable. 
 
 
 */

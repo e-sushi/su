@@ -9,8 +9,10 @@ def dbgmsg(s):
 
 def full_deref_if_ptr(thing):
     while thing.type.code == gdb.TYPE_CODE_PTR:
-        thing = thing.dereference()
-    return thing
+        if thing.address == 0:
+            return 'null'
+        else:
+            return thing.dereference()
 
 def is_tnode(val):
     n = str(val.type)
@@ -84,7 +86,11 @@ class Array_printer:
             ptr = val['data']
             out = "{\n"
             for i in range(val['count']):
-                out += "  " + str(full_deref_if_ptr(gdb.parse_and_eval(f"*((({subtype}*){ptr})+{i})"))) + ",\n"
+                hi = gdb.parse_and_eval(f"*((({subtype}*){ptr})+{i})");
+                if str(hi) == '0x0':
+                    out += "  (nullptr),\n"
+                else:
+                    out += "  " + str(full_deref_if_ptr(hi)) + ",\n"
             out += "}"
             return out
             # return gdb.parse_and_eval(f"*(({subtype}*){val['data']})@{val['count']}")

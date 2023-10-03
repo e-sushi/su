@@ -1,0 +1,61 @@
+word_producer := () -> u8[] {
+	file := open("data");
+
+	// local buffer for storing a word
+	// since this is a coroutine, the memory of this
+	// buffer does not disappear when we yield, so 
+	// storing it on the 'stack' is fine 
+	buff: u8[255];	
+	
+	loop {
+		c := file.readbyte();
+
+		switch c {
+			// if we encounter a byte from our set of word characters
+			// we append it to the buffer
+			word_char_set => {
+				buff.push(c);
+			} 
+			// otherwise we've reached the end of the word, so we yield the buffer
+			_ => {
+				// control is released from this function and returned to the caller
+				// the value of buff is returned
+				yield buff;
+				// when resume is called on this coroutine, we continue from here.
+				// check if the byte we came across is 0, if so, we're done,
+				// otherwise we do this loop again and yield another value
+				unless c do return;
+			}
+		}
+	}
+}
+
+// without comments:
+word_producer := () -> u8[] {
+	file := open("data");
+	buff: u8[255];
+	loop {
+		c := file.readbyte();
+		switch c {
+			word_char_set => buff.push(c);
+			_ => {
+				yield buff;
+				unless c do return;
+			}
+		}
+	}
+}
+
+word_consumer := () -> void {
+	words := create word_producer;
+
+	loop {
+		word := resume word_producer;
+		return unless word;
+		switch word {
+			...
+		}
+	}
+}
+
+
