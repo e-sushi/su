@@ -1,5 +1,16 @@
 main :: () -> void {
-	a := 1;
-	b := 2;
-	c := a + b;
+	a: (u32, #compiler_break u32) = (1,1);
 }
+
+Player :: struct { 
+	health: u32;
+	mana: u32;
+
+	flags: StatusFlags;
+}
+
+StatusFlags :: struct {
+	is_bleeding: u32;
+	is_poisoned: u32;
+}
+

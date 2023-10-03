@@ -106,6 +106,7 @@ is(type::kind k) { return is<Type>() && as<Type>()->kind == k; }
 struct Void : public Type { 
     Void() : Type(type::kind::void_) {} 
 
+	b32      ensure_processed_to(code::level level) { return true; }
     u64      size() { return 0; }
 	b32      cast_to(Type* to, Expr*& n) { return 0; } // this should never happen
     ASTNode* deep_copy() { return this; }
@@ -131,6 +132,7 @@ global Void void_;
 struct Whatever : public Type {
     Whatever() : Type(type::kind::whatever) {}
 
+	b32      ensure_processed_to(code::level level) { return true; }
     u64      size() { return 0; }
 	b32      cast_to(Type* to, Expr*& n) { return true; }
     ASTNode* deep_copy() { return this; }
@@ -178,6 +180,9 @@ struct Scalar : public Type {
 
     DString*
     dump();
+
+	b32 
+	ensure_processed_to(code::level level) { return true; }
 
 	b32
 	cast_to(Type* to, Expr*& n);
@@ -254,6 +259,9 @@ struct Structured : public Type {
 	b32
 	cast_to(Type* t, Expr*& e);
 
+	b32
+	ensure_processed_to(code::level level);
+
     u64
     size();
 
@@ -290,6 +298,9 @@ struct Pointer : public Type {
     DString*
     dump();
 
+	b32 
+	ensure_processed_to(code::level level);
+
 	b32
 	cast_to(Type* t, Expr*& e);
 
@@ -318,6 +329,7 @@ struct StaticArray : public Structured {
     u64   count;
 
     static Array<StaticArray*> set;
+
 
     // ~~~~~~ interface ~~~~~~~
 
@@ -427,14 +439,6 @@ is<ViewArray>() { return is<Structured>() && as<Structured>()->kind == structure
 
 struct Range : public Type {
     Type* type; // the type this Range's elements are 
-    // temp solution to implementing ranges
-    // when a range is assigned to a label (such as in a for loop)
-    // a coroutine is made for it internally and in order for calls to
-    // that coroutine to be made, we need to store the TAC representing it
-    // somewhere.
-    // this is sort of a HACK to get ranges working, a better implementation of 
-    // coroutines and how ranges use them will be worked on later 
-    TAC* coroutine; 
 
 
     // TODO(sushi) we eventually need to make ranges unique based on their actual range 

@@ -443,10 +443,14 @@ prev_is(u32 kind) {
 
 DString* TokenIterator::
 display_line() {
+	u32 tab_offset = 0;
+
 	u8* scan_left = curt->raw.str;
 
-	while(scan_left != curt->code->raw.str && *scan_left != '\n')
+	while(scan_left != curt->code->raw.str && *scan_left != '\n'){
 		scan_left--;
+		if(*scan_left == '\t') tab_offset++;
+	}
 
 	u8* scan_right = scan_left + 1;
 
@@ -455,7 +459,7 @@ display_line() {
 
 	String line = {scan_left, s32(scan_right - scan_left)};
 	
-	s32 depth = curt->raw.str - scan_left;
+	s32 depth = curt->raw.str - scan_left + tab_offset * 4;
 
 	DString* out = DString::create(line, "\n");
 

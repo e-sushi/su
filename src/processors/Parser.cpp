@@ -77,7 +77,7 @@ prescan_source() {
 	//			   or label groups 
 	auto tokens = code->get_token_array();
 	forI(ls->labels.count) {
-		token.curt = tokens.readptr(ls->labels.read(i));;
+		token.curt = tokens.readptr(ls->labels.read(i));
 		if(table.search_local(token.current()->hash)) {
 			diagnostic::parser::
 				label_already_defined(token.current(), token.current());
@@ -88,6 +88,7 @@ prescan_source() {
 
 		auto l = node.pop()->as<Label>();
 		table.add(l->start->raw, l);
+		l->table = table.current;
 
 		auto c = Code::from(code, l->start, tokens.readptr(-1));
 		c->kind = code::label;
@@ -415,7 +416,19 @@ start() {
 	Assert(code->parser, "a parser must have been made for a Code object created in the first stage.");
 	switch(code->kind) {
 		case code::label: {
+			table.push(code->parser->root->as<Label>()->table);
 			if(!prescanned_label()) return false;
+			table.pop();
+			// adjust the Code object's kind to whatever the label ends up representing
+			switch(code->parser->root->as<Label>()->entity->kind) {
+				case entity::func: {
+					code->kind = code::function;
+					code->parser->root->as<Label>()->entity->as<Function>()->code = code;
+				} break;
+				case entity::var: {
+					code->kind = code::var_decl;
+				} break;
+			}
 		} break;
 		case code::function: {
 			if(!prescanned_function()) return false;
@@ -444,6 +457,43 @@ prescanned_label() {
 	token.increment();
 	token.increment();
 	if(!expression()) return false;
+	node::insert_last(l, node.pop());
+	switch(l->last_child<Expr>()->kind) {
+		case expr::function: {
+			auto e = l->last_child<Expr>();
+			auto f = Function::create();
+			f->type = e->first_child<Expr>()->type->as<FunctionType>();
+			l->entity = f;
+			f->label = l;
+		} break;
+		case expr::typedef_: {
+			auto e = l->last_child<Expr>();
+			auto s = Structure::create();
+			auto stype = Structured::create(s);
+			stype->code = code;
+
+			// token.skip_until(token::structdecl);
+			// if(!struct_decl()) return false;
+
+			u64 offset = 0;
+
+			for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
+				// TODO(sushi) this is probably very inefficient
+				if(s->find_member(m->start->raw)) {
+					diagnostic::parser::
+						struct_duplicate_member_name(m->start, m->start);
+					return false;
+				}
+				s->add_member(m->label->start->raw, m);
+			}
+
+			stype->def = e;
+
+			e->type = stype;
+			l->entity = stype;
+			stype->label = l;
+		} break;
+	}
 	return true;
 }
 
@@ -521,7 +571,8 @@ prescanned_var_decl() {
 
 	if(!token.is(token::semicolon)) {
 		if(!token.is(token::close_brace)) {
-			diagnostic::parser::missing_semicolon(token.current());
+			diagnostic::parser::
+				missing_semicolon(token.current());
 			return false;
 		}
 	}
@@ -613,28 +664,6 @@ struct_decl() {
 
 	e->end = token.current();
 
-	auto* s = Structure::create();
-	auto stype = Structured::create(s);
-
-	// token.skip_until(token::structdecl);
-	// if(!struct_decl()) return false;
-
-	u64 offset = 0;
-
-	for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
-		// TODO(sushi) this is probably very inefficient
-		if(s->find_member(m->start->raw)) {
-			diagnostic::parser::
-				struct_duplicate_member_name(m->start, m->start);
-			return false;
-		}
-		s->add_member(m->label->start->raw, m);
-	}
-
-	stype->def = e;
-
-	// reuse the typedef to place in the AST 
-	e->type = stype;
 
 	node.push(e);
 	return true;
@@ -675,124 +704,6 @@ label() {
 
 	node::insert_last(l, cand);
 
-	//switch(cand->as<Entity>()->kind) {
-	//	  case entity::expr: {
-	//		  auto expr = cand->as<Expr>();
-	//		  switch(expr->kind) {
-	//			  case expr::unary_assignment: {
-	//				  auto v = Var::create();
-	//				  v->label = l;
-	//				  v->type = expr->type;
-	//				  l->entity = v->as<Entity>();
-	//				  node::insert_last(l, cand);
-	//			  } break;
-	//			  case expr::unary_comptime: {
-	//				  // it's possible this a function def
-	//				  switch(expr->type->kind) {
-	//					  case type::kind::function: {
-	//						  auto f = Function::create();
-	//						  f->label = l;
-	//						  f->type = expr->type->as<FunctionType>();
-	//						  f->start = f->type->parameters->start;
-	//						  l->entity = (Entity*)f;
-	//						  node::insert_last(l, cand);
-	//					  } break;
-	//					  default: {
-	//						  // since this is a compile time variable, we can do some type
-	//						  // checking a little early 
-	//						  auto v = Var::create();
-	//						  v->label = l;
-	//						  v->type = expr->type;
-	//						cand->last_child();
-	//						  l->entity = v->as<Entity>();
-	//						  v->is_compile_time = true;
-	//						  if(cand->last_child<Expr>()->type->is<Whatever>()) {
-	//							  diagnostic::sema::
-	//								  cant_use_whatever_as_variable_type(cand->start);
-	//							  return false;
-	//						  } else if(cand->last_child<Expr>()->type->is<Void>()) {
-	//							  diagnostic::sema::
-	//								  cannot_have_a_variable_of_void_type(cand->start);
-	//							  return false;
-	//						  }
-	//						  v->memory = (u8*)memory::allocate(v->type->size());
-	//						  node::insert_last(l, cand->last_child());
-	//					  } break;
-	//				  }
-	//			  } break;
-	//			  case expr::binary_assignment: {
-	//				  auto v = Var::create();
-	//				  v->label = l;
-	//				  l->entity = v->as<Entity>();
-	//				  node::insert_last(l, cand);
-	//			  } break;
-	//			  case expr::typeref: {
-	//				  // this is probably when we have 
-	//				  // <id> : <type> ;
-	//				  Type* t = expr->type;
-	//				  switch(t->kind) {
-	//					  case type::kind::scalar:
-	//					  case type::kind::pointer: 
-	//					  case type::kind::structured: {
-	//						  auto v = Var::create();
-	//						  v->label = l;
-	//						  v->type = t;
-	//						  l->entity = v->as<Entity>();
-	//						  node::insert_last(l, cand);
-	//					  } break;
-	//					  case type::kind::function: {
-	//						  // if the last child of the typeref is not a block, then
-	//						  // we do not create a function entity as this must be a variable
-	//						  // representing a function
-
-	//						  if(!cand->last_child()->is<Block>()) {
-	//							  auto v = Var::create();
-	//							  v->label = l;
-	//							  v->type = t;
-	//							  l->entity = v->as<Entity>();
-	//							  node::insert_last(l, cand);
-	//						  } else {
-	//							  auto f = Function::create();
-	//							  f->label = l;
-	//							  f->type = t->as<FunctionType>();
-	//							  f->start = f->type->parameters->start;
-	//							  l->entity = f->as<Entity>();
-	//							  node::insert_last(l, cand);
-	//						  }
-	//					  } break;
-	//				  }
-	//			  } break;
-	//			  case expr::binary_range: {
-	//				  auto v = Var::create();
-	//				  v->label = l;
-	//				  v->start = l->start;
-	//				  v->end = cand->end;
-	//				  l->entity = v->as<Entity>();
-	//				  node::insert_last(l, cand);
-	//			  } break;
-	//		//	case expr::literal_scalar: {
-	//		//		node::insert_last(l, cand);
-	//		//		cand->as<Expr>()->label = l;
-	//		//		l->entity = cand->as<Entity>();
-	//		//	} break;
-	//		//	case expr::literal_tuple: {
-	//		//		node::insert_last(l, cand);
-	//		//		cand->as<Expr>()->label = l;
-	//		//		l->entity = cand->as<Entity>();
-	//		//	} break;
-	//			  default: {
-	//				  util::println(
-	//					  DString::create("unhandled label case: ", expr::strings[expr->kind]));
-	//				util::println(expr->print_tree(true));
-	//				  return false;
-	//			  }
-	//		}
-	//	}
-	//}
-	
-	//l->entity->code = code;
-	//l->entity->start = l->last_child()->start;
-	//l->entity->end = l->last_child()->end;
 	l->start = l->first_child()->start;
 	l->end = l->last_child()->end;
 
@@ -887,14 +798,8 @@ label_after_colon() {
 		} break;
 
 		case token::open_paren: {
-			if(!tuple()) return false;
+			if(!expression()) return false;
 			if(node.current->is<Tuple>()) {
-				// this is probably just a tuple literal expression
-				// but IDK this could go wrong sorry!
-				// this DOES break trying to make a variable of 
-				// a TupleType entirely
-				// maybe, maybe we just check for this in place of typerefs 
-				// layer?
 				auto e = TupleLiteral::create();
 				node::insert_last(e, node.pop());
 				node.push(e);
@@ -1111,8 +1016,10 @@ expression() {
 			token.increment();
 			if(!expression()) return false;
 
-			if(node.current->is(expr::func_def)) {
+			if(node.current->is(expr::function)) {
 				// when this is a function def we just let it consume this colon
+				return true;
+			} else if(node.current->is(expr::typedef_)) {
 				return true;
 			}
 
@@ -1827,7 +1734,7 @@ factor() {
 					node.push(n->first_child());
 					n->as<Tuple>()->destroy();
 				}
-			} else {
+			} else if(!node.current->is(expr::function)) {
 				// otherwise, we just create an Expr representing a 
 				// tuple literal
 				auto n = node.pop();
@@ -2108,20 +2015,59 @@ block() {
 					if(token.prev_is(token::close_brace)) {
 						need_semicolon = false;
 					}
-					// this label may either represent a Var or Function
-					// so we need to figure this out then make the Entity 
-					// for it 
-					//auto l = node.pop()->as<Label>();
-					//switch(l->last_child<Expr>()->kind) {
-					//	case expr::typeref: {
-					//		
-					//	} break;
-					//}
-					auto v = Var::create();
-					v->label = node.current->as<Label>();
-					node.current->as<Label>()->entity = v->as<Entity>();
-					v->start = node.current->start;
-					v->end = node.current->end;
+					// this label may represent a plethora of things
+					// so we need to figure it out then create an entity for it
+					auto l = node.current->as<Label>();
+					switch(l->last_child<Expr>()->kind) {
+						case expr::typedef_: {
+							// we've defined a local structure
+							auto e = l->last_child<Expr>();
+							auto s = Structure::create();
+							auto stype = Structured::create(s);
+							stype->code = code;
+
+							// token.skip_until(token::structdecl);
+							// if(!struct_decl()) return false;
+
+							u64 offset = 0;
+
+							for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
+								// TODO(sushi) this is probably very inefficient
+								if(s->find_member(m->start->raw)) {
+									diagnostic::parser::
+										struct_duplicate_member_name(m->start, m->start);
+									return false;
+								}
+								s->add_member(m->label->start->raw, m);
+							}
+
+							stype->def = e;
+
+							e->type = stype;
+							l->entity = stype;
+							stype->label = l;
+							// we don't need a semicolon after struct definitions
+							// because they use braces
+							need_semicolon = false;
+						} break;
+
+						case expr::function: {
+							auto e = l->last_child<Expr>();
+							auto f = Function::create();
+							f->type = e->first_child<Expr>()->type->as<FunctionType>();
+							l->entity = f;
+							f->label = l;
+						} break;
+
+						default: {
+							// anything else is probably just a variable declaration
+							auto v = Var::create();
+							v->label = node.current->as<Label>();
+							node.current->as<Label>()->entity = v->as<Entity>();
+							v->start = node.current->start;
+							v->end = node.current->end;
+						} break;
+					}
 				} else {
 					if(!expression()) return false;
 					s->kind = stmt::expression;
@@ -2169,7 +2115,8 @@ block() {
 		}
 		if(need_semicolon && !token.is(token::semicolon)) {
 			if(!token.is(token::close_brace)) {
-				diagnostic::parser::missing_semicolon(token.current());
+				diagnostic::parser::
+					missing_semicolon(token.current());
 				return false;
 			}
 			count++;

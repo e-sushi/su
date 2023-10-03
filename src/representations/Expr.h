@@ -324,6 +324,33 @@ struct TupleLiteral : public Expr {
 template<> b32 inline Base::
 is<TupleLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_tuple; }
 
+// any definition of a function, so an expr of any of the forms: 
+// 	1. full:
+// 		(...) -> ... { ... }
+// 	2. reduced:
+// 		(...) [ -> ...] { ... }
+struct FunctionLiteral : public Expr {
+	Function* func;
+
+
+	// ~~~~ interface ~~~~
+	
+
+	static FunctionLiteral*
+	create();
+
+	void
+	destroy();
+
+	DString*
+	display();
+
+	DString*
+	dump();
+
+	FunctionLiteral() : Expr(expr::function) {}
+};
+
 struct Block : public Expr {
     LabelTable table;
 

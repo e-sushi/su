@@ -37,6 +37,9 @@ struct Entity : public ASTNode {
     Label* label; // the most recent label used to represent this entity, null if it is anonymous
     Code* code; // the Code object this Entity belongs to 
 
+
+	// ~~~~ interface ~~~~
+	
     Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
 };
 
@@ -74,7 +77,6 @@ String
 get_name(Entity* e);
 
 } // namespace entity
-
 } // namespace amu
 
 #endif // AMU_ENTITY_H

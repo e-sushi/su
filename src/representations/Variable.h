@@ -41,6 +41,9 @@ struct Var : public Entity {
     DString*
     dump();
 
+	b32
+	ensure_processed_to(code::level level);
+
     Type*
     resolve_type() { return type; }
 

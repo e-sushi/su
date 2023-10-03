@@ -14,6 +14,8 @@
 namespace amu{
 
 struct Token;
+struct LabelTable;
+
 struct Label : public ASTNode {
 	Code* code;
     Entity* entity;
@@ -22,6 +24,9 @@ struct Label : public ASTNode {
     Label* aliased; 
 
     b32 is_virtual;
+	
+	// points to the LabelTable this Label belongs to
+	LabelTable* table;
 
     // ~~~~~~ interface ~~~~~~~
 
