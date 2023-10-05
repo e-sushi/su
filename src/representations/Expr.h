@@ -137,7 +137,7 @@ struct Expr : public Entity {
 
     Expr() : Entity(entity::expr) {}
 
-    Expr(expr::kind k) : kind(k), Entity(entity::expr) {}
+    Expr(expr::kind k) : kind(k), Entity(entity::expr) {def = this;}
 };
 
 template<> inline b32 Base::

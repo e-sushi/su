@@ -1,5 +1,17 @@
 #include "representations/Code.h"
+#include <condition_variable>
 namespace amu {
+
+Code* Code::
+from(Code* code, Token* start) {
+	Code* out;
+	if(code->source) {
+		SourceCode* sc = pool::add(compiler::instance.storage.source_code);
+		sc->tokens.data = start;
+		sc->tokens.count = code->get_tokens().data + code->get_tokens().count - start;
+		out = sc->as<Code>();
+	}
+}
 
 Code* Code::
 from(Code* code, Token* start, Token* end) {
@@ -8,7 +20,7 @@ from(Code* code, Token* start, Token* end) {
 		SourceCode* sc = pool::add(compiler::instance.storage.source_code);
 		sc->tokens.data = start;
 		sc->tokens.count = end-start+1;
-		out = (Code*)sc;
+		out = sc->as<Code>();
 	} else {
 		auto c = (VirtualCode*)code;
 		VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
@@ -128,36 +140,41 @@ process_to(code::level l) {
 		switch(this->level) {
 			case code::none: {
 				if(!this->lexer) Lexer::create(this);
-				this->lexer->start();
 				this->level = code::lex;
+				this->lexer->start();
 			} break;
 			case code::lex: {
 				if(!this->parser) Parser::create(this);
-				if(!this->parser->parse()) return false;
 				this->level = code::parse;
+				if(!this->parser->parse()) return false;
 			} break;
 			case code::parse: {
 				if(!this->sema) Sema::create(this);
-				if(!this->sema->start()) return false;
 				this->level = code::sema;
+				if(!this->sema->start()) return false;
 			} break;
 			case code::sema: {
 				if(!this->tac_gen) GenTAC::create(this);
-				this->tac_gen->generate();
 				this->level = code::tac;
+				this->tac_gen->generate();
 			} break;
 			case code::tac: {
 				if(!this->air_gen) GenAIR::create(this);
-				this->air_gen->generate();
 				this->level = code::air;
+				this->air_gen->generate();
 			} break;
 			case code::air: {
 				if(!this->machine) VM::create(this);
-				this->machine->run();
 				this->level = code::machine;
+				this->machine->run();
 			} break;
 		}
 	}
+}
+
+Future<b32> Code::
+process_to_async(code::level level) {
+	return threader.start(&Code::process_to, this, level);
 }
 
 DString* SourceCode::

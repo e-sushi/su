@@ -22,9 +22,6 @@ struct Module : public Entity {
     void
     destroy();
 
-	b32
-	ensure_processed_to(code::level level);
-
     Label*
     find_label(String s);
 

@@ -32,7 +32,7 @@ parse() {
 	if(!prescan_start()) return false;
 	if(!start()) return false;
 
-	util::println(ScopedDeref(code->parser->root->print_tree()).x);
+	// util::println(ScopedDeref(code->parser->root->print_tree()).x);
 
 	return true;
 }
@@ -109,7 +109,6 @@ prescan_source() {
 	//	  }
 	//	  if(token.increment()->kind == token::end_of_file) return true;
 	//}
-	//
 	return true;
 }
 
@@ -413,17 +412,19 @@ prescan_label() {
 
 b32 Parser::
 start() {
+	messenger::qdebug(code, String("starting parser"));
 	Assert(code->parser, "a parser must have been made for a Code object created in the first stage.");
 	switch(code->kind) {
 		case code::label: {
-			table.push(code->parser->root->as<Label>()->table);
+			auto l = code->parser->root->as<Label>();
+			table.push(l->table);
 			if(!prescanned_label()) return false;
 			table.pop();
 			// adjust the Code object's kind to whatever the label ends up representing
-			switch(code->parser->root->as<Label>()->entity->kind) {
+			switch(l->entity->kind) {
 				case entity::func: {
 					code->kind = code::function;
-					code->parser->root->as<Label>()->entity->as<Function>()->code = code;
+					l->entity->as<Function>()->code = code;
 				} break;
 				case entity::var: {
 					code->kind = code::var_decl;
@@ -440,11 +441,16 @@ start() {
 			if(!prescanned_var_decl()) return false;
 		} break;
 		case code::source: {
+			auto futures = Array<Future<b32>>::create();
 			for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
 				c->parser->table.push(&code->parser->root->as<Module>()->table);
-				if(!c->process_to(code::parse)) return false;
+				futures.push(c->process_to_async(code::air));
+				// if(!c->process_to(code::parse)) return false;
 				c->parser->table.pop();
 				node::insert_last(code->parser->root, c->parser->root);
+			}
+			forI(futures.count) {
+				if(!futures.read(i).get()) return false;
 			}
 		} break;
 	}
@@ -465,18 +471,18 @@ prescanned_label() {
 			f->type = e->first_child<Expr>()->type->as<FunctionType>();
 			l->entity = f;
 			f->label = l;
+			f->def = e;
+			f->code = code;
+			code->kind = code::function;
 		} break;
 		case expr::typedef_: {
 			auto e = l->last_child<Expr>();
 			auto s = Structure::create();
 			auto stype = Structured::create(s);
 			stype->code = code;
-
-			// token.skip_until(token::structdecl);
-			// if(!struct_decl()) return false;
+			stype->def = e;
 
 			u64 offset = 0;
-
 			for(Member* m = e->first_child<Member>(); m; m = m->next<Member>()) {
 				// TODO(sushi) this is probably very inefficient
 				if(s->find_member(m->start->raw)) {
@@ -492,6 +498,18 @@ prescanned_label() {
 			e->type = stype;
 			l->entity = stype;
 			stype->label = l;
+			code->kind = code::typedef_;
+		} break;
+
+		default: {
+			// this must just be some variable
+			auto v = Var::create();
+			v->start = l->start;
+			v->end = l->end;
+			v->label = l;
+			l->entity = v;
+			v->code = code;
+			code->kind = code::var_decl;
 		} break;
 	}
 	return true;
@@ -681,7 +699,7 @@ label() {
 
 	if(!label_get()) return false;
 	
-	Label* l = (Label*)node.pop();
+	auto l = node.pop()->as<Label>();
 	
 	if(table.search_local(l->start->hash)) {
 		diagnostic::parser::
@@ -803,6 +821,7 @@ label_after_colon() {
 				auto e = TupleLiteral::create();
 				node::insert_last(e, node.pop());
 				node.push(e);
+				e->def = node.current;
 			}
 		} break;
 
@@ -840,7 +859,7 @@ label_after_colon() {
 // the closing brace
 b32 Parser::
 tuple() {
-	Tuple* tuple = Tuple::create();
+	auto tuple = Tuple::create();
 	tuple->start = token.current();
 
 	token.increment();
@@ -917,6 +936,7 @@ expr:
 		l->entity = v;
 		v->start = l->start;
 		v->end = l->end;
+		v->def = l->last_child();
 	}
 
 	// this must be a function type
@@ -936,10 +956,10 @@ expr:
 		return false;
 	}
 
-	Expr* e = Expr::create(expr::typeref);
+	auto e = Expr::create(expr::typeref);
 
 	if(count > 1) {
-		Tuple* t = Tuple::create();
+		auto t = Tuple::create();
 		t->kind = tuple::multireturn;
 
 		ScopedArray<Type*> types = Array<Type*>::create();
@@ -967,6 +987,7 @@ expr:
 	ft->parameters = e->first_child();
 	ft->returns = e->first_child()->next();
 	ft->return_type = ft->returns->resolve_type(); // kind of redundant 
+	ft->def = e;
 	e->type = (Type*)ft;
 
 	if(token.is(token::open_brace)) {
@@ -986,6 +1007,7 @@ expr:
 		fd->start = fd->first_child()->start;
 		fd->end = fd->last_child()->end;
 		fd->type = e->type;
+		fd->def = fd;
 
 		node.push(fd);
 	} else {
@@ -1910,7 +1932,8 @@ factor() {
 				token.increment();
 				if(!typeref()) return false;
 			} else {
-				diagnostic::parser::unexpected_token(token.current(), token.current());
+				diagnostic::parser::
+					unexpected_token(token.current(), token.current());
 				return false;
 			}
 		} break;
@@ -1984,7 +2007,7 @@ b32 Parser::
 block() {
 	auto e = Block::create();
 	e->start = token.current();
-	e->table.last = table.current ;
+	e->table.last = table.current;
 	table.push(&e->table);
 
 	token.increment();
@@ -2025,6 +2048,7 @@ block() {
 							auto s = Structure::create();
 							auto stype = Structured::create(s);
 							stype->code = code;
+							stype->def = e;
 
 							// token.skip_until(token::structdecl);
 							// if(!struct_decl()) return false;
@@ -2057,6 +2081,7 @@ block() {
 							f->type = e->first_child<Expr>()->type->as<FunctionType>();
 							l->entity = f;
 							f->label = l;
+							f->def = e;
 						} break;
 
 						default: {
@@ -2066,6 +2091,7 @@ block() {
 							node.current->as<Label>()->entity = v->as<Entity>();
 							v->start = node.current->start;
 							v->end = node.current->end;
+							v->def = e;
 						} break;
 					}
 				} else {

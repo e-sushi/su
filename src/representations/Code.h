@@ -7,13 +7,22 @@
 	This may represent any level of code with any sort of information. It is a very abstract interface
 	for passing around any amount and form of code.
 
-	Code keeps track of the amount of information that is associated with the code it represents. 
+	Code keeps track of the amount of information that is associated with the code it represents.
+
+	A Code object may be unbounded in that it doesn't know where it ends. This is necessary for Code 
+	objects that haven't finished parsing. The end token of an unbounded Code object will point at 
+	the last token of whatever token array it was created from.
+
+	Note that currently there is no real way to determine if a Code object is unbounded or not. I'm not
+	sure if it's necessary or not yet.
 */
 
 #ifndef AMU_CODE_H
 #define AMU_CODE_H
 
 #include "systems/Diagnostics.h"
+#include "systems/Threading.h"
+
 namespace amu {
 
 struct Lexer;
@@ -95,18 +104,40 @@ struct Code : public ASTNode {
 	GenAIR* air_gen = 0;
 	VM* machine = 0;
 
+	// a Code object this one depends on 
+	Code* dependency;
+
+	std::promise<b32>* promise;
+	std::shared_future<b32> future;
+
 	
 	// ~~~~~~ interface ~~~~~~~
+	
+	
+	// results in an 'unbounded' Code object
+	// the tokens array will start at 'start'
+	// and end at the end of the given 'code's 
+	// token array.
+	static Code*
+	from(Code* code, Token* start);
 	
 	static Code*
 	from(Code* code, Token* start, Token* end);
 
+	// creates a Code object encompassing all tokens
+	// that the given ASTNode covers, so make sure 
+	// the node has its start and end pointers 
+	// properly set.
 	static Code*
 	from(Code* code, ASTNode* node);
-
+	
+	// creates a new Code object encompassing the
+	// entire given Source
 	static SourceCode*
 	from(Source* source);
 
+	// creates a new Code object. Note that it will
+	// not be lexed.
 	static VirtualCode*
 	from(String s);
 
@@ -138,6 +169,16 @@ struct Code : public ASTNode {
 	// this function ensures that Code won't go through any stage more than once.
 	b32
 	process_to(code::level level);
+	
+	// same as process_to, but spawns a different thread to run on
+	// and returns a future containing the result of processing
+	Future<b32>
+	process_to_async(code::level level);
+
+	// same as process_to, but spawns a different thread and immediately
+	// waits for it to finish
+	b32
+	process_to_wait(code::level level);
 
 	DString*
 	display() = 0;

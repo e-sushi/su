@@ -65,26 +65,29 @@ void GenAIR::
 generate() {
     start();
 
-    util::println(code->identifier);
-    // check_unbalanced_stack(seq);
+	auto dbgout = DString::create("\n");
+
     u32 last_line_num = -1;
     TAC* last_tac = 0;
     forI(seq.count) {
         BC* bc = seq.readptr(i);
         if(last_line_num == -1 || last_line_num != bc->node->start->l0) {
-            util::println(bc->node->first_line(true, true));
+            dbgout->append(bc->node->first_line(true, true), "\n");
             last_line_num = bc->node->start->l0;
         }
         if(bc->tac && bc->tac != last_tac) {
             last_tac = bc->tac;
 			auto out = to_string(bc->tac); 
 			out->indent(2);
-            util::println(out);
+			dbgout->append(out, "\n");
         }
 		auto out = to_string(*bc);
 		out->indent(4);
-        util::println(out);
+		dbgout->append(out, "\n");
     }
+	
+	messenger::qdebug(code, dbgout->fin);
+	dbgout->deref();
 
     code->level = code::air;
 }

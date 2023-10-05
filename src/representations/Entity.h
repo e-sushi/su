@@ -35,10 +35,15 @@ enum kind {
 struct Entity : public ASTNode {
     entity::kind kind;
     Label* label; // the most recent label used to represent this entity, null if it is anonymous
-    Code* code; // the Code object this Entity belongs to 
-
-
+    Code* code;   // the Code object this Entity belongs to 
+	ASTNode* def; // the syntax used to define this entity. label cannot be used to retrieve this because it points to the most recent label used for this Entity
+ 
+				  
 	// ~~~~ interface ~~~~
+	
+
+	virtual b32
+	ensure_processed_to(code::level level);
 	
     Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
 };

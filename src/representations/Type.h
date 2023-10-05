@@ -181,9 +181,6 @@ struct Scalar : public Type {
     DString*
     dump();
 
-	b32 
-	ensure_processed_to(code::level level) { return true; }
-
 	b32
 	cast_to(Type* to, Expr*& n);
 
@@ -259,9 +256,6 @@ struct Structured : public Type {
 	b32
 	cast_to(Type* t, Expr*& e);
 
-	b32
-	ensure_processed_to(code::level level);
-
     u64
     size();
 
@@ -297,9 +291,6 @@ struct Pointer : public Type {
 
     DString*
     dump();
-
-	b32 
-	ensure_processed_to(code::level level);
 
 	b32
 	cast_to(Type* t, Expr*& e);

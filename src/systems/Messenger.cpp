@@ -225,6 +225,7 @@ deliver(Destination destination, b32 clear_messages) {
 
 void
 deliver(Destination destination, Array<Message> messages) {
+	auto l = std::scoped_lock(instance.outmtx);
     DString* out = DString::create();
 
     internal::current_dest = &destination;

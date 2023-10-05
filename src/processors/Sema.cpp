@@ -26,6 +26,7 @@ destroy() {
 
 b32 Sema::
 start() {
+	messenger::qdebug(code, String("starting sema"));
 	nstack.push(code->parser->root);
 	switch(nstack.current->kind) {
 		case ast::entity: {
@@ -33,7 +34,7 @@ start() {
 			switch(e->kind) {
 				case entity::module: {
 					if(!module()) return false;
-					util::println(e->print_tree());
+					//util::println(e->print_tree());
 				} break;
 				case entity::expr: {
 					if(!expr()) return false;
@@ -173,7 +174,7 @@ expr() {
 	
 			// ensure that the type we are assigning to has been semantically
 			// validated before we try to use it
-			if(!lhs->type->code->process_to(code::sema)) return false;
+			// if(lhs->type->ensure_processed_to(code::sema)) return false;
 
 			if(rhs->type->is<Whatever>()) {
 				diagnostic::sema::
@@ -211,7 +212,8 @@ expr() {
 			if(!expr()) return false;
 			auto rhs = nstack.pop()->as<Expr>();
 
-			nstack.current->as<Expr>()->compile_time = lhs->compile_time && rhs->compile_time;
+			nstack.current->as<Expr>()->compile_time =
+				lhs->compile_time && rhs->compile_time;
 
 			 // Rules define different patterns of the form 
 			//	   <lhs_type> <op> <rhs_type>
@@ -237,13 +239,15 @@ expr() {
 				
 				{type::kind::whatever, type::kind::null, expr::null, 
 				[](Expr* root, Expr* lhs, Expr* rhs)->b32 {
-					diagnostic::sema::cant_use_whatever_as_value(lhs->start);
+					diagnostic::sema::
+						cant_use_whatever_as_value(lhs->start);
 					return false;
 				}},
 				
 				{type::kind::null, type::kind::whatever, expr::null, 
 				[](Expr* root, Expr* lhs, Expr* rhs)->b32 {
-					diagnostic::sema::cant_use_whatever_as_value(rhs->start);
+					diagnostic::sema::
+						cant_use_whatever_as_value(rhs->start);
 					return false;
 				}},
 
@@ -447,6 +451,7 @@ expr() {
 		case expr::varref: {
 			auto e = nstack.current->as<Expr>();
 			auto v = e->as<VarRef>()->var;
+			if(v->code && !v->code->process_to(code::sema)) return false;
 			if(v->type->is<Range>()) {
 				// TODO(sushi) this is scuffed, need to setup for loops to set their variable to be of the 
 				//			   correct type instead of doing that here
@@ -465,7 +470,8 @@ expr() {
 			auto e = nstack.current->as<Expr>();
 
 			if(e->first_child<Expr>()->type->is<Whatever>()) {
-				diagnostic::sema::cant_use_whatever_as_value(e->first_child()->start);
+				diagnostic::sema::
+					cant_use_whatever_as_value(e->first_child()->start);
 				return false;
 			}
 
@@ -587,6 +593,8 @@ expr() {
 
 			e->type = TupleType::create(t);
 			t->type = e->type->as<TupleType>();
+			e->type->code = code;
+			e->type->def = e;
 		} break;
 
 		case expr::literal_array: {
@@ -804,6 +812,16 @@ pointer_try_again:
 b32 Sema::
 typeref() {
 	auto e = nstack.current->as<Expr>();
+
+	// if we're referencing a type in some way, we probably rely on
+	// semantic information about that type being fully resolved.
+	// so we check if the Code object representing it has that and 
+	// if not attach a dependency and wait for it to complete
+	// if there is no Code object then this is *probably* a built
+	// in type.
+
+	auto t = e->type;
+	if(t->code && !t->code->process_to(code::sema)) return false;
 
 	if(e->first_child() &&
 	   e->first_child()->is(expr::subscript)) {

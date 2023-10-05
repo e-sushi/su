@@ -28,16 +28,19 @@ void GenTAC::
 generate() {
     start();
 
-    util::println(code->identifier);
+	auto dbgout = DString::create("\n");
     u32 last_line_num = -1;
     forI(seq.count) {
         TAC* tac = seq.read(i);
         if(last_line_num == -1 || last_line_num != tac->node->start->l0) {
-            util::println(tac->node->first_line(true, true));
+            dbgout->append(tac->node->first_line(true, true), "\n");
             last_line_num = tac->node->start->l0;
         }
-        util::println(to_string(seq.read(i)));
+		dbgout->append(to_string(seq.read(i)), "\n");
     }
+
+	messenger::qdebug(code, dbgout->fin);
+	dbgout->deref();
 
     code->level = code::tac;
 }

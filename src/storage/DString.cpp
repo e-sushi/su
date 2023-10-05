@@ -20,7 +20,7 @@ create(T... args) {
 
 void DString::
 destroy() {
-#if BUILD_SLOW
+#if 0 // BUILD_SLOW
     if(refs) messenger::qdebug(MessageSender::Compiler, String("WARNING: DString being destroyed but still has refs!"));
 #endif
     memory::free(str);

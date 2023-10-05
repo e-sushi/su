@@ -98,6 +98,9 @@ private:
 	b32 typeref();
 	b32 reduce_builtin_type_to_typeref_expression();
 	b32 reduce_literal_to_literal_expression();
+
+	void node_start(ASTNode* node);
+	void node_end(ASTNode* node);
 };
 
 namespace parser {

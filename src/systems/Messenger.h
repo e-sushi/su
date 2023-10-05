@@ -214,6 +214,9 @@ struct Messenger {
     Array<Message> messages; 
     Array<MessageFormatting> formatting_stack;
     Array<Destination> destinations;
+	
+	// locked anytime data is being output 
+	std::mutex outmtx;	
 }; // !Threading this will likely required SharedArray or a mutex to prevent messages from being dispatched at the same time
 
 

@@ -535,6 +535,10 @@ structure_initializer(Structured* st, TupleLiteral* from) {
 	auto t = from->first_child<Tuple>();
 	auto tt = t->type->as<TupleType>();
 
+	// make sure the structure we're initializing has 
+	// been through sema first
+	if(!st->code->process_to(code::sema)) return false;
+
 	// TODO(sushi) this can probably be done better
 	//			   but this is the cleanest solution I can
 	//			   currently think of.

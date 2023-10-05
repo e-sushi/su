@@ -78,6 +78,8 @@
 #include <iostream>
 #include <filesystem>
 #include <unistd.h>
+#include <thread>
+#include <future>
 
 #ifdef AMU_USE_NOTCURSES
 #include "notcurses/notcurses.h"
@@ -112,6 +114,7 @@
 #include "representations/AIR.h"
 #include "representations/Frame.h"
 #include "representations/Code.h"
+#include "systems/Threading.h"
 #include "systems/Diagnostics.h"
 #include "systems/VM.h"
 #include "systems/Compiler.h"
@@ -122,9 +125,6 @@
 #include "processors/GenAIR.h"
 #include "systems/VM.h"
 #include "systems/Debugger.h"
-
-#include <thread>
-#include <chrono>
 
 #include "basic/Memory.cpp"
 #include "basic/Node.cpp"
@@ -148,6 +148,7 @@
 #include "representations/Stmt.cpp"
 #include "representations/Tuple.cpp"
 #include "representations/Code.cpp"
+#include "systems/Threading.cpp"
 #include "systems/Diagnostics.cpp"
 #include "systems/Messenger.cpp"
 #include "systems/Compiler.cpp"
@@ -159,6 +160,11 @@
 #include "systems/VM.cpp"
 #include "systems/Debugger.cpp"
 
+b32
+hi() {
+	amu::util::println("hello");
+	return false;
+}
 
 int main(int argc, char* argv[]){
 	{using namespace amu;

@@ -53,7 +53,7 @@ compare(String s, u64 n){
 
 b32 String::
 equal(String s) {
-    return this->count == s.count && !compare(s);
+    return this->count == s.count && !compare(s, s.count);
 }
 
 inline b32 String::
@@ -173,7 +173,7 @@ eat_word(b32 include_underscore){
     auto a = *this;
     String out = {this->str,0};
     while(a){
-        DecodedCodepoint dc = advance(a);
+        DecodedCodepoint dc = a.advance();
         if(!isalnum(dc.codepoint)) break;
         if(dc.codepoint == '_' && !include_underscore) break;
         out.count += dc.advance;
@@ -186,7 +186,7 @@ eat_int(){
     auto a = *this;
     String out = {this->str,0};
     while(a){
-        DecodedCodepoint dc = advance(a);
+        DecodedCodepoint dc = a.advance();
         if(!isdigit(dc.codepoint)) break;
         out.count += dc.advance;
     }
