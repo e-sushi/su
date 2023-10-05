@@ -1,0 +1,21 @@
+guy: {
+	a: 1;
+	b: 2;
+	c: gal.b;
+}
+man: {
+	a: guy.a;
+	b: gal.a;
+}
+boy: {
+	a: guy.b;
+}
+hello: {
+	h: boy.a;
+}
+gal: {
+	a: hello.h;
+	b: 2;
+	c: 1;
+}
+

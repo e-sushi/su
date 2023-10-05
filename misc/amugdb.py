@@ -12,7 +12,8 @@ def full_deref_if_ptr(thing):
         if thing.address == 0:
             return 'null'
         else:
-            return thing.dereference()
+            thing = thing.dereference()
+    return thing
 
 def is_tnode(val):
     n = str(val.type)

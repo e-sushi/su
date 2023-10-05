@@ -36,6 +36,7 @@ includes = (
 
 sources = {
     "app": "src/amu.cpp"
+    # "app": "misc/co.cpp"
 }
 
 config = {
