@@ -1,5 +1,7 @@
 #include "representations/Code.h"
+#include "tracy/TracyC.h"
 #include <condition_variable>
+#include <mutex>
 namespace amu {
 
 Code* Code::
@@ -33,7 +35,7 @@ from(Code* code, Token* start, Token* end) {
 
 	if(end->kind == token::end_of_file) end--;
 
-	out->identifier = DString::create(code->identifier, ":subcode<", start, ",", end, ">");
+	out->identifier = DString::create(code->identifier, "/", start->raw);
 
 	return out;
 }
@@ -106,6 +108,11 @@ is_virtual() {
 	return !this->source;
 }
 
+b32 Code::
+is_processing() {
+	return util::any(this->state, code::in_lex, code::in_parse, code::in_sema, code::in_tacgen, code::in_airgen, code::in_vm);
+}
+
 View<Token> Code::
 get_tokens() {
 	if(is_virtual()) {
@@ -134,39 +141,82 @@ add_diagnostic(Diagnostic d) {
 }
 
 b32 Code::
-process_to(code::level l) {
+process_to(code::level l) {ZoneScoped;
+	TracyCSetThreadName((char*)this->identifier.str);
+	LockableName(mtx.mtx, (char*)this->identifier.str, this->identifier.count);
 	while(1) {
-		if(this->level >= l) return true;
-		switch(this->level) {
-			case code::none: {
+		if(this->state >= (code::state)l) return true;
+		switch(this->state) {
+			case code::newborn: {
 				if(!this->lexer) Lexer::create(this);
-				this->level = code::lex;
-				this->lexer->start();
+				change_state(code::in_lex);
+				if(!this->lexer->start()) {
+					change_state(code::failed);
+					return false;
+				}
+				change_state(code::post_lex);
 			} break;
-			case code::lex: {
+			case code::post_lex: {
 				if(!this->parser) Parser::create(this);
-				this->level = code::parse;
-				if(!this->parser->parse()) return false;
+				change_state(code::in_parse);
+				if(util::any(this->kind, code::source, code::module)) {
+					// if this represents a source file or module we instead want to discretize
+					// ourself and asyncronously process each child instead
+					if(!this->parser->discretize_module()) return false;
+					// spawn a new thread for each child using a promise to defer
+					// when they begin
+					std::promise<void> p;
+					Future<void> fut{p.get_future().share()};
+					auto futures = Array<Future<b32>>::create();
+					for(auto c = first_child<Code>(); c; c = c->next<Code>()) {
+						*futures.push() = c->process_to_async_deferred(fut, code::air);
+					}
+					// start all children then wait for each child to complete, 
+					// if one of them fails then we early out and return fail ourself
+					p.set_value();
+					forI(futures.count) {
+						if(!futures.read(i).get()){
+							change_state(code::failed);
+							return false;
+						}
+					}
+					// there's no further processing needed for this code object (I believe), so
+					// we can just return here
+					change_state(code::post_airgen);
+					return true;
+					// otherwise, just parse this code object and move on like normal
+				} else if(!this->parser->parse()) {
+					 change_state(code::failed); 
+					 return false;
+				}
+				change_state(code::post_parse);
 			} break;
-			case code::parse: {
+			case code::post_parse: {
 				if(!this->sema) Sema::create(this);
-				this->level = code::sema;
-				if(!this->sema->start()) return false;
+				change_state(code::in_sema);
+				if(!this->sema->start()) {
+					change_state(code::failed);
+					return false;
+				}
+				change_state(code::post_sema);
 			} break;
-			case code::sema: {
+			case code::post_sema: {
 				if(!this->tac_gen) GenTAC::create(this);
-				this->level = code::tac;
+				change_state(code::in_tacgen);
 				this->tac_gen->generate();
+				change_state(code::post_tacgen);
 			} break;
-			case code::tac: {
+			case code::post_tacgen: {
 				if(!this->air_gen) GenAIR::create(this);
-				this->level = code::air;
+				change_state(code::in_airgen);
 				this->air_gen->generate();
+				change_state(code::post_airgen);
 			} break;
-			case code::air: {
+			case code::post_airgen: {
 				if(!this->machine) VM::create(this);
-				this->level = code::machine;
+				change_state(code::in_vm);
 				this->machine->run();
+				change_state(code::post_vm);
 			} break;
 		}
 	}
@@ -175,6 +225,31 @@ process_to(code::level l) {
 Future<b32> Code::
 process_to_async(code::level level) {
 	return threader.start(&Code::process_to, this, level);
+}
+
+Future<b32> Code::
+process_to_async_deferred(Future<void> f, code::level level) {
+	return threader.start_deferred(f, &Code::process_to, this, level);
+}
+
+b32 Code::
+wait_until_level(code::level level, Code* dependent){ ZoneScoped;
+	dependent->dependency = this;
+	while(this->state < level) {
+		mtx.lock();
+		cv.wait(mtx);
+		mtx.unlock();
+		if(this->state == code::failed) return false;
+	}
+	return true;
+}
+
+void Code::
+change_state(code::state s) { ZoneScoped;
+	mtx.lock();
+	defer { mtx.unlock(); };
+	this->state = s;
+	cv.notify_all();
 }
 
 DString* SourceCode::
@@ -198,116 +273,6 @@ dump() {
 
 
 namespace code {
-
-//SourceCode*
-//from(Source* source) {
-//	  SourceCode* out = pool::add(compiler::instance.storage.source_code);
-//	  out->raw = source->buffer;
-//	  out->source = source;
-//	  out->kind = code::source;
-//	  out->ASTNode::kind = ast::code;
-//	  out->identifier = source->name;
-//	  return out;
-//}
-//
-//Code*
-//from(Code* code, Token* start, Token* end) {
-//	  Code* out;
-//	  if(code->source) {
-//		  SourceCode* sc = pool::add(compiler::instance.storage.source_code);
-//		  sc->tokens.data = start;
-//		  sc->tokens.count = end-start+1;
-//		  out = (Code*)sc;
-//	  } else {
-//		  auto c = (VirtualCode*)code;
-//		  VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
-//		  vc->tokens = c->tokens.copy(start-c->tokens.data, end-start+1);
-//	  }
-//
-//	  out->source = code->source;
-//	  out->raw.str = start->raw.str;
-//	  out->raw.count = end->raw.str - start->raw.str;
-//
-//	  if(end->kind == token::end_of_file) end--;
-//
-//	  out->identifier = DString::create(code->identifier, ":subcode<", start, ",", end, ">");
-//
-//	  return out;
-//}
-//
-//Code*
-//from(Code* code, ASTNode* node) {
-//	  Code* out = code::from(code, node->start, node->end);
-//
-//	  Parser::create(out);
-//	  out->parser->root = node;
-//
-//	  switch(node->kind) {
-//		  case ast::entity: {
-//			  auto e = node->as<Entity>();
-//			  switch(e->kind) {
-//				  case entity::expr: {
-//					  out->kind = code::expression;
-//				  } break;
-//				case entity::var: {
-//					FixMe; // this is probably wrong or just shouldn't happen at all
-//					out->kind = code::label;
-//				} break;
-//			  }
-//		  } break;
-//		case ast::label: {
-//			out->kind = code::label;
-//		} break;
-//	  }
-//
-//	  out->level = code::parse;
-//
-//	  // trying to create a Code object from an unhandled branch kind
-//	  Assert(out->kind != code::unknown); 
-//	  return out;
-//}
-//
-//void
-//destroy(Code* c) {
-//	  if(c->lexer) c->lexer->destroy();
-//	  if(c->parser) c->parser->destroy();
-//	  if(c->sema) c->sema->destroy();
-//	  if(c->tac_gen) c->tac_gen->destroy();
-//	  if(c->air_gen) c->air_gen->destroy();
-//	  if(c->machine) c->machine->destroy();
-//}
-//
-//b32
-//is_virtual(Code* code) {
-//	  return !code->source;
-//}
-//
-//View<Token>
-//get_tokens(Code* code) {
-//	  if(is_virtual(code)) {
-//		  return ((VirtualCode*)code)->tokens.view();
-//	  } else {
-//		  return ((SourceCode*)code)->tokens;
-//	  }
-//}
-//
-//Array<Token>&
-//get_token_array(Code* code) {
-//	  if(is_virtual(code)) {
-//		  return ((VirtualCode*)code)->tokens;
-//	  } else {
-//		  return code->source->tokens;
-//	  }
-//}
-//
-//void
-//add_diagnostic(Code* code, Diagnostic d) {
-//	  if(code::is_virtual(code)) {
-//		  ((VirtualCode*)code)->diagnostics.push(d);
-//	  } else {
-//		  code->source->diagnostics.push(d);
-//	  }
-//}
 
 TokenIterator::TokenIterator(Code* code) {
 	this->code = code;

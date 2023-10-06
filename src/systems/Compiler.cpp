@@ -9,7 +9,7 @@ Compiler instance;
 Module* module;
 
 void
-init() {
+init() {ZoneScoped;
     /*
         Initialize most components of the singleton Compiler instance.
     */
@@ -213,7 +213,7 @@ dump_diagnostics(String path, Array<String> sources) {
 } // namespace internal
 
 global void
-begin(Array<String> args) {
+begin(Array<String> args) {ZoneScoped;
     internal::parse_arguments(args);
 
     // if we happen to exit early, we still want whatever is queued in the messenger

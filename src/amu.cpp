@@ -11,12 +11,6 @@
 	Constructors should primarily be used for conversions or simple initialization of a struct with arguments, for example, String heavily uses
 	constructors for compile time creation from string literals and implicit conversion from DString to String.
 	
-	The C++ std library should only be used in cases where platform specific functionality is required. Otherwise, amu prioritizes implementing 
-	things on its own.
-
-	Member functions should be almost always be avoided in favor of putting this functionality behind a namespace
-	populated with equivalent functions taking a reference to the thing to be called on as the first argument.
-
 */
 
 /*	TODOs
@@ -71,6 +65,10 @@
 		              and just let it all be handled normally. 
 */
 
+#ifdef AMU_USE_TRACY
+#include "tracy/Tracy.hpp"
+#include "TracyClient.cpp"
+#endif
 
 #include "Common.h"
 #include "util.h"
@@ -160,13 +158,7 @@
 #include "systems/VM.cpp"
 #include "systems/Debugger.cpp"
 
-b32
-hi() {
-	amu::util::println("hello");
-	return false;
-}
-
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[]){ZoneScoped;
 	{using namespace amu;
 		srand(time(0));
 		compiler::init();

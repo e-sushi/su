@@ -12,7 +12,7 @@
 #include "representations/Type.h"
 namespace amu {
 Sema* Sema::
-create(Code* code) {
+create(Code* code) {ZoneScoped;
 	auto out = pool::add(compiler::instance.storage.semas);
 	out->code = code;
 	code->sema = out;
@@ -20,12 +20,12 @@ create(Code* code) {
 }
 
 void Sema::
-destroy() {
+destroy() {ZoneScoped;
 	pool::remove(compiler::instance.storage.semas, this);
 }
 
 b32 Sema::
-start() {
+start() {ZoneScoped;
 	messenger::qdebug(code, String("starting sema"));
 	nstack.push(code->parser->root);
 	switch(nstack.current->kind) {
@@ -61,7 +61,7 @@ start() {
 
 
 b32 Sema::
-module() {
+module() {ZoneScoped;
 	auto m = nstack.pop()->as<Module>();
 	for(auto l = m->first_child<Label>(); l; l = l->next<Label>()) {
 		nstack.push(l);
@@ -71,7 +71,7 @@ module() {
 }
 
 b32 Sema::
-label() {
+label() {ZoneScoped;
 	auto l = nstack.pop()->as<Label>();
 
 	switch(l->last_child()->kind) {
@@ -106,7 +106,7 @@ label() {
 }
 
 b32 Sema::
-expr() {
+expr() {ZoneScoped;
 	switch(nstack.current->as<Expr>()->kind) {
 		case expr::call: return call();
 		case expr::block: return block();
@@ -451,7 +451,7 @@ expr() {
 		case expr::varref: {
 			auto e = nstack.current->as<Expr>();
 			auto v = e->as<VarRef>()->var;
-			if(v->code && !v->code->process_to(code::sema)) return false;
+			if(v->code && !v->code->wait_until_level(code::sema, code)) return false;
 			if(v->type->is<Range>()) {
 				// TODO(sushi) this is scuffed, need to setup for loops to set their variable to be of the 
 				//			   correct type instead of doing that here
@@ -726,7 +726,7 @@ expr() {
 }
 
 b32 Sema::
-access() {
+access() {ZoneScoped;
 	nstack.push(nstack.current->first_child());
 	if(!expr()) return false;
 	auto lhs = nstack.pop()->as<Expr>();
@@ -810,7 +810,7 @@ pointer_try_again:
 }
 
 b32 Sema::
-typeref() {
+typeref() {ZoneScoped;
 	auto e = nstack.current->as<Expr>();
 
 	// if we're referencing a type in some way, we probably rely on
@@ -821,7 +821,7 @@ typeref() {
 	// in type.
 
 	auto t = e->type;
-	if(t->code && !t->code->process_to(code::sema)) return false;
+	if(t->code && !t->code->wait_until_level(code::sema, code)) return false;
 
 	if(e->first_child() &&
 	   e->first_child()->is(expr::subscript)) {
@@ -848,7 +848,7 @@ typeref() {
 	
 		// TODO(sushi) handle obvious cases like ScalarLiterals standing alone
 		auto nu = Code::from(code, ct);
-		if(!nu->process_to(code::machine)) return false;
+		if(!nu->wait_until_level(code::vm, code)) return false;
 
 		if(se->type->is_not<Scalar>() || se->type->as<Scalar>()->is_float()) {
 			diagnostic::sema::
@@ -896,7 +896,7 @@ typeref() {
 }
 
 b32 Sema::
-typedef_() {
+typedef_() {ZoneScoped;
 	auto e = nstack.current->as<Expr>();
 	switch(e->type->kind) {
 		case type::kind::structured: {
@@ -911,7 +911,7 @@ typedef_() {
 				// if size is 0, then we must have ran into a case where we don't know the size of something yet
 				// and we need to handle parsing dependencies first 
 				if(!m->type->size()) {
-					if(!m->type->code->process_to(code::sema)) return false;
+					if(!m->type->code->wait_until_level(code::sema, code)) return false;
 				}
 				s->size += m->type->size();
 			}
@@ -922,7 +922,7 @@ typedef_() {
 }
 
 b32 Sema::
-call() {
+call() {ZoneScoped;
 	auto e = nstack.current->as<Call>();
 	auto f = e->callee->type;
 
@@ -970,7 +970,7 @@ call() {
 }
 
 b32 Sema::
-function() {
+function() {ZoneScoped;
 	auto f = nstack.current->as<Function>();
 	auto type = nstack.current->first_child<Expr>();
 	auto be = nstack.current->last_child<Block>();
@@ -1041,7 +1041,7 @@ function() {
 }
 
 b32 Sema::
-block() {
+block() {ZoneScoped;
 	auto e = nstack.current->as<Block>();
 
 	// TODO(sushi) for cases like this we can probably get away with repeatedly pushing

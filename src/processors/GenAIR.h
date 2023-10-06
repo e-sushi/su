@@ -33,6 +33,12 @@ struct GenAIR {
 
     Map<BC*, StackThing> stack_things;
 
+	Future<void> fut;
+
+
+	// ~~~~ interface ~~~~
+
+
     static GenAIR*
     create(Code* code);
 

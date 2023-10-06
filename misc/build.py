@@ -23,6 +23,9 @@
 #   -compiler <cl,gcc,clang,clang-cl>     Build using the specified compiler (default: cl on Windows, gcc on Mac and Linux)
 #   -linker <link,ld,lld,lld-link>        Build using the specified linker (default: link on Windows, ld on Mac and Linux)
 #   -notcurses <path>                     Build with support for a notcurses interface, requires providing a path to notcurses source files
+#   -tracy <path>                         Build with support for the Tracy profiler, providing a path to its source files
+
+# TODO(sushi) clean this up it's such a huge mess
 
 import os,sys,subprocess,platform,time
 from datetime import datetime
@@ -48,6 +51,7 @@ config = {
     "build_analysis": False,
     "use_pch": False,
     "use_notcurses": False,
+    "use_tracy": False,
     "gen_compcmd": False,
 
     "compiler": "unknown",
@@ -128,6 +132,14 @@ while i < len(sys.argv):
             else:
                 print("expected a path to notcurses source after -notcurses")
                 quit()
+        
+        case "-tracy":
+            if i == len(sys.argv) - 1:
+                print("expected a path to tracy source after -tracy")
+                quit()
+            i += 1
+            includes += "-I" + sys.argv[i] + " "
+            config["use_tracy"] = True
 
         case _:
             if sys.argv[i].startswith("-"):
@@ -202,6 +214,7 @@ parts = {
             "release": "-DBUILD_INTERNAL=0 -DBUILD_SLOW=0 -DBUILD_RELEASE=1 ",
             "debug": "-DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_RELEASE=0 ",
         },
+        "always": "",
     },
 
     "compiler_flags":{
@@ -310,6 +323,8 @@ if config["use_notcurses"]:
     parts["link"]["linux"]["always"].append("notcurses-core")
     parts["link"]["linux"]["always"].append("notcurses")
 
+if config["use_tracy"]:
+    parts["defines"]["always"] += "-DAMU_USE_TRACY -DTRACY_ENABLE -DTRACY_NO_EXIT=1 "
 
 # make sure that all the chosen options are compatible
 if config["compiler"] not in compatibility[config["platform"]]["compiler"]:
@@ -344,7 +359,8 @@ link = {
 }
 
 defines = (
-    parts["defines"]["buildmode"][config["buildmode"]]
+    parts["defines"]["buildmode"][config["buildmode"]] +
+    parts["defines"]["always"]
 )
 
 if config["use_notcurses"]:

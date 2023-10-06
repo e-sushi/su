@@ -26,6 +26,12 @@ struct Sema {
 	TableStack tstack;
 	NodeStack nstack;
 
+	Future<b32> fut;
+	
+
+	// ~~~~ interface ~~~~
+
+
 	static Sema*
 	create(Code* code);
 

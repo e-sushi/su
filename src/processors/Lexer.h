@@ -30,6 +30,11 @@ struct Lexer {
 
     // indexes into code's Token Array that indicates possible global label declarations
     Array<spt> labels;
+	
+	Future<b32> fut;
+
+	
+	// ~~~~ interface ~~~~
 
 
     static Lexer*
@@ -38,7 +43,7 @@ struct Lexer {
     void
     destroy();
 
-    void
+    b32
     start();
 
     void

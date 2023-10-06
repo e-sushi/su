@@ -60,16 +60,37 @@ enum kind {
 
 #include "data/code_strings.generated"
 
+// TODO(sushi) im not sure if the post states are really necessary
+enum state  {
+	newborn, 
+	in_lex,
+	post_lex,
+	in_parse,
+	post_parse,
+	in_sema,
+	post_sema,
+	in_tacgen,
+	post_tacgen,
+	in_airgen,
+	post_airgen,	
+	in_vm,
+	post_vm,
+
+	failed, // set when this Code object cannot complete processing
+};
+
 // the level of compilation a given Code object has been through
+// this is really just a helper for specifying the correct state to
+// bring a Code object to since writing process_to(code::post_lex)
+// looks somewhat weirder than process_to(code::lex);
 enum level {
 	none,
-	lex,
-	parse,
-	sema,
-	tac,
-	opt,
-	air,
-	machine,
+	lex = post_lex,
+	parse = post_parse,
+	sema = post_sema,
+	tac = post_tacgen,
+	air = post_airgen,
+	vm = post_vm,
 };
 
 } // namespace code
@@ -106,9 +127,11 @@ struct Code : public ASTNode {
 
 	// a Code object this one depends on 
 	Code* dependency;
-
-	std::promise<b32>* promise;
-	std::shared_future<b32> future;
+	
+	// this Code object's state
+	std::atomic<code::state> state;
+	Mutex mtx;
+	ConditionVariable cv;
 
 	
 	// ~~~~~~ interface ~~~~~~~
@@ -150,6 +173,11 @@ struct Code : public ASTNode {
 	b32
 	is_virtual();
 
+	// returns true if this Code object is currently going through some
+	// stage of processing
+	b32 
+	is_processing();
+
 	View<Token>
 	get_tokens();
 
@@ -167,6 +195,10 @@ struct Code : public ASTNode {
 	// This should be the only function ever used to process Code to some point
 	// because we allow Code to be arbitrarily processed at any point. Only using
 	// this function ensures that Code won't go through any stage more than once.
+	// 
+	// If this Code object is representing Source or a Module, then this will call
+	// discretize_module() from the Parser instead of calling parse() like normal.
+	// Then each new Code object will be processed asyncronously.
 	b32
 	process_to(code::level level);
 	
@@ -175,10 +207,25 @@ struct Code : public ASTNode {
 	Future<b32>
 	process_to_async(code::level level);
 
+	Future<b32>
+	process_to_async_deferred(Future<void> f, code::level level);
+
 	// same as process_to, but spawns a different thread and immediately
 	// waits for it to finish
 	b32
 	process_to_wait(code::level level);
+	
+	// called by a different Code object (the dependent) that depends on this one having reached
+	// some level of processing. If this code object has not reached the given level
+	// then the caller will wait until it finishes that stage and is notified.
+	// If a dependecy cycle is detected, false is returned.
+	b32
+	wait_until_level(code::level level, Code* dependent);
+	
+	// helper function called only by this Code object
+	// just sets the state and notifies the condition variable
+	void
+	change_state(code::state state);
 
 	DString*
 	display() = 0;
@@ -186,7 +233,8 @@ struct Code : public ASTNode {
 	DString*
 	dump() = 0;
 
-	Code(code::kind k) : kind(k), ASTNode(ast::code) {}
+	Code() : state(code::newborn), ASTNode(ast::code) {}
+	Code(code::kind k) : kind(k), state(code::newborn), ASTNode(ast::code) {}
 };
 
 template<> inline b32 Base::
@@ -236,53 +284,7 @@ struct VirtualCode : public Code {
 };
 
 namespace code {
-//
-//SourceCode*
-//from(Source* source);
-//
-//VirtualCode*
-//from(String s);
-//
-//Code*
-//from(Code* code, Token* start, Token* end);
-//
-//Code*
-//from(Code* code, Token* start, u64 count);
-//
-//Code*
-//from(Code* code, ASTNode* node);
-//
-//void
-//destroy(Code* code);
-//
-//// transforms a Code object into a VirtualCode object
-//// if the given Code is already virtual, then the same object is returned
-//// this initializes a DString with the RString on the given Code
-//
-//VirtualCode*
-//make_virtual(Code* code);
-//
-//b32
-//is_virtual(Code* code);
-//
-//b32
-//is_lexed(Code* code);
-//
-//b32
-//is_parsed(Code* code);
-//
-//String
-//display(Code* code);
-//
-//View<Token>
-//get_tokens(Code* code);
-//
-//// retrieve a reference to the array of tokens backing this Code
-//// if the Code is not Virtual, the Array comes from Source
-//// if it is, it comes from the local tokens array of VirtualCode
-//Array<Token>&
-//get_token_array(Code* code);
-//
+
 
 struct TokenIterator {
 	Code*  code; // code we are iterating

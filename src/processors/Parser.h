@@ -1,3 +1,24 @@
+/*
+ 
+	amu's Parser
+
+	Notes
+	-------
+
+	When we're processing an entire source file or module, the strategy is to first find all labels within the lexical scope of it 
+	and discretize the representing Code object into several child Code objects representing each independently process-able thing in 
+	that lexical scope (functions, variables, imports, etc). This is done both to support using global labels anywhere and to make it 
+	easy to parallelize Code objects and handle dependencies between them. 
+	The parser does not automatically handle sending child Code objects down the processing pipeline in this case. I want to avoid this 
+	because I believe it is better for Code objects to have direct control over sending each of its children down each pipeline in any 
+	way they see fit. Originally what I did was discretize the Code objects, then sent each child down the entire pipeline (to AIR gen).
+	I think it's better if Code objects have explicit control over when its children are processed and how far, though the one exception
+	is when the Parser comes across a compile time expression. We segment this into its own Code object then process it all the way through
+	the VM, but I think this is ok because there's no real way (or reason) to delegate this to the original Code object. 
+	This design may end up sucking down the road, so if anyone else winds up working on this with me and thinks so, let me know.
+
+*/
+
 #ifndef AMU_PARSER_H
 #define AMU_PARSER_H
 
@@ -23,6 +44,9 @@ struct Parser {
 
 	code::TokenIterator token;
 
+	// future notified when this stage is finished for a particular Code object 
+	Future<b32> fut;
+
 
 	// ~~~~~~ interface ~~~~~~~
 
@@ -35,8 +59,20 @@ struct Parser {
 	destroy();
 
 	// begins parsing and returns true if successful
+	// if the Code object represents Source or a Module then discretize_module()
+	// is called and parsing ends. 
+	// See notes above for why parsing a module/source file does not automatically parse 
+	// its parts.
 	b32
 	parse();
+	
+	// discretizes a given module (or source file) into discrete
+	// code objects based on the LexicalScope's marked labels. The new Code objects 
+	// are attached to the current as children. This assumes a Module has not already
+	// been created for the Code object and makes one itself. The token is also
+	// assumed to be at the first token of the LexicalScope representing the module (or source file).
+	b32
+	discretize_module();
 
 	// displays the current NodeStack 
 	DString*

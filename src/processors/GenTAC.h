@@ -48,6 +48,12 @@ struct GenTAC {
 
     u64 register_offset;
 
+	Future<void> fut;
+
+
+	// ~~~~ interface ~~~~
+
+
     static GenTAC*
     create(Code* code);
 

@@ -537,7 +537,8 @@ structure_initializer(Structured* st, TupleLiteral* from) {
 
 	// make sure the structure we're initializing has 
 	// been through sema first
-	if(!st->code->process_to(code::sema)) return false;
+	// TODO(sushi) from->code is probably gonna be null here
+	if(!st->code->wait_until_level(code::sema, from->code)) return false;
 
 	// TODO(sushi) this can probably be done better
 	//			   but this is the cleanest solution I can

@@ -16,7 +16,7 @@ create(Code* code) {
 }
 
 void GenTAC::
-destroy() {
+destroy() {ZoneScoped;
     pool::deinit(pool);
     seq.destroy();
     loop_start_stack.destroy();
@@ -25,7 +25,7 @@ destroy() {
 }
 
 void GenTAC::
-generate() {
+generate() {ZoneScoped;
     start();
 
 	auto dbgout = DString::create("\n");
@@ -46,7 +46,7 @@ generate() {
 }
 
 void GenTAC::
-start() {
+start() {ZoneScoped;
     switch(code->kind) {
         case code::source: {
             for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
@@ -125,7 +125,7 @@ label(Label* l) {
 }
 
 void GenTAC::
-function() {
+function() {ZoneScoped;
     auto l  = code->parser->root->as<Label>();
     auto f  = l->entity->as<Function>();
     auto ft = f->type;
@@ -238,7 +238,7 @@ statement(Stmt* s) {
 }
 
 Arg GenTAC::
-expression(Expr* e) {
+expression(Expr* e) {ZoneScoped;
     switch(e->kind) {
         case expr::varref: {
             auto v = e->as<VarRef>()->var;
@@ -993,7 +993,7 @@ expression(Expr* e) {
 }
 
 TAC* GenTAC::
-make() {
+make() {ZoneScoped;
     //if(seq.count) {
     //    TAC* last = seq.read(-1);
     //    if(last->op == tac::nop)
@@ -1008,12 +1008,12 @@ make() {
 }
 
 void GenTAC::
-place(TAC* t) {
+place(TAC* t) {ZoneScoped;
     seq.push(t);
 }
 
 TAC* GenTAC::
-make_and_place() {
+make_and_place() {ZoneScoped;
     TAC* out = make();
 	place(out);
     // TODO(sushi) do this better
@@ -1023,7 +1023,7 @@ make_and_place() {
 }
 
 void GenTAC::
-new_temp(TAC* tac, Type* t) {
+new_temp(TAC* tac, Type* t) {ZoneScoped;
     tac->temp_size = t->size();
     temps.readref(-1).push(tac);
 }

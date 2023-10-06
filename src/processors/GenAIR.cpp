@@ -15,7 +15,7 @@ create(Code* code) {
 }
 
 void GenAIR::
-destroy() {
+destroy() {ZoneScoped;
     seq.destroy();
     scoped_temps.destroy();
     map::deinit(stack_things);
@@ -62,7 +62,7 @@ check_unbalanced_stack(Array<BC> seq) {
 }
 
 void GenAIR::
-generate() {
+generate() {ZoneScoped;
     start();
 
 	auto dbgout = DString::create("\n");
@@ -93,7 +93,7 @@ generate() {
 }
 
 void GenAIR::
-start() {
+start() {ZoneScoped;
     switch(code->kind) {
         case code::source: {
             for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
@@ -195,7 +195,7 @@ start() {
 }
 
 void GenAIR::
-body() {
+body() {ZoneScoped;
 
     // TODO(sushi) when we get around to implementing an optimization stage this will likely need to be changed 
     auto tac_seq = code->tac_gen->seq;
@@ -702,18 +702,18 @@ body() {
 }
 
 void GenAIR::
-push_scope() {
+push_scope() {ZoneScoped;
     scoped_temps.push(u64(0));
 }
 
 void GenAIR::
-pop_scope() {
+pop_scope() {ZoneScoped;
     clean_temps();
     scoped_temps.pop();
 }
 
 void GenAIR::
-push_temp(TAC* tac) {
+push_temp(TAC* tac) {ZoneScoped;
     BC* out = seq.push();
     out->tac = tac;
     out->node = tac->node;
@@ -772,7 +772,7 @@ push_temp(TAC* tac) {
 }
 
 void GenAIR::
-clean_temps() {
+clean_temps() {ZoneScoped;
     u64& temp_count = scoped_temps.readref(-1);
     if(!temp_count) return;
     BC* last = seq.readptr(-1);

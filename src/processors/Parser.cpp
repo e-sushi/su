@@ -12,10 +12,11 @@
 #include "representations/Code.h"
 #include "representations/Expr.h"
 #include "representations/Token.h"
+#include <thread>
 namespace amu {
 
 Parser* Parser::
-create(Code* code) {
+create(Code* code) {ZoneScoped;
 	Parser* out = pool::add(compiler::instance.storage.parsers);
 	out->table.stack = Array<LabelTable*>::create();
 	out->table.current = 0;
@@ -27,9 +28,18 @@ create(Code* code) {
 	return out;
 }
 
+void Parser::
+destroy() {ZoneScoped;
+	table.stack.destroy();
+	node.stack.destroy();
+	pool::remove(compiler::instance.storage.parsers, this);
+}
+
 b32 Parser::
-parse() {
-	if(!prescan_start()) return false;
+parse() {ZoneScoped;
+	if(code->kind == code::module || code->kind == code::source) {
+		return discretize_module();
+	}
 	if(!start()) return false;
 
 	// util::println(ScopedDeref(code->parser->root->print_tree()).x);
@@ -37,15 +47,52 @@ parse() {
 	return true;
 }
 
-void Parser::
-destroy() {
-	table.stack.destroy();
-	node.stack.destroy();
-	pool::remove(compiler::instance.storage.parsers, this);
+b32 Parser::
+discretize_module() {ZoneScoped;
+	// all source files are modules, so we create one for it here
+	auto m = Module::create();
+	table.push(&m->table);
+	defer { table.pop(); };
+
+	code->parser->root = m->as<ASTNode>();
+	m->as<Function>();
+	
+	auto save = token.curt;
+
+	auto ls = token.current()->scope;
+	// TODO(sushi) this doesn't work for subcode objects
+	//			   or label groups 
+	auto tokens = code->get_token_array();
+	forI(ls->labels.count) {
+		token.curt = tokens.readptr(ls->labels.read(i));
+		if(table.search_local(token.current()->hash)) {
+			diagnostic::parser::
+				label_already_defined(token.current(), token.current());
+			return false;
+		}
+		
+		if(!label_get()) return false;
+
+		auto l = node.pop()->as<Label>();
+		table.add(l->start->raw, l);
+		l->table = table.current;
+
+		auto c = Code::from(code, l->start, tokens.readptr(-1));
+		c->kind = code::label;
+		c->state = code::post_lex;
+
+		Parser::create(c);
+		c->parser->root = l;
+
+		l->code = c;
+		node::insert_last(code, c);
+	}
+	return true;
 }
 
+
 b32 Parser::
-prescan_start() {
+prescan_start() {ZoneScoped;
 	switch(code->kind) {
 		case code::source: {
 			if(!prescan_source()) return false;
@@ -61,7 +108,7 @@ prescan_start() {
 }
 
 b32 Parser::
-prescan_source() {
+prescan_source() {ZoneScoped;
 	// all source files are modules, so we create one for it here
 	auto m = Module::create();
 	table.push(&m->table);
@@ -113,7 +160,7 @@ prescan_source() {
 }
 
 b32 Parser::
-prescan_module() {
+prescan_module() {ZoneScoped;
 	auto m = Module::create();
 	m->table.last = table.current ;
 	table.push(&m->table);
@@ -412,7 +459,7 @@ prescan_label() {
 
 b32 Parser::
 start() {
-	messenger::qdebug(code, String("starting parser"));
+	messenger::qdebug(code, String("starting parser ("), to_string(std::hash<std::thread::id>{}(std::this_thread::get_id()))->fin);
 	Assert(code->parser, "a parser must have been made for a Code object created in the first stage.");
 	switch(code->kind) {
 		case code::label: {
@@ -441,11 +488,13 @@ start() {
 			if(!prescanned_var_decl()) return false;
 		} break;
 		case code::source: {
+			Assert(0, "shouldn't reach this point but i need to see if there are any instances where we do");
+			if(discretize_module()) return false;
+
 			auto futures = Array<Future<b32>>::create();
 			for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
 				c->parser->table.push(&code->parser->root->as<Module>()->table);
 				futures.push(c->process_to_async(code::air));
-				// if(!c->process_to(code::parse)) return false;
 				c->parser->table.pop();
 				node::insert_last(code->parser->root, c->parser->root);
 			}
@@ -612,7 +661,7 @@ prescanned_var_decl() {
 		v->type = e->type;
 		v->memory = (u8*)memory::allocate(v->type->size());
 		map::add(compiler::instance.global_symbols, v->memory, v);
-		if(!code->process_to(code::machine)) return false;
+		if(!code->process_to(code::vm)) return false;
 		code->machine->destroy();
 	}
 	return true;
@@ -694,7 +743,7 @@ struct_decl() {
 // what the label should be representing 
 // and create it there.
 b32 Parser::
-label() {
+label() {ZoneScoped;
 	auto start = token.current();
 
 	if(!label_get()) return false;
@@ -732,7 +781,7 @@ label() {
 // just parses <id> { "," <id> } : and pushes a label on the stack representing it 
 // returns with the iterator at the token following the colon
 b32 Parser::
-label_get() {
+label_get() {ZoneScoped;
 	auto expr = Expr::create(expr::identifier);
 	expr->start = expr->end = token.current();
 	node.push(expr);
@@ -762,7 +811,7 @@ label_get() {
 
 
 b32 Parser::
-label_group_after_comma() {
+label_group_after_comma() {ZoneScoped;
 	 while(1) {
 		if(!token.is(token::identifier)) break; 
 		auto expr = Expr::create(expr::identifier);
@@ -808,7 +857,7 @@ label_group_after_comma() {
 }
 
 b32 Parser::
-label_after_colon() {
+label_after_colon() {ZoneScoped;
 	switch(token.current_kind()) {
 		case token::colon:
 		case token::equal: {
@@ -858,7 +907,7 @@ label_after_colon() {
 // In the case of a function definition the token is left at
 // the closing brace
 b32 Parser::
-tuple() {
+tuple() {ZoneScoped;
 	auto tuple = Tuple::create();
 	tuple->start = token.current();
 
@@ -1017,7 +1066,7 @@ expr:
 }
 
 b32 Parser::
-expression() {
+expression() {ZoneScoped;
 	switch(token.current_kind()) {
 		case token::equal: {
 			auto e = Expr::create(expr::unary_assignment);
@@ -1068,7 +1117,7 @@ expression() {
 			nu->compile_time = true;
 			e->code = nu;
 
-			if(!nu->process_to(code::machine)) return false;
+			if(!nu->wait_until_level(code::vm, code)) return false;
 
 			// now we need to figure out exactly what was returned from the expression
 			e->type = e->first_child<Expr>()->type;
@@ -1167,7 +1216,7 @@ expression() {
 	access: factor * { "." factor }
 */
 b32 Parser::
-access() { 
+access() { ZoneScoped;
 	if(token.current_kind() == token::dot) {
 		token.increment();
 		// when we parse accesses, we don't care about figuring out if the identifier is 
@@ -1195,7 +1244,7 @@ access() {
 }
 
 b32 Parser::
-subscript() {
+subscript() {ZoneScoped;
 	if(token.is(token::open_square)) {
 		auto subj = node.pop();
 		auto e = Expr::create(expr::subscript);
@@ -1227,7 +1276,7 @@ subscript() {
 	term: access * { ( "*" | "/" | "%" ) access }
 */
 b32 Parser::
-term() { 
+term() { ZoneScoped;
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::percent: 
@@ -1259,7 +1308,7 @@ term() {
 	additive: term * { ("+" | "-" ) term }
 */
 b32 Parser::
-additive() { 
+additive() { ZoneScoped;
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::plus:
@@ -1290,7 +1339,7 @@ additive() {
 	bit-shift: additive { "<<" | ">>" additive }
 */
 b32 Parser::
-bit_shift() { 
+bit_shift() { ZoneScoped;
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::double_less_than: 
@@ -1322,7 +1371,7 @@ bit_shift() {
 	relational: bit-shift { ( ">" | "<" | "<=" | ">=" ) bit-shift }
 */
 b32 Parser::
-relational() { 
+relational() { ZoneScoped;
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::less_than:
@@ -1361,7 +1410,7 @@ relational() {
 	equality: relational { ( "!=" | "==" ) relational }
 */
 b32 Parser::
-equality() { 
+equality() { ZoneScoped;
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::double_equal:
@@ -1395,7 +1444,7 @@ equality() {
 	bit-and: equality { "&" equality } 
 */
 b32 Parser::
-bit_and() { 
+bit_and() { ZoneScoped;
 	if(token.current_kind() == token::ampersand) {
 		token.increment();
 		if(!factor()) return false;
@@ -1423,7 +1472,7 @@ bit_and() {
 	bit-xor: bit-and { "^" bit-and }
 */
 b32 Parser::
-bit_xor() { 
+bit_xor() { ZoneScoped;
 	if(token.current_kind() == token::caret) {
 		token.increment();
 		if(!factor()) return false;
@@ -1452,7 +1501,7 @@ bit_xor() {
 	bit-or: bit-xor { "|" bit-xor }
 */
 b32 Parser::
-bit_or() { 
+bit_or() { ZoneScoped;
 	if(token.current_kind() == token::vertical_line) {
 		token.increment();
 		if(!factor()) return false;
@@ -1482,7 +1531,7 @@ bit_or() {
 	logi-and: bit-or { "&&" bit-or }
 */
 b32 Parser::
-logi_and() { 
+logi_and() { ZoneScoped;
 	if(token.current_kind() == token::double_ampersand) {
 		token.increment();
 		if(!factor()) return false;
@@ -1513,7 +1562,7 @@ logi_and() {
 	logi-or: logi-and { "||" logi-and }
 */
 b32 Parser::
-logi_or() { 
+logi_or() { ZoneScoped;
 	if(token.current_kind() == token::logi_or) {
 		token.increment();
 		if(!factor()) return false;
@@ -1542,7 +1591,7 @@ logi_or() {
 }
 
 b32 Parser::
-range() {
+range() {ZoneScoped;
 	if(token.is(token::range)) {
 		token.increment();
 		if(!factor()) return false;
@@ -1571,7 +1620,7 @@ range() {
 }
 
 b32 Parser::
-assignment() {
+assignment() {ZoneScoped;
 	if(token.is(token::equal)) {
 		token.increment();
 		if(!factor()) return false;
@@ -1603,7 +1652,7 @@ assignment() {
 }
 
 b32 Parser::
-conditional() {
+conditional() {ZoneScoped;
 	Expr* e = Expr::create(expr::conditional);
 	e->start = token.current();
 
@@ -1647,7 +1696,7 @@ conditional() {
 }
 
 b32 Parser::
-loop() {
+loop() {ZoneScoped;
 	auto e = Expr::create(expr::loop);
 	e->start = token.current();
 
@@ -1664,7 +1713,7 @@ loop() {
 }
 
 b32 Parser::
-factor() {
+factor() {ZoneScoped;
 	switch(token.current_kind()) {
 		case token::identifier: {
 			Label* l = table.search(token.current()->hash);
@@ -1675,7 +1724,7 @@ factor() {
 			}
 
 			if(!l->entity) {
-				if(!l->code->process_to(code::parse)) return false;
+				if(!l->code->wait_until_level(code::parse, code)) return false;
 			}
 
 			switch(l->entity->kind) {
@@ -1945,7 +1994,7 @@ factor() {
 }
 
 b32 Parser::
-array_literal() {
+array_literal() {ZoneScoped;
 	auto save = token.current();
 
 	token.increment();
@@ -2004,7 +2053,7 @@ array_literal() {
 //			   when parsing blocks, instead of the weird logic we try to do 
 //			   to allow omitting semicolons after labels that end with blocks 
 b32 Parser::
-block() {
+block() {ZoneScoped;
 	auto e = Block::create();
 	e->start = token.current();
 	e->table.last = table.current;
@@ -2178,7 +2227,7 @@ block() {
 }
 
 b32 Parser::
-typeref() {
+typeref() {ZoneScoped;
 	Token* start = token.current();
 	switch(token.current_kind()) {
 		case token::equal: {
@@ -2343,7 +2392,7 @@ typeref() {
 }
 
 b32 Parser::
-reduce_literal_to_literal_expression() {
+reduce_literal_to_literal_expression() {ZoneScoped;
 	switch(token.current_kind()) {
 		// TODO(sushi) this needs to take into account unicode codepoints!
 		//			   probably change char to storing u32 instead of u8
@@ -2382,7 +2431,7 @@ reduce_literal_to_literal_expression() {
 }
 
 b32 Parser::
-reduce_builtin_type_to_typeref_expression() { 
+reduce_builtin_type_to_typeref_expression() { ZoneScoped;
 	Expr* e = Expr::create(expr::typeref);
 	e->start = e->end = token.current();
 	switch(token.current_kind()) {

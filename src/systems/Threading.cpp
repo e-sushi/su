@@ -30,6 +30,12 @@ wrapper(std::promise<R> p, F f, Args... args) {
 	threader.sema.release();
 }
 
+template<typename R, typename F, typename... Args> void
+wrapper_deferred(Future<void> deferrer, std::promise<R> p, F f, Args... args) {
+	deferrer.get();
+	wrapper(std::move(p), f, args...);
+}
+
 template<typename F, typename... Args> Future<std::invoke_result_t<F, Args...>> Threader::
 start(F f, Args... args) {
 	using R = std::invoke_result_t<F, Args...>;
@@ -40,5 +46,18 @@ start(F f, Args... args) {
 	t.detach();
 	return out;
 }
+
+template<typename F, typename... Args> Future<std::invoke_result_t<F, Args...>> Threader::
+start_deferred(Future<void> fext, F f, Args... args) {
+	using R = std::invoke_result_t<F, Args...>;
+	auto p = std::promise<R>();
+	Future<R> out;
+	out.f = p.get_future().share();
+	std::thread t(wrapper_deferred<R, F, Args...>, fext, std::move(p), f, args...);
+	t.detach();
+	return out;
+}
+
+
 
 } // namespace amu

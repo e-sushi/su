@@ -73,6 +73,7 @@ struct Compiler {
     }storage;
 
     // a global map of addresses to variables 
+	// TODO(sushi) actually implement this
     Map<u8*, Var*> global_symbols;
     Array<Diagnostic> diagnostics;
     
