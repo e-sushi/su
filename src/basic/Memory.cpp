@@ -1,3 +1,4 @@
+#include "Common.h"
 namespace amu {
 
 namespace memory {
@@ -11,7 +12,8 @@ allocate(upt size) {
 
 FORCE_INLINE void* 
 reallocate(void* ptr, upt size) {
-    return realloc(ptr, size);
+    void* out = realloc(ptr, size);
+	return out;
 }
 
 template<typename T> FORCE_INLINE T*

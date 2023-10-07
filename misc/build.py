@@ -38,8 +38,9 @@ includes = (
 )
 
 sources = {
-    "app": "src/amu.cpp"
+    # "app": "src/amu.cpp"
     # "app": "misc/co.cpp"
+    "app": "misc/fibers/fiber.cpp"
 }
 
 config = {
@@ -459,6 +460,7 @@ if config["gen_compcmd"]:
 full_link = (
     f'{config["compiler"]} ' # NOTE(sushi) this should not be the compiler, but it is for now cause that is how it is on linux for me so fix later please
     f'{folders["build"]}/{app_name}.o '
+    f'{folders["root"]}/misc/fibers/context.o '
     f'{link["flags"]} '
     f'{link["libs"]} '
     f'{link["paths"]} '

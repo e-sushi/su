@@ -1,5 +1,4 @@
 #include "representations/Code.h"
-#include "tracy/TracyC.h"
 #include <condition_variable>
 #include <mutex>
 namespace amu {
