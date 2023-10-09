@@ -25,7 +25,7 @@ init() {
 
     */
 
-   instance.global_symbols = map::init<u8*, Var*>();
+    instance.global_symbols = map::init<u8*, Var*>();
 
     instance.storage.sources             = pool::init<Source>(8);
     instance.storage.source_code         = pool::init<SourceCode>(8);
@@ -214,7 +214,7 @@ dump_diagnostics(String path, Array<String> sources) {
 
 } // namespace internal
 
-global void
+global b32
 begin(Array<String> args) {
     internal::parse_arguments(args);
 
@@ -225,7 +225,7 @@ begin(Array<String> args) {
     if(!instance.options.entry_path.str){
         diagnostic::compiler::
             no_path_given(MessageSender::Compiler);
-        return;
+        return false;
     }
 
     instance.options.verbosity = message::verbosity::debug;
@@ -234,30 +234,30 @@ begin(Array<String> args) {
     if(!entry_source) {
         diagnostic::path::
             not_found(MessageSender::Compiler, instance.options.entry_path);
-        return;
+        return false;
     }
 	
     entry_source->code = Code::from(entry_source);
 
-	if(!entry_source->code->process_to(code::lex)) return;
+	if(!entry_source->code->process_to(code::lex)) return false;
     messenger::deliver();
     
 	if(instance.options.dump_tokens.path.str) {
         entry_source->code->lexer->
 			output(instance.options.dump_tokens.human, instance.options.dump_tokens.path);
-        if(instance.options.dump_tokens.exit) return;
+        if(instance.options.dump_tokens.exit) return true;
     }
 
-	if(!entry_source->code->process_to(code::parse)) return;
+	if(!entry_source->code->process_to(code::parse)) return false;
     messenger::deliver();
 
-	if(!entry_source->code->process_to(code::sema)) return;
+	if(!entry_source->code->process_to(code::sema)) return false;
     messenger::deliver();
 
-	if(!entry_source->code->process_to(code::tac)) return;
+	if(!entry_source->code->process_to(code::tac)) return false;
 	messenger::deliver();
 
-	if(!entry_source->code->process_to(code::air)) return;
+	if(!entry_source->code->process_to(code::air)) return false;
 	messenger::deliver();
 
 	// Debugger::create(entry_source->code->last_child<Code>())->start();
@@ -266,9 +266,10 @@ begin(Array<String> args) {
     //    ->run();
 
     if(instance.options.dump_diagnostics.path.str) {
-        if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return;
+        if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return false;
     }
 
+	return true;
 }
 
 } // namespace compiler

@@ -293,6 +293,7 @@ parts = {
                 "-finline-functions " # inlines suitable functions
                 "-pipe "              # use pipes between commands when possible
                 "-msse3 "             # enables sse
+                "-pthread "
                 "-Wno-switch "
                 "-Wno-unused-value "  
                 "-Wno-implicitly-unsigned-literal "

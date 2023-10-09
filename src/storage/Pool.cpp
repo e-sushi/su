@@ -49,6 +49,8 @@ init(spt n_per_chunk) {
     forI(out.items_per_chunk) {
         node::insert_before(out.free_blocks, (LNode*)(blockstart + i * blocksize));
     }
+
+	out.m = new Mutex();
   
     return out;
 } // init
@@ -67,6 +69,8 @@ deinit(Pool<T>& pool) {
 
 template<typename T> T*
 add(Pool<T>& pool) {
+	pool.m->lock();
+	defer { pool.m->unlock(); };
     if(pool.free_blocks->next == pool.free_blocks) {
         internal::new_chunk(pool);
     }
@@ -89,6 +93,8 @@ add(Pool<T>& pool, const T& val) {
 
 template<typename T> void
 remove(Pool<T>& pool, T* ptr) {
+	pool.m->lock();
+	defer { pool.m->unlock(); }; 
     LNode* header = (LNode*)((u8*)ptr - sizeof(LNode));
     node::remove(header);
     node::insert_before(pool.free_blocks, header);

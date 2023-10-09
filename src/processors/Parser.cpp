@@ -18,11 +18,10 @@ namespace amu {
 Parser* Parser::
 create(Code* code) {
 	Parser* out = pool::add(compiler::instance.storage.parsers);
-	out->table.stack = Array<LabelTable*>::create();
+	out->table.stack = Array<LabelTable*>::create(128);
 	out->table.current = 0;
-	out->node.stack = Array<ASTNode*>::create();
+	out->node.stack = Array<ASTNode*>::create(128);
 	out->node.current = 0;
-	out->node.code = code;
 	out->code = code; 
 	code->parser = out;
 	out->token = code::TokenIterator(code);

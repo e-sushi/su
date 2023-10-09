@@ -14,11 +14,10 @@ namespace amu {
 Sema* Sema::
 create(Code* code) {
 	auto out = pool::add(compiler::instance.storage.semas);
-	out->nstack.stack = Array<ASTNode*>::create();
+	out->nstack.stack = Array<ASTNode*>::create(128);
 	out->nstack.current = 0;
-	out->tstack.stack = Array<LabelTable*>::create();
+	out->tstack.stack = Array<LabelTable*>::create(128);
 	out->tstack.current = 0;
-	out->nstack.code = code;
 	out->code = code;
 	code->sema = out;
 	return out;

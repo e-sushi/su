@@ -276,14 +276,13 @@ b32 Code::
 wait_until_level(code::level level, Code* dependent){ 
 	messenger::qdebug(dependent, String("waiting until "), ScopedDeref(this->display()).x->fin, String(" reaches stage "), code::state_strings[level]);
 	dependent->dependency = this;
+	mtx.lock();
+	defer { mtx.unlock(); };
 	while(this->state < level) {
-		mtx.lock();
 		messenger::qdebug(dependent, String("sleeping until stage is reached"));
 		cv.wait(mtx);
-		mtx.unlock();
 		messenger::qdebug(dependent, String("notified, checking stage of dependency (which is "), code::state_strings[this->state], String(")"));
 	}
-
 	if(this->state == code::failed) return false;
 	messenger::qdebug(dependent, String("dependency on "), ScopedDeref(this->display()).x->fin, String(" fulfilled"));
 	return true;
@@ -296,6 +295,9 @@ change_state(code::state s) {
 	defer { mtx.unlock(); };
 	this->state = s;
 	messenger::qdebug(this, String("changed state and notifying waiters. new state: "), code::state_strings[s]);
+	if(compiler::instance.options.break_on_error && s == code::failed) {
+		DebugBreakpoint;
+	}
 	cv.notify_all();
 }
 

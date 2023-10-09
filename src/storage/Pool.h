@@ -23,6 +23,7 @@
 #define AMU_POOL_H
 
 #include "basic/Node.h"
+#include "systems/Threading.h"
 
 namespace amu {
 
@@ -38,6 +39,9 @@ struct Pool {
     // this isn't guaranteed to be in any order
     // the order likely depends on the sequence of additions and removals of items
     LNode* items; 
+
+	Mutex* m;
+
 };
 
 namespace pool {

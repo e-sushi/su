@@ -3,7 +3,6 @@ namespace amu {
 
 void NodeStack::
 push(ASTNode* n) {
-	messenger::qdebug(code, String("pushing node "), ScopedDeref(n->display()).x->fin);
 	stack.push(current);
 	current = n;
 }
@@ -12,7 +11,6 @@ ASTNode* NodeStack::
 pop() {
 	ASTNode* save = current;
 	current = stack.pop();
-	messenger::qdebug(code, String("popped node "), ScopedDeref(save->display()).x->fin);
 	return save;
 }
 

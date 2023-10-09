@@ -87,6 +87,8 @@ struct Compiler {
         b32 deliver_debug_immediately;
 		b32 deliver_all_immediately;
 
+		b32 break_on_error;
+
         b32 quiet;
         
         struct{
@@ -114,7 +116,7 @@ deinit();
 
 
 // the entry point of the compiler given a list of command line arguments
-global void
+global b32
 begin(Array<String> args);
 
 // the global compiler object, referred to by anything in the program

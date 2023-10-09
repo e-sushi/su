@@ -161,7 +161,11 @@ int main(int argc, char* argv[]){
 		auto args = Array<String>::create(argc);
 		forI(argc) 
 			args.push(string::init(argv[i]));
-		compiler::begin(args);
+		if(compiler::begin(args)) {
+			util::println("compilation succeeded");
+		} else {
+			util::println("compilation failed");
+		}
 	}
 	return 0;
 }

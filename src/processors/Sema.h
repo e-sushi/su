@@ -24,10 +24,8 @@ struct Sema {
 	Code* code;
 
 	TableStack tstack;
-	NodeStack nstack;
+	NodeStack  nstack;
 
-	Future<b32> fut;
-	
 
 	// ~~~~ interface ~~~~
 
