@@ -23,7 +23,7 @@ template<typename R, typename F, typename... Args> void
 wrapper(std::promise<R> p, F f, Args... args);
 
 struct Threader {
-	std::counting_semaphore<6> sema;
+	std::counting_semaphore<1> sema;
 
 	template<typename F, typename... Args> Future<std::invoke_result_t<F, Args...>>
 	start(F f, Args... args);
@@ -33,7 +33,7 @@ struct Threader {
 	template<typename F, typename... Args> Future<std::invoke_result_t<F, Args...>>
 	start_deferred(Future<void> fext, F f, Args... args);
 
-	Threader() : sema(6) {}
+	Threader() : sema(1) {}
 };
 
 extern Threader threader;
@@ -45,22 +45,18 @@ struct Future {
 
 	template<typename U = T>
 	std::enable_if_t<std::is_void_v<U>> 
-	get() { ZoneScoped;
-		TracyMessageL("trying to get future");
+	get() { 
 		threader.sema.release();
 		f.get();
 		threader.sema.acquire();
-		TracyMessageL("got future and woke up");
 	}
 
 	template<typename U = T>
 	std::enable_if_t<!std::is_void_v<U>, U>
-	get() { ZoneScoped;
-		TracyMessageL("trying to get future");
+	get() { 
 		threader.sema.release();
 		T val = f.get();
 		threader.sema.acquire();
-		TracyMessageL("got future and woke up");
 		return val;
 	}
 };
@@ -71,37 +67,31 @@ struct ConditionVariable {
 	std::condition_variable_any cv;
 
 	template<typename T> void
-	wait(T& ul) { ZoneScoped;
-		TracyMessageL("waiting on condvar");
+	wait(T& ul) { 
 		threader.sema.release();
 		cv.wait(ul);
 		threader.sema.acquire();
-		TracyMessageL("woke up from condvar");
 	}
 
 	void
-	notify_all() { ZoneScoped;
-		TracyMessageL("notifying waiters");
+	notify_all() { 
 		cv.notify_all();
 	}
 };
 
 struct Mutex {
-	TracyLockable(std::mutex, mtx);
+	std::mutex mtx;
 
 	void
 	lock() {
-		TracyMessageL("trying to lock mutex");
 		threader.sema.release();
 		mtx.lock();
 		threader.sema.acquire();
-		TracyMessageL("got lock");
 	}
 
 	void
 	unlock() {
 		mtx.unlock();
-		TracyMessageL("unlocked mutex");
 	}
 };
 

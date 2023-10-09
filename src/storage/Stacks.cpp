@@ -1,7 +1,9 @@
+#include "representations/Label.h"
 namespace amu {
 
 void NodeStack::
 push(ASTNode* n) {
+	messenger::qdebug(code, String("pushing node "), ScopedDeref(n->display()).x->fin);
 	stack.push(current);
 	current = n;
 }
@@ -10,6 +12,7 @@ ASTNode* NodeStack::
 pop() {
 	ASTNode* save = current;
 	current = stack.pop();
+	messenger::qdebug(code, String("popped node "), ScopedDeref(save->display()).x->fin);
 	return save;
 }
 
@@ -33,8 +36,8 @@ Label* TableStack::
 search(u64 hash) {
 	LabelTable* table = current;
 	while(table) {
-		auto [idx, found] = map::find(table->map, hash);
-		if(found) return table->map.values.read(idx);
+		auto l = label::table::search(table, hash);
+		if(l) return l;
 		table = table->last;
 	}
 	return 0;
@@ -42,9 +45,7 @@ search(u64 hash) {
 
 Label* TableStack::
 search_local(u64 hash) {
-	auto [idx, found] = map::find(current->map, hash);
-	if(found) return current->map.values.read(idx);
-	return 0;
+	return label::table::search(current, hash);
 }
 
 } // namespace amu

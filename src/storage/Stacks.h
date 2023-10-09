@@ -9,10 +9,14 @@ namespace amu {
 struct ASTNode;
 struct LabelTable;
 struct Label;
+struct Code;
 
 struct NodeStack {
 	Array<ASTNode*> stack;
 	ASTNode* current;
+
+	// DEBUG: code object this node stack belongs to 
+	Code* code;
 
 	void push(ASTNode* n);
 	ASTNode* pop();

@@ -14,7 +14,7 @@
 namespace amu {
 
 struct Module : public Entity {
-    LabelTable table;
+    LabelTable* table;
 
     static Module*
     create();

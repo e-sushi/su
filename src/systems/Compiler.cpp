@@ -9,7 +9,7 @@ Compiler instance;
 Module* module;
 
 void
-init() {ZoneScoped;
+init() {
     /*
         Initialize most components of the singleton Compiler instance.
     */
@@ -39,6 +39,7 @@ init() {ZoneScoped;
     instance.storage.vm                  = pool::init<VM>(8);
     instance.storage.modules             = pool::init<Module>(8);
     instance.storage.labels              = pool::init<Label>(8);
+	instance.storage.label_tables        = pool::init<LabelTable>(8);
     instance.storage.virtual_labels      = pool::init<VirtualLabel>(8);
     instance.storage.structures          = pool::init<Structure>(8);
     instance.storage.members             = pool::init<Member>(8);
@@ -70,6 +71,7 @@ init() {ZoneScoped;
 	instance.storage.debuggers           = pool::init<Debugger>(8);
 
     instance.options.deliver_debug_immediately = true;
+	//instance.options.deliver_all_immediately = true;
 
     messenger::init();  // TODO(sushi) compiler arguments to control this
     messenger::instance.destinations.push(Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
@@ -213,7 +215,7 @@ dump_diagnostics(String path, Array<String> sources) {
 } // namespace internal
 
 global void
-begin(Array<String> args) {ZoneScoped;
+begin(Array<String> args) {
     internal::parse_arguments(args);
 
     // if we happen to exit early, we still want whatever is queued in the messenger

@@ -287,7 +287,7 @@ to_string(DString* current, Arg* arg) {
             }
         } break;
         case arg::cast: {
-            current->append(scalar::strings[arg->cast.from], "->", scalar::strings[arg->cast.to]);
+            current->append(scalar::kind_strings[arg->cast.from], "->", scalar::kind_strings[arg->cast.to]);
         } break;
         case arg::stack_offset: {
             current->append(arg->literal.display());

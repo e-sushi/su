@@ -253,6 +253,9 @@ void
 deliver(Destination dest, Array<Message> messages);
 
 void
+deliver(Destination dest, Message message);
+
+void
 push_formatting(MessageFormatting formatting);
 
 void

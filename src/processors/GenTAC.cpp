@@ -16,7 +16,7 @@ create(Code* code) {
 }
 
 void GenTAC::
-destroy() {ZoneScoped;
+destroy() {
     pool::deinit(pool);
     seq.destroy();
     loop_start_stack.destroy();
@@ -25,28 +25,28 @@ destroy() {ZoneScoped;
 }
 
 void GenTAC::
-generate() {ZoneScoped;
+generate() {
     start();
 
-	auto dbgout = DString::create("\n");
-    u32 last_line_num = -1;
-    forI(seq.count) {
-        TAC* tac = seq.read(i);
-        if(last_line_num == -1 || last_line_num != tac->node->start->l0) {
-            dbgout->append(tac->node->first_line(true, true), "\n");
-            last_line_num = tac->node->start->l0;
-        }
-		dbgout->append(to_string(seq.read(i)), "\n");
-    }
-
-	messenger::qdebug(code, dbgout->fin);
-	dbgout->deref();
+//	auto dbgout = DString::create("\n");
+//    u32 last_line_num = -1;
+//    forI(seq.count) {
+//        TAC* tac = seq.read(i);
+//        if(last_line_num == -1 || last_line_num != tac->node->start->l0) {
+//            dbgout->append(tac->node->first_line(true, true), "\n");
+//            last_line_num = tac->node->start->l0;
+//        }
+//		dbgout->append(to_string(seq.read(i)), "\n");
+//    }
+//
+//	messenger::qdebug(code, dbgout->fin);
+//	dbgout->deref();
 
     code->level = code::tac;
 }
 
 void GenTAC::
-start() {ZoneScoped;
+start() {
     switch(code->kind) {
         case code::source: {
             for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
@@ -104,7 +104,7 @@ start() {ZoneScoped;
             ret->arg0 = v;
         } break;
         default: {
-            TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
+            TODO(DString::create("unhandled start case: ", code::kind_strings[code->kind]));
         } break;
     }
 }
@@ -125,7 +125,7 @@ label(Label* l) {
 }
 
 void GenTAC::
-function() {ZoneScoped;
+function() {
     auto l  = code->parser->root->as<Label>();
     auto f  = l->entity->as<Function>();
     auto ft = f->type;
@@ -238,7 +238,7 @@ statement(Stmt* s) {
 }
 
 Arg GenTAC::
-expression(Expr* e) {ZoneScoped;
+expression(Expr* e) {
     switch(e->kind) {
         case expr::varref: {
             auto v = e->as<VarRef>()->var;
@@ -988,12 +988,12 @@ expression(Expr* e) {ZoneScoped;
 
     // an expression didn't return anything or this is a
     // completely unhandled expression kind
-    TODO(DString::create("unhandled expression kind: ", expr::strings[e->kind]));
+    TODO(DString::create("unhandled expression kind: ", expr::kind_strings[e->kind]));
     return {};
 }
 
 TAC* GenTAC::
-make() {ZoneScoped;
+make() {
     //if(seq.count) {
     //    TAC* last = seq.read(-1);
     //    if(last->op == tac::nop)
@@ -1008,12 +1008,12 @@ make() {ZoneScoped;
 }
 
 void GenTAC::
-place(TAC* t) {ZoneScoped;
+place(TAC* t) {
     seq.push(t);
 }
 
 TAC* GenTAC::
-make_and_place() {ZoneScoped;
+make_and_place() {
     TAC* out = make();
 	place(out);
     // TODO(sushi) do this better
@@ -1023,7 +1023,7 @@ make_and_place() {ZoneScoped;
 }
 
 void GenTAC::
-new_temp(TAC* tac, Type* t) {ZoneScoped;
+new_temp(TAC* tac, Type* t) {
     tac->temp_size = t->size();
     temps.readref(-1).push(tac);
 }

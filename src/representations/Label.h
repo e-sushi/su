@@ -28,6 +28,7 @@ struct Label : public ASTNode {
 	// points to the LabelTable this Label belongs to
 	LabelTable* table;
 
+
     // ~~~~~~ interface ~~~~~~~
 
 
@@ -58,6 +59,8 @@ struct LabelTable {
     LabelTable* last;
     Map<String, Label*> map;
     ASTNode* owner; // temp debug so I can figure out who these tables belong to 
+	
+	std::mutex mtx;
 };
 
 // a Label created internally 
@@ -114,7 +117,7 @@ display(Label* l, Formatting format = Formatting(), b32 allow_color = true) {
 
 namespace table {
 
-LabelTable
+LabelTable*
 init(ASTNode* creator);
 
 FORCE_INLINE void

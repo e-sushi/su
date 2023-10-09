@@ -38,14 +38,7 @@ struct Parser {
 	TableStack table;
 	NodeStack node;
 
-	// array of Tokens representing identifiers that refer to something
-	// unknown when we come across it in parsing 
-	Array<Token> unknowns;
-
 	code::TokenIterator token;
-
-	// future notified when this stage is finished for a particular Code object 
-	Future<b32> fut;
 
 
 	// ~~~~~~ interface ~~~~~~~
@@ -84,18 +77,6 @@ struct Parser {
 	// manually accessed and I put them behind private just to keep them from polluting
 	// Parser's namespace or whatever you'd call it in my IDE 
 private:
-	// these stages perform a sort of prescan of a given Code object
-	// and only emit new, nested Code objects from the starting object
-	// and dispatches a new Parser on them
-	b32 prescan_start();
-	b32 prescan_source();
-	b32 prescan_module();
-	b32 prescan_label();
-	b32 prescan_expression();
-	
-	// these stages perform 'actual' parsing of the current Code object
-	// in that they will build an AST for it. It's possible that new Code
-	// objects are created and Parsed as well, though
 	b32 start();
 	b32 prescanned_label();
 	b32 prescanned_function();

@@ -1,4 +1,5 @@
 #include "representations/Code.h"
+#include "systems/Messenger.h"
 #include <condition_variable>
 #include <mutex>
 namespace amu {
@@ -36,6 +37,8 @@ from(Code* code, Token* start, Token* end) {
 
 	out->identifier = DString::create(code->identifier, "/", start->raw);
 
+	messenger::qdebug(out, String("created Code object from "), ScopedDeref(code->display()).x->fin);
+
 	return out;
 }
 
@@ -66,6 +69,8 @@ from(Code* code, ASTNode* node) {
 
 	out->level = code::parse;
 
+	messenger::qdebug(out, String("created Code object from "), ScopedDeref(code->display()).x->fin);
+
 	// trying to create a Code object from an unhandled branch kind
 	Assert(out->kind != code::unknown); 
 	return out;
@@ -79,6 +84,7 @@ from(Source* source) {
 	out->kind = code::source;
 	out->ASTNode::kind = ast::code;
 	out->identifier = source->name;
+	messenger::qdebug(out, String("created SourceCode"));
 	return out;
 }
 
@@ -140,36 +146,49 @@ add_diagnostic(Diagnostic d) {
 }
 
 b32 Code::
-process_to(code::level l) {ZoneScoped;
-	TracyCSetThreadName((char*)this->identifier.str);
-	LockableName(mtx.mtx, (char*)this->identifier.str, this->identifier.count);
+process_to(code::level l) {
 	while(1) {
 		if(this->state >= (code::state)l) return true;
 		switch(this->state) {
+			
 			case code::newborn: {
+				messenger::qdebug(this, String("processing to lex"));
+
 				if(!this->lexer) Lexer::create(this);
 				change_state(code::in_lex);
+
 				if(!this->lexer->start()) {
+					messenger::qdebug(this, String("failed lexing"));
 					change_state(code::failed);
 					return false;
 				}
+
 				change_state(code::post_lex);
+
+				messenger::qdebug(this, String("finished lex processing"));
 			} break;
+
 			case code::post_lex: {
+				messenger::qdebug(this, String("performing parsing"));
+
 				if(!this->parser) Parser::create(this);
 				change_state(code::in_parse);
+			
 				if(util::any(this->kind, code::source, code::module)) {
 					// if this represents a source file or module we instead want to discretize
 					// ourself and asyncronously process each child instead
 					if(!this->parser->discretize_module()) return false;
+
 					// spawn a new thread for each child using a promise to defer
 					// when they begin
 					std::promise<void> p;
 					Future<void> fut{p.get_future().share()};
+
 					auto futures = Array<Future<b32>>::create();
 					for(auto c = first_child<Code>(); c; c = c->next<Code>()) {
 						*futures.push() = c->process_to_async_deferred(fut, code::air);
 					}
+
 					// start all children then wait for each child to complete, 
 					// if one of them fails then we early out and return fail ourself
 					p.set_value();
@@ -179,43 +198,65 @@ process_to(code::level l) {ZoneScoped;
 							return false;
 						}
 					}
+
 					// there's no further processing needed for this code object (I believe), so
 					// we can just return here
+					messenger::qdebug(this, String("finished parsing"));
 					change_state(code::post_airgen);
 					return true;
 					// otherwise, just parse this code object and move on like normal
 				} else if(!this->parser->parse()) {
+					 messenger::qdebug(this, String("failed parsing"));
 					 change_state(code::failed); 
 					 return false;
 				}
+
+				messenger::qdebug(this, String("finished parsing"));
 				change_state(code::post_parse);
 			} break;
 			case code::post_parse: {
+				messenger::qdebug(this, String("performing semantic analysis"));
+
 				if(!this->sema) Sema::create(this);
 				change_state(code::in_sema);
 				if(!this->sema->start()) {
+					messenger::qdebug(this, String("failed semantic analysis"));
 					change_state(code::failed);
 					return false;
 				}
+
+				messenger::qdebug(this, String("finished semantic analysis"));
 				change_state(code::post_sema);
 			} break;
 			case code::post_sema: {
+				messenger::qdebug(this, String("generating TAC"));
+
 				if(!this->tac_gen) GenTAC::create(this);
 				change_state(code::in_tacgen);
 				this->tac_gen->generate();
 				change_state(code::post_tacgen);
+
+				messenger::qdebug(this, String("finished TAC generation"));
 			} break;
 			case code::post_tacgen: {
+				messenger::qdebug(this, String("generaing AIR"));
+
 				if(!this->air_gen) GenAIR::create(this);
 				change_state(code::in_airgen);
 				this->air_gen->generate();
 				change_state(code::post_airgen);
+
+				messenger::qdebug(this, String("finished generating AIR"));
 			} break;
 			case code::post_airgen: {
+				messenger::qdebug(this, String("running through VM"));
+
 				if(!this->machine) VM::create(this);
 				change_state(code::in_vm);
 				this->machine->run();
 				change_state(code::post_vm);
+
+				messenger::qdebug(this, String("finished running through VM"));
 			} break;
 		}
 	}
@@ -232,22 +273,29 @@ process_to_async_deferred(Future<void> f, code::level level) {
 }
 
 b32 Code::
-wait_until_level(code::level level, Code* dependent){ ZoneScoped;
+wait_until_level(code::level level, Code* dependent){ 
+	messenger::qdebug(dependent, String("waiting until "), ScopedDeref(this->display()).x->fin, String(" reaches stage "), code::state_strings[level]);
 	dependent->dependency = this;
 	while(this->state < level) {
 		mtx.lock();
+		messenger::qdebug(dependent, String("sleeping until stage is reached"));
 		cv.wait(mtx);
 		mtx.unlock();
-		if(this->state == code::failed) return false;
+		messenger::qdebug(dependent, String("notified, checking stage of dependency (which is "), code::state_strings[this->state], String(")"));
 	}
+
+	if(this->state == code::failed) return false;
+	messenger::qdebug(dependent, String("dependency on "), ScopedDeref(this->display()).x->fin, String(" fulfilled"));
 	return true;
 }
 
 void Code::
-change_state(code::state s) { ZoneScoped;
+change_state(code::state s) { 
 	mtx.lock();
+	messenger::qdebug(this, String("changing state to "), code::state_strings[s]);
 	defer { mtx.unlock(); };
 	this->state = s;
+	messenger::qdebug(this, String("changed state and notifying waiters. new state: "), code::state_strings[s]);
 	cv.notify_all();
 }
 
@@ -550,7 +598,7 @@ to_string(DString* current, Code* c) {
 		current->append("VirtualCode<'", ScopedDeref(vc->display()).x, "'>");
 	} else {
 		auto sc = (SourceCode*)c;
-		current->append("SourceCode<", code::strings[sc->kind], ">");
+		current->append("SourceCode<", code::kind_strings[sc->kind], ">");
 	}
 }
 

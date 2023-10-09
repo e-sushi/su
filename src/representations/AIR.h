@@ -380,7 +380,7 @@ to_string(DString* current, BC bc) {
             roffset();
         }break;
         case air::resz: {
-            current->append("resz ", bc.resz.src, "sp(", scalar::strings[bc.resz.from], ") -> ", bc.resz.dst, "sp(", scalar::strings[bc.resz.to], ")");
+            current->append("resz ", bc.resz.src, "sp(", scalar::kind_strings[bc.resz.from], ") -> ", bc.resz.dst, "sp(", scalar::kind_strings[bc.resz.to], ")");
         } break;
         case air::ref: {
             current->append("ref ");

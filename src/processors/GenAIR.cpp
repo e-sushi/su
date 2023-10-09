@@ -15,7 +15,7 @@ create(Code* code) {
 }
 
 void GenAIR::
-destroy() {ZoneScoped;
+destroy() {
     seq.destroy();
     scoped_temps.destroy();
     map::deinit(stack_things);
@@ -62,38 +62,38 @@ check_unbalanced_stack(Array<BC> seq) {
 }
 
 void GenAIR::
-generate() {ZoneScoped;
+generate() {
     start();
 
-	auto dbgout = DString::create("\n");
-
-    u32 last_line_num = -1;
-    TAC* last_tac = 0;
-    forI(seq.count) {
-        BC* bc = seq.readptr(i);
-        if(last_line_num == -1 || last_line_num != bc->node->start->l0) {
-            dbgout->append(bc->node->first_line(true, true), "\n");
-            last_line_num = bc->node->start->l0;
-        }
-        if(bc->tac && bc->tac != last_tac) {
-            last_tac = bc->tac;
-			auto out = to_string(bc->tac); 
-			out->indent(2);
-			dbgout->append(out, "\n");
-        }
-		auto out = to_string(*bc);
-		out->indent(4);
-		dbgout->append(out, "\n");
-    }
-	
-	messenger::qdebug(code, dbgout->fin);
-	dbgout->deref();
+//	auto dbgout = DString::create("\n");
+//
+//    u32 last_line_num = -1;
+//    TAC* last_tac = 0;
+//    forI(seq.count) {
+//        BC* bc = seq.readptr(i);
+//        if(last_line_num == -1 || last_line_num != bc->node->start->l0) {
+//            dbgout->append(bc->node->first_line(true, true), "\n");
+//            last_line_num = bc->node->start->l0;
+//        }
+//        if(bc->tac && bc->tac != last_tac) {
+//            last_tac = bc->tac;
+//			auto out = to_string(bc->tac); 
+//			out->indent(2);
+//			dbgout->append(out, "\n");
+//        }
+//		auto out = to_string(*bc);
+//		out->indent(4);
+//		dbgout->append(out, "\n");
+//    }
+//	
+//	messenger::qdebug(code, dbgout->fin);
+//	dbgout->deref();
 
     code->level = code::air;
 }
 
 void GenAIR::
-start() {ZoneScoped;
+start() {
     switch(code->kind) {
         case code::source: {
             for(auto* n = code->first_child<Code>(); n; n = n->next<Code>()) {
@@ -189,13 +189,13 @@ start() {ZoneScoped;
         } break;
 
         default: {
-            TODO(DString::create("unhandled start case: ", code::strings[code->kind]));
+            TODO(DString::create("unhandled start case: ", code::kind_strings[code->kind]));
         } break;
     }
 }
 
 void GenAIR::
-body() {ZoneScoped;
+body() {
 
     // TODO(sushi) when we get around to implementing an optimization stage this will likely need to be changed 
     auto tac_seq = code->tac_gen->seq;
@@ -702,18 +702,18 @@ body() {ZoneScoped;
 }
 
 void GenAIR::
-push_scope() {ZoneScoped;
+push_scope() {
     scoped_temps.push(u64(0));
 }
 
 void GenAIR::
-pop_scope() {ZoneScoped;
+pop_scope() {
     clean_temps();
     scoped_temps.pop();
 }
 
 void GenAIR::
-push_temp(TAC* tac) {ZoneScoped;
+push_temp(TAC* tac) {
     BC* out = seq.push();
     out->tac = tac;
     out->node = tac->node;
@@ -772,7 +772,7 @@ push_temp(TAC* tac) {ZoneScoped;
 }
 
 void GenAIR::
-clean_temps() {ZoneScoped;
+clean_temps() {
     u64& temp_count = scoped_temps.readref(-1);
     if(!temp_count) return;
     BC* last = seq.readptr(-1);

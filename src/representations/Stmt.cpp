@@ -18,12 +18,12 @@ display() {
 
 DString* Stmt::
 dump() {
-    return DString::create("Stmt<", stmt::strings[kind], ">");
+    return DString::create("Stmt<", stmt::kind_strings[kind], ">");
 }
 
 void
 to_string(DString* start, Stmt* s) {
-    start->append("Stmt<", stmt::strings[s->kind], ">");
+    start->append("Stmt<", stmt::kind_strings[s->kind], ">");
 }
 
 } // namespace amu

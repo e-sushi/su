@@ -1,3 +1,4 @@
+#include <mutex>
 namespace amu {
 namespace messenger { // ---------------------------------------------------- messenger
 
@@ -189,12 +190,10 @@ process_message(DString* current, Message& m) {
 
 void
 dispatch(Message message) {
-    if(message.kind == message::debug && compiler::instance.options.deliver_debug_immediately) {
-        Array<Message> temp = Array<Message>::create(1); // this is weird, change it so that we can just deliver one message immediately
-        temp.push(message);
-        deliver(stdout, temp);
-        temp.destroy();
-    } else instance.messages.push(message);
+    if(compiler::instance.options.deliver_all_immediately ||
+			message.kind == message::debug && compiler::instance.options.deliver_debug_immediately) {
+        deliver(stdout, message);
+	} else instance.messages.push(message);
 }
 
 // dispatch a plain str8
@@ -222,6 +221,18 @@ deliver(Destination destination, b32 clear_messages) {
     if(clear_messages) instance.messages.clear();
 }
 
+
+void
+deliver(Destination destination, Message message) {
+	auto l = std::scoped_lock(instance.outmtx);
+	auto out = DString::create();
+
+	internal::current_dest = &destination;
+
+	internal::process_message(out, message);
+	if(compiler::instance.options.quiet && destination.file == stdout) return;
+	fwrite(out->str, 1, out->count, destination.file);
+}
 
 void
 deliver(Destination destination, Array<Message> messages) {

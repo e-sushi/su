@@ -38,9 +38,9 @@ includes = (
 )
 
 sources = {
-    # "app": "src/amu.cpp"
+    "app": "src/amu.cpp"
     # "app": "misc/co.cpp"
-    "app": "misc/fibers/fiber.cpp"
+    # "app": "misc/fibers/fiber.cpp"
 }
 
 config = {

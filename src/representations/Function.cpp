@@ -1,3 +1,4 @@
+#include "systems/Messenger.h"
 namespace amu {
 
 Function* Function::

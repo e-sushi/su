@@ -65,10 +65,6 @@
 		              and just let it all be handled normally. 
 */
 
-#ifdef AMU_USE_TRACY
-#include "tracy/Tracy.hpp"
-#include "TracyClient.cpp"
-#endif
 
 #include "Common.h"
 #include "util.h"
@@ -158,7 +154,7 @@
 #include "systems/VM.cpp"
 #include "systems/Debugger.cpp"
 
-int main(int argc, char* argv[]){ZoneScoped;
+int main(int argc, char* argv[]){
 	{using namespace amu;
 		srand(time(0));
 		compiler::init();

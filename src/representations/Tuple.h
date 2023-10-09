@@ -74,7 +74,7 @@ enum kind : u32 {
 struct Tuple : public ASTNode {
     tuple::kind kind;
     // if this tuple applies names to its elements, they are stored here
-    LabelTable table;
+    LabelTable* table;
     // when this is a valued Tuple, this points to the underlying type
     TupleType* type;
 

@@ -32,7 +32,7 @@ dump() {
             out->append("cast to ", this->type);
         } break;
         default: {
-            out->append(expr::strings[(u32)this->kind]);
+            out->append(expr::kind_strings[(u32)this->kind]);
         } break;
     }
 

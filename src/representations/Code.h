@@ -61,6 +61,7 @@ enum kind {
 #include "data/code_strings.generated"
 
 // TODO(sushi) im not sure if the post states are really necessary
+// @genstrings(data/code_state_strings.generated)
 enum state  {
 	newborn, 
 	in_lex,
@@ -78,6 +79,8 @@ enum state  {
 
 	failed, // set when this Code object cannot complete processing
 };
+
+#include "data/code_state_strings.generated"
 
 // the level of compilation a given Code object has been through
 // this is really just a helper for specifying the correct state to
@@ -106,11 +109,6 @@ struct Code : public ASTNode {
 	// identifier for this code, only used for debugging
 	String identifier;
 	
-	// if this Code was generated from another Code object, this points to that original
-	// object. this is used when we generate Code from generic types and such and when we
-	// perform formatting
-	Code* base = 0;
-
 	// Source this code belongs to. if this is 0, then this is VirtualCode
 	Source* source = 0;
 
@@ -129,6 +127,8 @@ struct Code : public ASTNode {
 	Code* dependency;
 	
 	// this Code object's state
+	// atmoic because we only do simple operations on it
+	// and don't need to keep an entire lock for it around 
 	std::atomic<code::state> state;
 	Mutex mtx;
 	ConditionVariable cv;

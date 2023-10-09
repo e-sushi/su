@@ -50,25 +50,32 @@ dump() {
 namespace label {
 namespace table {
 
-LabelTable
+LabelTable*
 init(ASTNode* creator) {
-    LabelTable out;
-    out.last = 0;
-    out.map = map::init<String, Label*>();
-    out.owner = creator;
+    LabelTable* out = pool::add(compiler::instance.storage.label_tables);
+    out->last = 0;
+    out->map = map::init<String, Label*>();
+    out->owner = creator;
     return out;
 }
 
 FORCE_INLINE void
 add(LabelTable* table, String id, Label* l) {
+	table->mtx.lock();
     map::add(table->map, id, l);
+	table->mtx.unlock();
 }
 
 Label*
 search(LabelTable* table, u64 hashed_id) {
     while(table) {
+		table->mtx.lock();
         auto [idx, found] = map::find(table->map, hashed_id);
-        if(found) return table->map.values.read(idx);
+        if(found) {
+			table->mtx.unlock();
+			return table->map.values.read(idx);
+		}
+		table->mtx.unlock();
         table = table->last;
     }
     return 0;

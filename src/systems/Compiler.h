@@ -41,6 +41,7 @@ struct Compiler {
         Pool<VM>              vm;
         Pool<Module>          modules;
         Pool<Label>           labels;
+        Pool<LabelTable>      label_tables;
         Pool<VirtualLabel>    virtual_labels;
         Pool<Member>          members;
         Pool<Structure>       structures;
@@ -84,6 +85,7 @@ struct Compiler {
 
         u32 verbosity;
         b32 deliver_debug_immediately;
+		b32 deliver_all_immediately;
 
         b32 quiet;
         

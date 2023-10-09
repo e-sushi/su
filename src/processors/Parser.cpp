@@ -16,12 +16,13 @@
 namespace amu {
 
 Parser* Parser::
-create(Code* code) {ZoneScoped;
+create(Code* code) {
 	Parser* out = pool::add(compiler::instance.storage.parsers);
 	out->table.stack = Array<LabelTable*>::create();
 	out->table.current = 0;
 	out->node.stack = Array<ASTNode*>::create();
 	out->node.current = 0;
+	out->node.code = code;
 	out->code = code; 
 	code->parser = out;
 	out->token = code::TokenIterator(code);
@@ -29,14 +30,14 @@ create(Code* code) {ZoneScoped;
 }
 
 void Parser::
-destroy() {ZoneScoped;
+destroy() {
 	table.stack.destroy();
 	node.stack.destroy();
 	pool::remove(compiler::instance.storage.parsers, this);
 }
 
 b32 Parser::
-parse() {ZoneScoped;
+parse() {
 	if(code->kind == code::module || code->kind == code::source) {
 		return discretize_module();
 	}
@@ -48,14 +49,14 @@ parse() {ZoneScoped;
 }
 
 b32 Parser::
-discretize_module() {ZoneScoped;
-	// all source files are modules, so we create one for it here
+discretize_module() {
+	messenger::qdebug(code, String("discretizing supposed module"));
+
 	auto m = Module::create();
-	table.push(&m->table);
+	table.push(m->table);
 	defer { table.pop(); };
 
 	code->parser->root = m->as<ASTNode>();
-	m->as<Function>();
 	
 	auto save = token.curt;
 
@@ -87,379 +88,14 @@ discretize_module() {ZoneScoped;
 		l->code = c;
 		node::insert_last(code, c);
 	}
+
+	messenger::qdebug(code, String("finished discretizing module"));
 	return true;
 }
-
-
-b32 Parser::
-prescan_start() {ZoneScoped;
-	switch(code->kind) {
-		case code::source: {
-			if(!prescan_source()) return false;
-		} break;
-		case code::function: {
-			// code::TokenIterator token = code::token_tokenator(code);
-			// function(code, token);
-		} break;
-		case code::statement: {
-		} break;
-	}
-	return true;
-}
-
-b32 Parser::
-prescan_source() {ZoneScoped;
-	// all source files are modules, so we create one for it here
-	auto m = Module::create();
-	table.push(&m->table);
-	defer { table.pop(); };
-
-	code->parser->root = m->as<ASTNode>();
-	m->as<Function>();
-	
-	auto save = token.curt;
-
-	auto ls = token.current()->scope;
-	// TODO(sushi) this doesn't work for subcode objects
-	//			   or label groups 
-	auto tokens = code->get_token_array();
-	forI(ls->labels.count) {
-		token.curt = tokens.readptr(ls->labels.read(i));
-		if(table.search_local(token.current()->hash)) {
-			diagnostic::parser::
-				label_already_defined(token.current(), token.current());
-			return false;
-		}
-		
-		if(!label_get()) return false;
-
-		auto l = node.pop()->as<Label>();
-		table.add(l->start->raw, l);
-		l->table = table.current;
-
-		auto c = Code::from(code, l->start, tokens.readptr(-1));
-		c->kind = code::label;
-		c->level = code::lex;
-
-		Parser::create(c);
-		c->parser->root = l;
-
-		node::insert_last(code, c);
-		l->code = c;
-	}
-
-	//while(1) {
-	//	  switch(token.current_kind()) {
-	//		  case token::identifier: {
-	//			  if(!prescan_label()) return false;
-	//		  } break;
-	//	  }
-	//	  if(token.increment()->kind == token::end_of_file) return true;
-	//}
-	return true;
-}
-
-b32 Parser::
-prescan_module() {ZoneScoped;
-	auto m = Module::create();
-	m->table.last = table.current ;
-	table.push(&m->table);
-	defer { table.pop(); };
-
-	while(1) {
-		switch(token.current_kind()) {
-			case token::identifier: prescan_label(); break;
-			default: return false;
-		}
-	}
-}
-
-// TODO(sushi) this shouldn't scan over the entire definition
-//			   we really shouldn't be trying to figure out what
-//			   something is until we find something that 
-//			   references it. 
-//			   I think it'd be best to not prescan at all
-//			   and also allow Code objects to be unbounded
-//			   So, just create a Code object for each
-//			   global label and only parse enough to figure out
-//			   what it is either when we find something that
-//			   references it or we get around to parsing it normally.
-b32 Parser::
-prescan_label() {
-	Token* id = token.current();
-	if(table.search(id->hash)) {
-		diagnostic::parser::label_already_defined(id, id);
-		return false;
-	}
-	switch(token.increment()->kind) {
-		case token::colon: {
-			switch(token.increment()->kind) {
-				case token::colon: {
-					switch(token.increment()->kind) {
-						case token::open_paren: {
-							Token* open_paren = token.current(); 
-							token.skip_to_matching_pair();
-							switch(token.increment()->kind) {
-								case token::function_arrow: {
-									token.skip_until(token::open_brace, token::semicolon);
-									if(token.current_kind() == token::open_brace) {
-										// this is a function definition, so we segment it into its own
-										// Code object, create a Label and Function for it, construct the AST
-										// for the Label and then push it onto whatever table we are 
-										// currently working with
-										token.skip_to_matching_pair();
-
-										Code* nu = Code::from(code, id, token.current());
-										
-										nu->as<Function>();
-
-										nu->kind = code::function;
-
-										auto f = Function::create();
-										f->start = open_paren;
-										f->end = token.current();
-										f->code = nu;
-
-										Label* l = Label::create();
-										l->start = id;
-										l->end = token.current();
-
-										l->entity = (Entity*)f;
-										f->label = l;
-
-										auto e = Expr::create(expr::identifier);
-										e->start = e->end = id;
-
-										node::insert_first(l, e);
-										
-										nu->parser = Parser::create(nu);
-										nu->parser->root = l->as<ASTNode>();
-
-										table.add(id->raw, l);
-
-										node::insert_last(code, nu);
-									}
-								} break;
-								case token::semicolon: {
-									// TODO(sushi) tuple constants
-									NotImplemented;
-								} break;
-								default: {
-									// this is probably a cast, just treat this as an expression
-									Token* save = token.current();
-									if(token.is(token::open_brace)) {
-										token.skip_to_matching_pair();
-										if(!token.next()) {
-											diagnostic::parser::missing_close_brace(save);
-											return false;
-										}
-									} else {
-										token.skip_until(token::semicolon);
-										if(!token.next()) {
-											diagnostic::parser::missing_semicolon(save);
-											return false;
-										}
-									}
-
-									Code* nu = Code::from(code, id, token.current());
-									nu->kind = code::var_decl;
-
-									Label* l = Label::create();
-									l->start = id;
-									l->end = token.current();
-
-									auto e = Expr::create(expr::identifier);
-									e->start = e->end = id;
-
-									node::insert_first(l, e);
-
-									auto v = Var::create();
-									v->label = l;
-									l->entity = v->as<Entity>();
-
-									Parser::create(nu);
-									nu->parser->root = l->as<ASTNode>();
-
-									table.add(id->raw, l);
-
-									node::insert_last(code, nu);
-								} break;
-							}
-						} break;
-						case token::structdecl: {
-							if(token.increment()->kind != token::open_brace) {
-								diagnostic::parser::expected_open_brace(token.current());
-								return false;
-							}
-							Token* start = token.current();
-							token.skip_to_matching_pair();
-							
-							Code* nu = Code::from(code, id, token.current());
-							nu->kind = code::typedef_;
-
-							Label* l = Label::create();
-							l->start = id;
-							l->end = token.current();
-
-							auto s = Structure::create();
-
-							auto stype = Structured::create(s);
-							stype->start = start;
-							stype->end =  token.current();
-
-							l->entity = stype->as<Entity>();
-							stype->label = l;
-
-							auto e = Expr::create(expr::identifier);
-							e->start = e->end = id;
-
-							node::insert_first(l, e);
-
-							Parser::create(nu);
-							nu->parser->root = l->as<ASTNode>();
-
-							table.add(id->raw, l);
-
-							node::insert_last(code, nu);
-						} break;
-						case token::moduledecl: {
-							if(token.increment()->kind != token::open_brace) {
-								diagnostic::parser::expected_open_brace(token.current());
-								return false;
-							}
-							token.skip_to_matching_pair();
-							Code* nu = Code::from(code, id, token.current());
-							nu->kind = code::module;
-							node::insert_last((TNode*)code, (TNode*)nu);
-							auto temp = code::TokenIterator(code);
-							prescan_module();
-						} break;
-						default: {
-							// this must be a compile time var declaration, so parse for an expression
-							// which is kind of hard cause an expression can take so many different forms
-							// the hardest thing is something like 
-							// {...} <op> {...}
-							// which is bad style imo, but im not going to make it against the rules in
-							// global scope. The difficulty comes from us allowing omitting the semicolon
-							// after braced code, so when we can over the first {}, we then have to check if 
-							// it's followed after any token that can continue an expression (or, maybe any token that
-							// ends an expression), which isn't stable yet. The stuff here will probably need 
-							// to consistently be updated to cover more syntax. The case above isn't handled for now
-							// if we find a '{', we just scan to the next matching '}'. Otherwise
-							// just scan until a ';'
-							Token* save = token.current();
-							if(token.is(token::open_brace)) {
-								token.skip_to_matching_pair();
-								if(!token.next()) {
-									diagnostic::parser::missing_close_brace(save);
-									return false;
-								}
-							} else {
-								token.skip_until(token::semicolon);
-								if(!token.next()) {
-									diagnostic::parser::missing_semicolon(save);
-									return false;
-								}
-							}
-
-							Code* nu = Code::from(code, id, token.current());
-							nu->kind = code::var_decl;
-
-							Label* l = Label::create();
-							l->start = id;
-							l->end = token.current();
-
-							auto e = Expr::create(expr::identifier);
-							e->start = e->end = id;
-
-							node::insert_first(l, e);
-
-							auto v = Var::create();
-							v->label = l;
-							l->entity = v->as<Entity>();
-
-							Parser::create(nu);
-							nu->parser->root = l->as<ASTNode>();
-
-							table.add(id->raw, l);
-
-							node::insert_last(code, nu);
-						} break;
-					}
-				} break;
-				case token::structdecl: {
-					diagnostic::parser::runtime_structures_not_allowed(token.current());
-					return false;
-				} break;
-				case token::open_paren: {
-					// TODO(sushi) segment function variables
-					NotImplemented;
-				} break;
-				default: {
-					// this is probably a global runtime var declaration
-					Token* save = token.current();
-					if(token.is(token::open_brace)) {
-						token.skip_to_matching_pair();
-						if(!token.next()) {
-							diagnostic::parser::missing_close_brace(save);
-							return false;
-						}
-					} else {
-						token.skip_until(token::semicolon);
-						if(!token.next()) {
-							diagnostic::parser::missing_semicolon(save);
-							return false;
-						}
-					}
-
-					Code* nu = Code::from(code, id, token.current());
-					nu->kind = code::var_decl;
-
-					Label* l = Label::create();
-					l->start = id;
-					l->end = token.current();
-
-					auto e = Expr::create(expr::identifier);
-					e->start = e->end = id;
-
-					node::insert_first(l, e);
-
-					auto v = Var::create();
-					v->label = l;
-					l->entity = v->as<Entity>();
-
-					Parser::create(nu);
-					nu->parser->root = l->as<ASTNode>();
-
-					table.add(id->raw, l);
-
-					node::insert_last(code, nu);
-				} break;
-			}
-		} break;
-		case token::comma: {
-			// TODO(sushi) segmenting for multi labels
-			NotImplemented; 
-		} break;
-	}
-	return true;
-}
-
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-** ^^ ** ** ^^ ** ** ^^ ** ** ^^ ** ** ^^ ** ** ^^ ** ** ^^ ** ** ^^ ** ** ^^ 
- * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * 
-
-
-								Post-scan
-
-
- * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / * \ * / *	
- ** ,, ** ** ,, ** ** ,, ** ** ,, ** ** ,, ** ** ,, ** ** ,, ** ** ,, ** ** ,, 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 b32 Parser::
 start() {
-	messenger::qdebug(code, String("starting parser ("), to_string(std::hash<std::thread::id>{}(std::this_thread::get_id()))->fin);
+	messenger::qdebug(code, String("starting parser"));
 	Assert(code->parser, "a parser must have been made for a Code object created in the first stage.");
 	switch(code->kind) {
 		case code::label: {
@@ -493,7 +129,7 @@ start() {
 
 			auto futures = Array<Future<b32>>::create();
 			for(Code* c = code->first_child<Code>(); c; c = c->next<Code>()) {
-				c->parser->table.push(&code->parser->root->as<Module>()->table);
+				c->parser->table.push(code->parser->root->as<Module>()->table);
 				futures.push(c->process_to_async(code::air));
 				c->parser->table.pop();
 				node::insert_last(code->parser->root, c->parser->root);
@@ -743,7 +379,7 @@ struct_decl() {
 // what the label should be representing 
 // and create it there.
 b32 Parser::
-label() {ZoneScoped;
+label() {
 	auto start = token.current();
 
 	if(!label_get()) return false;
@@ -781,7 +417,7 @@ label() {ZoneScoped;
 // just parses <id> { "," <id> } : and pushes a label on the stack representing it 
 // returns with the iterator at the token following the colon
 b32 Parser::
-label_get() {ZoneScoped;
+label_get() {
 	auto expr = Expr::create(expr::identifier);
 	expr->start = expr->end = token.current();
 	node.push(expr);
@@ -811,7 +447,7 @@ label_get() {ZoneScoped;
 
 
 b32 Parser::
-label_group_after_comma() {ZoneScoped;
+label_group_after_comma() {
 	 while(1) {
 		if(!token.is(token::identifier)) break; 
 		auto expr = Expr::create(expr::identifier);
@@ -857,7 +493,7 @@ label_group_after_comma() {ZoneScoped;
 }
 
 b32 Parser::
-label_after_colon() {ZoneScoped;
+label_after_colon() {
 	switch(token.current_kind()) {
 		case token::colon:
 		case token::equal: {
@@ -907,7 +543,7 @@ label_after_colon() {ZoneScoped;
 // In the case of a function definition the token is left at
 // the closing brace
 b32 Parser::
-tuple() {ZoneScoped;
+tuple() {
 	auto tuple = Tuple::create();
 	tuple->start = token.current();
 
@@ -922,8 +558,8 @@ tuple() {ZoneScoped;
 				switch(token.next_kind()) {
 					case token::colon: {
 						if(!found_label) {
-							tuple->table.last = table.current;
-							table.push(&tuple->table);
+							tuple->table->last = table.current;
+							table.push(tuple->table);
 							found_label = 1;
 						}
 						if(!label()) return false;
@@ -969,8 +605,8 @@ expr:
 		node.push(tuple);
 		// all labels created inside of this tuple are assumed to point to expressions
 		// so we just point them directly at what came after them
-		forI(tuple->table.map.values.count) {
-			auto l = tuple->table.map.values.read(i);
+		forI(tuple->table->map.values.count) {
+			auto l = tuple->table->map.values.read(i);
 			l->entity = l->last_child<Entity>();
 		}
 		return true;
@@ -978,8 +614,8 @@ expr:
 
 	// if this is a function parameter list, then any label must refer
 	// to a variable
-	forI(tuple->table.map.values.count) {
-		auto l = tuple->table.map.values.read(i);
+	forI(tuple->table->map.values.count) {
+		auto l = tuple->table->map.values.read(i);
 		auto v = Var::create();
 		v->label = l;
 		l->entity = v;
@@ -1042,8 +678,8 @@ expr:
 	if(token.is(token::open_brace)) {
 		// the symbol table of the block will go through the tuple's symbol table, regardless of if
 		// it generated one or not 
-		tuple->table.last = table.current;
-		table.push(&tuple->table);
+		tuple->table->last = table.current;
+		table.push(tuple->table);
 
 		if(!block()) return false;
 
@@ -1066,7 +702,7 @@ expr:
 }
 
 b32 Parser::
-expression() {ZoneScoped;
+expression() {
 	switch(token.current_kind()) {
 		case token::equal: {
 			auto e = Expr::create(expr::unary_assignment);
@@ -1216,7 +852,7 @@ expression() {ZoneScoped;
 	access: factor * { "." factor }
 */
 b32 Parser::
-access() { ZoneScoped;
+access() { 
 	if(token.current_kind() == token::dot) {
 		token.increment();
 		// when we parse accesses, we don't care about figuring out if the identifier is 
@@ -1244,7 +880,7 @@ access() { ZoneScoped;
 }
 
 b32 Parser::
-subscript() {ZoneScoped;
+subscript() {
 	if(token.is(token::open_square)) {
 		auto subj = node.pop();
 		auto e = Expr::create(expr::subscript);
@@ -1276,7 +912,7 @@ subscript() {ZoneScoped;
 	term: access * { ( "*" | "/" | "%" ) access }
 */
 b32 Parser::
-term() { ZoneScoped;
+term() { 
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::percent: 
@@ -1308,7 +944,7 @@ term() { ZoneScoped;
 	additive: term * { ("+" | "-" ) term }
 */
 b32 Parser::
-additive() { ZoneScoped;
+additive() { 
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::plus:
@@ -1339,7 +975,7 @@ additive() { ZoneScoped;
 	bit-shift: additive { "<<" | ">>" additive }
 */
 b32 Parser::
-bit_shift() { ZoneScoped;
+bit_shift() { 
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::double_less_than: 
@@ -1371,7 +1007,7 @@ bit_shift() { ZoneScoped;
 	relational: bit-shift { ( ">" | "<" | "<=" | ">=" ) bit-shift }
 */
 b32 Parser::
-relational() { ZoneScoped;
+relational() { 
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::less_than:
@@ -1410,7 +1046,7 @@ relational() { ZoneScoped;
 	equality: relational { ( "!=" | "==" ) relational }
 */
 b32 Parser::
-equality() { ZoneScoped;
+equality() { 
 	token::kind kind = token.current_kind();
 	switch(kind) {
 		case token::double_equal:
@@ -1444,7 +1080,7 @@ equality() { ZoneScoped;
 	bit-and: equality { "&" equality } 
 */
 b32 Parser::
-bit_and() { ZoneScoped;
+bit_and() { 
 	if(token.current_kind() == token::ampersand) {
 		token.increment();
 		if(!factor()) return false;
@@ -1472,7 +1108,7 @@ bit_and() { ZoneScoped;
 	bit-xor: bit-and { "^" bit-and }
 */
 b32 Parser::
-bit_xor() { ZoneScoped;
+bit_xor() { 
 	if(token.current_kind() == token::caret) {
 		token.increment();
 		if(!factor()) return false;
@@ -1501,7 +1137,7 @@ bit_xor() { ZoneScoped;
 	bit-or: bit-xor { "|" bit-xor }
 */
 b32 Parser::
-bit_or() { ZoneScoped;
+bit_or() { 
 	if(token.current_kind() == token::vertical_line) {
 		token.increment();
 		if(!factor()) return false;
@@ -1531,7 +1167,7 @@ bit_or() { ZoneScoped;
 	logi-and: bit-or { "&&" bit-or }
 */
 b32 Parser::
-logi_and() { ZoneScoped;
+logi_and() { 
 	if(token.current_kind() == token::double_ampersand) {
 		token.increment();
 		if(!factor()) return false;
@@ -1562,7 +1198,7 @@ logi_and() { ZoneScoped;
 	logi-or: logi-and { "||" logi-and }
 */
 b32 Parser::
-logi_or() { ZoneScoped;
+logi_or() { 
 	if(token.current_kind() == token::logi_or) {
 		token.increment();
 		if(!factor()) return false;
@@ -1591,7 +1227,7 @@ logi_or() { ZoneScoped;
 }
 
 b32 Parser::
-range() {ZoneScoped;
+range() {
 	if(token.is(token::range)) {
 		token.increment();
 		if(!factor()) return false;
@@ -1620,7 +1256,7 @@ range() {ZoneScoped;
 }
 
 b32 Parser::
-assignment() {ZoneScoped;
+assignment() {
 	if(token.is(token::equal)) {
 		token.increment();
 		if(!factor()) return false;
@@ -1652,7 +1288,7 @@ assignment() {ZoneScoped;
 }
 
 b32 Parser::
-conditional() {ZoneScoped;
+conditional() {
 	Expr* e = Expr::create(expr::conditional);
 	e->start = token.current();
 
@@ -1696,7 +1332,7 @@ conditional() {ZoneScoped;
 }
 
 b32 Parser::
-loop() {ZoneScoped;
+loop() {
 	auto e = Expr::create(expr::loop);
 	e->start = token.current();
 
@@ -1713,7 +1349,7 @@ loop() {ZoneScoped;
 }
 
 b32 Parser::
-factor() {ZoneScoped;
+factor() {
 	switch(token.current_kind()) {
 		case token::identifier: {
 			Label* l = table.search(token.current()->hash);
@@ -1767,7 +1403,7 @@ factor() {ZoneScoped;
 				} break;
 				default: {
 					util::println(DString::create(
-						token.current(), " unhandled identifier reference: ", entity::strings[l->entity->kind]));
+						token.current(), " unhandled identifier reference: ", entity::kind_strings[l->entity->kind]));
 				} break;
 			}
 
@@ -1860,9 +1496,9 @@ factor() {ZoneScoped;
 			token.increment();
 
 			auto e = For::create();
-			e->table.last = table.current ;
+			e->table->last = table.current ;
 			e->start = save;
-			table.push(&e->table);
+			table.push(e->table);
 
 			// TODO(sushi) handle label groups (a,b,c,...)
 			if(token.is(token::identifier) && 
@@ -1994,7 +1630,7 @@ factor() {ZoneScoped;
 }
 
 b32 Parser::
-array_literal() {ZoneScoped;
+array_literal() {
 	auto save = token.current();
 
 	token.increment();
@@ -2053,11 +1689,11 @@ array_literal() {ZoneScoped;
 //			   when parsing blocks, instead of the weird logic we try to do 
 //			   to allow omitting semicolons after labels that end with blocks 
 b32 Parser::
-block() {ZoneScoped;
+block() {
 	auto e = Block::create();
 	e->start = token.current();
-	e->table.last = table.current;
-	table.push(&e->table);
+	e->table->last = table.current;
+	table.push(e->table);
 
 	token.increment();
 
@@ -2227,7 +1863,7 @@ block() {ZoneScoped;
 }
 
 b32 Parser::
-typeref() {ZoneScoped;
+typeref() {
 	Token* start = token.current();
 	switch(token.current_kind()) {
 		case token::equal: {
@@ -2392,7 +2028,7 @@ typeref() {ZoneScoped;
 }
 
 b32 Parser::
-reduce_literal_to_literal_expression() {ZoneScoped;
+reduce_literal_to_literal_expression() {
 	switch(token.current_kind()) {
 		// TODO(sushi) this needs to take into account unicode codepoints!
 		//			   probably change char to storing u32 instead of u8
@@ -2431,7 +2067,7 @@ reduce_literal_to_literal_expression() {ZoneScoped;
 }
 
 b32 Parser::
-reduce_builtin_type_to_typeref_expression() { ZoneScoped;
+reduce_builtin_type_to_typeref_expression() { 
 	Expr* e = Expr::create(expr::typeref);
 	e->start = e->end = token.current();
 	switch(token.current_kind()) {

@@ -352,7 +352,7 @@ struct FunctionLiteral : public Expr {
 };
 
 struct Block : public Expr {
-    LabelTable table;
+    LabelTable* table;
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -429,7 +429,7 @@ is<VarRef>() { return is<Expr>() && as<Expr>()->kind == expr::varref; }
 
 // for loops hold a table
 struct For : public Expr {
-    LabelTable table;
+    LabelTable* table;
 
 
     // ~~~~~~ interface ~~~~~~~

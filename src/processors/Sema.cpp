@@ -12,20 +12,25 @@
 #include "representations/Type.h"
 namespace amu {
 Sema* Sema::
-create(Code* code) {ZoneScoped;
+create(Code* code) {
 	auto out = pool::add(compiler::instance.storage.semas);
+	out->nstack.stack = Array<ASTNode*>::create();
+	out->nstack.current = 0;
+	out->tstack.stack = Array<LabelTable*>::create();
+	out->tstack.current = 0;
+	out->nstack.code = code;
 	out->code = code;
 	code->sema = out;
 	return out;
 }
 
 void Sema::
-destroy() {ZoneScoped;
+destroy() {
 	pool::remove(compiler::instance.storage.semas, this);
 }
 
 b32 Sema::
-start() {ZoneScoped;
+start() {
 	messenger::qdebug(code, String("starting sema"));
 	nstack.push(code->parser->root);
 	switch(nstack.current->kind) {
@@ -61,7 +66,7 @@ start() {ZoneScoped;
 
 
 b32 Sema::
-module() {ZoneScoped;
+module() {
 	auto m = nstack.pop()->as<Module>();
 	for(auto l = m->first_child<Label>(); l; l = l->next<Label>()) {
 		nstack.push(l);
@@ -71,7 +76,7 @@ module() {ZoneScoped;
 }
 
 b32 Sema::
-label() {ZoneScoped;
+label() {
 	auto l = nstack.pop()->as<Label>();
 
 	switch(l->last_child()->kind) {
@@ -106,7 +111,7 @@ label() {ZoneScoped;
 }
 
 b32 Sema::
-expr() {ZoneScoped;
+expr() {
 	switch(nstack.current->as<Expr>()->kind) {
 		case expr::call: return call();
 		case expr::block: return block();
@@ -718,7 +723,7 @@ expr() {ZoneScoped;
 		} break;
 
 		default: {
-			TODO(DString::create("unhandled expression kind: ", expr::strings[nstack.current->as<Expr>()->kind]));
+			TODO(DString::create("unhandled expression kind: ", expr::kind_strings[nstack.current->as<Expr>()->kind]));
 		} break;
 	}
 	
@@ -726,7 +731,7 @@ expr() {ZoneScoped;
 }
 
 b32 Sema::
-access() {ZoneScoped;
+access() {
 	nstack.push(nstack.current->first_child());
 	if(!expr()) return false;
 	auto lhs = nstack.pop()->as<Expr>();
@@ -810,7 +815,7 @@ pointer_try_again:
 }
 
 b32 Sema::
-typeref() {ZoneScoped;
+typeref() {
 	auto e = nstack.current->as<Expr>();
 
 	// if we're referencing a type in some way, we probably rely on
@@ -896,7 +901,7 @@ typeref() {ZoneScoped;
 }
 
 b32 Sema::
-typedef_() {ZoneScoped;
+typedef_() {
 	auto e = nstack.current->as<Expr>();
 	switch(e->type->kind) {
 		case type::kind::structured: {
@@ -922,7 +927,7 @@ typedef_() {ZoneScoped;
 }
 
 b32 Sema::
-call() {ZoneScoped;
+call() {
 	auto e = nstack.current->as<Call>();
 	auto f = e->callee->type;
 
@@ -970,7 +975,7 @@ call() {ZoneScoped;
 }
 
 b32 Sema::
-function() {ZoneScoped;
+function() {
 	auto f = nstack.current->as<Function>();
 	auto type = nstack.current->first_child<Expr>();
 	auto be = nstack.current->last_child<Block>();
@@ -1041,7 +1046,7 @@ function() {ZoneScoped;
 }
 
 b32 Sema::
-block() {ZoneScoped;
+block() {
 	auto e = nstack.current->as<Block>();
 
 	// TODO(sushi) for cases like this we can probably get away with repeatedly pushing
