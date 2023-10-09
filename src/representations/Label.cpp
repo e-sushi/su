@@ -2,7 +2,7 @@ namespace amu {
 
 Label* Label::
 create() {
-    Label* out = pool::add(compiler::instance.storage.labels);
+    Label* out = compiler::instance.storage.labels.add();
     out->ASTNode::kind = ast::label;
     return out;
 }
@@ -32,7 +32,7 @@ resolve_type() {
 
 VirtualLabel* VirtualLabel::
 create(DString* display) {
-    VirtualLabel* out = pool::add(compiler::instance.storage.virtual_labels);
+    VirtualLabel* out = compiler::instance.storage.virtual_labels.add();
     out->id = display;
     return out;
 }
@@ -47,126 +47,35 @@ dump() {
     return DString::create("VirtualLabel<", id, ">");
 }
 
-namespace label {
-namespace table {
-
-LabelTable*
-init(ASTNode* creator) {
-    LabelTable* out = pool::add(compiler::instance.storage.label_tables);
+LabelTable* LabelTable::
+create() {
+	LabelTable* out = compiler::instance.storage.label_tables.add();
     out->last = 0;
     out->map = map::init<String, Label*>();
-    out->owner = creator;
     return out;
 }
 
-FORCE_INLINE void
-add(LabelTable* table, String id, Label* l) {
-	table->mtx.lock();
-    map::add(table->map, id, l);
-	table->mtx.unlock();
+void LabelTable::
+add(String id, Label* l) {
+	map::add(map, id, l);
 }
 
-Label*
-search(LabelTable* table, u64 hashed_id) {
-    while(table) {
-		table->mtx.lock();
-        auto [idx, found] = map::find(table->map, hashed_id);
+Label* LabelTable::
+search(u64 hash) {
+	auto table = this;
+	while(table) {
+        auto [idx, found] = map::find(table->map, hash);
         if(found) {
-			table->mtx.unlock();
 			return table->map.values.read(idx);
 		}
-		table->mtx.unlock();
         table = table->last;
     }
     return 0;
 }
 
-} // namespace table
-
-Label*
-resolve(TNode* n) {
-    // node::util::print_tree(n);
-    // switch(n->kind) {
-    //     case node::label:     return (Label*)n;
-    //     case node::place:     return ((Place*)n)->label;
-    //     case node::structure: return ((Structure*)n)->label;
-    //     case node::function:  return ((Function*)n)->label;
-    //     case node::module:    return ((Module*)n)->label;
-    //     case node::statement: {
-    //         auto s = (Statement*)n;
-    //         switch(s->kind) {
-    //             case statement::label: return ((Label*)n->first_child);
-    //         }
-    //     } break;
-    //     case node::type: return ((Type*)n)->label;
-    // }
-
-    return 0;
-}
-
-void
-display(DString* current, Label* l, Formatting format, b32 allow_color) {
-    // auto append_label = [&](Label* l) {
-    //     DString temp = DString::create(l->node.start->raw);
-    //     if(allow_color) {
-    //         util::wrap_color(temp, format.col);
-    //     }
-    //     dstring::prepend(temp, format.prefix);
-    //     current->append(temp, format.suffix);
-    //     temp->deref();
-    // };
-
-    // append_label(l);
-
-    // if(l->aliased && !format.no_aka) {
-    //     current->append(" (aka ");
-    //     if(format.full_aka) {
-    //         Label* step = l->aliased;
-    //         while(1) {
-    //             append_label(step);
-    //             step = step->aliased;
-    //             if(!step) break;
-    //             current->append(" aka ");
-    //         }
-    //     } else {
-    //         Label* step = l->aliased;
-    //         while(step->aliased) step = step->aliased;
-    //         append_label(step);
-    //     }
-    //     current->append(')');
-    // }
-}
-
-} // namespace label
-
 global void
 to_string(DString* start, Label* l) {
-    // start->append("Label<");
-
-    // if(!l || !l->node.start) return start->append("unknown>");
-    
-    // start->append("'", l->node.start->raw, "'");
-
-    // if(l->aliased)
-    //     start->append(" (aka ", label::base(l)->node.start->raw, ")");
- 
-    // // TODO(sushi) add option to enable this somehow 
-    // // if(l->node.end) {
-    // //     start->append(l->node.start->code->display, ":", 
-    // //             l->node.start->l0, ",", l->node.start->c0, ":",
-    // //             l->node.end->l0, ",", l->node.end->c0,
-    // //         ">");
-    // // } else {
-    // //     start->append(l->node.start->code->display, ":", 
-    // //             l->node.start->l0, ",", l->node.start->c0, ":",
-    // //             "?,?",
-    // //         ">");
-    // // }
-
-    // start->append(">");
-    
+	start->append(ScopedDeref(l->display()).x->fin);
 }
 
 } // namespace amu
- 
- 

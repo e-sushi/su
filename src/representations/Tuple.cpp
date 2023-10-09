@@ -2,16 +2,16 @@ namespace amu {
 
 Tuple* Tuple::
 create() {
-    Tuple* out = pool::add(compiler::instance.storage.tuples);
-    out->table = label::table::init(out->as<ASTNode>());
+    Tuple* out = compiler::instance.storage.tuples.add();
+    out->table = LabelTable::create();
     return out;
 }
 
 void Tuple::
 destroy() {
     map::deinit(table->map);
-	pool::remove(compiler::instance.storage.label_tables, this->table);
-    pool::remove(compiler::instance.storage.tuples, this); 
+	compiler::instance.storage.label_tables.remove(this->table);
+    compiler::instance.storage.tuples.remove(this); 
 }
 
 DString* Tuple::

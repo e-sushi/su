@@ -2,8 +2,8 @@ namespace amu {
 
 Module*
 Module::create() {
-    Module* out = pool::add(compiler::instance.storage.modules);
-    out->table = label::table::init(out->as<ASTNode>());
+    Module* out = compiler::instance.storage.modules.add();
+    out->table = LabelTable::create();
     return out;
 }
 

@@ -11,7 +11,7 @@
 #include "basic/Node.h"
 #include "storage/String.h"
 
-namespace amu{
+namespace amu {
 
 struct Token;
 struct LabelTable;
@@ -58,9 +58,19 @@ is<Label>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::label; }
 struct LabelTable {
     LabelTable* last;
     Map<String, Label*> map;
-    ASTNode* owner; // temp debug so I can figure out who these tables belong to 
 	
-	std::mutex mtx;
+
+	// ~~~~ interface ~~~~
+	
+	
+	static LabelTable*
+	create();
+
+	void
+	add(String s, Label* l);
+
+	Label*
+	search(u64 hashed_id);
 };
 
 // a Label created internally 
@@ -68,7 +78,8 @@ struct VirtualLabel : public Label {
     DString* id;
 
 
-    // ~~~~~~ interface ~~~~~~~
+    // ~~~~ interface ~~~~~
+
 
     // NOTE(sushi) this takes ownership of 'display', so it does not increment its ref count
     static VirtualLabel*
@@ -88,47 +99,6 @@ struct VirtualLabel : public Label {
 
     VirtualLabel() : Label(true) {} 
 };
-
-namespace label {
-
-
-// TODO(sushi) this same idea can be used for all the other things in amu,
-//             i just dont want to spend time on setting all of that up right now 
-//             plus I think there could be a better way to do it 
-struct Formatting {
-    // dont show the original label when printing an alias
-    b32 no_aka;
-    // if aka is enabled, print the entire chain of aliases
-    b32 full_aka;
-    u32 col;
-    String prefix, suffix;
-};
-
-// returns a formatted string representing the given Label
-void
-display(DString* current, Label* l, Formatting format = Formatting(), b32 allow_color = true);
-
-DString*
-display(Label* l, Formatting format = Formatting(), b32 allow_color = true) {
-    DString* out = DString::create();
-    display(out, l, format);
-    return out;
-}
-
-namespace table {
-
-LabelTable*
-init(ASTNode* creator);
-
-FORCE_INLINE void
-add(LabelTable* table, String id, Label* l);
-
-Label*
-search(LabelTable* table, u64 hashed_id);
-
-} // namespace table
-
-} // namespace label
 
 global void
 to_string(DString* start, Label* l);

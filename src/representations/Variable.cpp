@@ -2,7 +2,7 @@ namespace amu {
 
 Var* Var::
 create(Type* type) {
-    Var* out = pool::add(compiler::instance.storage.vars);
+    Var* out = compiler::instance.storage.vars.add();
     out->ASTNode::kind = ast::entity;
     out->type = type;
     return out;

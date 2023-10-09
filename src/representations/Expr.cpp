@@ -2,8 +2,7 @@ namespace amu {
 
 Expr* Expr::
 create(expr::kind kind, Type* type) {
-    Expr* out = pool::add(compiler::instance.storage.expressions);
-    // out->node.kind = node::expression;
+    Expr* out = compiler::instance.storage.expressions.add();
     out->kind = kind;
     out->type = type;
     return out;
@@ -48,7 +47,7 @@ resolve_type() {
 
 CompileTime* CompileTime::
 create(Type* type) {
-    auto out = pool::add(compiler::instance.storage.comp_times);
+    auto out = compiler::instance.storage.comp_times.add();
     out->frame.locals = Array<Var*>::create();
     out->type = type;
     return out;
@@ -73,7 +72,7 @@ dump() {
 
 ScalarLiteral* ScalarLiteral::
 create() {
-    auto out = pool::add(compiler::instance.storage.scalar_literals);
+    auto out = compiler::instance.storage.scalar_literals.add();
     return out;
 }
 
@@ -127,7 +126,7 @@ is_negative() {
 
 StringLiteral* StringLiteral::
 create() {
-    return pool::add(compiler::instance.storage.string_literals);
+    return compiler::instance.storage.string_literals.add();
 }
 
 DString* StringLiteral::
@@ -142,7 +141,7 @@ dump() {
 
 ArrayLiteral* ArrayLiteral::
 create() {
-    auto out = pool::add(compiler::instance.storage.array_literals);
+    auto out = compiler::instance.storage.array_literals.add();
     return out;
 }
 
@@ -181,7 +180,7 @@ cast_to(Type* t) {
 
 TupleLiteral* TupleLiteral::
 create() {
-	auto out = pool::add(compiler::instance.storage.tuple_literals);
+	auto out = compiler::instance.storage.tuple_literals.add();
 	return out;
 }
 
@@ -211,9 +210,9 @@ dump() {
 
 Block* Block::
 create() {
-    Block* out = pool::add(compiler::instance.storage.blocks);
+    Block* out = compiler::instance.storage.blocks.add();
     out->kind = expr::block;
-    out->table = label::table::init(out->as<ASTNode>());
+    out->table = LabelTable::create();
     return out;
 }
 
@@ -229,7 +228,7 @@ dump() {
 
 Call*
 Call::create() {
-    Call* out = pool::add(compiler::instance.storage.calls);
+    Call* out = compiler::instance.storage.calls.add();
     // node::init(&out->node);
     // out->node.kind = node::expression;
     out->kind = expr::call;
@@ -250,7 +249,7 @@ dump() {
 
 VarRef* VarRef::
 create() {
-    VarRef* out = pool::add(compiler::instance.storage.varrefs);
+    VarRef* out = compiler::instance.storage.varrefs.add();
     // node::init(&out->node);
     // out->node.kind = node::expression;
     out->kind = expr::varref;
@@ -269,8 +268,8 @@ dump() {
 
 For* For::
 create() {
-    auto out = pool::add(compiler::instance.storage.fors);
-    out->table = label::table::init(out->as<ASTNode>());
+    auto out = compiler::instance.storage.fors.add();
+    out->table = LabelTable::create();
     return out;
 }
 

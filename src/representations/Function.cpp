@@ -3,7 +3,7 @@ namespace amu {
 
 Function* Function::
 create(FunctionType* type) {
-    Function* out = pool::add(compiler::instance.storage.functions);
+    Function* out = compiler::instance.storage.functions.add();
     out->type = type;
     return out;
 }

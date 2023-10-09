@@ -103,6 +103,7 @@ enum kind : u32 {
     loop,                    // loop
     in,                      // in
     then,                    // then
+	import,                  // import
     
     //// types  ////
     group_type,

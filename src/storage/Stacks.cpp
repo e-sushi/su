@@ -34,7 +34,7 @@ Label* TableStack::
 search(u64 hash) {
 	LabelTable* table = current;
 	while(table) {
-		auto l = label::table::search(table, hash);
+		auto l = table->search(hash);
 		if(l) return l;
 		table = table->last;
 	}
@@ -43,7 +43,7 @@ search(u64 hash) {
 
 Label* TableStack::
 search_local(u64 hash) {
-	return label::table::search(current, hash);
+	return current->search(hash);
 }
 
 } // namespace amu

@@ -6,7 +6,7 @@ load(String path) {
     std::filesystem::path p = (char*)path.str;
     if(!std::filesystem::exists(p)) return 0;
 
-    Source* out = pool::add(compiler::instance.storage.sources);
+    Source* out = compiler::instance.storage.sources.add();
 
     std::filesystem::path ab = std::filesystem::absolute(p);
     out->path = String(DString::create(ab.c_str()));

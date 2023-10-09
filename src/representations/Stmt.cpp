@@ -2,13 +2,13 @@ namespace amu {
 
 Stmt* Stmt::
 create() {
-    Stmt* out = pool::add(compiler::instance.storage.statements);
+    Stmt* out = compiler::instance.storage.statements.add();
     return out;
 }
 
 void Stmt::
 destroy() {
-    pool::remove(compiler::instance.storage.statements, this);
+    compiler::instance.storage.statements.remove(this);
 }
 
 DString* Stmt::

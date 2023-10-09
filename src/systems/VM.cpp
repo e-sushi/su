@@ -3,7 +3,7 @@ namespace amu {
 
 VM* VM::
 create(Code* entry) {
-    VM* out = pool::add(compiler::instance.storage.vm);
+    VM* out = compiler::instance.storage.vm.add();
     // arbitrary amount of stack to allocate
     // this needs to be a compiler option later 
     out->stack = (u8*)memory::allocate(Megabytes(10));
@@ -28,7 +28,7 @@ create(Code* entry) {
 void VM::
 destroy() {
     memory::free(stack);
-    pool::remove(compiler::instance.storage.vm, this);
+ 	compiler::instance.storage.vm.remove(this);
 }
 
 BC* VM::

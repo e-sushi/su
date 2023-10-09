@@ -23,6 +23,7 @@ struct LexicalScope {
 	LexicalScope* last;
 
 	Array<u64> labels;
+	Array<u64> imports;
 };
 
 struct Lexer {

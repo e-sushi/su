@@ -13,7 +13,7 @@
 namespace amu {
 Sema* Sema::
 create(Code* code) {
-	auto out = pool::add(compiler::instance.storage.semas);
+	auto out = compiler::instance.storage.semas.add();
 	out->nstack.stack = Array<ASTNode*>::create(128);
 	out->nstack.current = 0;
 	out->tstack.stack = Array<LabelTable*>::create(128);
@@ -25,7 +25,7 @@ create(Code* code) {
 
 void Sema::
 destroy() {
-	pool::remove(compiler::instance.storage.semas, this);
+	compiler::instance.storage.semas.remove(this);
 }
 
 b32 Sema::

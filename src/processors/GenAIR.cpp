@@ -4,7 +4,7 @@ namespace amu {
 
 GenAIR* GenAIR::
 create(Code* code) {
-    GenAIR* out = pool::add(compiler::instance.storage.air_gens);
+    GenAIR* out = compiler::instance.storage.air_gens.add();
     out->seq = Array<BC>::create();
     out->code = code;
     code->air_gen = out;

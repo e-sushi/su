@@ -17,7 +17,7 @@ namespace amu {
 
 Parser* Parser::
 create(Code* code) {
-	Parser* out = pool::add(compiler::instance.storage.parsers);
+	Parser* out = compiler::instance.storage.parsers.add();
 	out->table.stack = Array<LabelTable*>::create(128);
 	out->table.current = 0;
 	out->node.stack = Array<ASTNode*>::create(128);
@@ -32,7 +32,7 @@ void Parser::
 destroy() {
 	table.stack.destroy();
 	node.stack.destroy();
-	pool::remove(compiler::instance.storage.parsers, this);
+	compiler::instance.storage.parsers.remove(this);
 }
 
 b32 Parser::

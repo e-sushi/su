@@ -20,6 +20,7 @@ token_is_keyword_or_identifier(String raw) {
 		strcase("loop"):	  return token::loop;
 		strcase("struct"):	  return token::structdecl;
 		strcase("module"):	  return token::moduledecl;
+		strcase("import"):    return token::import;
 		strcase("void"):	  return token::void_;
 		strcase("s8"):		  return token::signed8;
 		strcase("s16"):		  return token::signed16;
@@ -84,7 +85,7 @@ is_identifier_char(u32 codepoint) {
 
 Lexer* Lexer::
 create(Code* code) {
-	Lexer* out = pool::add(compiler::instance.storage.lexers);
+	Lexer* out = compiler::instance.storage.lexers.add();
 	out->labels = Array<spt>::create();
 	out->code = code;
 	code->lexer = out;
@@ -163,11 +164,13 @@ stream_next;					 \
 	auto tokens = Array<Token>::create();
 	
 	auto lexscope_stack = Array<LexicalScope*>::create();
-	LexicalScope* current_lexscope = pool::add(compiler::instance.storage.lexical_scopes);
+	LexicalScope* current_lexscope = compiler::instance.storage.lexical_scopes.add();
 
 	auto push_lexscope = [&]() {
 		lexscope_stack.push(current_lexscope);
-		current_lexscope = pool::add(compiler::instance.storage.lexical_scopes);
+		current_lexscope = compiler::instance.storage.lexical_scopes.add();
+		current_lexscope->labels = Array<u64>::create();
+		current_lexscope->imports = Array<u64>::create();
 	};
 
 	auto pop_lexscope = [&]() {
@@ -466,6 +469,9 @@ stream_next;					 \
 								// m->table.last = &current_module.module->table;
 								// push_module(m);
 								// token.module = m;
+							} break;
+							case token::import: {
+								current_lexscope->labels.push(tokens.count);
 							} break;
 						}
 					}

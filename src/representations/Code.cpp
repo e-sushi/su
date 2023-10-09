@@ -8,7 +8,7 @@ Code* Code::
 from(Code* code, Token* start) {
 	Code* out;
 	if(code->source) {
-		SourceCode* sc = pool::add(compiler::instance.storage.source_code);
+		SourceCode* sc = compiler::instance.storage.source_code.add();
 		sc->tokens.data = start;
 		sc->tokens.count = code->get_tokens().data + code->get_tokens().count - start;
 		out = sc->as<Code>();
@@ -19,13 +19,13 @@ Code* Code::
 from(Code* code, Token* start, Token* end) {
 	Code* out;
 	if(code->source) {
-		SourceCode* sc = pool::add(compiler::instance.storage.source_code);
+		SourceCode* sc = compiler::instance.storage.source_code.add();
 		sc->tokens.data = start;
 		sc->tokens.count = end-start+1;
 		out = sc->as<Code>();
 	} else {
 		auto c = (VirtualCode*)code;
-		VirtualCode* vc = pool::add(compiler::instance.storage.virtual_code);
+		VirtualCode* vc = compiler::instance.storage.virtual_code.add();
 		vc->tokens = c->tokens.copy(start-c->tokens.data, end-start+1);
 	}
 
@@ -78,7 +78,7 @@ from(Code* code, ASTNode* node) {
 
 SourceCode* Code::
 from(Source* source) {
-	SourceCode* out = pool::add(compiler::instance.storage.source_code);
+	SourceCode* out = compiler::instance.storage.source_code.add();
 	out->raw = source->buffer;
 	out->source = source;
 	out->kind = code::source;

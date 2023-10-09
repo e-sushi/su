@@ -4,10 +4,10 @@ namespace amu {
 
 GenTAC* GenTAC::
 create(Code* code) {
-    GenTAC* out = pool::add(compiler::instance.storage.tac_gens);
+    GenTAC* out = compiler::instance.storage.tac_gens.add();
     out->code = code;
     code->tac_gen = out;
-    out->pool = pool::init<TAC>(64);
+    out->pool = Pool<TAC>::create(64);
     out->seq = Array<TAC*>::create();
     out->loop_start_stack = Array<TAC*>::create();
     out->loop_end_stack = Array<TAC*>::create();
@@ -17,7 +17,7 @@ create(Code* code) {
 
 void GenTAC::
 destroy() {
-    pool::deinit(pool);
+    pool.destroy();
     seq.destroy();
     loop_start_stack.destroy();
     loop_end_stack.destroy();
@@ -1001,7 +1001,7 @@ make() {
     //}
 	//		
 
-    TAC* out = pool::add(pool);
+    TAC* out = pool.add();
     out->id = count++;
     out->bc_offset = -1;
 	return out;

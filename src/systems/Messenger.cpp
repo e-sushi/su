@@ -89,7 +89,7 @@ process_part(DString* current, const MessagePart& part) {
             NotImplemented;
         } break;
         case messagepart::label: {
-            label::display(part.label, formatting.label, current_dest->allow_color);
+			current->append(part.label->display());
         } break;
         case messagepart::code: {
             NotImplemented;

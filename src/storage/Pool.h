@@ -17,6 +17,9 @@
         We can puts stats on this structure and guard it behind BUILD_DEBUG to make
         debugging a little easier
 
+		This needs to be rewritten as there are things I do that I believe are redundent
+		(though I can't remember what they are atm)
+
 */
 
 #ifndef AMU_POOL_H
@@ -42,29 +45,29 @@ struct Pool {
 
 	Mutex* m;
 
+	// create a new Pool 
+	static Pool<T>
+	create(spt n_per_chunk);
+	
+	// clean up the pool
+	void
+	destroy();
+
+	// add an item to the pool and return a pointer to it 
+	T*
+	add();
+
+	// add an item to the pool, copy 'val' to it, then
+	// return a pointer to it
+	T*
+	add(const T& val);
+	
+	// remove an item previously added to the pool
+	void
+	remove(T* ptr);
 };
 
 namespace pool {
-
-// initialize a pool that will allocate chunks to store 
-// 'n_per_chunk' items of type 'T'
-template<typename T> Pool<T>
-init(spt n_per_chunk);
-
-// deinitializes a pool
-template<typename T> void
-deinit(Pool<T>& pool);
-
-// adds an item to the pool and returns a pointer to it
-// allocates a new chunk if necessary
-template<typename T> T*
-add(Pool<T>& pool);
-
-template<typename T> T*
-add(Pool<T>& pool, const T& val);
-
-template<typename T> void
-remove(Pool<T>& pool, T* ptr);
 
 template<typename T>
 struct Iterator {

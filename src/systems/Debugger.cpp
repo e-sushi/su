@@ -15,7 +15,7 @@ next_line(ncplane* p) {
 
 Debugger* Debugger::
 create(Code* code) {
-	auto out = pool::add(compiler::instance.storage.debuggers);
+	auto out = compiler::instance.storage.debuggers.add();
 	out->code = code;
 
     setlocale(LC_ALL, "en_US.UTF-8");

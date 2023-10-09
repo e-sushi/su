@@ -193,14 +193,6 @@ struct MessageFormatting {
     //     String prefix = "'", suffix = "'";
     // } label;
 
-    label::Formatting label = {
-        .no_aka = false,
-        .full_aka = false,
-        .col = message::color_green,
-        .prefix = "'",
-        .suffix = "'",
-    };
-
 };
 
 struct Destination {

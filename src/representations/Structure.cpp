@@ -2,7 +2,7 @@ namespace amu {
 
 Member* Member::
 create() {
-    auto out = pool::add(compiler::instance.storage.members);
+    auto out = compiler::instance.storage.members.add();
     return out;
 }
 
@@ -18,7 +18,7 @@ dump() {
 
 Structure*
 Structure::create() {
-    Structure* out = pool::add(compiler::instance.storage.structures);
+    Structure* out = compiler::instance.storage.structures.add();
     out->members = map::init<String, Member*>();
     return out;
 }
@@ -32,7 +32,7 @@ find_member(String s) {
 
 Member* Structure::
 add_member(String id) {
-    auto out = pool::add(compiler::instance.storage.members); 
+    auto out = compiler::instance.storage.members.add();
     map::add(members, id, out);
     return out;
 }

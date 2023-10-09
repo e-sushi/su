@@ -157,7 +157,7 @@ create(Type* type) {
 	auto [idx,found] = amu::array::util::
 		search<Pointer*, Type*>(amu::Pointer::set, type, [](Pointer* p){ return p->type; });
 	if(found) return amu::Pointer::set.read(idx);
-	Pointer* nu = pool::add(compiler::instance.storage.pointer_types);
+	Pointer* nu = compiler::instance.storage.pointer_types.add();
 	nu->type = type;
 	amu::Pointer::set.insert(idx, nu);
 	return nu;
@@ -203,7 +203,7 @@ create(Type* type, u64 count) {
 			[](StaticArray* a){ return (u64(a->type) << a->count) * 1234; });
 
 	if(found) return amu::StaticArray::set.read(idx);
-	StaticArray* nu = pool::add(compiler::instance.storage.static_array_types);
+	StaticArray* nu = compiler::instance.storage.static_array_types.add();
 	nu->type = type;
 	nu->count = count;
 	amu::StaticArray::set.insert(idx, nu);
@@ -271,7 +271,7 @@ create(Type* type) {
 
 	if(found) return amu::ViewArray::set.read(idx);
 
-	ViewArray* nu = pool::add(compiler::instance.storage.view_array_types);
+	ViewArray* nu = compiler::instance.storage.view_array_types.add();
 	nu->type = type;
 	amu::ViewArray::set.insert(idx, nu);
 
@@ -329,7 +329,7 @@ create(Type* type) {
 
 	if(found) return DynamicArray::set.read(idx);
 
-	DynamicArray* nu = pool::add(compiler::instance.storage.dynamic_array_types);
+	DynamicArray* nu = compiler::instance.storage.dynamic_array_types.add();
 	nu->type = type;
 	DynamicArray::set.insert(idx, nu);
 
@@ -392,7 +392,7 @@ create(Type* type) {
 
 	if(found) return set.read(idx);
 
-	auto out = pool::add(compiler::instance.storage.range_types);
+	auto out = compiler::instance.storage.range_types.add();
 	out->type = type;
 	set.insert(idx, out);
 
@@ -428,7 +428,7 @@ print_from_address(u8* addr) {
 // FunctionType does not try to be unique for now
 FunctionType* FunctionType::
 create() {
-	FunctionType* out = pool::add(compiler::instance.storage.function_types);
+	FunctionType* out = compiler::instance.storage.function_types.add();
 	out->kind = type::kind::function;
 	out->ASTNode::kind = ast::entity;
 	return out;
@@ -475,7 +475,7 @@ Array<TupleType*> TupleType::set = Array<TupleType*>::create();
 TupleType* TupleType::
 create(Tuple* tuple) {
 
-	TupleType* nu = pool::add(compiler::instance.storage.tuple_types);
+	TupleType* nu = compiler::instance.storage.tuple_types.add();
 	nu->named_elements = map::init<String, u64>();
 	nu->elements = Array<Element>::create();
 
@@ -678,7 +678,7 @@ print_from_address(u8* addr) {
 //		   search<type::structure::ExistingStructureType, Structure*>(s, [](type::structure::ExistingStructureType& s) { return s.structure; });
 //	   if(found) return amu::type::structure::set.read(idx).stype;
 //	   type::structure::ExistingStructureType* nu = amu::structure::set.insert(idx);
-//	   nu->stype = pool::add(compiler::instance.storage.structured_types);
+//	   nu->stype = compiler::instance.storage.structured_types.add();
 //	   nu->stype->kind = type::kind::structured;
 //	   nu->stype->node.kind = node::type;
 //	   nu->stype->structure = s;
@@ -688,7 +688,7 @@ print_from_address(u8* addr) {
 
 Structured* Structured::
 create(Structure* s) {
-	auto out = pool::add(compiler::instance.storage.structured_types);
+	auto out = compiler::instance.storage.structured_types.add();
 	out->structure = s;
 	return out;
 }
