@@ -38,7 +38,6 @@ start() {
 			switch(e->kind) {
 				case entity::module: {
 					if(!module()) return false;
-					//util::println(e->print_tree());
 				} break;
 				case entity::expr: {
 					if(!expr()) return false;
@@ -137,18 +136,37 @@ expr() {
 
 
 		case expr::unary_reference: {
-			nstack.push(nstack.current->first_child());
+			auto e = nstack.current;
+			nstack.push(e->first_child());
 			if(!expr()) return false;
 			nstack.pop();
+			
+			switch(e->first_child<Expr>()->kind) {
+				case expr::varref: 
+				case expr::typeref: {
+					e->as<Expr>()->type =
+						Pointer::create(e->first_child<Expr>()->type);
 
-			if(nstack.current->first_child<Expr>()->is_not<VarRef>()) {
-				diagnostic::sema::
-					cant_take_reference_of_value(nstack.current->start);
-				return false;
+					// this kinda sucks, we can just change the type of the 
+					// unary_reference node, but I don't want to alter the
+					// original AST produced by Parsing too much
+					if(e->first_child<Expr>()->kind == expr::typeref) {
+						// insert a typeref node above this expression
+						auto tr = Expr::create(expr::typeref);
+						tr->start = e->start;
+						tr->end = e->end;
+						tr->type = e->as<Expr>()->type;
+						node::insert_above(e, tr);
+						nstack.pop();
+						nstack.push(tr);
+					}
+				} break;
+				default: {
+					diagnostic::sema::
+						reference_operator_can_only_be_used_on_types_or_lvalues(e->start);	
+					return false;
+				} break;
 			}
-
-			nstack.current->as<Expr>()->type = 
-				Pointer::create(nstack.current->first_child<Expr>()->type);
 		} break;
 
 		case expr::unary_dereference: {
@@ -166,7 +184,6 @@ expr() {
 				nstack.current->first_child<Expr>()->type->as<Pointer>()->type;
 		} break;
 
-		
 		case expr::binary_assignment: {
 			nstack.push(nstack.current->first_child());
 			if(!expr()) return false;
@@ -454,16 +471,29 @@ expr() {
 
 		case expr::varref: {
 			auto e = nstack.current->as<Expr>();
-			auto v = e->as<VarRef>()->var;
+			auto v = e->varref;
 			if(v->code && !v->code->wait_until_level(code::sema, code)) return false;
 			if(v->type->is<Range>()) {
 				// TODO(sushi) this is scuffed, need to setup for loops to set their variable to be of the 
 				//			   correct type instead of doing that here
 				e->type = v->type->as<Range>()->type;
 			} else {
-				e->type = e->as<VarRef>()->var->type;
+				e->type = v->type;
 			}
 			e->compile_time = v->is_compile_time;
+		} break;
+
+		case expr::moduleref: {
+			auto e = nstack.current->as<Expr>();
+			auto m = e->moduleref;
+			
+			// we don't check if a module has a Code object because at the moment 
+			// it always should
+			// TODO(sushi) when accessing a module from within that module we need
+			//             to adjust how this is done, because it will block (or cause a dependency error)
+			//             at the moment.
+			if(!m->code->wait_until_level(code::sema, code)) return false;
+			e->compile_time = true;
 		} break;
 
 		case expr::conditional: {
@@ -734,6 +764,8 @@ access() {
 	nstack.push(nstack.current->first_child());
 	if(!expr()) return false;
 	auto lhs = nstack.pop()->as<Expr>();
+	auto rhs = nstack.current->last_child();
+	auto acc = nstack.current->as<Expr>();
 
 	if(!lhs->type) {
 		diagnostic::sema::
@@ -741,8 +773,6 @@ access() {
 		return false;
 	}
 
-	auto rhs = nstack.current->last_child();
-	auto acc = nstack.current->as<Expr>();
 
 	auto lhs_type = lhs->type;
 
@@ -766,6 +796,7 @@ pointer_try_again:
 					too_many_levels_of_indirection_for_access(lhs->start);
 				return false;
 			}
+			lhs_type = ptype->type;
 			goto pointer_try_again;
 		} break;
 		case type::kind::tuple: {
@@ -808,6 +839,27 @@ pointer_try_again:
 			acc->member = m;
 			acc->type = m->type;
 			return true;
+		} break;
+		case type::kind::module: {
+			auto m = lhs_type->as<ModuleType>()->m;
+			auto l = m->table->search(rhs->start->hash);
+			if(!l) {
+				diagnostic::sema::
+					module_unknown_member(rhs->start, m->label->start->raw, rhs->start->raw);
+				return false;
+			}
+
+			if(!l->code->wait_until_level(code::sema, code)) return false;
+
+			switch(l->entity->kind) {
+				case entity::module: {
+					acc->type = ModuleType::create(l->entity->as<Module>());
+				} break;
+				case entity::func: {
+					// extract the function and pass the info to call()
+
+				} break;
+			}
 		} break;
 	}
 	return false;
@@ -1041,6 +1093,7 @@ function() {
 		//cast->end = retexpr->end;
 		//node::insert_above(retexpr, cast);
 	}
+	util::println(nstack.current->print_tree());
 	return true;
 }
 

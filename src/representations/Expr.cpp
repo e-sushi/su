@@ -24,6 +24,12 @@ dump() {
         case expr::typeref: {
             out->append("typeref:", this->type);
         } break;
+		case expr::varref: {
+			out->append("varref:", ScopedDeref(this->varref->display()).x);
+		} break;
+		case expr::moduleref: {
+			out->append("moduleref:", ScopedDeref(this->moduleref->display()).x);
+		} break;
         case expr::identifier: {
             out->append("id:'", this->start->raw, "'");
         } break;
@@ -33,6 +39,7 @@ dump() {
         default: {
             out->append(expr::kind_strings[(u32)this->kind]);
         } break;
+		
     }
 
     out->append(">");
@@ -245,25 +252,6 @@ dump() {
     return DString::create("Call<", 
                 (callee? ScopedDeref(callee->display()).x->fin : "null callee"), ", ", 
                 (arguments? ScopedDeref(arguments->display()).x->fin : "null args"), ">");
-}
-
-VarRef* VarRef::
-create() {
-    VarRef* out = compiler::instance.storage.varrefs.add();
-    // node::init(&out->node);
-    // out->node.kind = node::expression;
-    out->kind = expr::varref;
-    return out;
-}
-
-DString* VarRef::
-display() { // !Leak TODO(sushi) get this to print something nicer
-    return dump();
-}
-
-DString* VarRef::
-dump() {
-    return DString::create("VarRef<", (var? ScopedDeref(var->display()).x->fin : "null var"), ">");
 }
 
 For* For::

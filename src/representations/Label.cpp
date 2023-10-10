@@ -34,12 +34,16 @@ VirtualLabel* VirtualLabel::
 create(DString* display) {
     VirtualLabel* out = compiler::instance.storage.virtual_labels.add();
     out->id = display;
+	out->virtual_token.kind = token::identifier;
+	out->virtual_token.raw = display;
+	out->virtual_token.hash = display->fin.hash();
+	out->start = out->end = &out->virtual_token;
     return out;
 }
 
 DString* VirtualLabel::
 display() {
-    return id->ref();
+    return id;
 }
 
 DString* VirtualLabel::
@@ -51,20 +55,20 @@ LabelTable* LabelTable::
 create() {
 	LabelTable* out = compiler::instance.storage.label_tables.add();
     out->last = 0;
-    out->map = map::init<String, Label*>();
+    out->map = Map<String, Label*>::create();
     return out;
 }
 
 void LabelTable::
 add(String id, Label* l) {
-	map::add(map, id, l);
+	map.add(id, l);
 }
 
 Label* LabelTable::
 search(u64 hash) {
 	auto table = this;
 	while(table) {
-        auto [idx, found] = map::find(table->map, hash);
+        auto [idx, found] = table->map.find(hash);
         if(found) {
 			return table->map.values.read(idx);
 		}

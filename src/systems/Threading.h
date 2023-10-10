@@ -23,7 +23,7 @@ template<typename R, typename F, typename... Args> void
 wrapper(std::promise<R> p, F f, Args... args);
 
 struct Threader {
-	std::counting_semaphore<1> sema;
+	std::counting_semaphore<2> sema;
 
 	template<typename F, typename... Args> Future<std::invoke_result_t<F, Args...>>
 	start(F f, Args... args);
@@ -33,7 +33,7 @@ struct Threader {
 	template<typename F, typename... Args> Future<std::invoke_result_t<F, Args...>>
 	start_deferred(Future<void> fext, F f, Args... args);
 
-	Threader() : sema(1) {}
+	Threader() : sema(2) {}
 };
 
 extern Threader threader;

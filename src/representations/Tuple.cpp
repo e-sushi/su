@@ -9,7 +9,7 @@ create() {
 
 void Tuple::
 destroy() {
-    map::deinit(table->map);
+    table->map.destroy();
 	compiler::instance.storage.label_tables.remove(this->table);
     compiler::instance.storage.tuples.remove(this); 
 }

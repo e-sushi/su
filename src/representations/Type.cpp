@@ -165,7 +165,7 @@ create(Type* type) {
 
 DString* Pointer::
 display() { // !Leak
-	return DString::create(ScopedDeref(type->display()).x, "*");
+	return DString::create("&", ScopedDeref(type->display()).x);
 }
 
 DString* Pointer::
@@ -476,7 +476,7 @@ TupleType* TupleType::
 create(Tuple* tuple) {
 
 	TupleType* nu = compiler::instance.storage.tuple_types.add();
-	nu->named_elements = map::init<String, u64>();
+	nu->named_elements = Map<String, u64>::create();
 	nu->elements = Array<Element>::create();
 
 	b32 found_label = 0;
@@ -487,7 +487,7 @@ create(Tuple* tuple) {
 			found_label = 1;
 			t = n->last_child<Expr>()->type;
 			u32 index = nu->elements.count;
-			map::add(nu->named_elements, n->start->raw, (u64)nu->elements.count);
+			nu->named_elements.add(n->start->raw, (u64)nu->elements.count);
 		} else if(found_label) {
 			Assert(0); // all elements after a label should also be labels
 		} else {
@@ -525,6 +525,25 @@ u64 TupleType::
 size() {
 	return bytes;
 
+}
+
+// TODO(sushi) unique module types though that may not be required 
+//             for this sort of thing 
+ModuleType* ModuleType::
+create(Module* m) {
+	auto out = compiler::instance.storage.module_types.add();
+	out->m = m;
+	return out;
+}
+
+DString* ModuleType::
+display() {
+	return m->display();
+}
+
+DString* ModuleType::
+dump() {
+	return DString::create("ModuleType<", ScopedDeref(display()).x, ">");
 }
 
 namespace type::internal {

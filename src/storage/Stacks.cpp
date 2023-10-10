@@ -27,7 +27,7 @@ pop() {
 
 void TableStack::
 add(String id, Label* l) {
-	map::add(current->map, id, l);
+	current->map.add(id, l);
 }
 
 Label* TableStack::

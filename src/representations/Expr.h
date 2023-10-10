@@ -36,8 +36,10 @@ enum kind : u32 {
     typeref,
     typedef_,
     func_def,
-    varref, // a reference to a variable 
+    varref, 
 	label_ref, 
+	module,
+	moduleref,
     call,
     
     block,
@@ -106,7 +108,6 @@ struct Expr : public Entity {
 
     // if this is an access expr, this will point to the member being accessed
     // idk where else to put this atm 
-    Member* member;
 
     // when true, this expression represents a location in memory 
     // and operations performed on it should directly affect it 
@@ -115,6 +116,13 @@ struct Expr : public Entity {
 	// set true on expressions in Sema that can be considered 
 	// computable at compile time
 	b32 compile_time;
+	
+
+	union {
+		Var* varref; // expr::varref
+		Module* moduleref; // expr::moduleref
+    	Member* member; // expr::access
+	};
 
 
     // ~~~~~~ interface ~~~~~~~
@@ -401,31 +409,6 @@ struct Call : public Expr {
 
 template<> inline b32 Base::
 is<Call>() { return is<Expr>() && as<Expr>()->kind == expr::call; }
-
-struct VarRef : public Expr {
-    Var* var;
-
-
-    // ~~~~~~ interface ~~~~~~~
-
-
-    static VarRef*
-    create();
-
-    void
-    destroy(); 
-
-    DString*
-    display();
-
-    DString*
-    dump();
-
-    VarRef() : Expr(expr::varref) {}
-};
-
-template<> inline b32 Base::
-is<VarRef>() { return is<Expr>() && as<Expr>()->kind == expr::varref; }
 
 // for loops hold a table
 struct For : public Expr {

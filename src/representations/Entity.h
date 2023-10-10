@@ -42,9 +42,6 @@ struct Entity : public ASTNode {
 	// ~~~~ interface ~~~~
 	
 
-	virtual b32
-	ensure_processed_to(code::level level);
-	
     Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
 };
 

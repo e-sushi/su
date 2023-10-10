@@ -61,9 +61,9 @@ struct Parser {
 	
 	// discretizes a given module (or source file) into discrete
 	// code objects based on the LexicalScope's marked labels. The new Code objects 
-	// are attached to the current as children. This assumes a Module has not already
-	// been created for the Code object and makes one itself. The token is also
-	// assumed to be at the first token of the LexicalScope representing the module (or source file).
+	// are attached to the current as children. This assumes a Module has already been created
+	// to represent the Code object. The token is also assumed to be at the first token 
+	// of the LexicalScope representing the module (or source file).
 	b32
 	discretize_module();
 

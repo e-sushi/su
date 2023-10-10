@@ -76,6 +76,7 @@ struct LabelTable {
 // a Label created internally 
 struct VirtualLabel : public Label {
     DString* id;
+	Token virtual_token;
 
 
     // ~~~~ interface ~~~~~
@@ -84,9 +85,6 @@ struct VirtualLabel : public Label {
     // NOTE(sushi) this takes ownership of 'display', so it does not increment its ref count
     static VirtualLabel*
     create(DString* display);
-
-    ASTNode*
-    deep_copy();
 
     void
     destroy();

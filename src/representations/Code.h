@@ -223,9 +223,9 @@ struct Code : public ASTNode {
 	wait_until_level(code::level level, Code* dependent);
 	
 	// helper function called only by this Code object
-	// just sets the state and notifies the condition variable
+	// just sets the state and optionally notifies the condition variable
 	void
-	change_state(code::state state);
+	change_state(code::state state, b32 notify = true);
 
 	DString*
 	display() = 0;

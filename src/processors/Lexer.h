@@ -19,8 +19,16 @@ namespace amu {
 // This is an attempt to solve a problem with gathering enough information
 // to determine whether or not a label is global or separate enough for 
 // us 
+//
+// The indexes of in each array are offsets from the token that begins 
+// the LexicalScope
 struct LexicalScope {
 	LexicalScope* last;
+	
+	// index into the tokens array this LexicalScope belongs to
+	// indicating where it starts 
+	u64 token_start;
+	u64 token_end;
 
 	Array<u64> labels;
 	Array<u64> imports;

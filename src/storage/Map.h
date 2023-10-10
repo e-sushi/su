@@ -14,6 +14,11 @@
 #include "Array.h"
 namespace amu {
 
+struct FindResult {
+    spt index;
+    b32 found;
+};
+
 template<typename K, typename V>
 struct Map {
     struct Key {
@@ -24,43 +29,37 @@ struct Map {
 
     Array<Key> keys;
     Array<V> values;
+
+
+	// ~~~~ interface ~~~~
+	
+
+	static Map<K,V>
+	create();
+
+	void
+	destroy();
+
+	u32
+	add(const K& key);
+
+	u32
+	add(const K& key, const V& value);
+
+	void
+	remove(const K& key);
+
+	b32
+	has(const K& key);
+
+	FindResult
+	find(const K& key);
+
+	FindResult
+	find(u64 hash);
+
 };
 
-
-struct FindResult {
-    spt index;
-    b32 found;
-};
-
-namespace map {
-
-template<typename K, typename V> Map<K,V>
-init();
-
-template<typename K, typename V> void
-deinit(Map<K,V>& m);
-
-template<typename K, typename V> u32
-add(Map<K,V>& m, const K& key);
-
-template<typename K, typename V> u32
-add(Map<K,V>& m, const K& key, const V& value);
-
-template<typename K, typename V> void 
-remove(Map<K,V>& m, const K& key);
-
-template<typename K, typename V> b32 
-has(Map<K,V>& m, const K& key);
-
-// returns the index reached in a binary search of the map
-// and a boolean indicating if it actually found the key or not
-template<typename K, typename V> FindResult
-find(Map<K,V>& m, const K& key);
-
-template<typename K, typename V> FindResult
-find(Map<K,V>& m, u64 hash);
-
-} // namespace map
 } // namespace amu
 
 #endif

@@ -1,4 +1,5 @@
 #include "representations/Code.h"
+#include "storage/String.h"
 #include "systems/Messenger.h"
 #include <condition_variable>
 #include <mutex>
@@ -8,11 +9,19 @@ Code* Code::
 from(Code* code, Token* start) {
 	Code* out;
 	if(code->source) {
+		auto scode = code->as<SourceCode>();
 		SourceCode* sc = compiler::instance.storage.source_code.add();
 		sc->tokens.data = start;
-		sc->tokens.count = code->get_tokens().data + code->get_tokens().count - start;
+		sc->tokens.count = scode->tokens.data + scode->tokens.count - start;
+		sc->source = code->source;
 		out = sc->as<Code>();
+	} else {
+		TODO("VirtualCode object from single start token");
 	}
+
+	out->identifier = DString::create(code->identifier, "/", start->raw);
+
+	return out;
 }
 
 Code* Code::
@@ -84,6 +93,47 @@ from(Source* source) {
 	out->kind = code::source;
 	out->ASTNode::kind = ast::code;
 	out->identifier = source->name;
+	
+	// for now the name of the Source Module will just be the name of the file
+	// which means we'll currently enforce the same restrictions on filenames 
+	// that we enforce on labels, though I'm not sure if this is how I'd want 
+	// it to work forever.
+	
+	// we create a Module and VirtualLabel for that module here
+	auto m = Module::create();
+
+	auto filename = source->front;
+	while(filename) {
+		auto cp = string::codepoint(filename);
+		if(string::isspace(cp) || !(isalnum(cp) || cp == '_' || cp > 127)) {
+			diagnostic::lexer::
+				filename_cant_be_identifier(out);
+			return 0;
+		}
+		filename.advance();
+	}
+
+	auto l = VirtualLabel::create(DString::create(source->front));
+	l->start->code = out;
+
+	l->entity = m;
+	m->label = l;
+	
+	// add the module to its own table
+	// this allows a source file to refer to itself which handles global
+	// namespace resolution similar to C++'s ::Thing. It also prevents 
+	// things with the same name as the file being defined in its global
+	// scope. Later on I plan to support a formal definition of the file's
+	// module using a syntax like
+	// 		filename :: module;
+	// whose purpose would be primarily to setup parameters for modules that 
+	// are represented by files:
+	// 		filename :: module(...);
+	m->table->add(filename, l);
+	l->table = m->table;
+	
+	source->module = m;
+
 	messenger::qdebug(out, String("created SourceCode"));
 	return out;
 }
@@ -172,10 +222,15 @@ process_to(code::level l) {
 				messenger::qdebug(this, String("performing parsing"));
 
 				if(!this->parser) Parser::create(this);
+				if(this->kind == code::source) { // TODO(sushi) put this somewhere better
+					// we need to assign the label created for this Source code as the 
+					// root of the Parser
+					this->parser->root = this->source->module->label;
+				}
 				change_state(code::in_parse);
 			
 				if(util::any(this->kind, code::source, code::module)) {
-					// if this represents a source file or module we instead want to discretize
+					// if this represents a source file or module we want to discretize
 					// ourself and asyncronously process each child instead
 					if(!this->parser->discretize_module()) return false;
 
@@ -193,14 +248,14 @@ process_to(code::level l) {
 					// if one of them fails then we early out and return fail ourself
 					p.set_value();
 					forI(futures.count) {
-						if(!futures.read(i).get()){
+						if(!futures.read(i).get()) {
 							change_state(code::failed);
 							return false;
 						}
 					}
 
 					// there's no further processing needed for this code object (I believe), so
-					// we can just return here
+					// we can just return here and say that we've made it to AIR
 					messenger::qdebug(this, String("finished parsing"));
 					change_state(code::post_airgen);
 					return true;
@@ -209,6 +264,18 @@ process_to(code::level l) {
 					 messenger::qdebug(this, String("failed parsing"));
 					 change_state(code::failed); 
 					 return false;
+				}
+				
+				// if we come across a module declaration in parsing, we parse 
+				// the module's header then immediately return to process_to
+				// so that we may do discretization of the module in the same 
+				// way we do it for source files.
+				// we do not notify waiters since the module isn't actually done
+				// being processed yet
+				if(this->kind == code::module) {
+					change_state(code::post_lex, false);
+					this->parser->root->as<Label>()->entity->as<Module>()->code = this;
+					continue;
 				}
 
 				messenger::qdebug(this, String("finished parsing"));
@@ -224,9 +291,9 @@ process_to(code::level l) {
 					change_state(code::failed);
 					return false;
 				}
+				change_state(code::post_sema);
 
 				messenger::qdebug(this, String("finished semantic analysis"));
-				change_state(code::post_sema);
 			} break;
 			case code::post_sema: {
 				messenger::qdebug(this, String("generating TAC"));
@@ -278,7 +345,7 @@ wait_until_level(code::level level, Code* dependent){
 	dependent->dependency = this;
 	mtx.lock();
 	defer { mtx.unlock(); };
-	while(this->state < level) {
+	while(this->state < (code::state)level) {
 		messenger::qdebug(dependent, String("sleeping until stage is reached"));
 		cv.wait(mtx);
 		messenger::qdebug(dependent, String("notified, checking stage of dependency (which is "), code::state_strings[this->state], String(")"));
@@ -289,16 +356,18 @@ wait_until_level(code::level level, Code* dependent){
 }
 
 void Code::
-change_state(code::state s) { 
+change_state(code::state s, b32 notify) { 
 	mtx.lock();
-	messenger::qdebug(this, String("changing state to "), code::state_strings[s]);
 	defer { mtx.unlock(); };
+	messenger::qdebug(this, String("changing state to "), code::state_strings[s]);
 	this->state = s;
-	messenger::qdebug(this, String("changed state and notifying waiters. new state: "), code::state_strings[s]);
-	if(compiler::instance.options.break_on_error && s == code::failed) {
-		DebugBreakpoint;
+	if(notify) {
+		messenger::qdebug(this, String("changed state and notifying waiters. new state: "), code::state_strings[s]);
+		if(compiler::instance.options.break_on_error && s == code::failed) {
+			DebugBreakpoint;
+		}
+		cv.notify_all();
 	}
-	cv.notify_all();
 }
 
 DString* SourceCode::

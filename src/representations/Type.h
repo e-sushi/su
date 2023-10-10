@@ -27,6 +27,7 @@ enum class kind {
     structured,
     pointer,
     function,
+	module,
     range,
     tuple,
     meta,
@@ -597,6 +598,36 @@ struct ExistantTupleType {
 };
 extern Array<ExistantTupleType> set;
 } // namespace type::tuple
+
+// an Expr which represents a Module in someway
+struct ModuleType : public Type {
+	Module* m;
+
+
+	// ~~~~ interface ~~~~
+	
+
+	static ModuleType*
+	create(Module* m = 0);
+
+	void
+	destroy();
+
+	DString*
+	display();
+
+	DString*
+	dump();
+
+
+	// the following functions should never be invoked on this Type
+	// if they are for some reason then there must be some internal bug
+	u64 size() { Assert(0); return 0; }
+	b32 cast_to(Type* t, Expr*& e) { Assert(0); return 0; }
+	DString* print_from_address(u8* addr) { Assert(0); return 0; } 
+
+	ModuleType() : Type(type::kind::module) {}
+};
 
 namespace type::meta {
 enum class kind {

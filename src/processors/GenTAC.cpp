@@ -241,7 +241,7 @@ Arg GenTAC::
 expression(Expr* e) {
     switch(e->kind) {
         case expr::varref: {
-            auto v = e->as<VarRef>()->var;
+            auto v = e->varref;
             if(v->is_compile_time && !code->compile_time) {
                 if(v->type->is<Scalar>()) {
                     auto expr = v->label->last_child<Expr>();
@@ -315,8 +315,8 @@ expression(Expr* e) {
             Expr* step = e;
             while(1) {
                 arg.offset_var.offset += step->member->offset;
-                if(step->first_child()->is<VarRef>()) {
-                    arg.offset_var.var = step->first_child<VarRef>()->var;
+                if(step->first_child()->is(expr::varref)) {
+                    arg.offset_var.var = step->first_child<Expr>()->varref;
                     break;
                 } 
                 step = step->first_child<Expr>();

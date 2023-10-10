@@ -28,6 +28,9 @@ struct Compiler {
 
     FILE* log_file;
 
+	// TODO(sushi) we need to rewrite this so that storage of all objects is no longer 
+	//             global. With multiple threads we have to constantly lock to add things 
+	//             to any of these pools which hurts threads a lot.
     struct {
         Pool<SourceCode>      source_code;
         Pool<VirtualCode>     virtual_code;
@@ -55,7 +58,6 @@ struct Compiler {
         Pool<TupleLiteral>    tuple_literals;
         Pool<Call>            calls;
         Pool<Block>           blocks; 
-        Pool<VarRef>          varrefs; 
         Pool<For>             fors; 
         Pool<Var>             vars;
         Pool<Tuple>           tuples;
@@ -69,6 +71,7 @@ struct Compiler {
         Pool<Variant>         variant_types;
         Pool<FunctionType>    function_types;
         Pool<TupleType>       tuple_types;
+		Pool<ModuleType>      module_types;
         Pool<MetaType>        meta_types;
 		Pool<Debugger>        debuggers;
     }storage;
@@ -90,7 +93,7 @@ struct Compiler {
 		b32 break_on_error;
 
         b32 quiet;
-        
+
         struct{
             String path;
             b32 exit;

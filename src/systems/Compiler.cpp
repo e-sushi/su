@@ -23,9 +23,11 @@ init() {
         is stored in a pool stored on the Compiler instance. The majority of things put
         here will never be deleted. 
 
+		TODO(sushi) see Compiler.h on why this needs to be redone 
+
     */
 
-    instance.global_symbols = map::init<u8*, Var*>();
+    instance.global_symbols = Map<u8*, Var*>::create();
 
     instance.storage.sources             = Pool<Source>::create(8);
     instance.storage.source_code         = Pool<SourceCode>::create(8);
@@ -53,7 +55,6 @@ init() {
     instance.storage.tuple_literals      = Pool<TupleLiteral>::create(8);
     instance.storage.calls               = Pool<Call>::create(8);
     instance.storage.blocks              = Pool<Block>::create(8);
-    instance.storage.varrefs             = Pool<VarRef>::create(8);
     instance.storage.fors                = Pool<For>::create(8);
     instance.storage.vars                = Pool<Var>::create(8);
     instance.storage.tuples              = Pool<Tuple>::create(8);
@@ -67,11 +68,13 @@ init() {
     instance.storage.variant_types       = Pool<Variant>::create(8);
     instance.storage.function_types      = Pool<FunctionType>::create(8);
     instance.storage.tuple_types         = Pool<TupleType>::create(8);
+	instance.storage.module_types        = Pool<ModuleType>::create(8);
     instance.storage.meta_types          = Pool<MetaType>::create(8);
 	instance.storage.debuggers           = Pool<Debugger>::create(8);
 
     instance.options.deliver_debug_immediately = true;
 	//instance.options.deliver_all_immediately = true;
+	//instance.options.break_on_error = true;
 
     messenger::init();  // TODO(sushi) compiler arguments to control this
     messenger::instance.destinations.push(Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
@@ -228,7 +231,7 @@ begin(Array<String> args) {
         return false;
     }
 
-    instance.options.verbosity = message::verbosity::debug;
+    instance.options.verbosity = message::verbosity::stages;
 
     Source* entry_source = source::load(instance.options.entry_path);
     if(!entry_source) {
@@ -238,6 +241,9 @@ begin(Array<String> args) {
     }
 	
     entry_source->code = Code::from(entry_source);
+
+	// likely the filename isn't able to be used as an identifier
+	if(!entry_source->code) return false;
 
 	if(!entry_source->code->process_to(code::lex)) return false;
     messenger::deliver();

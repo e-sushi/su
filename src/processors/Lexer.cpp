@@ -171,6 +171,7 @@ stream_next;					 \
 		current_lexscope = compiler::instance.storage.lexical_scopes.add();
 		current_lexscope->labels = Array<u64>::create();
 		current_lexscope->imports = Array<u64>::create();
+		current_lexscope->token_start = tokens.count;
 	};
 
 	auto pop_lexscope = [&]() {
@@ -297,11 +298,13 @@ stream_next;					 \
 				token.kind = token::open_paren;
 				scope_level++;
 				push_lexscope();
+				token.scope = current_lexscope;
 				stream_next;
 			}break;
 			case ')':{ 
 				token.kind = token::close_paren; 
 				scope_level--;
+				current_lexscope->token_end = tokens.count;
 				pop_lexscope();
 				stream_next;
 			}break;
@@ -321,7 +324,7 @@ stream_next;					 \
 				if(last_token.kind == token::identifier) {
 					if(tokens.count == 1 || 
 						!util::any(tokens.read(-2).kind, token::colon, token::ampersand)) {
-					   current_lexscope->labels.push(tokens.count-1);	
+					   current_lexscope->labels.push(tokens.count-1-current_lexscope->token_start);	
 					}
 				}
 				stream_next; 
@@ -337,6 +340,7 @@ stream_next;					 \
 				token.kind = token::open_brace;
 				scope_level++;
 				push_lexscope();
+				token.scope = current_lexscope;
 				stream_next;
 			}break;
 			
@@ -345,6 +349,7 @@ stream_next;					 \
 				scope_level--;
 				//if(scope_level+1 == current_module.scope_level) pop_module();
 				//else if(scope_level == current_module.scope_level) current_module.label_latch = false;
+				current_lexscope->token_end = tokens.count;
 				pop_lexscope();
 				stream_next;
 			}break;
@@ -471,7 +476,7 @@ stream_next;					 \
 								// token.module = m;
 							} break;
 							case token::import: {
-								current_lexscope->labels.push(tokens.count);
+								current_lexscope->labels.push(tokens.count-current_lexscope->token_start);
 							} break;
 						}
 					}
@@ -523,7 +528,7 @@ stream_next;					 \
 	}
 
 	// !Leak
-	DString* time = util::format_time(util::stopwatch::peek(lexer_time));
+	DString* time = util::format_time(util::stopwatch::peek(lexer_time)/1e6);
 	messenger::dispatch(message::attach_sender(code,
 		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(time))));
 

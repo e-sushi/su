@@ -9,7 +9,7 @@ create(Code* code) {
     out->code = code;
     code->air_gen = out;
     out->scoped_temps = Array<u64>::create();
-    out->stack_things = map::init<BC*, StackThing>();
+    out->stack_things = Map<BC*, StackThing>::create();
     out->scoped_temps.push(u64(0));
     return out;
 }
@@ -18,7 +18,7 @@ void GenAIR::
 destroy() {
     seq.destroy();
     scoped_temps.destroy();
-    map::deinit(stack_things);
+    stack_things.destroy();
 }
 
 void 

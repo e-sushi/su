@@ -12,6 +12,7 @@
 #include "representations/Code.h"
 #include "representations/Expr.h"
 #include "representations/Token.h"
+#include "representations/Type.h"
 #include <thread>
 namespace amu {
 
@@ -51,20 +52,24 @@ b32 Parser::
 discretize_module() {
 	messenger::qdebug(code, String("discretizing supposed module"));
 
-	auto m = Module::create();
-	table.push(m->table);
-	defer { table.pop(); };
+	if(token.is(token::moduledecl)) {
+		// module code objects start at the module keyword so we
+		// need to move forward to the open brace
+		token.increment();
+		if(token.is(token::open_paren)) {
+			TODO("parameterized modules");
+		}
+	}
 
-	code->parser->root = m->as<ASTNode>();
-	
 	auto save = token.curt;
 
+	auto m = code->parser->root->as<Label>()->entity->as<Module>();
+	table.push(m->table);
+
 	auto ls = token.current()->scope;
-	// TODO(sushi) this doesn't work for subcode objects
-	//			   or label groups 
 	auto tokens = code->get_token_array();
 	forI(ls->labels.count) {
-		token.curt = tokens.readptr(ls->labels.read(i));
+		token.curt = tokens.readptr(ls->labels.read(i) + ls->token_start);
 		if(table.search_local(token.current()->hash)) {
 			diagnostic::parser::
 				label_already_defined(token.current(), token.current());
@@ -88,6 +93,8 @@ discretize_module() {
 		node::insert_last(code, c);
 	}
 
+	table.pop();
+
 	messenger::qdebug(code, String("finished discretizing module"));
 	return true;
 }
@@ -110,6 +117,9 @@ start() {
 				} break;
 				case entity::var: {
 					code->kind = code::var_decl;
+				} break;
+				case entity::module: {
+					code->kind = code::module;
 				} break;
 			}
 		} break;
@@ -159,6 +169,7 @@ prescanned_label() {
 			f->code = code;
 			code->kind = code::function;
 		} break;
+
 		case expr::typedef_: {
 			auto e = l->last_child<Expr>();
 			auto s = Structure::create();
@@ -183,6 +194,25 @@ prescanned_label() {
 			l->entity = stype;
 			stype->label = l;
 			code->kind = code::typedef_;
+		} break;
+
+		case expr::module: {
+			auto e = l->last_child<Expr>();
+			auto m = Module::create();
+
+			// modules are defined within themself 
+			m->table->add(l->start->raw, l);
+			m->start = l->start;
+			m->end = e->end;
+
+			code->kind = code::module;
+
+			l->entity = m;
+			m->label = l;
+
+			this->root = l;
+
+			return true;
 		} break;
 
 		default: {
@@ -295,7 +325,7 @@ prescanned_var_decl() {
 		if(!code->process_to(code::sema)) return false;
 		v->type = e->type;
 		v->memory = (u8*)memory::allocate(v->type->size());
-		map::add(compiler::instance.global_symbols, v->memory, v);
+		compiler::instance.global_symbols.add(v->memory, v);
 		if(!code->process_to(code::vm)) return false;
 		code->machine->destroy();
 	}
@@ -722,12 +752,14 @@ expression() {
 			token.increment();
 			if(!expression()) return false;
 
-			if(node.current->is(expr::function)) {
-				// when this is a function def we just let it consume this colon
+			if(node.current->is_any(
+						expr::function,
+						expr::typedef_,
+						expr::module)) {
+				// an expression of any of these types just absorbs the 
+				// colon because we have no reason for them to be 
 				return true;
-			} else if(node.current->is(expr::typedef_)) {
-				return true;
-			}
+			} 
 
 			auto e = CompileTime::create();
 			e->start = save;
@@ -788,11 +820,27 @@ expression() {
 		case token::structdecl: {
 			if(!struct_decl()) return false;
 		} break;
-
+	
 		case token::moduledecl: {
-			TODO("module decl parsing");
-		} break;
+			auto e = Expr::create(expr::module);
+			e->start = token.current();
 
+			token.increment();
+			if(!token.is(token::open_brace)) {
+				if(token.is(token::open_paren)) {
+					TODO("parameterized modules");
+				}
+				diagnostic::parser::
+					missing_open_brace_for_module(token.current());
+				return false;
+			}
+			
+			e->end = code->get_token_array().readptr(token.current()->scope->token_end);
+			code->kind = code::module;
+			node.push(e);
+			return true;
+		} break;
+	
 		case token::return_: {
 			auto e = Expr::create(expr::return_);
 			e->start = token.current();
@@ -861,6 +909,14 @@ access() {
 			diagnostic::parser::
 				expected_identifier(token.current());
 			return false;
+		}
+
+		if(node.current->is(expr::moduleref)) {
+			// when the left hand side is referencing a module
+			// we need to step into its symbol table so that the 
+			// factor occuring on the rhs can be resolved correctly
+			// especially if it is a call to a function from that module
+			
 		}
 
 		auto id = Expr::create(expr::identifier);
@@ -1359,17 +1415,19 @@ factor() {
 			}
 
 			if(!l->entity) {
-				if(!l->code->wait_until_level(code::parse, code)) return false;
+				if(!l->code->wait_until_level(code::parse, code)) 
+					return false;
 			}
 
 			switch(l->entity->kind) {
 				case entity::var: {
-					auto e = VarRef::create();
+					auto e = Expr::create(expr::varref);
 					e->start = e->end = token.current();
-					e->var = l->entity->as<Var>();
+					e->varref = l->entity->as<Var>();
 					token.increment();
 					node.push(e);
 				} break;
+
 				case entity::func: {
 					if(token.next_is(token::open_paren)) {
 						// must be a function call
@@ -1390,6 +1448,7 @@ factor() {
 						NotImplemented;
 					}
 				} break;
+
 				case entity::type: {
 					auto e = Expr::create(expr::typeref, l->entity->as<Type>());
 					e->start = e->end = token.current();
@@ -1397,11 +1456,22 @@ factor() {
 					node.push(e);
 					if(!typeref()) return false;
 				} break;
+
 				case entity::expr: {
 
 				} break;
+
+				case entity::module: {
+					auto e = Expr::create(expr::moduleref);
+					e->start = e->end = token.current();
+					e->moduleref = l->entity->as<Module>();
+					token.increment();
+					node.push(e);
+					e->type = ModuleType::create(e->moduleref);
+				} break;
+
 				default: {
-					util::println(DString::create(
+					TODO(DString::create(
 						token.current(), " unhandled identifier reference: ", entity::kind_strings[l->entity->kind]));
 				} break;
 			}
@@ -1537,6 +1607,8 @@ factor() {
 		} break;
 
 		case token::ampersand: {
+			// NOTE(sushi) that this is also applied to type references now 
+			//             since our syntax for pointer types is &<type>
 			auto e = Expr::create(expr::unary_reference);
 			e->start = token.current();
 
@@ -1878,13 +1950,17 @@ typeref() {
 			e->type = e->first_child<Expr>()->type;
 			node.push(e);
 		} break;
-
-		case token::asterisk: {
-			auto last = node.current->as<Expr>();
-			last->type = Pointer::create(last->type);
-			token.increment();
-			if(!typeref()) return false;
-		} break;
+		
+		// we now use & before types to denote pointers
+		// but maybe that winds up not working well 
+		// and we need to come back to this
+		// 
+		//case token::asterisk: {
+		//	auto last = node.current->as<Expr>();
+		//	last->type = Pointer::create(last->type);
+		//	token.increment();
+		//	if(!typeref()) return false;
+		//} break;
 
 		case token::open_square: {
 			auto last = node.current->as<Expr>();
@@ -1927,7 +2003,7 @@ typeref() {
 							last->type = StaticArray::create(last->type, e->as<ScalarLiteral>()->value._u64);
 						} break;
 						case expr::varref: {
-							auto v = e->as<VarRef>()->var;
+							auto v = e->varref;
 							if(!v->is_compile_time) {
 								diagnostic::parser::
 									runtime_variable_cannot_be_used_as_static_array_count(e->start);

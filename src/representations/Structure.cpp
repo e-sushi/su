@@ -19,13 +19,13 @@ dump() {
 Structure*
 Structure::create() {
     Structure* out = compiler::instance.storage.structures.add();
-    out->members = map::init<String, Member*>();
+    out->members = Map<String, Member*>::create();
     return out;
 }
 
 Member* Structure::
 find_member(String s) {
-    auto [idx, found] = map::find(members, s);
+    auto [idx, found] = members.find(s);
     if(!found) return 0;
     return members.values.read(idx);
 }
@@ -33,13 +33,13 @@ find_member(String s) {
 Member* Structure::
 add_member(String id) {
     auto out = compiler::instance.storage.members.add();
-    map::add(members, id, out);
+    members.add(id, out);
     return out;
 }
 
 void Structure::
 add_member(String id, Member* m) {
-    map::add(members, id, m);
+    members.add(id, m);
 }
 
 DString* Structure::
