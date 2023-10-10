@@ -120,6 +120,13 @@ group lexer {
             jp: "無効のトークン";
         }
     }
+
+	diagnostic filename_cant_be_identifier {
+		type: error; 
+		message: {
+			en: "the name of this source file cannot be used as an identifier";
+		}
+	}
 }
 
 group parser {
@@ -484,6 +491,13 @@ group parser {
 			en: "a type tuple element declared without a label must be explicitly typed (via a cast, binary assignment with a type on the lhs, etc.)";
 		}
 	}
+
+	diagnostic missing_open_brace_for_module {
+		type: error;
+		message: {
+			en: "missing '{' after 'module'";
+		}
+	}
 }
 
 group sema {
@@ -572,6 +586,13 @@ group sema {
             en: "type %type:type% has no member named %String:member_name%";
         }
     }
+
+	diagnostic module_unknown_member {
+		type: error;
+		message: {
+			en: "module %identifier:module_name% has no member %String:member_name%";
+		}
+	}
 
     diagnostic cannot_have_a_variable_of_void_type {
         type: error;
@@ -747,6 +768,13 @@ group sema {
             en: "cannot reference a value (something that is not in memory). NOTE if this seems wrong let me know! Currently you can only take references of variables";
         }
     }
+
+	diagnostic reference_operator_can_only_be_used_on_types_or_lvalues {
+		type: error;
+		message: {
+			en: "the reference operator '&' can only be used before typerefs (to denote a pointer) or before lvalues (to take the address of something)";
+		}
+	}
 
     diagnostic dereference_operator_only_works_on_pointers {
         type: error;
