@@ -16,7 +16,7 @@ while @path_stack {
             next unless $line;
             when $line ~~ /\@genstrings\((.*)\)/ {
                 say "found in {$fh.path} on line $num:\n\t$line";
-                genstrings(($fh, $fh.path, $num), $0) 
+				genstrings(($fh, $fh.path, $num), $0) 
             }
         }
     }

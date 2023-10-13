@@ -384,8 +384,13 @@ struct Block : public Expr {
 template<> inline b32 Base::
 is<Block>() { return is<Expr>() && as<Expr>()->kind == expr::block; }
 
+// an expression that invokes 'callee' with 'arguments'
+// 'callee' may be any expression resulting in a function reference.
+// Originally I had this store a pointer to a Function, but this does not
+// work with function overloading and functions that may be stored in arrays
+// or pointed to.
 struct Call : public Expr {
-    Function* callee;
+    Expr* callee;
     Tuple* arguments;
 
 

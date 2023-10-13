@@ -704,29 +704,29 @@ expr:
 	ft->def = e;
 	e->type = (Type*)ft;
 
-	if(token.is(token::open_brace)) {
-		// the symbol table of the block will go through the tuple's symbol table, regardless of if
-		// it generated one or not 
-		tuple->table->last = table.current;
-		table.push(tuple->table);
-
-		if(!block()) return false;
-
-		table.pop();
-		
-		auto fd = Expr::create(expr::function);
-		node::insert_last(fd, e);
-		node::insert_last(fd, node.pop());
-
-		fd->start = fd->first_child()->start;
-		fd->end = fd->last_child()->end;
-		fd->type = e->type;
-		fd->def = fd;
-
-		node.push(fd);
-	} else {
+	if(!token.is(token::open_brace)) {
 		node.push(e);
+		return true;
 	}
+	// the symbol table of the block will go through the tuple's symbol table, regardless of if
+	// it generated one or not 
+	tuple->table->last = table.current;
+	table.push(tuple->table);
+
+	if(!block()) return false;
+
+	table.pop();
+	
+	auto fd = Expr::create(expr::function);
+	node::insert_last(fd, e);
+	node::insert_last(fd, node.pop());
+
+	fd->start = fd->first_child()->start;
+	fd->end = fd->last_child()->end;
+	fd->type = e->type;
+	fd->def = fd;
+
+	node.push(fd);
 	return true;
 }
 
@@ -887,6 +887,7 @@ expression() {
 			case token::equal: if(!assignment()) return false; break;
 			case token::range: if(!range()) return false; break;
 			case token::open_square: if(!subscript()) return false; break;
+			case token::open_paren: if(!call()) return false; break;
 			default: search = false;
 		}
 	}
@@ -905,22 +906,26 @@ access() {
 		// when we parse accesses, we don't care about figuring out if the identifier is 
 		// correct because we don't know what is being accessed and even if we did, it would
 		// possibly not have been parsed yet 
-		if(token.current_kind() != token::identifier) {
-			diagnostic::parser::
-				expected_identifier(token.current());
-			return false;
-		}
+		//if(token.current_kind() != token::identifier) {
+		//	diagnostic::parser::
+		//		expected_identifier(token.current());
+		//	return false;
+		//}
 
-		if(node.current->is(expr::moduleref)) {
-			// when the left hand side is referencing a module
-			// we need to step into its symbol table so that the 
-			// factor occuring on the rhs can be resolved correctly
-			// especially if it is a call to a function from that module
-			
-		}
+		//if(node.current->is(expr::moduleref)) {
+		//	// when the left hand side is referencing a module
+		//	// we need to step into its symbol table so that the 
+		//	// factor occuring on the rhs can be resolved correctly
+		//	// especially if it is a call to a function from that module
+		//	
+		//}
 
-		auto id = Expr::create(expr::identifier);
-		id->start = id->end = token.current();
+		if(!factor()) return false;
+
+		//auto id = Expr::create(expr::identifier);
+		//id->start = id->end = token.current();
+
+
 
 		auto e = Expr::create(expr::binary_access);
 		node::insert_last(e, node.pop());
@@ -932,6 +937,20 @@ access() {
 		if(!access()) return false;
 	}
 	return true;
+}
+
+b32 Parser::
+call() {
+	if(!token.is(token::open_paren)) return true;
+	auto subj = node.pop();
+	auto e = Call::create();
+	e->callee = subj->as<Expr>();
+	
+	if(!tuple()) return false;
+	if(node.current->)
+
+	e->arguments = node.pop->as<Tuple>();
+
 }
 
 b32 Parser::

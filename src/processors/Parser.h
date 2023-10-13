@@ -110,6 +110,7 @@ private:
 	b32 loop();
 	b32 factor();
 	b32 array_literal();
+	b32 call();
 	b32 subscript();
 	b32 block();
 	b32 typeref();
