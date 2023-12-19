@@ -36,17 +36,17 @@ group path {
         type: error;
         message: {
             en: "the path %path% could not be found";
-            esp: "la vojo %path% maltroveblis";
+            eo: "la vojo %path% maltroveblis";
         }
     }
 }
 
 group compiler {
     diagnostic expected_a_path_for_arg {
-        type: error;
+		type: error;
         message: {
             en: "expected a path for arg '%String%'";
-            esp: "atendis vojopor argumento '%String%'";
+            eo: "atendis vojopor argumento '%String%'";
         }
     }
 
@@ -54,7 +54,7 @@ group compiler {
         type: error;
         message: {
             en: "unknown option '%String%'";
-            esp: "nekonata opcio '%String%'";
+            eo: "nekonata opcio '%String%'";
         }
     }
 
@@ -269,7 +269,7 @@ group parser {
     }
 
     diagnostic switch_empty_body {
-        type: warning;
+        type: warn;
         message: {
             en: "empty switch body";
         }
@@ -512,7 +512,7 @@ group sema {
         type: error;
         message: {
             en: "the type %type:from_type% does not define trait ImplicitCast to type %type:to_type%";
-            esp: "la tipo %type% ne difinas la trajton ImplicitCast al tipo %type%";
+            eo: "la tipo %type% ne difinas la trajton ImplicitCast al tipo %type%";
         }
     }
 
@@ -693,7 +693,7 @@ group sema {
     }
 
     diagnostic subscript_out_of_bounds {
-        type: warning;
+        type: warn;
         message: {
             en: "the subscript %num:bad_guy% is out of bounds of static array of size %num:array_size%";
         } 
@@ -819,7 +819,7 @@ group sema {
 	}
 
 	diagnostic static_array_unusally_large {
-		type: warning;
+		type: warn;
 		message: {
 			en: "static array defined with an unusually large size: %String%. possible unsigned underflow";
 		}
