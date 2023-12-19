@@ -19,13 +19,23 @@ namespace util {
 
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> Stopwatch;
 
+template<typename... T> FORCE_INLINE b32
+any(const T&... args) {
+	return (args || ...);
+}
+
+template<typename... T> FORCE_INLINE b32
+all(const T&... args) {
+	return (args && ...);
+}
+
 template<typename A, typename... B> FORCE_INLINE b32
-any(const A& v, B... args) {
+any_match(const A& v, B... args) {
 	return ((v == args) || ...);
 }
 
 template<typename A, typename... B> FORCE_INLINE b32
-all(const A& v, B... args) {
+all_match(const A& v, B... args) {
 	return ((v == args) && ...);
 }
 

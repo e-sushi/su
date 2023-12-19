@@ -979,49 +979,51 @@ typedef_() {
 
 b32 Sema::
 call() {
-	auto e = nstack.current->as<Call>();
-	auto f = e->callee->type;
+	FixMe;
 
-	if(e->arguments->child_count > f->parameters->child_count) {
-		diagnostic::sema::
-			too_many_arguments(e->start, e->callee->label->start->raw);
-		return false;
-	} 
-
-	if(f->parameters->child_count > e->arguments->child_count) {
-		diagnostic::sema::
-			not_enough_arguments(e->start, e->callee->label->start->raw);
-		return false;
-	}
-
-	auto func_arg = f->parameters->first_child();
-	auto call_arg = e->arguments->first_child();
-	while(func_arg && call_arg) {
-		nstack.push(call_arg);
-		if(!expr()) return false;
-		call_arg = nstack.pop();
-
-		auto func_arg_t = func_arg->resolve_type();
-		auto call_arg_t = call_arg->resolve_type();
-		
-		if(call_arg_t != func_arg_t) {
-			auto temp = call_arg->as<Expr>();
-			if(!call_arg_t->cast_to(func_arg_t, temp)) {
-				diagnostic::sema::
-					mismatch_argument_type(call_arg->start, 
-						call_arg_t, 
-						func_arg_t, 
-						func_arg->display(), 
-						e->callee->label->start->raw);
-				return false;
-			}
-			call_arg = temp;
-		}
-		
-		func_arg = func_arg->next();
-		call_arg = call_arg->next();
-	}
-	e->type = f->return_type;
+//	auto e = nstack.current->as<Call>();
+//	auto f = e->callee->type;
+//
+//	if(e->arguments->child_count > f->parameters->child_count) {
+//		diagnostic::sema::
+//			too_many_arguments(e->start, e->callee->label->start->raw);
+//		return false;
+//	} 
+//
+//	if(f->parameters->child_count > e->arguments->child_count) {
+//		diagnostic::sema::
+//			not_enough_arguments(e->start, e->callee->label->start->raw);
+//		return false;
+//	}
+//
+//	auto func_arg = f->parameters->first_child();
+//	auto call_arg = e->arguments->first_child();
+//	while(func_arg && call_arg) {
+//		nstack.push(call_arg);
+//		if(!expr()) return false;
+//		call_arg = nstack.pop();
+//
+//		auto func_arg_t = func_arg->resolve_type();
+//		auto call_arg_t = call_arg->resolve_type();
+//		
+//		if(call_arg_t != func_arg_t) {
+//			auto temp = call_arg->as<Expr>();
+//			if(!call_arg_t->cast_to(func_arg_t, temp)) {
+//				diagnostic::sema::
+//					mismatch_argument_type(call_arg->start, 
+//						call_arg_t, 
+//						func_arg_t, 
+//						func_arg->display(), 
+//						e->callee->label->start->raw);
+//				return false;
+//			}
+//			call_arg = temp;
+//		}
+//		
+//		func_arg = func_arg->next();
+//		call_arg = call_arg->next();
+//	}
+//	e->type = f->return_type;
 	return true;
 }
 

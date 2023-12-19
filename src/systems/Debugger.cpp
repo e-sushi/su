@@ -1,4 +1,4 @@
-#include "notcurses.h"
+#include "notcurses/notcurses.h"
 #include "representations/AIR.h"
 namespace amu {
 

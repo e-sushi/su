@@ -9,153 +9,133 @@
 #include "Code.h"
 #include "storage/String.h"
 #include "storage/DString.h"
+#include "representations/ScalarValue.h"
 
 namespace amu{
 
-namespace token {
-// @genstrings(data/token_strings.generated, S/group_.*//, S/_$//)
-enum kind : u32 { 
-    null = 0,
-    error = 0,                // when something doesnt make sense during lexing
-    end_of_file,                // end of file
-
-    identifier,  // function, variable and struct names                 
-    
-    //// literal ////
-    group_literal,
-    literal_float = group_literal,
-    literal_integer,
-    literal_character,
-    literal_string,
-    
-    //// control ////
-    group_control,
-    semicolon = group_control, // ;
-    open_brace,                // {
-    close_brace,               // }
-    open_paren,                // (
-    close_paren,               // )
-    open_square,               // [
-    close_square,              // ]
-    comma,                     // ,
-    question_mark,             // ?
-    colon,                     // :
-    dot,                       // .
-    range,                     // ..
-    ellipsis,                  // ...
-    at,                        // @
-    pound,                     // #
-    backtick,                  // `
-    function_arrow,            // ->
-    match_arrow,               // =>
-    
-    //// operators ////
-    group_operator,
-    plus = group_operator,      // +
-    plus_equal,                 // +=
-    minus,                      // -
-    minus_equal,                // -=
-    asterisk,                   // *
-    asterisk_assignment,        // *=
-    solidus,                    // /
-    solidus_assignment,         // /=
-    tilde,                      // ~
-    tilde_assignment,           // ~=
-    ampersand,                  // &
-    ampersand_assignment,       // &=
-    double_ampersand,           // && or 'and'
-    vertical_line,              // |
-    vertical_line_equals,       // |=
-    logi_or,                    // || or 'or'
-    caret,                      // ^
-    caret_equal,                // ^=
-    double_less_than,           // <<
-    double_less_than_equal,     // <<=
-    double_greater_than,        // >>
-    double_greater_than_equal,  // >>=
-    percent,                    // %
-    percent_equal,              // %=
-    equal,                      // =
-    double_equal,               // ==
-    explanation_mark,           // !
-    explanation_mark_equal,     // !=
-    less_than,                  // <
-    less_than_equal,            // <=
-    greater_than,               // >
-    greater_than_equal,         // >=
-    dollar,                     // $
-    double_dollar,              // $$
-    
-    //// keywords ////
-    group_keyword,
-    return_ = group_keyword, // return
-    if_,                     // if
-    else_,                   // else
-    for_,                    // for
-    while_,                  // while 
-    break_,                  // break
-    continue_,               // continue
-    defer_,                  // defer
-    structdecl,              // struct
-    moduledecl,              // module
-    using_,                  // using
-    switch_,                 // switch
-    loop,                    // loop
-    in,                      // in
-    then,                    // then
-	import,                  // import
-    
-    //// types  ////
-    group_type,
-    void_ = group_type, // void
-    //NOTE(sushi) the order of these entries matter, primarily for type conversion reasons. see SemanticAnalyzer::init
-    unsigned8,              // u8
-    unsigned16,             // u16
-    unsigned32,             // u32 
-    unsigned64,             // u64 
-    signed8,                // s8
-    signed16,               // s16 
-    signed32,               // s32 
-    signed64,               // s64
-    float32,                // f32 
-    float64,                // f64 
-    string,                 // str
-    any,                    // any
-    struct_,                // user defined type
-
-    //// directives ////
-    group_directive,
-    directive_import = group_directive,
-    directive_include,
-    directive_internal,
-    directive_run,
-    directive_compiler_break,
-    directive_print_type,
-    directive_print_meta_type,
-    directive_compiler_break_air_gen,
-    directive_vm_break,
-	directive_rand_int,
-
-	// svar_file, // $file
-	// svar_line, // $line
-	
-	// intrinsic printing function 
-	// TODO(sushi) actually implement this
-	sid_print, // $print
-};
-
-#include "data/token_strings.generated"
-
-} // namespace token
 
 struct LexicalScope;
 
 struct Token {
+	enum class Group {
+		Null,
+		Literal,
+		Control,
+		Operator,
+		Keyword,
+		Type,
+		Directive,
+	};
+
+	enum class Kind {
+		Null,
+
+		Comment,
+
+		Identifier,
+
+		FloatLiteral,
+		IntegerLiteral,
+		CharacterLiteral,
+		StringLiteral,
+
+		Semicolon,
+		LBrace,
+		RBrace,
+		LParen,
+		RParen,
+		LSquare,
+		RSquare,
+		Comma,
+		QuestionMark,
+		Colon,
+		Dot,
+		DotDouble,
+		DotTriple,
+		At,
+		Pound,
+		Backtick,
+		RightArrow,
+		RightArrowThick,
+
+		Plus,
+		PlusEqual,
+		Minus,
+		MinusEqual,
+		Asterisk,
+		AsteriskEqual,
+		Solidus,
+		SoldusEqual,
+		Tilde,
+		TildeEqual,
+		Ampersand,
+		AmpersandEqual,
+		AmpersandDouble,
+		VerticalLine,
+		VerticalLineEqual,
+		VerticalLineDouble,
+		Caret,
+		CaretEqual,
+		LessThan,
+		LessThanEqual,
+		LessThanDouble,
+		LessThanDoubleEqual,
+		GreaterThan,
+		GreaterThanEqual,
+		GreaterThanDouble,
+		GreaterThanDoubleEqual,
+		Percent,
+		PercentEqual,
+		Equal,
+		EqualDouble,
+		ExplanationMark,
+		ExplanationMarkEqual,
+		Dollar,
+		DollarDouble,
+
+		Return,
+		If,
+		Else,
+		And,
+		Or,
+		Then,
+		Loop,
+		While,
+		For,
+		Switch,
+		Break,
+		Continue,
+		Defer,
+		Struct,
+		Module,
+		Using,
+		Import,
+		Ptr,
+		Ref,
+		Deref,
+		
+		Void,
+		Unsigned8,
+		Unsigned16,
+		Unsigned32,
+		Unsigned64,
+		Signed8,
+		Signed16,
+		Signed32,
+		Signed64,
+		Float32,
+		Float64,
+
+		Directive_Include,
+		Directive_Run,
+		Directive_CompilerBreak,
+	};
+
     String raw;
     u64 hash;
 
-    token::kind kind; 
-    token::kind group;
+    Kind kind; 
+    Group group;
 
 	LexicalScope* scope;
 
@@ -163,15 +143,10 @@ struct Token {
     u64 l0, l1;
     u64 c0, c1;
     
-    // TODO(sushi) replace this union with Literal and setup Lexer to detect 
-    //             other literals such as the various sizes of scalars 
-    union{
-        f64 f64_val;
-        s64 s64_val;
-        u64 u64_val;
-    };
+	ScalarValue scalar_value;
 
-
+	b32 is(Group x) { return group == x; }
+	b32 is(Kind x)  { return kind == x; }
 };
 
 FORCE_INLINE void 

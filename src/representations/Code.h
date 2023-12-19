@@ -103,7 +103,7 @@ enum level {
 struct Code : public ASTNode {
 	code::kind kind;
 	code::level level;
-	// raw representation of this code
+	// raw view of this code
 	String raw;
 
 	// identifier for this code, only used for debugging

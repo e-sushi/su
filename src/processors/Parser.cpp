@@ -75,7 +75,7 @@ discretize_module() {
 				label_already_defined(token.current(), token.current());
 			return false;
 		}
-		
+
 		if(!label_get()) return false;
 
 		auto l = node.pop()->as<Label>();
@@ -922,10 +922,8 @@ access() {
 
 		if(!factor()) return false;
 
-		//auto id = Expr::create(expr::identifier);
-		//id->start = id->end = token.current();
-
-
+		auto id = Expr::create(expr::identifier);
+		id->start = id->end = token.current();
 
 		auto e = Expr::create(expr::binary_access);
 		node::insert_last(e, node.pop());
@@ -947,9 +945,8 @@ call() {
 	e->callee = subj->as<Expr>();
 	
 	if(!tuple()) return false;
-	if(node.current->)
 
-	e->arguments = node.pop->as<Tuple>();
+	// e->arguments = node.pop->as<Tuple>();
 
 }
 
@@ -1454,7 +1451,7 @@ factor() {
 						id->start = id->end = token.current();
 						auto call = Call::create();
 						call->start = token.current();
-						call->callee = l->entity->as<Function>();
+						FixMe; // call->callee = l->entity->as<Function>();
 						token.increment();
 						if(!tuple()) return false;
 						call->end = token.current();

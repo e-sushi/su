@@ -11,6 +11,8 @@
 
 namespace amu {
 
+struct Lexer;
+
 // a 'scope' determined completely by the lexical structure of the program
 // that stores a list of indexes into the tokens array where the label 
 // pattern was found as well as a pointer to the last LexicalScope.
@@ -34,26 +36,24 @@ struct LexicalScope {
 	Array<u64> imports;
 };
 
-struct Lexer {
-    Code* code; 
 
-    // indexes into code's Token Array that indicates possible global label declarations
-    Array<spt> labels;
-	
-	Future<b32> fut;
+struct Lexer {
+	Code* code;
+	Array<Token> tokens;
+	Array<Diag> diag_stack;
 
 	
 	// ~~~~ interface ~~~~
 
 
     static Lexer*
-    create(Code* code);
+    create(String buffer);
 
     void
     destroy();
 
     b32
-    start();
+    run();
 
     void
     output(b32 human, String path);

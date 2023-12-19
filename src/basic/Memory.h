@@ -12,6 +12,9 @@ namespace memory {
 FORCE_INLINE void* 
 allocate(upt size);
 
+template<typename T> FORCE_INLINE T*
+allocate();
+
 FORCE_INLINE void* 
 reallocate(void* ptr, upt size);
 
@@ -26,6 +29,9 @@ move(void* destination, void* source, upt bytes);
 
 FORCE_INLINE void
 zero(void* ptr, upt bytes);
+
+template<typename T> FORCE_INLINE void
+zero(T* ptr);
 
 } // namespace memory
 } // namespace amu

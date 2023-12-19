@@ -26,61 +26,6 @@ namespace amu {
 struct Compiler {
     util::Stopwatch compiler_time;
 
-    FILE* log_file;
-
-	// TODO(sushi) we need to rewrite this so that storage of all objects is no longer 
-	//             global. With multiple threads we have to constantly lock to add things 
-	//             to any of these pools which hurts threads a lot.
-    struct {
-        Pool<SourceCode>      source_code;
-        Pool<VirtualCode>     virtual_code;
-        Pool<Source>          sources;
-        Pool<Lexer>           lexers;
-		Pool<LexicalScope>    lexical_scopes;
-        Pool<Parser>          parsers;
-        Pool<Sema>            semas;
-        Pool<GenTAC>          tac_gens;
-        Pool<GenAIR>          air_gens;
-        Pool<VM>              vm;
-        Pool<Module>          modules;
-        Pool<Label>           labels;
-        Pool<LabelTable>      label_tables;
-        Pool<VirtualLabel>    virtual_labels;
-        Pool<Member>          members;
-        Pool<Structure>       structures;
-        Pool<Function>        functions;
-        Pool<Stmt>            statements;
-        Pool<Expr>            expressions;
-        Pool<CompileTime>     comp_times;
-        Pool<ScalarLiteral>   scalar_literals;
-        Pool<StringLiteral>   string_literals;
-        Pool<ArrayLiteral>    array_literals;
-        Pool<TupleLiteral>    tuple_literals;
-        Pool<Call>            calls;
-        Pool<Block>           blocks; 
-        Pool<For>             fors; 
-        Pool<Var>             vars;
-        Pool<Tuple>           tuples;
-        Pool<Scalar>          scalars;
-        Pool<Structured>      structured_types;
-        Pool<Pointer>         pointer_types;
-        Pool<StaticArray>     static_array_types;
-        Pool<ViewArray>       view_array_types;
-        Pool<DynamicArray>    dynamic_array_types;
-        Pool<Range>           range_types;
-        Pool<Variant>         variant_types;
-        Pool<FunctionType>    function_types;
-        Pool<TupleType>       tuple_types;
-		Pool<ModuleType>      module_types;
-        Pool<MetaType>        meta_types;
-		Pool<Debugger>        debuggers;
-    }storage;
-
-    // a global map of addresses to variables 
-	// TODO(sushi) actually implement this
-    Map<u8*, Var*> global_symbols;
-    Array<Diagnostic> diagnostics;
-    
     // anything that is specified on the command line
     // later on all of these things should be changable from within the language
     struct {
@@ -104,8 +49,16 @@ struct Compiler {
             String path;
             Array<String> sources;
         }dump_diagnostics; 
-
     } options;
+
+	static Compiler
+	create();
+
+	void
+	destroy();
+
+	b32
+	begin(Array<String> args);
 };
 
 namespace compiler {
@@ -116,7 +69,6 @@ init();
 
 global void
 deinit();
-
 
 // the entry point of the compiler given a list of command line arguments
 global b32

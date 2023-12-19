@@ -24,56 +24,54 @@ struct Code;
 struct Var;
 struct Function;
 struct Module;
-
-// standard terminal colors, numbers correspond to the escape code that activates them
-namespace message{
-enum : u32{
-    color_none =     0,
-    color_black =    30,
-    color_red =      31,
-    color_green =    32,
-    color_yellow =   33,
-    color_blue =     34,
-    color_magenta =  35,
-    color_cyan =     36,
-    color_white =    37,
-    color_extended = 38,
-    color_def      =  39,
-    color_bright_black =   90,
-    color_bright_red =     91,
-    color_bright_green =   92,
-    color_bright_yellow =  93,
-    color_bright_blue =    94,
-    color_bright_magenta = 95,
-    color_bright_cyan =    96,
-    color_bright_white =   97,
-};
-
-namespace verbosity{
-enum : u32 {
-    always,
-    filenames,
-    stages,
-    stageparts,
-    detailed,
-    debug,
-};
-}
-} // namespace message
-
-namespace messagepart {
-enum kind{
-    plain, token, identifier, path, source, place, structure, function, module, label, code, type
-};
-} // namespace messagepart
-
-// a Message stores an SharedArray of Parts, which allows the Messenger to
-// process a Message and format it according to current formatting 
-// settings or where it is delivering the message to
 struct Token;
 struct Source;
+
+// standard terminal colors
+// FormattingColor indicates to use the color defined by a
+// message part's formatting. 
+enum class Color {
+	FormattingColor = 0, 
+	Black = 30,
+	Red = 31,
+	Green = 32,
+	Yellow = 33,
+	Blue = 34,
+	Magenta = 35,
+	Cyan = 36,
+	White = 37,
+	Extended = 38,
+	Default = 49,
+	BrightBlack = 90,
+	BrightRed = 91,
+	BrightGreen = 92,
+	BrightYellow = 93,
+	BrightBlue = 94,
+	BrightMagenta = 95,
+	BrightCyan = 96,
+	BrightWhite = 97,
+};
+
+
 struct MessagePart {
-    messagepart::kind kind;
+	enum class Kind {
+		Plain,
+		Token,
+		Identifier,
+		Path,
+		Source,
+		Var,
+		Structure,
+		Function,
+		Module,
+		Label,
+		Code,
+		Type,
+	};
+
+    Kind kind;
+	Color color;
+
     union {
         String plain; // a plain String, path, or identifier
         Token* token; // a token, likely representing a source location
@@ -87,26 +85,35 @@ struct MessagePart {
     };
     // if this is 0, default colors will be applied in processing
     // this is set to a number from message::color_
-    u32 col;
 
     MessagePart() {}
-    MessagePart(String s) : plain(s) {kind = messagepart::plain;}
-    MessagePart(Token* t) : token(t) {kind = messagepart::token;}
-    MessagePart(Var* p) : place(p) {kind = messagepart::place;}
-    MessagePart(Structure* s) : structure(s) {kind = messagepart::structure;}
-    MessagePart(Function* f) : function(f) {kind = messagepart::function;}
-    MessagePart(Module* m) : module(m) {kind = messagepart::module;}
-    MessagePart(Label* l) : label(l) {kind = messagepart::label;}
-    MessagePart(Source* s) : source(s) {kind = messagepart::source;}
-    MessagePart(Type* t) : type(t) {kind = messagepart::type;}
+
+	
+    MessagePart(String s)     : plain(s),     kind(Kind::Plain) {}
+    MessagePart(Token* t)     : token(t),     kind(Kind::Token) {}
+    MessagePart(Var* p)       : place(p),     kind(Kind::Var) {}
+    MessagePart(Structure* s) : structure(s), kind(Kind::Structure) {}
+    MessagePart(Function* f)  : function(f),  kind(Kind::Function) {}
+    MessagePart(Module* m)    : module(m),    kind(Kind::Module) {}
+    MessagePart(Label* l)     : label(l),     kind(Kind::Label) {}
+    MessagePart(Source* s)    : source(s),    kind(Kind::Source) {}
+    MessagePart(Type* t)      : type(t),      kind(Kind::Type) {}
+
+	// IDK WHY but for some reason I cannot get a variadic templated function to take in 
+	// JUST a string literal and have it know that it is a MessagePart at compile time
+	// for example: messenger::qdebug(MessageSender::Compiler, "hello!") will not work
+	// and I have no idea how to get it to
+	consteval MessagePart(const char* s) : plain(s), kind(Kind::Plain), color(Color::White) {} 
+
+	MessagePart& colored(Color color) { this->color = color; }
 };
 
-// indicates who sent the message
+// indicates who sent a message
 struct MessageSender {
     enum Type {
-        Compiler, // the compiler when there is no specific source that 
-        Code, // some Code 
-        CodeLoc, // some Code and a token location
+        Compiler,
+        Code,  
+		CodeLoc, 
     };
     Type type;
     amu::Code* code;
@@ -118,49 +125,65 @@ struct MessageSender {
     MessageSender(Token* t) : type(CodeLoc), code(t->code), token(t) {}
 };
 
-namespace message {
-enum kind {
-    normal,
-    warning,
-    error,
-    note,
-    debug,
-};
-}
-
 // a representation of a single message to be delivered to some destination
 // consists of MessageParts that the Messenger formats before delivering
 struct Message {
-    // the time this message was created
+	enum Kind {
+		Fatal,
+		Error,
+		Warning,
+		Notice,
+		Info,
+		Debug,
+		Trace,
+	};
+
     u64 time;
+    Kind kind;
 
     MessageSender sender;
-    message::kind kind;
-
-    u32 verbosity; // set with message::verbosity
 
     Array<MessagePart> parts;
+
+	static Message
+	create(Kind kind);
+
+	template<typename... T> static Message
+	create(Kind kind, T... args);
+};
+
+struct MessageBuilder {
+	Message message;
+
+	static MessageBuilder
+	start(MessageSender sender, Message::Kind kind);
+
+	static MessageBuilder
+	from(Message message);
+
+	MessageBuilder& plain(String s);
+	MessageBuilder& path(String s);
+	MessageBuilder& identifier(String s);
+	MessageBuilder& append(MessagePart part);
+	MessageBuilder& prepend(MessagePart part);
 };
 
 // this struct defines the formatting of each different MessagePart
-// its default values should always be the ones that result in the fastest processing of messages
-// anything that slows it down should be set by the user
-// if this winds up being too slow, then just get rid of custom formatting and hardcode 
-// the default behavoir
 struct MessageFormatting {
+	using enum Color;
     // how to format message parts
     // default_color is the color applied to the entire part AND its prefix/suffix
     // prefix and suffix are strings applied before and after the part
     struct {
-        u32 col = message::color_white;
+		Color col = White;
         String prefix = "", suffix = "";
     } plain;
 
     struct {
         struct {
-            u32 directory = message::color_white;
-            u32 slash = message::color_white;
-            u32 file = message::color_cyan;
+            Color directory = White;
+            Color slash = White;
+            Color file = Cyan;
         } col;
         // when a path is very long, shorten it by replacing the interior with ...
         // for example
@@ -174,13 +197,13 @@ struct MessageFormatting {
     } path;
 
     struct {
-        u32 col = message::color_white;
+        Color col = White;
         b32 show_code_loc = false; // appends the Token's code location in the form (line,col)
         String prefix = "'", suffix = "'";
     } token;
 
     struct {
-        u32 col = message::color_bright_white;
+        Color col = White;
         String prefix = "'", suffix = "'";
     } identifier;
 
@@ -195,6 +218,7 @@ struct MessageFormatting {
 
 };
 
+// A place to send messages to. 
 struct Destination {
     FILE* file;
     b32 allow_color;
@@ -204,132 +228,26 @@ struct Destination {
 
 struct Messenger {
     Array<Message> messages; 
-    Array<MessageFormatting> formatting_stack;
     Array<Destination> destinations;
+
+	MessageFormatting formatting;
 	
 	// locked anytime data is being output 
 	std::mutex outmtx;	
-}; // !Threading this will likely required SharedArray or a mutex to prevent messages from being dispatched at the same time
 
+	void dispatch(Message message);
+	void dispatch(String message, Source* source = 0);
 
+	void deliver(b32 clear_messages = true);
+	void deliver(Destination dest, b32 clear_messages = false);
+	void deliver(Destination dest, Array<Message> messages);
+	void deliver(Destination dest, Message message);
 
-namespace messenger {
+	template<typename... T> void qdebug(MessageSender sender, T... args);
+}; 
 
-// global messenger instance, created in Messenger.cpp
-extern Messenger instance;
+extern Messenger messenger;
 
-// initialize the global messenger instance
-void
-init();
-
-// give the Messenger a message
-void
-dispatch(Message message);
-
-// dispatch a plain str8
-void
-dispatch(String message, Source* source = 0);
-
-// deliver all queued messages to the stored destinations
-// optionally clearing the message queue
-void
-deliver(b32 clear_messages = true);
-
-// deliver all queued messages to the given destination
-// optionally clearing messages
-// TODO(sushi) when we dont clear messages, cache the formatted stuff and use it again if settings are compatible
-void
-deliver(Destination dest, b32 clear_messages = false);
-
-void
-deliver(Destination dest, Array<Message> messages);
-
-void
-deliver(Destination dest, Message message);
-
-void
-push_formatting(MessageFormatting formatting);
-
-void
-pop_formatting();
-
-// quick debug function
-template<typename... T> void 
-qdebug(MessageSender sender, T...args);
-
-} // namespace messenger
-
-namespace message {
-
-// initializes a Message
-Message
-init();
-
-// variadic way to initialize a Message
-// Message::Parts may be passed
-template<typename... T> Message
-init(T... args);
-
-// initialize a debug message
-Message
-make_debug(u32 verbosity);
-
-// initialize a debug message with variadic arguments
-template<typename... T> Message
-make_debug(u32 verbosity, T... args);
-
-// pushes a Message::Part into the Message
-void
-push(Message& m, MessagePart part);
-
-// prefixes the message with some part
-void
-prefix(Message& m, MessagePart part);
-
-// constructs a plain part
-MessagePart
-plain(String s, u32 c = message::color_none);
-
-// constructs a sender
-MessagePart
-sender(String s, u32 c = message::color_none);
-
-// constructs a path part
-MessagePart
-path(String s, u32 c = message::color_none);
-
-// constructs an identifier part
-// for referring to some identifier of an unknown type
-MessagePart
-identifier(String s);
-
-// attaches a sender to the given message and returns it 
-Message
-attach_sender(MessageSender sender, Message m);
-
-// the following helpers are unecessary to call unless you want to override the
-// color used to format them, otherwise you can just pass the object directly
-// TODO(sushi) finish these if we find a use for them 
-
-// MessagePart
-// variable(Entity::Variable* v, color c = Color_NONE);
-
-// MessagePart
-// structure(Entity::Structure* s, color c = Color_NONE);
-
-// MessagePart
-// function(Entity::Function* f, color c = Color_NONE);
-
-// MessagePart
-// module(Entity::Module* m, color c = Color_NONE);
-
-// MessagePart
-// label(Label* l, color c = Color_NONE)
-
-
-
-
-} // namespace message
 } // namespace amu
 
 #endif // AMU_MESSENGER_H

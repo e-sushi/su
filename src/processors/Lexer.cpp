@@ -1,5 +1,5 @@
+#include "Lexer.h"
 #include "representations/Token.h"
-#include <any>
 namespace amu {
 namespace lexer::internal {
 
@@ -79,14 +79,11 @@ is_identifier_char(u32 codepoint) {
 	return false;
 }
 
-#undef strcase
-
 } // namespace internal
 
 Lexer* Lexer::
-create(Code* code) {
+create() {
 	Lexer* out = compiler::instance.storage.lexers.add();
-	out->labels = Array<spt>::create();
 	out->code = code;
 	code->lexer = out;
 	return out;
@@ -94,447 +91,7 @@ create(Code* code) {
 
 void Lexer::
 destroy() {
-	labels.destroy();
 }
-
-b32 Lexer::
-start() {
-#define stream_next { stream.advance(); line_col++; } 
-
-//!ref: https://github.com/pervognsen/bitwise/blob/master/ion/lex.c
-#define CASE1(c1,t1) \
-case c1:{			 \
-token.kind = t1;	 \
-stream_next;		 \
-}break;
-
-#define CASE2(c1,t1, c2,t2) \
-case c1:{					\
-token.kind = t1;			\
-stream_next;				\
-if(*stream.str == c2){		\
-token.kind = t2;			\
-stream_next;				\
-}							\
-}break;
-
-#define CASE2ALT(c1,t1, c2,t2, c3,t3) \
-case c1:{							  \
-token.kind = t1;					  \
-stream_next;						  \
-if		(*stream.str == c3){		  \
-token.kind = t3;					  \
-stream_next;						  \
-}else if(*stream.str == c2){		  \
-token.kind = t2;					  \
-stream_next;						  \
-}									  \
-}break;
-
-#define CASE3(c1,t1,c2,t2,c3,t3) \
-case c1:{						 \
-token.kind = t1;				 \
-stream_next;					 \
-if(*stream.str == c2){			 \
-token.kind = t2;				 \
-stream_next;					 \
-if(*stream.str == c3){			 \
-token.kind = t3;				 \
-stream_next;					 \
-}								 \
-}								 \
-}break;							 \
-
-	util::Stopwatch lexer_time = util::stopwatch::start();
-	
-	messenger::dispatch(message::attach_sender(code,
-		message::make_debug(message::verbosity::stages, 
-			String("beginning lexical analysis."))));
-
-	String stream = code->raw;
-
-	u32 line_num = 1, line_col = 1;
-	u8* line_start = stream.str;
-
-	u32 scope_level = 0;
-
-	Token last_token = {};
-	b32 label_latch = false; // true when a label has been found, set back to false when a label ending token is crossed (a semicolon or close brace)
-
-	auto tokens = Array<Token>::create();
-	
-	auto lexscope_stack = Array<LexicalScope*>::create();
-	LexicalScope* current_lexscope = compiler::instance.storage.lexical_scopes.add();
-
-	auto push_lexscope = [&]() {
-		lexscope_stack.push(current_lexscope);
-		current_lexscope = compiler::instance.storage.lexical_scopes.add();
-		current_lexscope->labels = Array<u64>::create();
-		current_lexscope->imports = Array<u64>::create();
-		current_lexscope->token_start = tokens.count;
-	};
-
-	auto pop_lexscope = [&]() {
-		current_lexscope = lexscope_stack.pop();
-	};
-
-	while(stream) {
-		Token token = {};
-		token.code = code;
-		token.l0 = line_num;
-		token.c0 = line_col;
-		token.raw.str = stream.str;
-		token.scope = current_lexscope;
-
-		switch(string::codepoint(stream)) {
-			case '\t': case '\n': case '\v': case '\f':  case '\r':
-			case ' ': case 133: case 160: case 5760: case 8192:
-			case 8193: case 8194: case 8195: case 8196: case 8197:
-			case 8198: case 8199: case 8200: case 8201: case 8202:
-			case 8232: case 8239: case 8287: case 12288:{
-				while(isspace(string::codepoint(stream))) {
-					if(*stream.str == '\n'){
-						line_start = stream.str+1;
-						line_num++;
-						line_col = 0;
-					};
-					stream_next;
-				}
-			}continue;
-
-			case '0': case '1': case '2': case '3': case '4': 
-			case '5': case '6': case '7': case '8': case '9':{
-				while(isdigit(*stream.str) || *stream.str == '_') stream_next;
-				
-				if(*stream.str == '.' && *(stream.str+1) == '.') {
-					// this must be an access token, so quit here
-					token.raw.count = stream.str - token.raw.str;
-					token.kind = token::literal_integer;
-					token.s64_val = token.raw.to_f64();
-
-					token.l1 = line_num;
-					token.c1 = line_col;
-					token.group = token::group_literal;
-					tokens.push(token);
-					last_token = token;
-					continue;
-				}
-
-				if(*stream.str == '.' || *stream.str == 'e' || *stream.str == 'E'){
-					stream_next;
-					while(isdigit(*stream.str)){ stream_next; } //skip to non-digit
-					token.raw.count = stream.str - token.raw.str;
-					token.kind		= token::literal_float;
-					token.f64_val	= token.raw.to_f64(); 
-				}else if(*stream.str == 'x' || *stream.str == 'X'){
-					stream_next;
-					while(isxdigit(*stream.str)){ stream_next; } //skip to non-hexdigit
-					token.raw.count = stream.str - token.raw.str;
-					token.kind		= token::literal_integer;
-					token.s64_val	= token.raw.to_s64();
-				}else{
-					token.raw.count = stream.str - token.raw.str;
-					token.kind		= token::literal_integer;
-					token.s64_val	= token.raw.to_s64(); 
-				}	
-
-				token.l1 = line_num;
-				token.c1 = line_col;
-				token.group = token::group_literal;
-				tokens.push(token);
-				last_token = token;
-			}continue;
-
-			case '\'':{
-				token.kind	= token::literal_character;
-				token.group = token::group_literal;
-				stream_next;
-				
-				while(*stream.str != '\'') {//skip until closing single quotes
-					stream_next; 
-					if(*stream.str == 0){
-						diagnostic::lexer::
-							unexpected_eof_single_quotes(&token);
-						return false;
-					}
-				}
-				
-				token.l1 = line_num;
-				token.c1 = line_col;
-				token.raw.count = stream.str - (++token.raw.str); //dont include the single quotes
-				tokens.push(token);
-				last_token = token;
-				stream_next;
-			}continue; //skip token creation b/c we did it manually
-
-			case '"':{
-				token.kind	= token::literal_string;
-				token.group = token::group_literal;
-				stream_next;
-				
-				while(*stream.str != '"'){
-					stream_next; //skip until closing double quotes
-					if(*stream.str == 0){
-						diagnostic::lexer::
-							unexpected_eof_double_quotes(&token);
-						return false;
-					}	
-				} 
-				
-				token.l1 = line_num;
-				token.c1 = line_col;
-				token.raw.count = stream.str - (++token.raw.str); //dont include the double quotes
-				tokens.push(token);
-				last_token = token;
-				stream_next;
-			}continue; //skip token creation b/c we did it manually
-			
-			case ';': {
-				//if(!scope_level) current_module.label_latch = false;
-				token.kind = token::semicolon;
-				stream_next;
-			} break;
-			case '(':{ 
-				token.kind = token::open_paren;
-				scope_level++;
-				push_lexscope();
-				token.scope = current_lexscope;
-				stream_next;
-			}break;
-			case ')':{ 
-				token.kind = token::close_paren; 
-				scope_level--;
-				current_lexscope->token_end = tokens.count;
-				pop_lexscope();
-				stream_next;
-			}break;
-
-			CASE1('[', token::open_square);
-			CASE1(']', token::close_square);
-			CASE1(',', token::comma);
-			CASE1('?', token::question_mark);
-
-			case ':':{ //NOTE special for declarations and compile time expressions
-				token.kind = token::colon; 
-				// if(!current_module.label_latch && last_token.kind == token::identifier) {
-				//	current_module.label_latch = true;
-				//	code->lexer->labels.push(tokens.count-1);
-				// }
-				// we need to determine if this colon is following a label
-				if(last_token.kind == token::identifier) {
-					if(tokens.count == 1 || 
-						!util::any(tokens.read(-2).kind, token::colon, token::ampersand)) {
-					   current_lexscope->labels.push(tokens.count-1-current_lexscope->token_start);	
-					}
-				}
-				stream_next; 
-			}break;
-			
-			CASE3('.', token::dot, '.', token::range, '.', token::ellipsis);
-			CASE1('@', token::at);
-			CASE1('#', token::pound);
-			CASE1('`', token::backtick);
-			CASE2('$', token::dollar, '$', token::double_dollar);
-
-			case '{':{ //NOTE special for scope tracking and internals 
-				token.kind = token::open_brace;
-				scope_level++;
-				push_lexscope();
-				token.scope = current_lexscope;
-				stream_next;
-			}break;
-			
-			case '}':{ //NOTE special for scope tracking and internals
-				token.kind = token::close_brace;
-				scope_level--;
-				//if(scope_level+1 == current_module.scope_level) pop_module();
-				//else if(scope_level == current_module.scope_level) current_module.label_latch = false;
-				current_lexscope->token_end = tokens.count;
-				pop_lexscope();
-				stream_next;
-			}break;
-			
-			//// @operators ////
-			CASE2('+', token::plus,				'=', token::plus_equal);
-			CASE2('*', token::asterisk,			'=', token::asterisk_assignment);
-			CASE2('%', token::percent,			'=', token::percent_equal);
-			CASE2('~', token::tilde,			'=', token::tilde_assignment);
-			CASE2ALT('&', token::ampersand,		'=', token::ampersand_assignment, '&', token::double_ampersand);
-			CASE2ALT('|', token::vertical_line, '=', token::vertical_line_equals, '|', token::logi_or);
-			CASE2('^', token::caret,			'=', token::caret_equal);
-
-			case '=': {
-				token.kind = token::equal;
-				stream_next;
-				if(*stream.str == '=') {
-					token.kind = token::double_equal;
-					stream_next;
-				} else if(*stream.str == '>') {
-					token.kind = token::match_arrow;
-					stream_next;
-				}
-			} break;
-
-			CASE2('!', token::explanation_mark, '=', token::explanation_mark_equal);
-
-			case '-':{ // NOTE special because of ->
-				token.kind = token::minus;
-				stream_next;
-				if(*stream.str == '>'){
-					token.kind = token::function_arrow;
-					// lexer.funcarrows.push(tokens.count);
-					stream_next;
-				}
-			}break;
-
-			case '/':{ //NOTE special because of comments
-				token.kind = token::solidus;
-				stream_next;
-				if(*stream.str == '='){
-					token.kind = token::solidus_assignment;
-					stream_next;
-				}else if(*stream.str == '/'){
-					while(stream && *stream.str != '\n') stream_next; //skip single line comment
-					continue; //skip token creation
-				}else if(*stream.str == '*'){
-					while((stream.count > 1) && !(stream.str[0] == '*' && stream.str[1] == '/')){ stream_next; } //skip multiline comment
-					if(stream.count <= 1 && *(stream.str-1) != '/' && *(stream.str-2) != '*'){
-						diagnostic::lexer::
-							multiline_comment_missing_end(&token);
-						return false;
-					}
-					stream_next; stream_next;
-					continue; //skip token creation
-				}
-			}break;
-		
-			case '<':{ //NOTE special because of bitshift assignment
-				token.kind = token::less_than;
-				stream_next;
-				if		(*stream.str == '='){
-					token.kind = token::less_than_equal;
-					stream_next;
-				}else if(*stream.str == '<'){
-					token.kind = token::double_less_than;
-					stream_next;
-					if(*stream.str == '='){
-						token.kind = token::double_less_than_equal;
-						stream_next;
-					}
-				}
-			}break;
-			
-			case '>':{ //NOTE special because of bitshift assignment
-				token.kind = token::greater_than;
-				stream_next;
-				if		(*stream.str == '='){
-					token.kind = token::greater_than_equal;
-					stream_next;
-				}else if(*stream.str == '>'){
-					token.kind = token::double_greater_than;
-					stream_next;
-					if(*stream.str == '='){
-						token.kind = token::double_greater_than_equal;
-						stream_next;
-					}
-				}
-			}break;
-			
-			default:{
-				if(lexer::internal::is_identifier_char(string::codepoint(stream))){
-					while(lexer::internal::is_identifier_char(string::codepoint(stream))) 
-						stream_next; //skip until we find a non-identifier char
-
-					token.raw.count = stream.str - token.raw.str;
-					token.kind = lexer::internal::token_is_keyword_or_identifier(token.raw);
-					token.hash = token.raw.hash();
-					
-					if(last_token.kind == token::pound) {
-						token::kind kind = lexer::internal::token_is_directive_or_identifier(token.raw);
-						if(kind == token::identifier){
-							diagnostic::lexer::
-								unknown_directive(&token, token.raw);
-						}
-						token.kind = kind;
-						tokens.pop();
-					} else if(last_token.kind == token::dollar) {
-						token::kind kind = lexer::internal::token_is_sid_or_identifier(token.raw);
-						if(kind == token::identifier) {
-							diagnostic::lexer::
-								unknown_svar(&token, token.raw);
-						}
-						token.kind = kind;
-						tokens.pop();
-					} else {
-						switch(token.kind) {
-							case token::structdecl: break; // lexer.structs.push(tokens.count); break;
-							case token::moduledecl: {
-								// Module* m = module::create();
-								// // link the new module's symbol table to the current one 
-								// m->table.last = &current_module.module->table;
-								// push_module(m);
-								// token.module = m;
-							} break;
-							case token::import: {
-								current_lexscope->labels.push(tokens.count-current_lexscope->token_start);
-							} break;
-						}
-					}
-				}else{
-					diagnostic::lexer::
-						invalid_token(&token);
-					return false;
-				}
-			}break;
-		}
-
-		if(token.kind == token::identifier){
-			token.group = token::identifier; // TODO(sushi) if this is never used just remove it 
-		}else if(token.kind >= token::literal_float && token.kind <= token::literal_string){
-			token.group = token::group_literal;
-		}else if(token.kind >= token::semicolon && token.kind <= token::backtick){
-			token.group = token::group_control;
-		}else if(token.kind >= token::plus && token.kind <= token::greater_than_equal){
-			token.group = token::group_operator;
-		}else if(token.kind >= token::return_ && token.kind <= token::structdecl){
-			token.group = token::group_keyword;
-		}else if(token.kind >= token::void_ && token.kind <= token::struct_){
-			token.group = token::group_type;
-		}else if(token.kind >= token::directive_import && token.kind <= token::directive_run){
-			token.group = token::group_directive;
-		}
-
-		if(token.kind != token::error) {
-			token.l1 = line_num;
-			token.c1 = line_col;
-			token.raw.count = stream.str - token.raw.str;
-			tokens.push(token);
-		}
-
-		last_token = token;
-	}
-
-	Token eof;
-	eof.kind = token::end_of_file;
-	eof.l0 = line_num;
-	eof.c0 = line_col;
-	tokens.push(eof);
-
-	if(code->is_virtual()) {
-		((VirtualCode*)code)->tokens = tokens;
-	} else {
-		code->source->tokens = tokens;
-		((SourceCode*)code)->tokens = code->source->tokens.view();
-	}
-
-	// !Leak
-	DString* time = util::format_time(util::stopwatch::peek(lexer_time)/1e6);
-	messenger::dispatch(message::attach_sender(code,
-		message::make_debug(message::verbosity::stages, String("finished lexical analysis in "), String(time))));
-
-	code->level = code::lex;
-	return true;
-} // lex::execute
 
 void Lexer::
 output(b32 human, String path) {
@@ -573,6 +130,301 @@ output(b32 human, String path) {
 	}
 
 	fclose(out);
+}
+
+Lexer* Lexer::
+create(String buffer) {
+	auto out = memory::allocate<Lexer>();
+	out->tokens = Array<Token>::create(16);
+	out->diag_stack = Array<Diag>::create();
+	out->buffer = buffer;
+	return out;
+}
+
+void Lexer::
+destroy() {
+	tokens.destroy();
+	diag_stack.destroy();
+}
+
+b32 Lexer::
+run() { 
+	using enum Token::Kind;
+	using enum Token::Group;
+
+	messenger.dispatch(MessageBuilder::start(code, Message::Kind::Debug)
+			.append("beginning lex")
+			.message);
+
+	auto start = util::stopwatch::start();
+
+	String stream = code->raw;
+
+	u64 line = 1,
+		 col = 1;
+
+	Token t = {};
+	Token last_token = {};
+
+	u32 peeked_codepoint = 0;
+
+	auto next = [&]() -> u32 {
+		if(peeked_codepoint) {
+			auto out = peeked_codepoint;
+			peeked_codepoint = 0;
+			return out;
+		}
+		auto codepoint = stream.advance();
+		if(!stream) return 0;
+		if(codepoint == '\n') {
+			line += 1;
+			col = 1;
+		} else {
+			col += 1;
+		}
+		return codepoint;
+	};
+
+	auto peek = [&]() -> u32 {
+		if(!peeked_codepoint) peeked_codepoint = next();
+		return peeked_codepoint;
+	};
+
+	auto skip_whitespace = [&]() {
+		while(string::isspace(peek())) next();
+	};
+
+	// writes final data to the current token
+	// and appends it to the tokens array 
+	auto finish_token = [&]() {
+		t.l1 = line;
+		t.c0 = col;
+		t.hash = t.raw.hash();
+		if(t.kind >= FloatLiteral && t.kind <= StringLiteral) {
+			t.group = Literal;
+		} else if(t.kind >= Semicolon && t.kind <= RightArrowThick) {
+			t.group = Control;
+		} else if(t.kind >= Plus && t.kind <= DollarDouble) {
+			t.group = Operator;
+		} else if(t.kind >= Return && t.kind <= Deref) {
+			t.group = Keyword;
+		} else if(t.kind >= Unsigned8 && t.kind <= Float64) {
+			t.group = Type;
+		} else if(t.kind >= Directive_Include && t.kind <= Directive_CompilerBreak) {
+			t.group = Directive;
+		} else {
+			Assert(0);
+		}
+		tokens.push(t);
+		last_token = t;
+	};
+
+	auto reset_token = [&]() {
+		t = {
+			.raw = {stream.str, 0},
+			.l0 = line,
+			.c0 = col,
+		};
+	};
+
+	auto is_identifier_char = [&](u32 c) {
+		if(util::any(String::is_alnum(codepoint), codepoint == '_', codepoint > 127))
+			return true;
+		return false;
+	};
+
+	auto keyword_or_identifier = [&](String s) {
+		switch(s.hash()) {
+			strcase("return"):	  return Return;
+			strcase("if"):		  return If;
+			strcase("else"):	  return Else;
+			strcase("for"):		  return For;
+			strcase("while"):	  return While;
+			strcase("break"):	  return Break;
+			strcase("continue"):  return Continue;
+			strcase("defer"):	  return Defer;
+			strcase("switch"):	  return Switch;
+			strcase("loop"):	  return Loop;
+			strcase("struct"):	  return Struct;
+			strcase("module"):	  return Module;
+			strcase("import"):    return Import;
+			strcase("void"):	  return Void;
+			strcase("s8"):		  return Signed8;
+			strcase("s16"):		  return Signed16;
+			strcase("s32"):		  return Signed32;
+			strcase("s64"):		  return Signed64;
+			strcase("u8"):		  return Unsigned8;
+			strcase("u16"):		  return Unsigned16;
+			strcase("u32"):		  return Unsigned32;
+			strcase("u64"):		  return Unsigned64;
+			strcase("f32"):		  return Float32;
+			strcase("f64"):		  return Float64;
+			strcase("using"):	  return Using;
+			strcase("and"):		  return And;
+			strcase("or"):		  return Or;
+			strcase("then"):	  return Then;
+		}
+		return Identifier;
+	};
+
+	auto directive_or_identifier = [&](String s) {
+		switch(raw.hash()) {
+			strcase("include"):        return Directive_Include;
+			strcase("run"):		       return Directive_Run;
+			strcase("compiler_break"): return Directive_CompilerBreak;
+		}
+		return Identifier;
+	};
+
+	while(stream) { using namespace util;
+		reset_token();
+		skip_whitespace();
+		auto c = next();
+		// TODO(sushi) test perf difference when is_digit and is_alpha are moved to be 
+		//             a bunch of cases
+		if(String::is_digit(c)) {
+			while(String::is_digit(c) || c == '_') c = next();
+
+			if(all_match('.', stream.str[0], stream.str[1])) {
+				// we treat this as a DotDouble
+				t.raw.count = stream.str - t.raw.str;
+				t.kind = IntegerLiteral;
+				t.scalar_value = t.raw.to_s64();
+			} else if(any_match(c, '.', 'e', 'E')) {
+				c = next();
+				while(String::is_digit(c)) c = next();
+				t.raw.count = stream.str - t.raw.str;
+				t.kind = FloatLiteral;
+				t.scalar_value = t.raw.to_f64();
+			} else if(any_match(c, 'x', 'X')) {
+				c = next();
+				while(String::is_xdigit(c)) c = next();
+				t.raw.count = stream.str - t.raw.str;
+				t.kind = IntegerLiteral;
+				t.scalar_value = t.raw.to_s64();
+			} else {
+				t.raw.count = stream.str - t.raw.str;
+				t.kind = IntegerLiteral;
+				t.scalar_value = t.raw.to_s64();
+			}
+		} else if(String::is_alpha(c)) {
+			while(is_identifier_char(c)) c = next();
+			t.raw.count = stream.str - t.raw.str;
+			
+			if(last_token.kind == Pound) {
+				auto kind = directive_or_identifier(t.raw);
+				if(kind == Identifier) {
+					diag_stack.push(Diag::unknown_directive(t, t.raw));
+					return false; // TODO(sushi) continuation
+				}
+				t.kind = kind;
+				tokens.pop();
+			} else if(last_token.kind == Dollar) {
+				auto kind = sid_or_identifier(t.raw);
+				if(kind == Identifier) {
+					diag_stack.push(Diag::unknown_sid(t, t.raw));
+					return false; // TODO(sushi) continuation
+				}
+				t.kind = kind;
+				tokens.pop();
+			} else {
+				t.kind = keyword_or_identifier(t.raw);
+			}
+		} else switch(c) {
+#define one_glyph_map(c1, t1) \
+			case c1: {        \
+				t.kind = t1;  \
+				c = next();   \
+			} break;
+#define two_glyph_map(c1, t1, c2, t2) \
+			case c1: {                \
+				t.kind = t1;          \
+				c = next();           \
+				if(c == c2) {         \
+					t.kind = t2;      \
+					c = next();       \
+				}                     \ 
+			} break; 
+#define two_glyph_map_alt(c1, t1, c2, t2, c3, t3) \
+			case c1: {                            \
+				t.kind = t1;                      \
+				c = next();                       \
+				if(c == c2) {                     \
+					t.kind = t2;                  \
+					c = next();                   \
+				} else if(c == c3) {              \
+					t.kind = t3;                  \
+					c = next();                   \
+				}                                 \
+			} break;
+#define three_glyph_map(c1, t1, c2, t2, c3, t3) \
+			case c1: {                          \
+				t.kind = t1;                    \
+				c = next();                     \
+				if(c == c2) {                   \
+					t.kind = t2;                \
+					c = next();                 \
+					if(c == c3) {               \
+						t.kind = t3;            \
+						c = next();             \
+					}                           \
+				}                               \
+			} break;
+#define two_or_three_glyph_map(c1, t1, c2, t2, c3, t3, c4, t4) \
+			case c1: {                                         \
+				t.kind = t1;                                   \
+				c = next();                                    \
+				if(c == c2) {                                  \
+					t.kind = t2;                               \
+					c = next();                                \
+				} else if(c == c3) {                           \
+					t.kind = t3;                               \
+					c = next();                                \
+					if(c == c4) {                              \
+						t.kind = t4;                           \
+						c = next();                            \
+					}                                          \
+				}                                              \
+			} break;
+
+			one_glyph_map('[', LSquare);
+			one_glyph_map(']', RSquare);
+			one_glyph_map(',', Comma);
+			one_glyph_map('?', QuestionMark);
+			one_glyph_map('@', At);
+			one_glyph_map('#', Pound);
+			one_glyph_map('`', Backtick);
+
+			two_glyph_map('$', Dollar,          '$', DollarDouble);
+			two_glyph_map('+', Plus,            '=', PlusEqual);
+			two_glyph_map('*', Asterisk,        '=', AsteriskEqual);
+			two_glyph_map('%', Percent,         '=', PercentEqual);
+			two_glyph_map('~', Tilde,           '=', TildeEqual);
+			two_glyph_map('^', Caret,           '=', CaretEqual);
+			two_glyph_map('!', ExplanationMark, '=', ExplanationMarkEqual);
+			two_glyph_map('-', Minus,           '>', RightArrow);
+
+			two_glyph_map_alt('=', Equal, '=', EqualDouble, '>', RightArrowThick);
+			two_glyph_map_alt('&', Ampersand, '=', AmpersandEqual, '&', AmpersandDouble);
+
+			three_glyph_map('.', Dot, '.', DotDouble, '.', DotTriple);
+
+			two_or_three_glyph_map('<', LessThan, '=', LessThanEqual, '<', LessThanDouble, '=', LessThanDoubleEqual);
+			two_or_three_glyph_map('<', GreaterThan, '=', GreaterThanEqual, '<', GreaterThanDouble, '=', GreaterThanDoubleEqual);
+
+			default: return Diag::invalid_token(t);
+		}
+		finish_token();
+	}
+	
+	// TODO(sushi) this always computes the message which is useless if we're
+	//             not emitting debug 
+	auto time = util::stopwatch::peek(start);
+	messenger.dispatch(MessageBuilder::start(code, Message::Kind::Debug)
+			.append("finished lex in ")
+			.append(util::format_time(time)));
+
+	return true;
 }
 
 } // namespace amu

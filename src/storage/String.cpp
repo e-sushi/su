@@ -1,11 +1,121 @@
+#include "String.h"
+#include "DString.h"
+
 namespace amu {
-using namespace string;
+
+global b32
+utf8_continuation_byte(u8 byte){
+	return ((byte & 0xC0) == 0x80);
+}
+
+#define unicode_bitmask1 0x01
+#define unicode_bitmask2 0x03
+#define unicode_bitmask3 0x07
+#define unicode_bitmask4 0x0F
+#define unicode_bitmask5 0x1F
+#define unicode_bitmask6 0x3F
+#define unicode_bitmask7 0x7F
+#define unicode_bitmask8 0xFF
+#define unicode_bitmask9  0x01FF
+#define unicode_bitmask10 0x03FF
+
+// Returns the next codepoint and advance from the UTF-8 string `str`
+global DecodedCodepoint
+decoded_codepoint_from_utf8(u8* str, u64 max_advance){
+	persist u8 utf8_class[32] = { 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,2,2,2,2,3,3,4,5, };
+	
+	DecodedCodepoint result = {(u32)-1, 1};
+	u8 byte = str[0];
+	u8 byte_class = utf8_class[byte >> 3];
+	switch(byte_class){
+		case 1:{
+			result.codepoint = byte;
+		}break;
+		case 2:{
+			if(2 <= max_advance){
+				u8 next_byte = str[1];
+				if(utf8_class[next_byte >> 3] == 0){
+					result.codepoint  = (     byte & unicode_bitmask5) << 6;
+					result.codepoint |= (next_byte & unicode_bitmask6);
+					result.advance = 2;
+				}
+			}
+		}break;
+		case 3:{
+			if(3 <= max_advance){
+				u8 next_byte[2] = {str[1], str[2]};
+				if(   (utf8_class[next_byte[0] >> 3] == 0)
+				   && (utf8_class[next_byte[1] >> 3] == 0)){
+					result.codepoint  = (        byte & unicode_bitmask4) << 12;
+					result.codepoint |= (next_byte[0] & unicode_bitmask6) << 6;
+					result.codepoint |= (next_byte[1] & unicode_bitmask6);
+					result.advance = 3;
+				}
+			}
+		}break;
+		case 4:{
+			if(4 <= max_advance){
+				u8 next_byte[3] = {str[1], str[2], str[3]};
+				if(   (utf8_class[next_byte[0] >> 3] == 0)
+				   && (utf8_class[next_byte[1] >> 3] == 0)
+				   && (utf8_class[next_byte[2] >> 3] == 0)){
+					result.codepoint  = (        byte & unicode_bitmask3) << 18;
+					result.codepoint |= (next_byte[0] & unicode_bitmask6) << 12;
+					result.codepoint |= (next_byte[1] & unicode_bitmask6) << 6;
+					result.codepoint |=  next_byte[2] & unicode_bitmask6;
+					result.advance = 4;
+				}
+			}
+		}break;
+	}
+	return result;
+}
+
+
+#undef unicode_bitmask1
+#undef unicode_bitmask2
+#undef unicode_bitmask3
+#undef unicode_bitmask4
+#undef unicode_bitmask5
+#undef unicode_bitmask6
+#undef unicode_bitmask7
+#undef unicode_bitmask8
+#undef unicode_bitmask9
+#undef unicode_bitmask10
+
+// returns the codepoint that begins 'a'
+global u32
+codepoint(String a) {
+    return decoded_codepoint_from_utf8(a.str, 4).codepoint;
+}
+
+// Shorthand for: a->str += bytes; a->count -= bytes;
+FORCE_INLINE void
+increment(String& s, u64 bytes){
+	s.str += bytes;
+	s.count -= bytes;
+}
+
+global u64 
+utf8_move_back(u8* start){
+	u64 count = 0;
+	while(utf8_continuation_byte(*(start-1))){
+		start--; count++;
+	}
+	return count;
+}
+
+String String::
+from(const char* c) {
+	return String{c, (s64)strlen(c)};
+}
+
 DecodedCodepoint String::
 advance(u32 n) {
     DecodedCodepoint decoded{};
     while(*this && n--){
-        decoded = internal::decoded_codepoint_from_utf8(this->str, 4);
-        internal::increment(*this, decoded.advance);
+        decoded = decoded_codepoint_from_utf8(this->str, 4);
+        increment(*this, decoded.advance);
     }
     return decoded;
 }
@@ -14,9 +124,9 @@ void String::
 advance_until(u32 c){
     DecodedCodepoint decoded{};
     while(*this){
-        decoded = internal::decoded_codepoint_from_utf8(this->str, 4);
+        decoded = decoded_codepoint_from_utf8(this->str, 4);
         if(decoded.codepoint == c) break;
-        internal::increment(*this, decoded.advance);
+        increment(*this, decoded.advance);
     }
 }
 
@@ -24,9 +134,9 @@ void String::
 advance_while(u32 c){
     DecodedCodepoint decoded{};
     while(*this){
-        decoded = internal::decoded_codepoint_from_utf8(this->str, 4);
+        decoded = decoded_codepoint_from_utf8(this->str, 4);
         if(decoded.codepoint != c) break;
-        internal::increment(*this, decoded.advance);
+        increment(*this, decoded.advance);
     }
 }
 
@@ -103,9 +213,9 @@ find_last(u32 codepoint) {
     auto a = *this;
     u32 iter = 0;
     while(iter < a.count){
-        iter += internal::utf8_move_back(this->str+this->count-iter);
+        iter += utf8_move_back(this->str+this->count-iter);
         iter++;
-        if(internal::decoded_codepoint_from_utf8(this->str+this->count-iter,4).codepoint == codepoint) return this->count-iter;
+        if(decoded_codepoint_from_utf8(this->str+this->count-iter,4).codepoint == codepoint) return this->count-iter;
     }
     return npos;
 }
@@ -124,9 +234,9 @@ eat_until(u32 c) {
     auto a = *this;
     DecodedCodepoint decoded{};
     while(a){
-        decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
+        decoded = decoded_codepoint_from_utf8(a.str, 4);
         if(decoded.codepoint == c) break;
-        internal::increment(a, decoded.advance);
+        increment(a, decoded.advance);
     }
     if(!a) return *this;
     return String{this->str, this->count-a.count};
@@ -138,9 +248,9 @@ eat_until_last(u32 c) {
     s64 count = 0;
     DecodedCodepoint decoded{};
     while(a){
-        decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
+        decoded = decoded_codepoint_from_utf8(a.str, 4);
         if(decoded.codepoint == c) count = a.count;
-        internal::increment(a, decoded.advance);
+        increment(a, decoded.advance);
     }
     return String(this->str, this->count-a.count);
 }
@@ -204,9 +314,9 @@ inline String String::
 skip_until(u32 c) {
     auto a = *this;
     while(a){
-        DecodedCodepoint decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
+        DecodedCodepoint decoded = decoded_codepoint_from_utf8(a.str, 4);
         if(decoded.codepoint == c) break;
-        internal::increment(a, decoded.advance);
+        increment(a, decoded.advance);
     }
     return a;
 }
@@ -216,9 +326,9 @@ skip_until_last(u32 c) {
     auto a = *this;
     String b{};
     while(a){
-        DecodedCodepoint decoded = internal::decoded_codepoint_from_utf8(a.str, 4);
+        DecodedCodepoint decoded = decoded_codepoint_from_utf8(a.str, 4);
         if(decoded.codepoint == c) b = a;
-        internal::increment(a, decoded.advance);
+        increment(a, decoded.advance);
     }
     return b;
 }
@@ -292,6 +402,97 @@ seek_n_lines_backward(u64 n, u8* boundry) {
 		}
 		step_left--;
 	}
+}
+
+u32 String::
+codepoint(u32 idx) {
+	Assert(idx < count);
+	while(idx--) advance();
+	return decoded_codepoint_from_utf8(str, 4).codepoint;
+}
+
+b32 String::
+is_space(u32 codepoint) {
+		switch(codepoint){
+		case '\t': case '\n': case '\v': case '\f':  case '\r':
+		case ' ': case 133: case 160: case 5760: case 8192:
+		case 8193: case 8194: case 8195: case 8196: case 8197:
+		case 8198: case 8199: case 8200: case 8201: case 8202:
+		case 8232: case 8239: case 8287: case 12288: return true;
+		default: return false;
+	}
+}
+
+b32 String::
+is_digit(u32 codepoint) {
+	if(codepoint >= '0' && codepoint <= '9') return true;
+	return false;
+}
+
+b32 String::
+is_alpha(u32 codepoint) {
+	if(codepoint >= 'A' && codepoint <= 'Z' ||
+	   codepoint >= 'a' && codepoint <= 'z') return true;
+	return false;
+}
+
+b32 String::
+is_alnum(u32 codepoint) {
+	return isalpha(codepoint) || isdigit(codepoint);
+}
+
+consteval u64 String::
+static_hash(String s, u64 seed) {
+    while(s.count-- != 0){
+		seed ^= (u8)*s.__char_str;
+		seed *= 1099511628211; //64bit FNV_prime
+		s.__char_str++;
+	}
+	return seed;
+}
+
+DString* String::
+replace(u32 find, u32 repl) {
+	auto out = DString::create();
+	String src = *this;
+	String seg = {str, 0};
+
+	while(src) {
+		auto dc = src.advance();
+		if(dc.codepoint == find) {
+			out->append(seg, repl);					
+			seg = {src.str, 0};
+		} else {
+			seg.count += dc.advance;
+		}
+	}
+	out->append(seg);
+	return out;
+}
+
+DString* String::
+replace(String find, String repl) {
+	auto out = DString::create();
+	String src = *this;
+	String seg = {src.str, 0};
+
+	while(1) {
+		while(src && src.str[0] != find.str[0]) {
+			seg.count += src.advance().advance; 
+		} 
+
+		if(!src) {
+			out->append(seg);
+			return out;
+		}
+		
+		if(src.begins_with(find)) {
+			out->append(repl);	
+			increment(src, find.count);
+			seg = {src.str, 0};
+		}
+	}
+	return out;
 }
 
 } // namespace amu

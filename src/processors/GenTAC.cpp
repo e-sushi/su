@@ -481,7 +481,8 @@ expression(Expr* e) {
             TAC* tac = make_and_place();
             tac->op = tac::call;
             tac->arg0.kind = arg::func;
-            tac->arg0.func = ce->callee;
+			FixMe;
+            // tac->arg0.func = ce->callee;
             tac->arg1.literal = param_size + ret->temp_size;
             tac->temp_size = ret->temp_size;
             tac->node = e;

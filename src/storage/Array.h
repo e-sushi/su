@@ -107,9 +107,13 @@ struct Array {
     View<T>
     view();
 
-    T operator[](s64 i) {
+    T operator[](s64 i) const {
         return read(i);
     }
+
+	T& operator[](s64 i) {
+		return readref(i);
+	}
 };
 
 namespace array {

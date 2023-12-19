@@ -7,10 +7,8 @@ Messenger instance;
 void 
 init() {
     instance.messages = Array<Message>::create();
-    instance.formatting_stack = Array<MessageFormatting>::create();
     instance.destinations = Array<Destination>::create();
-
-    push_formatting(MessageFormatting());
+	instance.formatting = MessageFormatting();
 }
 
 namespace internal {
@@ -29,7 +27,7 @@ wrap_color(DString* current, u32 color) {
 
 void
 process_part(DString* current, const MessagePart& part) {
-    MessageFormatting& formatting = instance.formatting_stack.readref(-1);
+    MessageFormatting& formatting = instance.formatting;
     switch(part.kind) {
         case messagepart::plain: {
             DString* temp = DString::create(part.plain);
@@ -116,7 +114,7 @@ process_message(DString* current, Message& m) {
             DString* compiler_prefix = DString::create("amu");
             if(current_dest->allow_color)
                 wrap_color(compiler_prefix, message::color_cyan);
-                compiler_prefix->append(String(": "));
+            compiler_prefix->append(String(": "));
             current->append(compiler_prefix);
         } break;
         case MessageSender::Code: {
@@ -248,16 +246,6 @@ deliver(Destination destination, Array<Message> messages) {
 
     if(compiler::instance.options.quiet && destination.file == stdout) return;
     fwrite(out->str, 1, out->count, destination.file);
-}
-
-void
-push_formatting(MessageFormatting formatting) {
-    instance.formatting_stack.push(formatting);
-}
-
-void 
-pop_formatting() {
-    instance.formatting_stack.pop();
 }
 
 template<typename... T> void 

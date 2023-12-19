@@ -75,9 +75,10 @@
 #include <thread>
 #include <future>
 
-#ifdef AMU_USE_NOTCURSES
+// #ifdef AMU_USE_NOTCURSES
+#pragma message("hello")
 #include "notcurses/notcurses.h"
-#endif
+// #endif
 
 #define AMU_IMPLEMENTATION
 #include "basic/Memory.h"
@@ -119,53 +120,53 @@
 #include "processors/GenAIR.h"
 #include "systems/VM.h"
 #include "systems/Debugger.h"
-
-#include "basic/Memory.cpp"
-#include "basic/Node.cpp"
-#include "representations/AST.cpp"
-#include "storage/Pool.cpp"
-#include "storage/Array.cpp"
-#include "storage/DString.cpp"
-#include "storage/String.cpp"
-#include "storage/Map.cpp"
-#include "storage/Stacks.cpp"
-#include "representations/Source.cpp"
-#include "representations/Entity.cpp"
-#include "representations/Label.cpp"
-#include "representations/Module.cpp"
-#include "representations/Variable.cpp"
-#include "representations/Type.cpp"
-#include "representations/ScalarValue.cpp"
-#include "representations/Function.cpp"
-#include "representations/Structure.cpp"
-#include "representations/Expr.cpp"
-#include "representations/Stmt.cpp"
-#include "representations/Tuple.cpp"
-#include "representations/Code.cpp"
-#include "systems/Threading.cpp"
-#include "systems/Diagnostics.cpp"
-#include "systems/Messenger.cpp"
-#include "systems/Compiler.cpp"
-#include "processors/Lexer.cpp"
-#include "processors/Parser.cpp"
-#include "processors/Sema.cpp"
-#include "processors/GenTAC.cpp"
-#include "processors/GenAIR.cpp"
-#include "systems/VM.cpp"
-#include "systems/Debugger.cpp"
+//
+//#include "basic/Memory.cpp"
+//#include "basic/Node.cpp"
+//#include "representations/AST.cpp"
+//#include "storage/Pool.cpp"
+//#include "storage/Array.cpp"
+//#include "storage/DString.cpp"
+//#include "storage/String.cpp"
+//#include "storage/Map.cpp"
+//#include "storage/Stacks.cpp"
+//#include "representations/Source.cpp"
+//#include "representations/Entity.cpp"
+//#include "representations/Label.cpp"
+//#include "representations/Module.cpp"
+//#include "representations/Variable.cpp"
+//#include "representations/Type.cpp"
+//#include "representations/ScalarValue.cpp"
+//#include "representations/Function.cpp"
+//#include "representations/Structure.cpp"
+//#include "representations/Expr.cpp"
+//#include "representations/Stmt.cpp"
+//#include "representations/Tuple.cpp"
+//#include "representations/Code.cpp"
+//#include "systems/Threading.cpp"
+//#include "systems/Diagnostics.cpp"
+//#include "systems/Messenger.cpp"
+//#include "systems/Compiler.cpp"
+//#include "processors/Lexer.cpp"
+//#include "processors/Parser.cpp"
+//#include "processors/Sema.cpp"
+//#include "processors/GenTAC.cpp"
+//#include "processors/GenAIR.cpp"
+//#include "systems/VM.cpp"
+//#include "systems/Debugger.cpp"
 
 int main(int argc, char* argv[]){
-	{using namespace amu;
-		srand(time(0));
-		compiler::init();
-		auto args = Array<String>::create(argc);
-		forI(argc) 
-			args.push(string::init(argv[i]));
-		if(compiler::begin(args)) {
-			util::println("compilation succeeded");
-		} else {
-			util::println("compilation failed");
-		}
-	}
+	//{using namespace amu;
+	//	srand(time(0));
+	//	compiler::init();
+	//	auto args = Array<String>::create(argc);
+	//	forI(argc) 
+	//		args.push(string::init(argv[i]));
+	//	if(compiler::begin(args)) {
+	//		util::println("compilation succeeded");
+	//	} else {
+	//		util::println("compilation failed");
+	//	}
+	//}
 	return 0;
 }
