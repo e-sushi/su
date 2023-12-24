@@ -31,7 +31,8 @@ struct Compiler {
     struct {
         String entry_path;
 
-        u32 verbosity;
+		Message::Kind verbosity;
+
         b32 deliver_debug_immediately;
 		b32 deliver_all_immediately;
 
@@ -60,6 +61,8 @@ struct Compiler {
 	b32
 	begin(Array<String> args);
 };
+
+extern Compiler compiler;
 
 namespace compiler {
 

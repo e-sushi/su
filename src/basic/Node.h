@@ -1,26 +1,3 @@
-/*
-
-    amu's Node implementation
-
-    This is functionally the exact same as kigu's nodes, but I have decided that I would like to
-    implement them locally in case there ever comes a case where we need them to be thread safe. If 
-    that ever happens, I would rather not replace all usages of node throughout amu with a new
-    interface, we can just change this one.
-
-    !!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!
-     if it comes to needing to make nodes thread safe, we have to rewrite everything that uses them 
-     to call deinit on all possible nodes they could have created!
-
-     for example Pool<T> cannot just memzfree all of its arenas, because they would contain 
-     Nodes with initialized mutexes!
-
-
-    Nodes that actually represent pieces of the AST are implemented in AST.h/cpp
-    and provide an interface for interacting with the AST beyond what is given here.
-
-*/
-
-
 #ifndef AMU_NODE_H
 #define AMU_NODE_H
 
@@ -37,15 +14,6 @@ struct LNode {
     LNode* next;
     LNode* prev;
 };
-
-namespace node {
-// NOTE(sushi) instead of just storing that a node could be an Entity
-//             and having to access what kind of Entity it is by first casting to Entity
-//             we just store Entity tags on the Node itself, since, so far, there has been
-//             no reason to access just the data held by Entity
-
-
-} // namespace node::type
 
 // a Node for trees 
 struct TNode {

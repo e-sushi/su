@@ -149,6 +149,8 @@ destroy() {
 
 b32 Lexer::
 run() { 
+	Processor::start("lexer");
+
 	using enum Token::Kind;
 	using enum Token::Group;
 
@@ -420,7 +422,8 @@ run() {
 	// TODO(sushi) this always computes the message which is useless if we're
 	//             not emitting debug 
 	auto time = util::stopwatch::peek(start);
-	messenger.dispatch(MessageBuilder::start(code, Message::Kind::Debug)
+	messenger.dispatch(
+			MessageBuilder::start(code, Message::Kind::Debug)
 			.append("finished lex in ")
 			.append(util::format_time(time)));
 

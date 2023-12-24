@@ -1,4 +1,5 @@
 #include <mutex>
+#include "Messenger.h"
 namespace amu {
 namespace messenger { // ---------------------------------------------------- messenger
 
@@ -358,4 +359,49 @@ attach_sender(MessageSender sender, Message m) {
 }
 
 } // namespace message
+
+
+Message Message::
+create(MessageSender sender, Message::Kind kind) {
+	Message out = {};
+	out.kind = kind;
+	out.sender = sender;
+	out.parts = Array<MessagePart>::create();
+	return out;
+}
+
+template<typename... T> Message Message::
+create(MessageSender sender, Message::Kind kind, T... args) {
+	Message out = create(sender, kind);
+	const u32 part_count = sizeof... T;
+	MessagePart parts[part_count] = { args, ... };
+	forI(part_count) {
+		out.parts.push(parts[i]);
+	}
+	return out;
+}
+
+MessageBuilder::MessageBuilder(MessageSender sender, Message::Kind kind) {
+	message = Message::create(sender, kind);
+}
+
+MessageBuilder MessageBuilder::
+start(MessageSender sender, Message::Kind kind) {
+	return MessageBuilder(sender, kind);
+}
+
+MessageBuilder MessageBuilder::
+from(Message message) {
+	return MessageBuilder(message);
+}
+
+MessageBuilder& MessageBuilder::
+plain(String s) {
+	MessagePart part = s;
+	s.
+	message.parts.push(MessagePart::)
+}
+
+
+
 } // namespace amu

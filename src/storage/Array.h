@@ -8,7 +8,9 @@
 #ifndef AMU_ARRAY_H
 #define AMU_ARRAY_H
 
-#include "View.h"
+// #include "View.h"
+#include "Common.h"
+#include "basic/Memory.h"
 
 namespace amu {
 
@@ -104,8 +106,8 @@ struct Array {
     copy(u64 start, u64 count);
 
     // returns a View over the given Array
-    View<T>
-    view();
+    //View<T>
+    //qview();
 
     T operator[](s64 i) const {
         return read(i);
@@ -132,9 +134,11 @@ search(Array<T>& arr, I element, I (*get)(T&));
 } // namespace util
 } // namespace array
 
-template<typename T>
-using ScopedArray = util::scoped<Array<T>, [](Array<T>* a) { a->destroy(); }>;
+// template<typename T>
+// using ScopedArray = util::scoped<Array<T>, [](Array<T>* a) { a->destroy(); }>;
 
 } // namespace amu
+
+#include "Array.cpp"
 
 #endif // AMU_ARRAY_H

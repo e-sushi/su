@@ -18,6 +18,25 @@
 #include "representations/Entity.h"
 #include "representations/Token.h"
 
+#define LOG(sender, verbosity, ...)                                    \
+	if(compiler.options.verbosity >= Message::Kind::verbosity) {       \
+		Messenger::dispatch(Message::create(Message::Kind::verbosity)) \
+	}         
+
+#define INFO(sender, ...)                                                       \
+	if(compiler.options.verbosity >= Message::Kind::Info) {                     \
+		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
+	}
+
+#ifdef AMU_ENABLE_TRACE
+#define TRACE(sender, ...)                                                       \
+	if(compiler.options.verbosity >= Message::Kind::Trace) {                     \
+		Messenger::dispatch(Message::create(Message::Kind::Trace, __VA_ARGS__)); \
+	}
+#else
+#define TRACE(...)
+#endif
+
 namespace amu {
 
 struct Code;
@@ -52,7 +71,6 @@ enum class Color {
 	BrightWhite = 97,
 };
 
-
 struct MessagePart {
 	enum class Kind {
 		Plain,
@@ -83,11 +101,8 @@ struct MessagePart {
         Source* source; // a source file whose name we will likely print
         Type* type;
     };
-    // if this is 0, default colors will be applied in processing
-    // this is set to a number from message::color_
 
     MessagePart() {}
-
 	
     MessagePart(String s)     : plain(s),     kind(Kind::Plain) {}
     MessagePart(Token* t)     : token(t),     kind(Kind::Token) {}
@@ -115,6 +130,7 @@ struct MessageSender {
         Code,  
 		CodeLoc, 
     };
+
     Type type;
     amu::Code* code;
     Token* token;
@@ -129,13 +145,13 @@ struct MessageSender {
 // consists of MessageParts that the Messenger formats before delivering
 struct Message {
 	enum Kind {
-		Fatal,
-		Error,
-		Warning,
-		Notice,
-		Info,
-		Debug,
-		Trace,
+		Fatal,   // the compiler cannot continue
+		Error,   // a specific operation cannot continue
+		Warning, // odd situation that may cause problems
+		Notice,  // normal but significant conditions
+		Info,    // generally useful information
+		Debug,   // used for general diagnosing of compiler problems
+		Trace,   // used for tracing code 
 	};
 
     u64 time;
@@ -146,14 +162,17 @@ struct Message {
     Array<MessagePart> parts;
 
 	static Message
-	create(Kind kind);
+	create(MessageSender sender, Kind kind);
 
 	template<typename... T> static Message
-	create(Kind kind, T... args);
+	create(MessageSender sender, Kind kind, T... args);
 };
 
 struct MessageBuilder {
 	Message message;
+	
+	MessageBuilder(Message message) : message(message) {}
+	MessageBuilder(MessageSender sender, Message::Kind kind);
 
 	static MessageBuilder
 	start(MessageSender sender, Message::Kind kind);
@@ -166,6 +185,12 @@ struct MessageBuilder {
 	MessageBuilder& identifier(String s);
 	MessageBuilder& append(MessagePart part);
 	MessageBuilder& prepend(MessagePart part);
+	
+	// dispatches the message to the messenger
+	void dispatch();
+	
+	// delivers the message immediately
+	void deliver();
 };
 
 // this struct defines the formatting of each different MessagePart
@@ -185,14 +210,12 @@ struct MessageFormatting {
             Color slash = White;
             Color file = Cyan;
         } col;
-        // when a path is very long, shorten it by replacing the interior with ...
-        // for example
-        // some/stupidly/long/path/to/the/naughty/file
-        // some/stupidly/.../naughty/file
-        b32 shorten_long_paths = false;
-        u32 long_path_min_len = 60;
-        b32 always_absolute = false;
-        b32 always_forward_slash = true;
+		enum class PathStyle {
+			Filename, // only show the filename, eg. "main.amu"
+			RelativePath, // show the path relative to the working directory of the compiler
+			AbsolutePath, // show the entire path
+		};
+		PathStyle path_style = PathStyle::Filename;
         String prefix = "'", suffix = "'";
     } path;
 

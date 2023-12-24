@@ -1,70 +1,74 @@
+#include "DString.h"
+#include "utils/Unicode.h"
+#include "systems/Messenger.h"
+
 namespace amu{
 
-DString* DString::
-create(String s) {
-    auto out = (DString*)memory::allocate(sizeof(DString));
-    out->count = s.count;
-    out->space = util::round_up_to(s.count, 8);
-    out->str = (u8*)memory::allocate(out->space); 
-    out->refs = 1;
-    if(s.str) memcpy(out->str, s.str, s.count);
-    return out;
+using namespace unicode;
+
+struct DStringHeader {
+	s64 refs;
+	s64 count;
+	s64 space;
+};
+
+FORCE_INLINE DStringHeader*
+get_header(void* ptr) {
+	return ((DStringHeader*)ptr) - 1;
 }
 
-template<typename... T> DString* DString::
-create(T... args) {
-    DString* out = create();
-    (to_string(out, args), ...);
-    return out;
+String::String(const DString& dstr) {
+	auto header = get_header(dstr.ptr);
+	str = (u8*)dstr.ptr;
+	count = header->count;
 }
 
-void DString::
-destroy() {
-#if 0 // BUILD_SLOW
-    if(refs) messenger::qdebug(MessageSender::Compiler, String("WARNING: DString being destroyed but still has refs!"));
-#endif
-    memory::free(str);
-    memory::free(this);
+DString::DString(String s) {
+	s64 space = util::round_up_to(s.count, 8);
+	auto header = (DStringHeader*)memory.allocate(sizeof(DStringHeader) + space);
+	header->refs = 1;
+	header->count = s.count;
+	header->space = space;
+	ptr = (u8*)(header + 1);
+	memory.copy(ptr, s.str, header->count);
 }
 
-DString* DString::
-ref() {
-    refs++;
-    return this;
+DString::DString(const DString& x) {
+	ptr = x.ptr;
+	get_header(ptr)->refs += 1;
 }
 
-void DString::
-deref() {
-    refs--;
-    if(!refs) {
-        destroy();
-    } 
+DString::~DString() {
+	auto header = get_header(ptr);
+	header->refs -= 1;
+	if(!header->refs) {
+		memory.free(header);
+	}
+}
+
+DString DString::
+copy() {
+	return DString(String(*this));
 }
 
 void DString::
 append(String s) {
-    s64 offset = this->count;
-    this->count += s.count;
-    if(this->space < this->count+1) {
-        this->space = util::round_up_to(this->count+1, 8);
-        this->str = (u8*)memory::reallocate(this->str, this->space);
-    }
-    memory::copy(this->str+offset, s.str, s.count); 
+	auto header = get_header(ptr);
+    s64 offset = header->count;
+	header->count += s.count;
+	fit(header->count);
+    memory.copy(ptr+offset, s.str, s.count); 
 } 
-
-template<typename... T> void DString::
-append(T... args) {
-    (to_string(this, args), ...);
-}
 
 void DString::
 insert(u64 offset, String s) {
-    if(s && offset <= this->count) {
-        s64 required_space = this->count + s.count + 1;
-        if(required_space > this->space) grow(required_space - this->space);
-        memory::copy(this->str + offset + s.count, this->str + offset, ((this->count - offset)+1));
-        memory::copy(this->str + offset, s.str, s.count);
-        this->count += s.count;
+	auto header = get_header(ptr);
+    if(s && offset <= header->count) {
+        s64 required_space = header->count + s.count + 1;
+		fit(required_space);
+        memory.copy(ptr + offset + s.count, ptr + offset, ((header->count - offset)+1));
+        memory.copy(ptr + offset, s.str, s.count);
+        header->count += s.count;
     }
 }
 
@@ -75,10 +79,11 @@ prepend(String s) {
 
 u64 DString::
 remove(u64 offset) {
-    if((offset < this->count) && !string::internal::utf8_continuation_byte(*(this->str+offset))) {
-        DecodedCodepoint decoded = string::internal::decoded_codepoint_from_utf8(this->str+offset, 4);
-        memory::copy(this->str+offset, this->str+offset+decoded.advance, this->count - offset);
-        this->count -= decoded.advance;
+	auto header = get_header(ptr);
+    if((offset < header->count) && !is_continuation_byte(*(ptr+offset))) {
+        DecodedCodepoint decoded = DecodedCodepoint(ptr+offset);
+        memory.copy(ptr+offset, ptr+offset+decoded.advance, header->count - offset);
+        header->count -= decoded.advance;
         return decoded.advance;
     }
     return 0;
@@ -86,32 +91,42 @@ remove(u64 offset) {
 
 u64 DString::
 remove(u64 offset, u64 count) {
+	auto header = get_header(ptr);
     // if offset is beyond a, or we are at a continuation byte at either ends of the range
     // return 0
-    if(offset > this->count || 
-        string::internal::utf8_continuation_byte(*(this->str+offset)) || 
-        string::internal::utf8_continuation_byte(*(this->str+offset+count))) 
+    if(offset > header->count || 
+        is_continuation_byte(*(ptr+offset)) || 
+        is_continuation_byte(*(ptr+offset+count))) 
             return 0;
     
-    u64 actual_remove = util::Min(this->count - offset, count);
-    memory::copy(this->str+offset, this->str+offset+actual_remove, this->count-actual_remove+1);
+    u64 actual_remove = util::Min(header->count - offset, count);
+    memory.copy(ptr+offset, ptr+offset+actual_remove, header->count-actual_remove+1);
 
-    this->count -= actual_remove;
+    header->count -= actual_remove;
     return actual_remove;
 }
 
 void DString::
 grow(u64 bytes) {
+	auto header = get_header(ptr);
     if(bytes) {
-        this->space = util::round_up_to(this->space + bytes, 8);
-        this->str = (u8*)memory::reallocate(this->str, this->space);
+        header->space = util::round_up_to(header->space + bytes, 8);
+        ptr = (u8*)((DStringHeader*)memory.reallocate(header, sizeof(DStringHeader) + header->space) + 1);
     }
 }
 
+void DString::
+fit(u64 bytes) {
+	auto header = get_header(ptr);
+	if(bytes > header->space) {
+		grow(bytes - header->space);
+	}
+}
 
 void DString::
 indent(s64 n) {
     if(!n) return;
+	auto header = get_header(ptr);
     if(n < 0) {
         NotImplemented; // :P
     } else {
@@ -120,12 +135,12 @@ indent(s64 n) {
         }
         u32 last = 0;
         while(1) {
-            u32 nl = String{str+last+n+1, count-last-n-1}.find_first('\n');
-            if(nl == npos) return;
+            u32 nl = String{ptr+last+n+1, header->count-last-n-1}.find_first('\n');
+            if(nl == -1) return;
 
             nl += last+n+2;
 
-            if(nl == this->count) return;
+            if(nl == header->count) return;
 
             forI(n) {
                 insert(nl, " ");
@@ -133,6 +148,27 @@ indent(s64 n) {
             last = nl+n+1;
         }
     }
+}
+
+s64& DString::
+space() {
+	return get_header(ptr)->space;
+}
+
+s64& DString::
+count() {
+	return get_header(ptr)->count;
+}
+
+s64 DString::
+available_space() {
+	auto header = get_header(ptr);
+	return header->space - header->count;
+}
+
+String DString::
+get_string() {
+	return String(*this);
 }
 
 } // namespace amu

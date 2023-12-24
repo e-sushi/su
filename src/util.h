@@ -17,8 +17,6 @@
 namespace amu {
 namespace util {
 
-typedef std::chrono::time_point<std::chrono::high_resolution_clock> Stopwatch;
-
 template<typename... T> FORCE_INLINE b32
 any(const T&... args) {
 	return (args || ...);
@@ -38,25 +36,6 @@ template<typename A, typename... B> FORCE_INLINE b32
 all_match(const A& v, B... args) {
 	return ((v == args) && ...);
 }
-
-namespace stopwatch {
-
-Stopwatch 
-start() {
-	return std::chrono::high_resolution_clock::now();
-}
-
-f64
-peek(Stopwatch watch) {
-	return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - watch).count(); 
-}
-
-void
-reset(Stopwatch& watch) {
-	watch =  std::chrono::high_resolution_clock::now();
-}
-
-} // namespace stopwatch
 
 constexpr s64 
 constexpr_strlen(const char* s) {
@@ -110,7 +89,7 @@ Max(A x, B y) { return (x>y?x:y); }
 //   typedef scoped<RString, [](RString* x) { ostring::dereference(*x); } ScopedRString;
 template<typename T, void (*cleanup)(T*)>
 struct scoped : public T {
-	scoped(const T& in) {memory::copy(this, (void*)&in, sizeof(T));}
+	scoped(const T& in) {memory.copy(this, (void*)&in, sizeof(T));}
 	~scoped() {cleanup((T*)this);}
 };
 

@@ -8,6 +8,7 @@
 #include "representations/Token.h"
 #include "representations/Source.h"
 #include "storage/Array.h"
+#include "processors/Processor.h"
 
 namespace amu {
 
@@ -37,12 +38,11 @@ struct LexicalScope {
 };
 
 
-struct Lexer {
+struct Lexer : public Processor {
 	Code* code;
 	Array<Token> tokens;
-	Array<Diag> diag_stack;
-
 	
+
 	// ~~~~ interface ~~~~
 
 

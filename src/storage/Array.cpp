@@ -1,22 +1,20 @@
-namespace amu {
+#include "Array.h"
 
-namespace array::internal {
+namespace amu {
 
 template<typename T> void 
 grow_if_needed(Array<T>& arr) {
     if(arr.count >= arr.space) {
         if(!arr.space) arr.space = 4;
         arr.space = arr.space * 2;
-        arr.data = (T*)memory::reallocate(arr.data, arr.space * sizeof(T));
+        arr.data = (T*)memory.reallocate(arr.data, arr.space * sizeof(T));
     }
 }
-
-} // namespace array::internal
 
 template<typename T> Array<T> Array<T>::
 create(u32 initial_space) {
     Array<T> out;
-    out.data = (T*)memory::allocate(sizeof(T)*initial_space);
+    out.data = (T*)memory.allocate(sizeof(T) * initial_space);
     out.count = 0;
     out.space = initial_space;
     return out;
@@ -24,13 +22,13 @@ create(u32 initial_space) {
 
 template<typename T> void Array<T>::
 destroy() {
-    memory::free(this->data);
+    memory.free(this->data);
     *this = {};
 }
 
 template<typename T> T*  Array<T>::
 push() {
-    array::internal::grow_if_needed(*this);
+    grow_if_needed(*this);
     T* out = new (this->data + this->count) T();
     this->count += 1;
 
@@ -39,7 +37,7 @@ push() {
 
 template<typename T> void Array<T>::
 push(const T& val) {
-    array::internal::grow_if_needed(*this);
+    grow_if_needed(*this);
     *(this->data + this->count) = val;
     this->count += 1;
 }
@@ -62,10 +60,10 @@ insert(spt idx) {
     
     Assert(idx < this->count);
 
-    array::internal::grow_if_needed(*this);
+    grow_if_needed(*this);
 
-    memory::move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
-    memory::zero(this->data + idx, sizeof(T));
+    memory.move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
+    memory.zero(this->data + idx);
     this->count += 1;
     return this->data + idx;
 }
@@ -74,13 +72,13 @@ template<typename T> void Array<T>::
 insert(spt idx, const T& val) {
     Assert(idx <= this->count);
 
-    array::internal::grow_if_needed(*this);
+    grow_if_needed(*this);
 
     if(!this->count) {
         push(val);
     } else {
-        memory::move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
-        memory::zero(this->data + idx, sizeof(T));
+        memory.move(this->data + idx + 1, this->data + idx, sizeof(T) * (this->count - idx));
+        memory.zero(this->data + idx, sizeof(T));
         this->count += 1;
         *(this->data + idx) = val;
     }
@@ -94,7 +92,7 @@ remove(u32 idx, b32 unordered) {
     if(unordered) {
         this->data[idx] = this->data[this->count];
     } else {
-        memory::move(this->data+idx, this->data+idx+1, sizeof(T)*(this->count - idx));
+        memory.move(this->data+idx, this->data+idx+1, sizeof(T)*(this->count - idx));
     }
 }
 
@@ -110,7 +108,7 @@ template<typename T> void Array<T>::
 resize(u32 count) {
     if(count > this->count) {
         if(count > this->space) {
-            this->data = memory::reallocate(this->data, count*sizeof(T));
+            this->data = memory.reallocate(this->data, count*sizeof(T));
         }
 
         forI(count - this->count) {
@@ -126,7 +124,7 @@ resize(u32 count) {
 template<typename T> void Array<T>::
 reserve(u32 count) {
     if(count > this->space) {
-        this->data = memory::reallocate(this->data, count*sizeof(T));
+        this->data = memory.reallocate(this->data, count*sizeof(T));
         this->space = count;
     }
 }
@@ -167,7 +165,7 @@ readref(spt idx) {
 template<typename T> Array<T> Array<T>::
 copy() {
     Array<T> out = init<T>(this->count);
-    memory::copy(out.data, this->data, sizeof(T)*this->count);
+    memory.copy(out.data, this->data, sizeof(T)*this->count);
     out.count = this->count;
     return out;
 }
@@ -176,19 +174,18 @@ template<typename T> Array<T> Array<T>::
 copy(u64 start, u64 count) {
     Assert(start < this->count && start + count < this->count);
     Array<T> out = create(count);
-    memory::copy(out.data, this->data+start, sizeof(T)*count);
+    memory.copy(out.data, this->data+start, sizeof(T)*count);
     out.count = count;
     return out;
 }
 
-template<typename T> View<T> Array<T>::
-view() {
-    View<T> out = {};
-    out.data = this->data;
-    out.count = this->count;
-    return out;
-}
-
+//template<typename T> View<T> Array<T>::
+//view() {
+//    View<T> out = {};
+//    out.data = this->data;
+//    out.count = this->count;
+//    return out;
+//}
 
 namespace array::util {
 

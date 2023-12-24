@@ -1,92 +1,16 @@
 #include "String.h"
 #include "DString.h"
+#include "utils/Unicode.h"
 
 namespace amu {
 
-global b32
-utf8_continuation_byte(u8 byte){
-	return ((byte & 0xC0) == 0x80);
-}
+using namespace unicode;
 
-#define unicode_bitmask1 0x01
-#define unicode_bitmask2 0x03
-#define unicode_bitmask3 0x07
-#define unicode_bitmask4 0x0F
-#define unicode_bitmask5 0x1F
-#define unicode_bitmask6 0x3F
-#define unicode_bitmask7 0x7F
-#define unicode_bitmask8 0xFF
-#define unicode_bitmask9  0x01FF
-#define unicode_bitmask10 0x03FF
-
-// Returns the next codepoint and advance from the UTF-8 string `str`
-global DecodedCodepoint
-decoded_codepoint_from_utf8(u8* str, u64 max_advance){
-	persist u8 utf8_class[32] = { 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,2,2,2,2,3,3,4,5, };
-	
-	DecodedCodepoint result = {(u32)-1, 1};
-	u8 byte = str[0];
-	u8 byte_class = utf8_class[byte >> 3];
-	switch(byte_class){
-		case 1:{
-			result.codepoint = byte;
-		}break;
-		case 2:{
-			if(2 <= max_advance){
-				u8 next_byte = str[1];
-				if(utf8_class[next_byte >> 3] == 0){
-					result.codepoint  = (     byte & unicode_bitmask5) << 6;
-					result.codepoint |= (next_byte & unicode_bitmask6);
-					result.advance = 2;
-				}
-			}
-		}break;
-		case 3:{
-			if(3 <= max_advance){
-				u8 next_byte[2] = {str[1], str[2]};
-				if(   (utf8_class[next_byte[0] >> 3] == 0)
-				   && (utf8_class[next_byte[1] >> 3] == 0)){
-					result.codepoint  = (        byte & unicode_bitmask4) << 12;
-					result.codepoint |= (next_byte[0] & unicode_bitmask6) << 6;
-					result.codepoint |= (next_byte[1] & unicode_bitmask6);
-					result.advance = 3;
-				}
-			}
-		}break;
-		case 4:{
-			if(4 <= max_advance){
-				u8 next_byte[3] = {str[1], str[2], str[3]};
-				if(   (utf8_class[next_byte[0] >> 3] == 0)
-				   && (utf8_class[next_byte[1] >> 3] == 0)
-				   && (utf8_class[next_byte[2] >> 3] == 0)){
-					result.codepoint  = (        byte & unicode_bitmask3) << 18;
-					result.codepoint |= (next_byte[0] & unicode_bitmask6) << 12;
-					result.codepoint |= (next_byte[1] & unicode_bitmask6) << 6;
-					result.codepoint |=  next_byte[2] & unicode_bitmask6;
-					result.advance = 4;
-				}
-			}
-		}break;
-	}
-	return result;
-}
-
-
-#undef unicode_bitmask1
-#undef unicode_bitmask2
-#undef unicode_bitmask3
-#undef unicode_bitmask4
-#undef unicode_bitmask5
-#undef unicode_bitmask6
-#undef unicode_bitmask7
-#undef unicode_bitmask8
-#undef unicode_bitmask9
-#undef unicode_bitmask10
 
 // returns the codepoint that begins 'a'
 global u32
 codepoint(String a) {
-    return decoded_codepoint_from_utf8(a.str, 4).codepoint;
+    return DecodedCodepoint(a.str).codepoint;
 }
 
 // Shorthand for: a->str += bytes; a->count -= bytes;
@@ -99,7 +23,7 @@ increment(String& s, u64 bytes){
 global u64 
 utf8_move_back(u8* start){
 	u64 count = 0;
-	while(utf8_continuation_byte(*(start-1))){
+	while(is_continuation_byte(*(start-1))){
 		start--; count++;
 	}
 	return count;
@@ -112,19 +36,19 @@ from(const char* c) {
 
 DecodedCodepoint String::
 advance(u32 n) {
-    DecodedCodepoint decoded{};
+	DecodedCodepoint decoded;
     while(*this && n--){
-        decoded = decoded_codepoint_from_utf8(this->str, 4);
+		decoded = DecodedCodepoint(str);
         increment(*this, decoded.advance);
     }
-    return decoded;
+	return decoded;
 }
 
 void String::
 advance_until(u32 c){
-    DecodedCodepoint decoded{};
+    DecodedCodepoint decoded;
     while(*this){
-        decoded = decoded_codepoint_from_utf8(this->str, 4);
+        decoded = DecodedCodepoint(this->str);
         if(decoded.codepoint == c) break;
         increment(*this, decoded.advance);
     }
@@ -132,20 +56,20 @@ advance_until(u32 c){
 
 void String::
 advance_while(u32 c){
-    DecodedCodepoint decoded{};
+    DecodedCodepoint decoded;
     while(*this){
-        decoded = decoded_codepoint_from_utf8(this->str, 4);
+        decoded = DecodedCodepoint(this->str);
         if(decoded.codepoint != c) break;
         increment(*this, decoded.advance);
     }
 }
 
-inline DecodedCodepoint String::
+DecodedCodepoint String::
 index(u64 n){
     return advance(n+1);
 }
 
-inline s64 String::
+s64 String::
 length(){
     s64 result = 0;
     while(advance().codepoint) result++;
@@ -166,18 +90,18 @@ equal(String s) {
     return this->count == s.count && !compare(s, s.count);
 }
 
-inline b32 String::
+b32 String::
 nequal(String s, u64 n){
     return compare(s, n) == 0;
 }
 
-inline b32 String::
+b32 String::
 begins_with(String s){
     if(this->str == s.str && this->count == s.count) return true;
     return this->count >= s.count && !compare(s, s.length());
 }
 
-inline b32 String::
+b32 String::
 ends_with(String s){
     if(this->str == s.str && this->count == s.count) return true;
     return this->count >= s.count && compare(String(this->str+this->count-s.count,s.count), s) == 0;
@@ -205,7 +129,7 @@ find_first(u32 codepoint){
         if(d.codepoint==codepoint) return iter;
         iter++;
     }
-    return npos;
+    return -1;
 }
 
 u32 String::
@@ -215,12 +139,12 @@ find_last(u32 codepoint) {
     while(iter < a.count){
         iter += utf8_move_back(this->str+this->count-iter);
         iter++;
-        if(decoded_codepoint_from_utf8(this->str+this->count-iter,4).codepoint == codepoint) return this->count-iter;
+        if(DecodedCodepoint(this->str+this->count-iter).codepoint == codepoint) return this->count-iter;
     }
-    return npos;
+    return -1;
 }
 
-inline String String::
+String String::
 eat(u64 n){
     auto a = *this;
     a.advance(n);
@@ -229,12 +153,12 @@ eat(u64 n){
 }
 
 
-inline String String::
+String String::
 eat_until(u32 c) {
     auto a = *this;
-    DecodedCodepoint decoded{};
+    DecodedCodepoint decoded;
     while(a){
-        decoded = decoded_codepoint_from_utf8(a.str, 4);
+        decoded = DecodedCodepoint(a.str);
         if(decoded.codepoint == c) break;
         increment(a, decoded.advance);
     }
@@ -242,20 +166,20 @@ eat_until(u32 c) {
     return String{this->str, this->count-a.count};
 }
 
-inline String String::
+String String::
 eat_until_last(u32 c) {
     auto a = *this;
     s64 count = 0;
-    DecodedCodepoint decoded{};
+    DecodedCodepoint decoded;
     while(a){
-        decoded = decoded_codepoint_from_utf8(a.str, 4);
+        decoded = DecodedCodepoint(a.str);
         if(decoded.codepoint == c) count = a.count;
         increment(a, decoded.advance);
     }
     return String(this->str, this->count-a.count);
 }
 
-inline String String::
+String String::
 eat_until_str(String s) {
     auto a = *this;
     while(a){
@@ -266,7 +190,7 @@ eat_until_str(String s) {
     return String{this->str, this->count-a.count};
 }
 
-inline String String::
+String String::
 eat_whitespace(){
     auto a = *this;
     String out = {this->str,0};
@@ -278,7 +202,7 @@ eat_whitespace(){
     return out;
 }
 
-inline String String::
+String String::
 eat_word(b32 include_underscore){
     auto a = *this;
     String out = {this->str,0};
@@ -291,7 +215,7 @@ eat_word(b32 include_underscore){
     return out;
 }
 
-inline String String::
+String String::
 eat_int(){
     auto a = *this;
     String out = {this->str,0};
@@ -303,37 +227,37 @@ eat_int(){
     return out;
 }
 
-inline String String::
+String String::
 skip(u64 n) {
     auto a = *this;
     a.advance(n);
     return a;
 }
 
-inline String String::
+String String::
 skip_until(u32 c) {
     auto a = *this;
     while(a){
-        DecodedCodepoint decoded = decoded_codepoint_from_utf8(a.str, 4);
+        DecodedCodepoint decoded = DecodedCodepoint(a.str);
         if(decoded.codepoint == c) break;
         increment(a, decoded.advance);
     }
     return a;
 }
 
-inline String String::
+String String::
 skip_until_last(u32 c) {
     auto a = *this;
     String b{};
     while(a){
-        DecodedCodepoint decoded = decoded_codepoint_from_utf8(a.str, 4);
+        DecodedCodepoint decoded = DecodedCodepoint(a.str);
         if(decoded.codepoint == c) b = a;
         increment(a, decoded.advance);
     }
     return b;
 }
 
-inline String String::
+String String::
 skip_whitespace() {
     auto a = *this;
     String out = a;
@@ -408,7 +332,7 @@ u32 String::
 codepoint(u32 idx) {
 	Assert(idx < count);
 	while(idx--) advance();
-	return decoded_codepoint_from_utf8(str, 4).codepoint;
+	return DecodedCodepoint(str).codepoint;
 }
 
 b32 String::
@@ -451,28 +375,28 @@ static_hash(String s, u64 seed) {
 	return seed;
 }
 
-DString* String::
+DString String::
 replace(u32 find, u32 repl) {
-	auto out = DString::create();
+	DString out;
 	String src = *this;
 	String seg = {str, 0};
 
 	while(src) {
 		auto dc = src.advance();
 		if(dc.codepoint == find) {
-			out->append(seg, repl);					
+			out.append(seg, repl);					
 			seg = {src.str, 0};
 		} else {
 			seg.count += dc.advance;
 		}
 	}
-	out->append(seg);
+	out.append(seg);
 	return out;
 }
 
-DString* String::
+DString String::
 replace(String find, String repl) {
-	auto out = DString::create();
+	DString out;
 	String src = *this;
 	String seg = {src.str, 0};
 
@@ -482,17 +406,24 @@ replace(String find, String repl) {
 		} 
 
 		if(!src) {
-			out->append(seg);
+			out.append(seg);
 			return out;
 		}
 		
 		if(src.begins_with(find)) {
-			out->append(repl);	
+			out.append(repl);	
 			increment(src, find.count);
 			seg = {src.str, 0};
 		}
 	}
 	return out;
 }
+
+namespace util {
+
+template<> u64 hash(const String& s) { return ((String&)s).hash(); }
+template<> u64 hash(String* s) { return (*s).hash(); }
+
+} // namespace util
 
 } // namespace amu

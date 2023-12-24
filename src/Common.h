@@ -136,82 +136,22 @@
 #if __cplusplus
 #  define COMPILER_FEATURE_CPP 1
 #  if   (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 20202L)
-#    define COMPILER_FEATURE_CPP_20 1
-#    define COMPILER_FEATURE_CPP_17 0
-#    define COMPILER_FEATURE_CPP_14 0
-#    define COMPILER_FEATURE_CPP_11 0
-#    define COMPILER_FEATURE_CPP_98 0
-#    define COMPILER_FEATURE_CPP_PRE98 0
-#    define COMPILER_FEATURE_CPP_AUTO 1
-#  elif (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
-#    define COMPILER_FEATURE_CPP_20 0
-#    define COMPILER_FEATURE_CPP_17 1
-#    define COMPILER_FEATURE_CPP_14 0
-#    define COMPILER_FEATURE_CPP_11 0
-#    define COMPILER_FEATURE_CPP_98 0
-#    define COMPILER_FEATURE_CPP_PRE98 0
-#    define COMPILER_FEATURE_CPP_AUTO 1
-#  elif (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
-#    define COMPILER_FEATURE_CPP_20 0
-#    define COMPILER_FEATURE_CPP_17 0
-#    define COMPILER_FEATURE_CPP_14 1
-#    define COMPILER_FEATURE_CPP_11 0
-#    define COMPILER_FEATURE_CPP_98 0
-#    define COMPILER_FEATURE_CPP_PRE98 0
-#    define COMPILER_FEATURE_CPP_AUTO 1
-#  elif (__cplusplus >= 201103L)
-#    define COMPILER_FEATURE_CPP_20 0
-#    define COMPILER_FEATURE_CPP_17 0
-#    define COMPILER_FEATURE_CPP_14 0
-#    define COMPILER_FEATURE_CPP_11 1
-#    define COMPILER_FEATURE_CPP_98 0
-#    define COMPILER_FEATURE_CPP_PRE98 0
-#    define COMPILER_FEATURE_CPP_AUTO 1
-#  elif (__cplusplus >= 199711L)
-#    define COMPILER_FEATURE_CPP_20 0
-#    define COMPILER_FEATURE_CPP_17 0
-#    define COMPILER_FEATURE_CPP_14 0
-#    define COMPILER_FEATURE_CPP_11 0
-#    define COMPILER_FEATURE_CPP_98 1
-#    define COMPILER_FEATURE_CPP_PRE98 0
-#    define COMPILER_FEATURE_CPP_AUTO 0
 #  else
-#    define COMPILER_FEATURE_CPP_20 0
-#    define COMPILER_FEATURE_CPP_17 0
-#    define COMPILER_FEATURE_CPP_14 0
-#    define COMPILER_FEATURE_CPP_11 0
-#    define COMPILER_FEATURE_CPP_98 0
-#    define COMPILER_FEATURE_CPP_PRE98 1
-#    define COMPILER_FEATURE_CPP_AUTO 0
+#    error "amu must be compiled with the C++20 standard"
 #  endif
-#else
-#  define COMPILER_FEATURE_CPP 0
-#  define COMPILER_FEATURE_CPP_20 0
-#  define COMPILER_FEATURE_CPP_17 0
-#  define COMPILER_FEATURE_CPP_14 0
-#  define COMPILER_FEATURE_CPP_11 0
-#  define COMPILER_FEATURE_CPP_98 0
-#  define COMPILER_FEATURE_CPP_PRE98 0
-#  define COMPILER_FEATURE_CPP_AUTO 0
 #endif //#if __cplusplus
 
 ///////////////////////// //NOTE this file is included is almost every other file of the project, so be frugal with includes here
 //// common includes ////
 /////////////////////////
+/// TODO(sushi) move these to the cpp files in which they are used 
+///             so they don't need to be included everywhere
 #include <stdio.h>
 #include <stddef.h> //size_t, ptrdiff_t
 #include <stdlib.h> //malloc, calloc, free
 #include <stdarg.h> //va_start, va_list, va_arg, va_end
 #include <string.h> //memcpy, memset, strcpy, strlen, etc
 #include <math.h>   //log2
-
-
-///////////////////////
-//// static macros //// for clarity
-/////////////////////// 
-#define local    static //inside a .cpp
-#define persist  static //inside a function
-#define global   static //inside a .h
 
 /////////////////////////////////////
 //// compiler-dependent builtins ////
@@ -266,48 +206,6 @@ typedef double             f64;
 typedef s32                b32;   //sized boolean type
 typedef wchar_t            wchar;
 
-//////////////////////////
-//// common constants ////
-//////////////////////////
-global const u8  MAX_U8  = 0xFF;
-global const u16 MAX_U16 = 0xFFFF;
-global const u32 MAX_U32 = 0xFFFFFFFF;
-global const u64 MAX_U64 = 0xFFFFFFFFFFFFFFFF;
-
-global const s8  MIN_S8  = -127 - 1;
-global const s8  MAX_S8  = 127;
-global const s16 MIN_S16 = -32767 - 1;
-global const s16 MAX_S16 = 32767;
-global const s32 MIN_S32 = -2147483647 - 1;
-global const s32 MAX_S32 = 2147483647;
-global const s64 MIN_S64 = -9223372036854775807 - 1;
-global const s64 MAX_S64 = 9223372036854775807;
-
-global const f32 MAX_F32 = 3.402823466e+38f;
-global const f32 MIN_F32 = -MAX_F32;
-global const f64 MAX_F64 = 1.79769313486231e+308;
-global const f64 MIN_F64 = -MAX_F64;
-
-global const f32 M_ONETHIRD        = 0.33333333333f;
-global const f32 M_ONESIXTH        = 0.16666666667f;
-global const f32 M_EPSILON         = 0.00001f;
-global const f32 M_FOURTHPI        = 0.78539816339f;
-global const f32 M_HALFPI          = 1.57079632679f;
-#undef M_PI
-global const f32 M_PI              = 3.14159265359f;
-global const f64 M_PId             = 3.14159265358979323846;
-global const f64 π                 = M_PId;
-global const f32 M_2PI             = 6.28318530718f;
-global const f32 M_TAU             = M_2PI;
-#undef M_E
-global const f32 M_E               = 2.71828182846f;
-global const f32 M_SQRT_TWO        = 1.41421356237f;
-global const f32 M_SQRT_THREE      = 1.73205080757f;
-global const f32 M_HALF_SQRT_TWO   = 0.707106781187f;
-global const f32 M_HALF_SQRT_THREE = 0.866025403784f;
-
-global const u32 npos = -1;
-
 /////////////////////// //NOTE some are two level so you can use the result of a macro expansion (STRINGIZE, GLUE, etc)
 //// common macros ////
 ///////////////////////
@@ -326,16 +224,6 @@ global const u32 npos = -1;
 #define Thousand(a) (((u64)(a)) * 1000)
 #define Million(a)  (((u64)(a)) * 1000000)
 #define Billion(a)  (((u64)(a)) * 1000000000)
-
-#define Nanoseconds(ms) (ms * 1000000);
-#define Seconds(ms) (ms          / 1000)
-#define Minutes(ms) (Seconds(ms) / 60)
-#define Hours(ms)   (Minutes(ms) / 60)
-#define Days(ms)    (Hours(ms)   / 24)
-#define SecondsToMS(n) (n * 1000)
-#define MinutesToMS(n) (n * SecondsToMS(60))
-#define HoursToMS(n)   (n * MinutesToMS(60))
-#define DaysToMS(n)    (n * HoursToMS(24))
 
 /////////////////////// //NOTE the ... is for a programmer message at the assert; it is unused otherwise
 //// assert macros //// //TODO(delle) assert message popup thru the OS
@@ -382,58 +270,5 @@ template <class F> deferrer<F> operator*(defer_dummy, F f) { return {f}; }
 #define forX_reverse(var_name,iterations) for(int var_name=(iterations)-1; var_name>=0; --var_name)
 #define forI(iterations) for(int i=0; i<(iterations); ++i)
 #define forI_reverse(iterations) for(int i=(iterations)-1; i>=0; --i)
-#if COMPILER_FEATURE_TYPEOF
-#  define For(start,count) for(typeof(*(start))* it = start; it < start+(count); ++it)
-#  define ForX(var_name,start,count) for(typeof(*(start))* var_name = start; var_name < start+(count); ++var_name)
-#endif //#if COMPILER_FEATURE_TYPEOF
-
-//// terminal colors ////
-#define VTS_Default         "\x1b[0m"
-#define VTS_Bold            "\x1b[1m"
-#define VTS_NoBold          "\x1b[22m"
-#define VTS_Underline       "\x1b[4m"
-#define VTS_NoUnderline     "\x1b[24m"
-#define VTS_Negative        "\x1b[7m"
-#define VTS_Positive        "\x1b[27m"
-#define VTS_BlackFg         "\x1b[30m"
-#define VTS_RedFg           "\x1b[31m"
-#define VTS_GreenFg         "\x1b[32m"
-#define VTS_YellowFg        "\x1b[33m"
-#define VTS_BlueFg          "\x1b[34m"
-#define VTS_MagentaFg       "\x1b[35m"
-#define VTS_CyanFg          "\x1b[36m"
-#define VTS_WhiteFg         "\x1b[37m"
-#define VTS_ExtendedFg      "\x1b[38m"
-#define VTS_DefaultFg       "\x1b[39m"
-#define VTS_BlackBg         "\x1b[40m"
-#define VTS_RedBg           "\x1b[41m"
-#define VTS_GreenBg         "\x1b[42m"
-#define VTS_YellowBg        "\x1b[43m"
-#define VTS_BlueBg          "\x1b[44m"
-#define VTS_MagentaBg       "\x1b[45m"
-#define VTS_CyanBg          "\x1b[46m"
-#define VTS_WhiteBg         "\x1b[47m"
-#define VTS_RGBBg(r,g,b)    "\x1b[48;2;" STRINGIZE(r) ";" STRINGIZE(g) ";" STRINGIZE(b) "m"
-#define VTS_DefaultBg       "\x1b[49m"
-#define VTS_BrightBlackFg   "\x1b[90m"
-#define VTS_BrightRedFg     "\x1b[91m"
-#define VTS_BrightGreenFg   "\x1b[92m"
-#define VTS_BrightYellowFg  "\x1b[93m"
-#define VTS_BrightBlueFg    "\x1b[94m"
-#define VTS_BrightMagentaFg "\x1b[95m"
-#define VTS_BrightCyanFg    "\x1b[96m"
-#define VTS_BrightWhiteFg   "\x1b[97m"
-#define VTS_BrightBlackBg   "\x1b[100m"
-#define VTS_BrightRedBg     "\x1b[101m"
-#define VTS_BrightGreenBg   "\x1b[102m"
-#define VTS_BrightYellowBg  "\x1b[103m"
-#define VTS_BrightBlueBg    "\x1b[104m"
-#define VTS_BrightMagentaBg "\x1b[105m"
-#define VTS_BrightCyanBg    "\x1b[106m"
-#define VTS_BrightWhiteBg   "\x1b[107m"
-
-#define ErrorFormat(str)   VTS_RedFg    str VTS_Default
-#define WarningFormat(str) VTS_YellowFg str VTS_Default
-#define SuccessFormat(str) VTS_GreenFg  str VTS_Default
 
 #endif // AMU_COMMON_H

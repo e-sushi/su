@@ -48,9 +48,10 @@ class String_printer:
         try:
             val:gdb.Value = self.val
             ptr = int(val['str'])
-            # this must be a corrupt String
             if abs(val['count']) > int(10000):
                 return "corrupt String"
+            if val['count'] == 0:
+                return "empty"
             buf = gdb.selected_inferior().read_memory(ptr, val['count']).tobytes().decode()
             buf = buf.replace('\n', '\\n')
             return buf
@@ -65,7 +66,7 @@ class DString_printer:
     def to_string(self):
         try:
             val = self.val
-            return f"{val['fin']}"
+            return gdb.parse_and_eval(f"((DString*){val.address})->get_string()")
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
 pp.add_printer("DString", r"^amu::DString$", DString_printer)

@@ -20,18 +20,13 @@
 #define AMU_STRING_H
 
 #include "util.h"
+#include "utils/Unicode.h"
 #include "Array.h"
 
 namespace amu {
 
 struct DString;
 struct MessagePart;
-
-
-struct DecodedCodepoint{
-	u32 codepoint;
-	u32 advance;
-};
 
 struct String {
     union {
@@ -44,7 +39,7 @@ struct String {
     String(){str=0;count=0; } // i wish i could avoid this
 	// NOTE(sushi) this results in a weak reference to the given DString
 	//             eg. the DString does not care if this String is still using it !
-    String(const DString* dstr);
+    String(const DString& dstr);
     String(const char* s, s64 count) : str((u8*)s), count(count) {}
     String(u8* s, s64 count) : str(s), count(count) {}
     consteval String(const char* in) : __char_str((char*)in), count(util::constexpr_strlen(in)) {}
@@ -54,7 +49,7 @@ struct String {
 	static String
 	from(const char* c);
 
-	DecodedCodepoint
+	unicode::DecodedCodepoint
 	advance(u32 n = 1);
 
 	void
@@ -63,11 +58,11 @@ struct String {
 	void
 	advance_while(u32 c);
 
-	inline DecodedCodepoint
+	unicode::DecodedCodepoint
 	index(u64 n);
 
 	// returns the number of codepoints in this String
-	inline s64
+	s64
 	length();
 
 	s64
@@ -76,13 +71,13 @@ struct String {
 	b32 
 	equal(String s);
 
-	inline b32
+	b32
 	nequal(String s, u64 n);
 
-	inline b32
+	b32
 	begins_with(String s);
 	
-	inline b32
+	b32
 	ends_with(String s);
 
 	b32
@@ -94,37 +89,37 @@ struct String {
 	u32
 	find_last(u32 codepoint);
 
-	inline String
+	String
 	eat(u64 n = 1);
 
-	inline String 
+	String 
 	eat_until(u32 c);
 
-	inline String
+	String
 	eat_until_last(u32 c);
 
-	inline String
+	String
 	eat_until_str(String s);
 
-	inline String
+	String
 	eat_whitespace();
 
-	inline String
+	String
 	eat_word(b32 include_underscore = 0);
 
-	inline String
+	String
 	eat_int();
 
-	inline String
+	String
 	skip(u64 n = 1);
 
-	inline String 
+	String 
 	skip_until(u32 c);
 
-	inline String
+	String
 	skip_until_last(u32 c);
 
-	inline String
+	String
 	skip_whitespace();
 
 	// eats and returns a line
@@ -143,7 +138,7 @@ struct String {
 	seek_n_lines_backward(u64 n, u8* boundry);
 
 	u64 
-	hash(u64 seed = 14695981039346656037) {
+	hash(u64 seed = 14695981039) {
 		auto s = *this;
 		while(s.count-- != 0){
 			seed ^= *s.str++;
@@ -174,27 +169,27 @@ struct String {
 
 	consteval u64 static_hash(String s, u64 seed = 14695981039);
 
-	DString*
+	DString
 	replace(u32 codepoint_to_replace, u32 codepoint_to_replace_with);
 
 	// Replaces all occurances of 'find_string' with 'replace_string' in this String,
 	// and returns a DString* containing the result.
-	DString*
+	DString
 	replace(String find_string, String replace_string);
 
 };
 
 namespace util {
-template<> FORCE_INLINE u64 hash(const String& s) {return ((String&)s).hash();}
-template<> FORCE_INLINE u64 hash(String* s) {return (*s).hash();}
+template<> u64 hash(const String& s); // {return ((String&)s).hash();}
+template<> u64 hash(String* s); // {return (*s).hash();}
 
 // direct printing functions for debug use
-void 
+static void 
 print(String s) {
 	fwrite(s.str, s.count, 1, stdout);
 }
 
-void
+static void
 println(String s) {
 	print(s);
 	print("\n");
