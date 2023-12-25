@@ -18,18 +18,33 @@ struct Time
 end
 
 struct Time::Span
-	def pretty 
-		String.build do |str|
-			if minutes != 0
-				str << "#{minutes}m "
-			end
-			if seconds != 0
-				str << "#{seconds}s "
-			end
-			if milliseconds != 0
-				str << "#{milliseconds}ms "
+	macro unit(u, a)
+		if {{ u }} != 0
+			str << "#{{{u}}}{{a}} "
+			n_units -= 1
+			if n_units == 0
+				next str
 			end
 		end
+	end
+
+	def pretty 
+		String.build do |str|
+			n_units = 2
+			unit(hours, h)
+			unit(minutes, m)
+			unit(seconds, s)
+			unit(milliseconds, ms)
+
+			remaining_microseconds = (microseconds.microseconds - milliseconds.milliseconds).microseconds
+			if remaining_microseconds != 0
+				str << "#{remaining_microseconds}µs "
+				n_units -= 1
+				if n_units == 0
+					next str
+				end
+			end
+		end[..-2]
 	end
 end
 
@@ -58,9 +73,9 @@ known_preprocessors = {"cpp"},
 	known_compilers = {"clang++"},
 	  known_linkers = {"clang++"}
 
-def vprint(x)
+macro vprint(x)
 	if verbose
-		puts x
+		puts "#{"verbose".colorize.magenta}: #{{{ x }}}"
 	end
 end
 
@@ -75,27 +90,6 @@ end
 
 def warn(x)
 	print "warning".colorize.yellow, ": ", x, "\n"
-end
-
-# use the preprocessor to find all includes of a file
-# then save a cache of them to the build folder
-def cache_dependencies(filename, outfilename, defines, includes)
-	case preprocessor
-	when "cpp"
-		defines = defines.join " "
-		includes = includes.join " "
-
-		dependencies = `cpp #{filename} #{defines} #{includes} -MM`
-			.split(" ", remove_empty: true)
-			.skip(2)
-			.each
-			.map { |x| x.strip }
-			.select { |x| x != "\\" }
-			.join "\n"
-		File.write(outfilename, dependencies)
-	else
-		fatal "unimplemented preprocessor '#{preprocessor}' for 'cache_dependencies'"
-	end
 end
 
 def clean_and_quit
@@ -117,19 +111,19 @@ def set_defaults_from_platform
 end
 
 def process_argv
+	vprint "processing ARGV"
 	args = ARGV.each
 	loop do
 		case args.next
 		when args.stop then break
 		when "clean"  then clean_and_quit
-		when "-v"     then verbose = true
-		when "-time"  then time = true
-		when "-r"     then buildmode = "release"
-		when "-p"     then profiling = "on"
-		when "-pw"    then profiling = "on and wait"
-		when "-ba"    then build_analysis = true
-		when "-pch"   then use_pch = true
-		when "-cc"    then gen_compcmd = true
+		when "-v"     then self.verbose = true
+		when "-r"     then self.buildmode = "release"
+		when "-p"     then self.profiling = "on"
+		when "-pw"    then self.profiling = "on and wait"
+		when "-ba"    then self.build_analysis = true
+		when "-pch"   then self.use_pch = true
+		when "-cc"    then self.gen_compcmd = true
 		when "-platform"
 			plat = args.next
 			if plat.is_a? Iterator::Stop
@@ -205,6 +199,10 @@ def output_exe
 	output_path / "amu"
 end
 
+def create_output_path
+	Dir.mkdir_p output_path
+end
+
 # display a nice message
 def greeting
 	puts <<-END
@@ -212,7 +210,9 @@ def greeting
 	#{"amu".colorize.green} [ #{compiler.colorize.blue}/#{linker.colorize.blue}/#{buildmode.colorize.blue} ]
 	#{
 		if File.exists? output_exe
-			"last build: #{File.info(output_exe).modification_time.to_local.my_format}"
+			modtime = File.info(output_exe).modification_time.to_local
+			since = (Time.local - modtime)
+			"last build: #{modtime.my_format} (#{since.pretty} ago)"
 		end
 	}
 	END
@@ -238,6 +238,7 @@ def defines
 		when "off" then %w()
 		else fatal "unhandled profiling mode"
 		end
+		vprint "built defines: #{@defines.join " "}"
 	end
 	@defines
 end
@@ -253,6 +254,7 @@ def includes
 			)
 		else fatal "unhandled compiler #{compiler}"
 		end
+		vprint "built includes: #{@includes.join " "}"
 	end
 	@includes
 end
@@ -294,18 +296,140 @@ def compiler_flags
 			end
 		else fatal "compiler flags not setup for '#{compiler}'"
 		end
+		vprint "built compiler flags: #{@compiler_flags.join " "}"
 	end
 	@compiler_flags
 end
 
+# cache the dependencies to the file 'outfilename'
+# the file starts with the defines and includes hashes separated by a space
+# followed by a newline delimited list of the headers the file depends on
+def cache_dependencies(filename, outfilename)
+	vprint "caching dependencies for #{filename} to #{outfilename}"
+	case preprocessor
+	when "cpp"
+		cmd = "cpp #{filename} #{@defines.join " "} #{@includes.join " "} -MM -std=c++20"
+		vprint "preprocessor cmd: #{cmd}"
+		dependencies = `#{cmd}`
+			.split(" ", remove_empty: true)
+			.skip(2)
+			.each
+			.map { |x| x.strip }
+			.select { |x| x != "\\" }
+			.join "\n"
+
+		output = <<-END
+			#{dependencies}\n
+			END
+
+		File.write outfilename, output
+
+		return output
+	else fatal "unhandled preprocessor #{preprocessor}"
+	end
+end
+
+def get_dependencies(filename, outfilename) : Array(String)
+	lines = [] of String
+
+	if File.exists? outfilename
+		if File.info(filename).modification_time > File.info(outfilename).modification_time
+			lines = cache_dependencies(filename, outfilename).lines
+		else
+			lines = File.read_lines(outfilename)
+		end
+	else
+		lines = cache_dependencies(filename, outfilename).lines
+	end
+
+	return lines[1..]
+end
+
 @source_files = [] of Path
+# object files we'll end up using in linking
+# this is so high up because if a file is older than
+# its object file we still need to add it to this list
+@obj_files = [] of String
+
+def get_object_file_path(source_file : Path)
+	case compiler
+	when "clang++"
+		return output_path / "#{source_file.stem}.o"
+	else fatal "unhandled compiler #{compiler}"
+	end
+end
 
 def source_files
 	if @source_files.empty?
-		@source_files =
-			Dir.glob("src/**/*.cpp").map {|x| Path[x].normalize }
+		files = Dir.glob("src/**/*.cpp") # find all cpp files
+		@source_files = files.compact_map do |f| # filter out certain files
+			f = Path[f].normalize
+			# NOTE(sushi) temp until I fix up the code base
+			if f.stem.includes? ".old"
+				next nil
+			end
+
+			obj_file = get_object_file_path(f)
+			mm_file = output_path / "#{f.stem}.mm"
+
+			if File.exists? obj_file
+				obj_modtime = File.info(obj_file).modification_time
+				if File.info(f).modification_time > obj_modtime
+					vprint "building '#{f}' because it is newer than its object file '#{obj_file}'"
+					next f
+				end
+
+				deps = get_dependencies(f, mm_file)
+				include_modified = deps.each.any? do |dep|
+					if File.info(dep).modification_time > obj_modtime
+						break true
+					end
+				end
+				if include_modified
+					# TODO(sushi) show the include 
+					vprint "building '#{f}' because an include it depends on has been modified"
+					next f
+				end
+
+				@obj_files.push obj_file.to_s
+				next nil
+			else
+				cache_dependencies(f, mm_file)
+				vprint "building '#{f}' because an object file does not exist yet"
+				next f
+			end
+		end
 	end
 	@source_files
+end
+
+# depending on the selected compiler start
+# a build analyzer. The way this is structured
+# probably won't work properly for other compilers
+# (as in, the fact that it is a separate process that
+# is started and stopped), but it's how it works for clang
+# and as far as I've seen vcperf also works like this,
+# though I'm not totally sure
+def start_build_analyzer
+	case compiler
+	when "clang++"
+		unless Process.find_executable "ClangBuildAnalyzer"
+			fatal "build analysis is enabled (-ba) but ClangBuildAnalyzer could not be found on the system"
+		end
+		puts `ClangBuildAnalyzer --start #{output_path}`
+		@compiler_flags.push "-ftime-trace"
+	else fatal "unhandled compiler #{compiler}"
+	end
+end
+
+def stop_build_analyzer
+	output = output_path / "buildanalysis"
+	case compiler 
+	when "clang++"
+		`ClangBuildAnalyzer --stop #{output_path} #{output}`
+		puts `ClangBuildAnalyzer --analyze #{output}`
+	else fatal "unhandled compiler #{compiler}"
+	end
 end
 
 struct Command
@@ -325,7 +449,7 @@ def generate_compiler_commands
 			c = Command.new
 			c.command = "clang++"
 			c.from = sf.to_s
-			c.to = (output_path / "#{sf.stem}.o").to_s
+			c.to = get_object_file_path(sf).to_s
 			c.args = ["-c", c.from, "-o", c.to, *@includes, *@defines, *@compiler_flags]
 			@commands.push c
 		end
@@ -343,7 +467,7 @@ def execute_compiler_commands
 	
 	# sentinel value returned to indicate if we should try
 	# linking or not
-	success = false
+	success = true
 
 	# spawn as many fibers as we are allowed jobs
 	max_jobs.times do
@@ -360,6 +484,7 @@ def execute_compiler_commands
 				result = proc.wait
 				elapsed_time = Time.monotonic - start_time
 				if result.success?
+					@obj_files.push c.to unless @obj_files.any? c.to
 					print "#{c.from.colorize.cyan} -> #{c.to.colorize.green} #{elapsed_time.pretty}\n"
 					# if we find a warning anywhere in the stderr, print it
 					# TODO(sushi) setup doing this for various compilers
@@ -392,15 +517,60 @@ def execute_compiler_commands
 	return success
 end
 
+# currently linking only happens via one command
+def	do_linking
+	stdout, stderr = IO::Memory.new, IO::Memory.new
+	case linker
+	when "clang++"
+		output = output_path / "amu"
+		args = [*@obj_files, "-o", output.to_s]
+		vprint "clang++ #{args.join " "}"
+		time_start = Time.monotonic
+		proc = Process.new("clang++", args, output: stdout, error: stderr)
+		result = proc.wait
+		elapsed_time = Time.monotonic - time_start
+		if result.success?
+			puts "#{"amu".colorize.green} #{elapsed_time.pretty}"
+		else 
+			puts "#{"linking failed".colorize.red}:"
+			# we wanna delete the object files that failed so that we dont 
+			# try and reuse them in future build attempts
+			stderr.to_s.each_line do |l|
+				puts l
+				m = l.match /(\w+\.o)/
+				next unless m
+				File.delete? output_path / m[1]
+			end
+		end
+	else fatal "unhandled linker '#{linker}'"
+	end
+end
+
+def report_time(start_time)
+	puts "build took: #{(Time.monotonic - start_time).pretty}"
+end
+
 def start
+	start_time = Time.monotonic
 	set_defaults_from_platform
 	process_argv
+	create_output_path
 	greeting
 	defines
+	includes
 	compiler_flags
 	source_files
+	if @source_files.empty? && File.exists? output_exe
+		puts "Nothing to do."
+		report_time(start_time)
+		exit 0
+	end
+	start_build_analyzer if build_analysis
 	generate_compiler_commands
-	execute_compiler_commands
+	execute_compiler_commands &&
+	do_linking
+	stop_build_analyzer if build_analysis
+	report_time(start_time)
 end
 
 end

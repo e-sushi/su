@@ -5,17 +5,24 @@
 #ifndef AMU_MEMORY_H
 #define AMU_MEMORY_H
 
-#include "Common.h"
+#define AMU_TRACK_MEMORY true
+
+#include "Common.h" 
 
 namespace amu {
 
 // TODO(sushi) memory tracking
 struct Memory {
+#if AMU_TRACK_MEMORY
+	struct Header {
+		u64 size;
+	};
+	u64 bytes_allocated;
+	u64 n_allocations;
+#endif
+
 	void*
 	allocate(upt size);
-
-	template<typename T> T*
-	allocate();
 
 	void*
 	reallocate(void* ptr, upt size);
@@ -26,39 +33,17 @@ struct Memory {
 	void
 	copy(void* dst, void* src, upt bytes);
 
-	template<typename T> T*
-	copy(T* source, upt bytes);
-
 	void
 	move(void* dst, void* src, upt bytes);
 
 	void
 	zero(void* ptr, upt bytes);
 
-	template<typename T> void
-	zero(T* ptr);
+	template<typename T, typename... Args> T
+	construct(Args... args);
 };
 
 extern Memory memory;
-
-template<typename T> T* Memory::
-allocate() {
-	T* out = (T*)malloc(sizeof(T));
-	zero(out, sizeof(T));
-	return out;
-}
-
-template<typename T> T* Memory::
-copy(T* source, upt bytes) {
-    T* out = (T*)allocate(bytes);
-    copy((void*)out, (void*)source, bytes);
-    return out;
-}
-
-template<typename T> void Memory::
-zero(T* ptr) {
-	zero(ptr, sizeof(T));
-}
 
 } // namespace amu
 

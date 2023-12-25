@@ -7,7 +7,7 @@
 
 */
 
-#ifndef AMU_COMMON_H
+#ifndef AMU_COMMON_H 
 #define AMU_COMMON_H
 
 ////////////////////////////////////////// compilers: COMPILER_CL, COMPILER_CLANG, COMPILER_GCC
@@ -148,11 +148,9 @@
 ///             so they don't need to be included everywhere
 #include <stdio.h>
 #include <stddef.h> //size_t, ptrdiff_t
-#include <stdlib.h> //malloc, calloc, free
-#include <stdarg.h> //va_start, va_list, va_arg, va_end
-#include <string.h> //memcpy, memset, strcpy, strlen, etc
-#include <math.h>   //log2
-
+// #include <stdarg.h> //va_start, va_list, va_arg, va_end
+// #include <math.h>   //log2
+ 
 /////////////////////////////////////
 //// compiler-dependent builtins ////
 /////////////////////////////////////
@@ -221,9 +219,9 @@ typedef wchar_t            wchar;
 #define Gigabytes(a) (((u64)(a)) << 30)
 #define Terabytes(a) (((u64)(a)) << 40)
 
-#define Thousand(a) (((u64)(a)) * 1000)
-#define Million(a)  (((u64)(a)) * 1000000)
-#define Billion(a)  (((u64)(a)) * 1000000000)
+inline s64 million(s64 x) { return x * 1000000; }
+inline s64 billion(s64 x) { return x * 1000000000; }
+
 
 /////////////////////// //NOTE the ... is for a programmer message at the assert; it is unused otherwise
 //// assert macros //// //TODO(delle) assert message popup thru the OS

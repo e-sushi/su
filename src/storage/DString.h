@@ -2,6 +2,7 @@
 #define AMU_DSTRING_H
 
 #include "String.h"
+#include <type_traits>
 
 namespace amu {
 
@@ -80,57 +81,20 @@ to_string(const String& s) {
     return DString(s);
 }
 
-// https://stackoverflow.com/questions/301330/determine-if-type-is-a-pointer-in-a-template-function
-template<typename T> struct is_ptr { static const bool value = false; };
-template<typename T> struct is_ptr<T*> { static const bool value = true; };
-
-// NOTE(sushi) this doesn't check if there is already enough space to hold the new characters
-//             it just shrinks it down to fit the resulting string
-// NOTE(sushi) the reason this isn't an overload of dstring's append is because I dont want
-//             to have to start a dstring namespace just to make an overload of it 
-template<typename T> global void
-to_string(DString& start, T x) {
-#define conversion(s)                                                   \
-        u64 count = snprintf(nullptr, 0, s, x);                         \
-		s64 available_space = start.available_space();                  \
-		if(available_space < count) {                                   \
-			start.grow(count - available_space);	                    \
-		}                                                               \
-		snprintf((char*)start.ptr + start.count(), count+1, "%hhi", x); \
-		start.count() += count;
-
-	if       constexpr(std::is_same_v<T, char*> || std::is_same_v<T, const char*>){
-		start.append(String(x, (s64)strlen(x)));
-	}else if constexpr(std::is_same_v<T, String> || std::is_same_v<DString*, T>) {
-		start.append(String(x));
-	}else if constexpr(std::is_same_v<T, char>){
-        start.append(String(&x, 1));
-    }else if constexpr(std::is_same_v<T, u8>){
-		conversion("%hhu")
-	}else if constexpr(std::is_same_v<T, u16>){
-		conversion("%hu");
-	}else if constexpr(std::is_same_v<T, u32>){
-		conversion("%u");
-	}else if constexpr(std::is_same_v<T, u64>){
-		conversion("%llu");
-	}else if constexpr(std::is_same_v<T, s8>){
-		conversion("%hhi");
-	}else if constexpr(std::is_same_v<T, s16>){
-		conversion("%hi");
-	}else if constexpr(std::is_same_v<T, s32>){
-		conversion("%i");
-	}else if constexpr(std::is_same_v<T, s64>){
-		conversion("%lli");
-	}else if constexpr(std::is_same_v<T, long>){
-		conversion("%ld");
-	}else if constexpr(std::is_same_v<T, f32> || std::is_same_v<T, f64>){
-		conversion("%g");
-	}else if constexpr(std::is_same_v<T, upt>){
-		conversion("%zu");
-	}else if constexpr(is_ptr<T>::value){
-		conversion("%p");
-	}
-}
+void to_string(DString& x, const char* y);
+void to_string(DString& x, const String y);
+void to_string(DString& x, const DString y);
+void to_string(DString& x, const u8 y);
+void to_string(DString& x, const u16 y);
+void to_string(DString& x, const u32 y);
+void to_string(DString& x, const u64 y);
+void to_string(DString& x, const s8 y);
+void to_string(DString& x, const s16 y);
+void to_string(DString& x, const s32 y);
+void to_string(DString& x, const s64 y);
+void to_string(DString& x, const f32 y);
+void to_string(DString& x, const f64 y);
+void to_string(DString& x, const void* y);
 
 template<typename... T> void DString::
 append(T... args) {

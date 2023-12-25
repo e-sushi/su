@@ -8,10 +8,6 @@
 #ifndef AMU_UTIL_H
 #define AMU_UTIL_H
 
-#undef global
-#include <chrono>
-#define global static
-
 #include "basic/Memory.h"
 
 namespace amu {

@@ -69,16 +69,11 @@
 #include "Common.h"
 #include "util.h"
 
-#include <iostream>
-#include <filesystem>
-#include <unistd.h>
-#include <thread>
-#include <future>
-
 // #ifdef AMU_USE_NOTCURSES
 #include "notcurses/notcurses.h"
 // #endif
 
+#include "utils/Time.h"
 #include "basic/Memory.h"
 // #include "basic/Node.h"
 // #include "storage/View.h"
@@ -89,17 +84,55 @@
 #include "storage/Map.h"
 #include "systems/Messenger.h"
 
+#include "basic/Pointer.h"
+
 void test(amu::DString a) {
 	a.append(" goodbye!");
 }
 
 int main(int argc, char* argv[]){
 	using namespace amu;
-	{
-		DString test;
-		test.append("hello!");
-		::test(test);
-		int a = 0;
+
+	auto tp = Time::Point::now();
+
+	auto h = ptr(tp);
+	auto t = h.deref();
+
+	counted_ptr<String> a = "";
+	auto b = a.ref();
+	
+	struct Apple {
+		int leaves;
+	};
+
+	auto c = counted_ptr(Apple{2});
+	auto d = c.deref();
+
+	while(1) {
+		printf("bytes allocated: %lli, real bytes allocated: %lli\n", memory.bytes_allocated, memory.bytes_allocated + sizeof(Memory::Header) * memory.n_allocations);
+		DString hello;
+		hello.append("hello! ", "goodbye! ", 1, 2, -3, 4, 2.3);
+		printf("%s\n", hello.get_string().str);
+		printf("bytes allocated: %lli, real bytes allocated: %lli\n", memory.bytes_allocated, memory.bytes_allocated + sizeof(Memory::Header) * memory.n_allocations);
+	}
+
+	Time::Point points[2];
+	u32 x = 0;
+
+	while(1) {
+		auto point = Time::Point::now();
+		switch(x) {
+			case 0: {
+				points[0] = Time::Point::now();
+				x = 1;
+			} break;
+			case 1: {
+				points[1] = Time::Point::now();
+				auto s = (points[1] - points[0]).pretty().get_string();
+				printf("%.*s\n", (int)s.count, s.str);
+				x = 0;
+			} break;
+		}
 	}
 
 	//{using namespace amu;

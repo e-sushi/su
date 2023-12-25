@@ -11,8 +11,8 @@ struct Token;
 struct Type;
 
 namespace diagnostic {
-#include "data/diagnostics-data.generated"
-extern language lang;
+// #include "data/diagnostics-data.generated"
+// extern language lang;
 }
 
 struct Diag {

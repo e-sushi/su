@@ -148,16 +148,10 @@ struct String {
 	}
 
 	f64 
-	to_f64() {
-		return strtod((char*)str, 0);
-	}
+	to_f64();
 
 	s64
-	to_s64() {
-		s64 x;
-		(void)sscanf((char*)str, "%lli", &x);
-		return x;
-	}
+	to_s64();
 
 	// Returns the codepoint at the given idx
 	u32 codepoint(u32 idx = 0);
@@ -171,7 +165,7 @@ struct String {
 
 	DString
 	replace(u32 codepoint_to_replace, u32 codepoint_to_replace_with);
-
+ 
 	// Replaces all occurances of 'find_string' with 'replace_string' in this String,
 	// and returns a DString* containing the result.
 	DString

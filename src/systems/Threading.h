@@ -11,9 +11,18 @@
 #ifndef AMU_THREADING_H
 #define AMU_THREADING_H
 
+// TODO(sushi) including these headers probably slows down compilation by like 999% so 
+//             we should look into replacing them with either a more lightweight library
+//             or implement our own stuff
+//             consider:
+//             	 https://github.com/baruch/libwire/wiki/Other-coroutine-libraries
+//               https://github.com/sandialabs/qthreads
+
 #include <condition_variable>
 #include <mutex>
 #include <semaphore>
+#include <future>
+
 namespace amu {
 
 template<typename T>
@@ -94,6 +103,8 @@ struct Mutex {
 		mtx.unlock();
 	}
 };
+
+
 
 // TODO(sushi) come back and implement a custom semaphore later 
 //             so we can decide at runtime how many threads may be active

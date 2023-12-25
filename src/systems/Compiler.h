@@ -9,18 +9,6 @@
 #ifndef AMU_COMPILER_H
 #define AMU_COMPILER_H
 
-#include "systems/Messenger.h"
-#include "storage/Pool.h"
-#include "representations/Entity.h"
-#include "processors/Lexer.h"
-#include "processors/Parser.h"
-#include "processors/Sema.h"
-#include "processors/GenTAC.h"
-#include "processors/GenAIR.h"
-#include "representations/Code.h"
-#include "systems/VM.h"
-#include "systems/Debugger.h"
-
 namespace amu {
 
 struct Compiler {

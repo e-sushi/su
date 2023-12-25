@@ -30,7 +30,7 @@ DString::DString(String s) {
 	header->count = s.count;
 	header->space = space;
 	ptr = (u8*)(header + 1);
-	memory.copy(ptr, s.str, header->count);
+	memory.copy(ptr, s.str, header->count); 
 }
 
 DString::DString(const DString& x) {
@@ -170,5 +170,30 @@ String DString::
 get_string() {
 	return String(*this);
 }
+
+#define ts(format)                                      \
+	int n = snprintf(0, 0, format, y);                  \
+	auto header = get_header(x.ptr);                    \
+	s64 available_space = x.available_space();          \
+	if(n > available_space) {                           \
+		x.grow(n - available_space);                    \
+	}                                                   \
+	snprintf((char*)(x.ptr + x.count()-1), n+1, format, y); \
+	x.count() += n;
+
+void to_string(DString& x, const char* y)   { x.append(String::from(y)); }
+void to_string(DString& x, const String y)  { x.append(y); }
+void to_string(DString& x, const DString y) { x.append(String(y)); }
+void to_string(DString& x, const u8 y)      { ts("%hhu"); }
+void to_string(DString& x, const u16 y)     { ts("%hu"); }
+void to_string(DString& x, const u32 y)     { ts("%u"); }
+void to_string(DString& x, const u64 y)     { ts("%llu"); }
+void to_string(DString& x, const s8 y)      { ts("%hhi"); }
+void to_string(DString& x, const s16 y)     { ts("%hi"); }
+void to_string(DString& x, const s32 y)     { ts("%i"); }
+void to_string(DString& x, const s64 y)     { ts("%lli"); }
+void to_string(DString& x, const f32 y)     { ts("%f"); }
+void to_string(DString& x, const f64 y)     { ts("%f"); }
+void to_string(DString& x, const void* y)   { ts("%p"); }
 
 } // namespace amu

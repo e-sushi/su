@@ -7,61 +7,76 @@
 #ifndef AMU_TIME_H
 #define AMU_TIME_H
 
-#include "time.h"
+#include "Common.h"
 
 namespace amu {
-namespace time {
+
+struct String;
+struct DString;
+
+namespace Time {
 
 struct Span;
+struct Date;
 
-struct Nanoseconds;
-struct Microseconds;
-struct Milliseconds;
-struct Seconds;
-struct Minutes;
-struct Hours;
-struct Days;
-
-enum class Unit {
-	Nanosecond,
-	Microsecond,
-	Millisecond,
-	Second,
-	Minute,
-	Hour,
-	Day,
-};
-
-// Representation of a single point in time
-// in nanoseconds since the program started.
 struct Point {
-	s64 n;
+	s64 s,n;
 
-	static Point
-	now();
+	static Point now();
+
+	Date utc_date();
+	Date local_date();
 
 	friend Span operator-(Point lhs, Point rhs);
 };
 
-// Representation of a span of time.
-struct Span {
-	Point start, end;
+struct Date {
+	s32 nanosecond;
+	s32 microsecond;
+	s32 millisecond;
+	s32 second;
+	s32 minute;
+	s32 hour;
+	s32 month_day;
+	s32 month;
+	s32 year_day;
+	s32 year;
+	s32 week_day;
 
-	s64 nanoseconds();
-	s64 microseconds();
-	s64 milliseconds();
-	s64 seconds();
-	s64 minutes();
-	s64 hours();
+	String week_day_string(b32 abbreviated = false);
+	String month_string(b32 abbreviated = false);
+
+	DString pretty();
 };
 
-} // namespace time
+// Representation of a span of time.
+struct Span {
+	s64 nanoseconds; 
+	
+	// NOTE(sushi) these are implement as needed
+	static Span from_nanoseconds(s64 n);
+	static Span from_microseconds(s64 n);
+	static Span from_milliseconds(s64 n);
+	static Span from_seconds(s64 n);
+	static Span from_minutes(s64 n);
+	static Span from_hours(s64 n);
+	static Span from_days(s64 n);
 
-namespace IO {
+	f64 to_nanoseconds();
+	f64 to_microseconds();
+	f64 to_milliseconds();
+	f64 to_seconds();
+	f64 to_minutes();
+	f64 to_hours();
+	f64 to_days();
+	f64 to_weeks();
+	f64 to_months();
+	f64 to_years();
 
+	DString pretty(u32 n_units = 2);
+};
 
-
-} // namespace IO
+}
 
 } // namespace amu
 

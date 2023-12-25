@@ -5,15 +5,13 @@
 #ifndef AMU_TOKEN_H
 #define AMU_TOKEN_H
 
-#include "Source.h"
-#include "Code.h"
 #include "storage/String.h"
 #include "storage/DString.h"
 #include "representations/ScalarValue.h"
 
 namespace amu{
 
-
+struct Code;
 struct LexicalScope;
 
 struct Token {
@@ -122,7 +120,7 @@ struct Token {
 		Signed8,
 		Signed16,
 		Signed32,
-		Signed64,
+		Signed64, 
 		Float32,
 		Float64,
 
@@ -149,17 +147,7 @@ struct Token {
 	b32 is(Kind x)  { return kind == x; }
 };
 
-FORCE_INLINE void 
-to_string(DString* start, Token* t) { 
-    start->append("Token<", t->code->identifier, ":", t->l0, ":", t->c0, " '", t->raw, "'>");
-}
-
-DString* 
-to_string(Token* t) { 
-    auto out = DString::create();
-    to_string(out, t);
-    return out; 
-}
+void to_string(DString* start, Token* t);
 
 } // namespace amu
 

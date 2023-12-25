@@ -2,13 +2,16 @@
 #include "DString.h"
 #include "utils/Unicode.h"
 
+#include "cstdlib"
+#include "string.h"
+
 namespace amu {
 
 using namespace unicode;
 
 
 // returns the codepoint that begins 'a'
-global u32
+u32
 codepoint(String a) {
     return DecodedCodepoint(a.str).codepoint;
 }
@@ -20,7 +23,7 @@ increment(String& s, u64 bytes){
 	s.count -= bytes;
 }
 
-global u64 
+u64 
 utf8_move_back(u8* start){
 	u64 count = 0;
 	while(is_continuation_byte(*(start-1))){
@@ -196,7 +199,7 @@ eat_whitespace(){
     String out = {this->str,0};
     while(a){
         DecodedCodepoint dc = advance(a); 
-        if(!isspace(dc.codepoint)) break;
+        if(!is_space(dc.codepoint)) break;
         out.count += dc.advance;
     }
     return out;
@@ -208,7 +211,7 @@ eat_word(b32 include_underscore){
     String out = {this->str,0};
     while(a){
         DecodedCodepoint dc = a.advance();
-        if(!isalnum(dc.codepoint)) break;
+        if(!is_alnum(dc.codepoint)) break;
         if(dc.codepoint == '_' && !include_underscore) break;
         out.count += dc.advance;
     }
@@ -221,7 +224,7 @@ eat_int(){
     String out = {this->str,0};
     while(a){
         DecodedCodepoint dc = a.advance();
-        if(!isdigit(dc.codepoint)) break;
+        if(!is_digit(dc.codepoint)) break;
         out.count += dc.advance;
     }
     return out;
@@ -262,7 +265,7 @@ skip_whitespace() {
     auto a = *this;
     String out = a;
     while(a){
-        if(!isspace(*out.str)) break;
+        if(!is_space(*out.str)) break;
         out.advance();
     }
     return out;
@@ -328,6 +331,18 @@ seek_n_lines_backward(u64 n, u8* boundry) {
 	}
 }
 
+f64 String::
+to_f64() {
+	return strtod((char*)str, 0);
+}
+
+s64 String::
+to_s64() {
+	s64 x;
+	(void)sscanf((char*)str, "%lli", &x);
+	return x;
+}
+
 u32 String::
 codepoint(u32 idx) {
 	Assert(idx < count);
@@ -362,7 +377,7 @@ is_alpha(u32 codepoint) {
 
 b32 String::
 is_alnum(u32 codepoint) {
-	return isalpha(codepoint) || isdigit(codepoint);
+	return is_alpha(codepoint) || is_digit(codepoint);
 }
 
 consteval u64 String::

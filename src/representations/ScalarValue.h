@@ -30,12 +30,26 @@
 #ifndef AMU_SCALARVALUE_H
 #define AMU_SCALARVALUE_H
 
-#include "Type.h"
+#include "Base.h"
 
 namespace amu {
 
 struct ScalarValue : public Base {
-    scalar::kind kind;
+    enum class Kind {
+		Unsigned8,
+		Unsigned16,
+		Unsigned32,
+		Unsigned64,
+		Signed8,
+		Signed16,
+		Signed32,
+		Signed64,
+		Float32,
+		Float64,
+	};
+
+	Kind kind;
+
     union {
         u64 _u64;
         u32 _u32;
@@ -71,20 +85,20 @@ struct ScalarValue : public Base {
 
     // casts this ScalarValue IN PLACE.
     void
-    cast_to(scalar::kind k);
+    cast_to(Kind k);
 
-    ScalarValue() : _u64(0), kind(scalar::unsigned64), Base(base::scalar_value) {}
+    ScalarValue() : _u64(0), kind(Kind::Unsigned64), Base(base::scalar_value) {}
 
-    ScalarValue(u64 x) : _u64(x), kind(scalar::unsigned64), Base(base::scalar_value) {}
-    ScalarValue(u32 x) : _u32(x), kind(scalar::unsigned32), Base(base::scalar_value) {}
-    ScalarValue(u16 x) : _u16(x), kind(scalar::unsigned16), Base(base::scalar_value) {}
-    ScalarValue(u8  x) : _u8 (x), kind(scalar::unsigned8), Base(base::scalar_value) {}
-    ScalarValue(s64 x) : _s64(x), kind(scalar::signed64), Base(base::scalar_value) {}
-    ScalarValue(s32 x) : _s32(x), kind(scalar::signed32), Base(base::scalar_value) {}
-    ScalarValue(s16 x) : _s16(x), kind(scalar::signed16), Base(base::scalar_value) {}
-    ScalarValue(s8  x) : _s8 (x), kind(scalar::signed8), Base(base::scalar_value) {}
-    ScalarValue(f64 x) : _f64(x), kind(scalar::float64), Base(base::scalar_value) {}
-    ScalarValue(f32 x) : _f32(x), kind(scalar::float32), Base(base::scalar_value) {}
+    ScalarValue(u64 x) : _u64(x), kind(Kind::Unsigned64), Base(base::scalar_value) {}
+    ScalarValue(u32 x) : _u32(x), kind(Kind::Unsigned32), Base(base::scalar_value) {}
+    ScalarValue(u16 x) : _u16(x), kind(Kind::Unsigned16), Base(base::scalar_value) {}
+    ScalarValue(u8  x) : _u8 (x), kind(Kind::Unsigned8), Base(base::scalar_value) {}
+    ScalarValue(s64 x) : _s64(x), kind(Kind::Signed64), Base(base::scalar_value) {}
+    ScalarValue(s32 x) : _s32(x), kind(Kind::Signed32), Base(base::scalar_value) {}
+    ScalarValue(s16 x) : _s16(x), kind(Kind::Signed16), Base(base::scalar_value) {}
+    ScalarValue(s8  x) : _s8 (x), kind(Kind::Signed8), Base(base::scalar_value) {}
+    ScalarValue(f64 x) : _f64(x), kind(Kind::Float64), Base(base::scalar_value) {}
+    ScalarValue(f32 x) : _f32(x), kind(Kind::Float32), Base(base::scalar_value) {}
 };
 
 

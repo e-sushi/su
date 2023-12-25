@@ -14,9 +14,7 @@
 
 #include "storage/Array.h"
 #include "storage/DString.h"
-#include "representations/Source.h"
-#include "representations/Entity.h"
-#include "representations/Token.h"
+#include "systems/Threading.h"
 
 #define LOG(sender, verbosity, ...)                                    \
 	if(compiler.options.verbosity >= Message::Kind::verbosity) {       \
@@ -45,6 +43,9 @@ struct Function;
 struct Module;
 struct Token;
 struct Source;
+struct Structure;
+struct Label;
+struct Type;
 
 // standard terminal colors
 // FormattingColor indicates to use the color defined by a
@@ -120,7 +121,7 @@ struct MessagePart {
 	// and I have no idea how to get it to
 	consteval MessagePart(const char* s) : plain(s), kind(Kind::Plain), color(Color::White) {} 
 
-	MessagePart& colored(Color color) { this->color = color; }
+	MessagePart& colored(Color color) { this->color = color; return *this; }
 };
 
 // indicates who sent a message
@@ -135,10 +136,10 @@ struct MessageSender {
     amu::Code* code;
     Token* token;
 
-    MessageSender() : type(Compiler) {}
-    MessageSender(Type type) : type(type) {}
-    MessageSender(amu::Code* c) : type(Code), code(c) {}
-    MessageSender(Token* t) : type(CodeLoc), code(t->code), token(t) {}
+    MessageSender();
+    MessageSender(Type type);
+    MessageSender(amu::Code* c);
+    MessageSender(Token* t);
 };
 
 // a representation of a single message to be delivered to some destination
@@ -256,7 +257,7 @@ struct Messenger {
 	MessageFormatting formatting;
 	
 	// locked anytime data is being output 
-	std::mutex outmtx;	
+	Mutex outmtx;	
 
 	void dispatch(Message message);
 	void dispatch(String message, Source* source = 0);
