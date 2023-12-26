@@ -161,8 +161,6 @@ struct String {
 	static b32 is_alpha(u32 codepoint);
 	static b32 is_alnum(u32 codepoint);
 
-	consteval u64 static_hash(String s, u64 seed = 14695981039);
-
 	DString
 	replace(u32 codepoint_to_replace, u32 codepoint_to_replace_with);
  
@@ -187,6 +185,16 @@ static void
 println(String s) {
 	print(s);
 	print("\n");
+}
+
+consteval u64 
+static_string_hash(String s, u64 seed = 14695981039) {
+	 while(s.count-- != 0){
+		seed ^= (u8)*s.__char_str;
+		seed *= 1099511628211; //64bit FNV_prime
+		s.__char_str++;
+	}
+	return seed;
 }
 
 } // namespace util::hash

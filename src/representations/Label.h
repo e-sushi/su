@@ -38,22 +38,22 @@ struct Label : public ASTNode {
     Label*
     base();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     // returns the type of the Label's expression
     Type*
     resolve_type();
 
-    Label() : ASTNode(ast::label), is_virtual(false) {}
-    Label(b32 is_virt) : ASTNode(ast::label), is_virtual(is_virt) {}
+    Label() : ASTNode(ASTNode::Kind::Label), is_virtual(false) {}
+    Label(b32 is_virt) : ASTNode(ASTNode::Kind::Label), is_virtual(is_virt) {}
 };
 
 template<> b32 inline Base::
-is<Label>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::label; }
+is<Label>() { return is<ASTNode>() && as<ASTNode>()->kind == ASTNode::Kind::Label; }
 
 struct LabelTable {
     LabelTable* last;
@@ -89,22 +89,22 @@ struct VirtualLabel : public Label {
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     VirtualLabel() : Label(true) {} 
 };
 
-global void
+void
 to_string(DString* start, Label* l);
 
-DString*
+DString
 to_string(Label* l) {
-    DString* out = DString::create();
-    to_string(out, l);
+    DString out;
+	to_string(out, l);
     return out;
 }
 

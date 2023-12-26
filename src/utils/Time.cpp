@@ -129,14 +129,17 @@ DString Span::
 pretty(u32 n_units) {
 	DString out;
 	s64 x = 0;
+	s64 save = nanoseconds;
 #define unit(f, u)                       \
 	x = floor(f());                      \
 	if(x) {                              \
 		out.append(x, STRINGIZE(u) " "); \
 		n_units--;                       \
 		if(!n_units) {                   \
+			nanoseconds = save;          \
 			return out;                  \
 		}                                \
+		nanoseconds -= x;                \
 	}
 	
 	unit(to_years,        years);
@@ -150,6 +153,7 @@ pretty(u32 n_units) {
 	unit(to_microseconds, μs);
 	unit(to_nanoseconds,  ns);
 
+	nanoseconds = save;
 	return out;
 #undef unit
 }

@@ -30,32 +30,22 @@ struct Var : public Entity {
 
 
     static Var*
-    create(Type* type = 0);
+    create(Allocator allocator, Type* type = 0);
 
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     Type*
     resolve_type() { return type; }
 
-    Var() : Entity(entity::var) {}
+    Var() : Entity(Entity::Kind::Var) {}
 };
-
-void
-to_string(DString* start, Var* p);
-
-DString*
-to_string(Var* p) {
-    DString* out = DString::create();
-    to_string(out, p);
-    return out;
-}
 
 } // namespace amu 
 

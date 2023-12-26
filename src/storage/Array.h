@@ -224,7 +224,7 @@ template<typename T> void Array<T>::
 resize(u32 count) {
     if(count > this->count) {
         if(count > this->space) {
-            this->data = memory.reallocate(this->data, count*sizeof(T));
+            this->data = (T*)memory.reallocate(this->data, count*sizeof(T));
         }
 
         forI(count - this->count) {

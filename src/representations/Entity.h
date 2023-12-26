@@ -1,6 +1,7 @@
 /*
-    An Entity represents any thing that a label may be attached to and the way a label 
-    may be used is dependent upon its entity.
+   
+   An Entity is anything that a label can point to.
+
 */
 
 #ifndef AMU_ENTITY_H
@@ -8,6 +9,7 @@
 
 #include "basic/Node.h"
 #include "storage/Pool.h"
+#include "representations/AST.h"
 
 namespace amu{
 
@@ -18,67 +20,33 @@ struct OverloadedFunction;
 struct Type;
 struct TAC;
 struct Label;
-
-namespace entity {
-// @genstrings(data/entity_strings.generated)
-enum kind {
-    expr,
-    type,
-    func,
-    var,
-    module,
-    member,
-};
-#include "data/entity_strings.generated"
-} // namespace entity
+struct Code;
 
 struct Entity : public ASTNode {
-    entity::kind kind;
+	enum class Kind {
+		Expr,
+		Type,
+		Func,
+		Var,
+		Module,
+		Member,
+	};
+
+    Kind kind;
+
     Label* label; // the most recent label used to represent this entity, null if it is anonymous
     Code* code;   // the Code object this Entity belongs to 
 	ASTNode* def; // the syntax used to define this entity. label cannot be used to retrieve this because it points to the most recent label used for this Entity
  
 				  
 	// ~~~~ interface ~~~~
-	
 
-    Entity(entity::kind k) : kind(k), ASTNode(ast::entity) {}
-};
+	IS_TEMPLATE_DECLS;
 
-template<> inline b32 Base::
-is<Entity>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::entity; }
-
-template<> inline b32 Base::
-is(entity::kind k) { return is<Entity>() && as<Entity>()->kind == k; }
-
-// a TemplateParameter denotes a position in an AST where we need to place a template argument 
-// when some parameter is filled in for an Entity
-struct TemplateParameter {
-    TNode node; // representation of the parameter
-    Array<TNode*> points; // places in the Entity's AST where this parameter is replaced
-};
-
-struct TemplatedEntity : public Entity {
-    Array<TemplateParameter> parameters;
-};
-
-struct Trait : public Entity {
+	Entity(Kind kind) : ASTNode(ASTNode::Kind::Entity) {}
 
 };
 
-namespace trait {
-
-}
-
-void
-to_string(DString* start, Type* t);
-
-namespace entity {
-
-String
-get_name(Entity* e);
-
-} // namespace entity
 } // namespace amu
 
 #endif // AMU_ENTITY_H

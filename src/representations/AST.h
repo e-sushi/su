@@ -17,31 +17,23 @@ namespace amu {
 
 struct Type;
 
-namespace ast {
-// @genstrings(data/astnode_strings.generated)
-enum kind {
-    null,
-    code,
-    label,
-    entity,
-    stmt,
-    tuple,
-};
-
-#include "data/astnode_strings.generated"
-
-} // namespace ast 
-
-
 struct ASTNode : public TNode, public Base {
-    ast::kind kind;
+	enum class Kind {
+		Null,
+		Entity,
+		Stmt,
+		Label,
+		Code,
+	};
+
+    Kind kind;
     Token* start,* end;
 
     struct {
         b32 break_air_gen : 1 = false;
     } flags;
 
-    ASTNode(ast::kind k) : kind(k), Base(base::ast) {
+    ASTNode(Kind k) : kind(k), Base(Base::Kind::AST) {
         this->TNode::parent =
         this->TNode::next =
         this->TNode::prev = 
@@ -95,10 +87,10 @@ struct ASTNode : public TNode, public Base {
     void
     replace(ASTNode* n);
 
-    template<void (*callback)(DString*, ASTNode*)> DString*
+    template<void (*callback)(DString&, ASTNode*)> DString
     print_tree(b32 newlines = true);
 
-    DString*
+    DString
     print_tree(b32 newlines = true);
 
     // returns a String encompassing the first line
@@ -114,12 +106,12 @@ struct ASTNode : public TNode, public Base {
     // returns a DString of the line representing the current node
     // as well as an underline of the contents of the node
     // TODO(sushi) this currenly only works with space indentation
-    DString*
+    DString
     underline();
 };
 
 template<> b32 inline Base::
-is<ASTNode>() { return kind == base::ast; }
+is<ASTNode>() { return kind == Base::Kind::AST; }
 
 struct ASTNodeRef {
 	ASTNode* ref;

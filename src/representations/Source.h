@@ -11,10 +11,9 @@
 
 namespace amu {
 
-struct Lexer;
-struct Parser;
 struct Module;
 struct Code;
+
 struct Source {
     FILE* file;
     
@@ -25,29 +24,24 @@ struct Source {
 
     String buffer; // the loaded file
 
-    Array<Token> tokens;
-
-    Array<Diagnostic> diagnostics; // messages associated with this file
+    Array<Diag> diagnostics; // messages associated with this file
 
     // the module representing this Source
     Module* module;
 
     // representation of the actual code in this source file
     Code* code;
+
+	static Source*
+	load(String path);
+
+	void
+	unload();
+
+	static Source*
+	lookup(String name);
 };
 
-namespace source {
-
-global Source*
-load(String path);
-
-global void
-unload(Source* source);
-
-global Source*
-lookup(String name);
-
-} // namespace source
 } // namespace amu
 
 #endif // AMU_SOURCE_H

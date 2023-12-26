@@ -22,73 +22,63 @@
 #ifndef AMU_BASE_H
 #define AMU_BASE_H
 
+// for use on inheriting structures so that we can 
+// create overrides to perform direct checks 
+#define IS_TEMPLATE_DECLS                   \
+	template<typename T> inline b32 is();   \
+	template<typename T> inline b32 is(T x);
+
+#define IS_TEMPLATE_DEF(parent, base, kindval)                 \
+	template<> inline b32 Base::                                         \
+	is<base>() { return is<parent>() && as<parent>()->kind == kindval; } \
+	template<> inline b32 parent::                                       \
+	is<base>() { return kind == kindval; }          
+
 namespace amu {
 
-namespace base {
-enum kind {
-    ast,
-    literal,
-    tac,
-    scalar_value,
-};
-} // namespace base
-
 struct Base {
-    base::kind kind;
+	enum class Kind {
+		Entity,
+		Expr,
+		Stmt,
+		TAC,
+		ScalarValue,
+		AST,
+	};
 
+    Kind kind;
 
     // return a generated name for this object 
-    virtual DString*
+    virtual DString
     display() = 0;
 
     // outputs debug information about this object
-    virtual DString*
+    virtual DString
     dump() = 0;
 
-
     // performs a cast of this Base object
-    template<typename T> FORCE_INLINE T*
+    template<typename T> inline T*
     as() { return (T*)this; }
 
-    /* 
-        The following are small utilities for figuring out what something is
-        This is primarily for ASTNode, which is where it was originally implemented.
-        Since some parts of the AST are layered now, I found myself writing stuff like:
-            
-            if(n->kind == node::entity && ((Entity*)n)->kind == entity::expr && ((Expr*)n)->kind == ...)
-        
-        The following allow you to compress something like this into 
-
-            if(n->is(...)) 
-            or
-            if(n->is<...>()) 
-
-        If this Base thing is ever removed, we should probably just have node kinds store
-        everything they can be in a single enum, so it can be done in one check.
-
-        These are FORCE_INLINED because they are so small and I don't want to waste time
-        entering a function to do these checks
-    */
-
-    template<typename T> FORCE_INLINE b32
+    template<typename T> b32
     is();
 
-    template<typename... T> FORCE_INLINE b32
+    template<typename... T> inline b32
     is_any() { return (is<T>() || ...); }
 
-    template<typename T> FORCE_INLINE b32
+    template<typename T> inline b32
     is_not() { return !is<T>(); }
 
-    template<typename T> FORCE_INLINE b32
+    template<typename T> b32
     is(T x);
 
-    template<typename... T> FORCE_INLINE b32
+    template<typename... T> inline b32
     is_any(T... x) { return (is(x) || ...); }
 
-    template<typename T> FORCE_INLINE b32
+    template<typename T> inline b32
     is_not(T x) { return !is(x); }
 
-    Base(base::kind k) : kind(k) {}
+    Base(Kind k) : kind(k) {}
 };
 
 

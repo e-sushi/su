@@ -1,0 +1,40 @@
+#include "Bump.h"
+#include "basic/Memory.h"
+
+namespace amu {
+
+Bump Bump::
+init() {
+	Bump out = {};
+	out.allocated_slabs_list = (u8**)memory.allocate(slab_size + sizeof(u8**));
+	out.start = out.cursor = (u8*)(out.allocated_slabs_list + 1);
+	return out;
+}
+
+void Bump::
+deinit() {
+	u8* next = *allocated_slabs_list;
+	while(allocated_slabs_list) {
+		u8** next = (u8**)*allocated_slabs_list;
+		memory.free(allocated_slabs_list);
+		allocated_slabs_list = next;
+	}
+	cursor = start = 0;
+}
+
+void* Bump::
+allocate(u32 size) {
+	Assert(size <= slab_size);
+
+	if(cursor - start + size > slab_size) {
+		u8* newslab = (u8*)memory.allocate(slab_size + sizeof(u8**));
+		*((u8**)start - 1) = newslab;
+		start = cursor = newslab + 1;
+	}
+
+	u8* out = cursor;
+	cursor += size;
+	return out;
+}
+
+}

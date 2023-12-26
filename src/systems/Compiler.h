@@ -12,8 +12,6 @@
 namespace amu {
 
 struct Compiler {
-    util::Stopwatch compiler_time;
-
     // anything that is specified on the command line
     // later on all of these things should be changable from within the language
     struct {
@@ -40,43 +38,36 @@ struct Compiler {
         }dump_diagnostics; 
     } options;
 
+	// diagnostics emitted by the compiler itself
+	Array<Diag> diags;
+
+	void
+	push_diag(Diag d);
+
 	static Compiler
 	create();
+
+	void 
+	init();
+
+	void
+	deinit();
 
 	void
 	destroy();
 
 	b32
 	begin(Array<String> args);
+
+	b32
+	parse_arguments(Array<String> args);
+
+	b32
+	dump_diagnostics(String path, Array<String> sources);
 };
 
 extern Compiler compiler;
 
-namespace compiler {
-
-// initializes the compiler, storing all information in the global amu::compiler::instance
-global void
-init();
-
-global void
-deinit();
-
-// the entry point of the compiler given a list of command line arguments
-global b32
-begin(Array<String> args);
-
-// the global compiler object, referred to by anything in the program
-// later on, we may allow creating multiple instances of the Compiler
-// at the moment, I don't think I want this to be used directly,
-// probably best to have an interface to it, but I'll never restrict it
-// from direct use
-extern Compiler instance;
-
-// global compiler module, which is built up with information accessible to
-// the language itself
-extern Module* module;
-
-} // namespace compiler 
 } // namespace amu
 
 #endif // AMU_COMPILER_H

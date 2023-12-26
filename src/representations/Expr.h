@@ -12,6 +12,7 @@
 #include "Label.h"
 #include "Entity.h"
 #include "Frame.h"
+#include "basic/Allocator.h"
 
 namespace amu {
 
@@ -21,93 +22,75 @@ struct Type;
 struct Function;
 struct Tuple;
 
-namespace expr {
-// @genstrings(data/expression_strings.generated)
-enum kind : u32 {
-    null,
-
-    identifier,
-    literal_scalar,
-    literal_string,
-    literal_array,
-    literal_tuple,
-    literal_struct,
-    function,
-    typeref,
-    typedef_,
-    func_def,
-    varref, 
-	label_ref, 
-	module,
-	moduleref,
-    call,
-    
-    block,
-    loop,
-    for_,
-    switch_expr,
-    switch_case,
-    conditional,
-    return_,
-    using_,
-    break_,
-    subscript,
-
-    unary_bit_comp,
-    unary_logi_not,
-    unary_negate,
-    unary_reference,
-    unary_dereference,
-    unary_assignment,
-    unary_comptime,
-
-    binary_plus,
-    binary_minus,
-    binary_multiply,
-    binary_division,
-    binary_and,
-    binary_bit_and,
-    binary_or,
-    binary_bit_or,
-    binary_less_than,
-    binary_greater_than,
-    binary_less_than_or_equal,
-    binary_greater_than_or_equal,
-    binary_equal,
-    binary_not_equal,
-    binary_modulo,
-    binary_bit_xor,
-    binary_bit_shift_left,
-    binary_bit_shift_right,
-    binary_access,
-    binary_structure_access,
-    binary_assignment,
-    binary_comptime,
-    binary_range,
-    binary_in,
-
-    cast,
-    reinterpret,
-
-    // TODO(sushi) make this usable anywhere by allowing it be after and factor maybe 
-    vm_break,
-
-	intrinsic_rand_int,
-	intrinsic_print,
-};
-
-#include "data/expression_strings.generated"
-
-} // namespace expr
-
-
 struct Expr : public Entity {
-    expr::kind kind;
+	enum class Kind {
+		Null,
+
+		Identifier,
+		LiteralScalar,
+		LiteralString,
+		LiteralArray,
+		LiteralTuple,
+		LiteralStruct,
+		Function,
+		Type,
+		VarRef,
+		Module,
+		Call,
+
+		Block,
+		Loop,
+		For,
+		Switch,
+		SwitchCase,
+		Conditional,
+		Return,
+		Using,
+		Break,
+		Subscript,
+
+		BitwiseComplement,
+		Not,
+		Negate,
+		Reference,
+		Dereference,
+		AssignmentUnary,
+		CompileTimeUnary,
+
+		Plus,
+		Minus,
+		Multiply,
+		Division,
+		And,
+		BitwiseAnd,
+		Or,
+		BitwiseOr,
+		LessThan,
+		GreaterThan,
+		LessThanOrEqual,
+		GreaterThanOrEqual,
+		Equal,
+		NotEqual,
+		Modulo,
+		XOR,
+		ShiftLeft,
+		ShiftRight,
+		Access,
+		AssignmentBinary,
+		CompileTimeBinary,
+		Range,
+
+		Cast,
+		Reinterpret,
+
+		VMBreak,
+
+		IntrinsicRandInt,
+	};
+
+	Kind kind;
 
     Type* type; // the semantic type of this expression
-
-    // if this is an access expr, this will point to the member being accessed
-    // idk where else to put this atm 
 
     // when true, this expression represents a location in memory 
     // and operations performed on it should directly affect it 
@@ -116,43 +99,43 @@ struct Expr : public Entity {
 	// set true on expressions in Sema that can be considered 
 	// computable at compile time
 	b32 compile_time;
-	
 
 	union {
-		Var* varref; // expr::varref
-		Module* moduleref; // expr::moduleref
-    	Member* member; // expr::access
+		Var* varref; 
+		Module* moduleref; 
+    	Member* member; 
+		Function* function;
 	};
 
 
     // ~~~~~~ interface ~~~~~~~
 
+	static Expr*
+	create(Allocator allocator);
 
     static Expr*
-    create(expr::kind kind, Type* type = 0);
+    create(Allocator allocator, Kind kind, Type* type = 0);
 
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     Type*
     resolve_type();
 
-    Expr() : Entity(entity::expr) {}
+    Expr() : kind(Kind::Null), Entity(Entity::Kind::Expr) {}
 
-    Expr(expr::kind k) : kind(k), Entity(entity::expr) {def = this;}
+    Expr(Kind k) : kind(k), Entity(Entity::Kind::Expr) {def = this;}
+
+	IS_TEMPLATE_DECLS;
 };
 
-template<> inline b32 Base::
-is<Expr>() { return is<Entity>() && as<Entity>()->kind == entity::expr; }
-
-template<> inline b32 Base::
-is(expr::kind k) { return is<Expr>() && as<Expr>()->kind == k; }
+IS_TEMPLATE_DEF(Entity, Expr, Entity::Kind::Expr);
 
 // representation of a single expression meant to be evaluated at compile time
 // this is primarily so that we can keep track of frame information that an 
@@ -172,33 +155,20 @@ struct CompileTime : public Expr {
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
-    CompileTime() : Expr(expr::unary_comptime) {}
+    CompileTime() : Expr(Expr::Kind::CompileTimeUnary) {}
 };
 
-template<> inline b32 Base::
-is<CompileTime>() { return is<Expr>() && as<Expr>()->kind == expr::unary_comptime; }
+IS_TEMPLATE_DEF(Expr, CompileTime, Expr::Kind::CompileTimeUnary);
 
-// The following Literal structures are to help keep each kind of literal separate
-// while also providing a common interface for working with them.
-// I originally tried just having a Literal struct, but found that it stored too much information
-// and I didn't know where exactly to put it.
-// Though I also don't really care for this style either, but if it works better then whatever.
-// I just dont like having several representations of literals throughout the project. Tokens have their own
-// thing, Expressions have their own thing, and now TAC Args have their own as well.
-
-// the Scalar type of this Expr determines which literal to use 
-// This is one place where OOP fails I think. I need to store a kind on ScalarValue
-// so that other things that use it can tell what to do with it, but here it's not necessary
-// because Expr already has an underlying Type which can be used to determine this, so a u32 or 64, whatever
-// C++ makes it, is actually wasted here. There's probably some convoluted way to design this better
-// but I don't care for now.
 struct ScalarLiteral : public Expr {
+	using Kind = ScalarValue::Kind;
+
     ScalarValue value;
 
 
@@ -211,10 +181,10 @@ struct ScalarLiteral : public Expr {
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     // NOTE(sushi) it is IMPORTANT!!! that you call this and NOT the function
@@ -222,7 +192,7 @@ struct ScalarLiteral : public Expr {
     //             not change! 
     //             this KINDA SUCKS but whatever
     void
-    cast_to(scalar::kind k);
+    cast_to(Kind k);
 
     void
     cast_to(Type* t);
@@ -237,127 +207,10 @@ struct ScalarLiteral : public Expr {
     b32
     is_negative();
 
-    ScalarLiteral() : Expr(expr::literal_scalar) {}
+    ScalarLiteral() : Expr(Expr::Kind::LiteralScalar) {}
 };
 
-template<> b32 inline Base::
-is<ScalarLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_scalar; }
-
-struct StringLiteral : public Expr {
-    String raw;
-
-
-    // ~~~~ interface ~~~~
-
-
-    static StringLiteral*
-    create();
-
-    void
-    destroy();
-
-    DString*
-    display();
-
-    DString*
-    dump();
-
-    StringLiteral() : Expr(expr::literal_string) {}
-};
-
-template<> b32 inline Base::
-is<StringLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_string; }
-
-// the Type of this expression will be StaticArray and the underlying type of the 
-// array can be reached from there.
-
-// idk if this is really necessary, there's no reason to store an Array of Expr* because 
-// the elements are just its children anyways
-struct ArrayLiteral : public Expr {
-    Array<Expr*> elements;
-
-
-    // ~~~~ interface ~~~~
-
-
-    static ArrayLiteral*
-    create();
-
-    void
-    destroy();
-
-    DString*
-    display();
-
-    DString*
-    dump();
-
-    // casts this array in place to an array of the given
-    // type and applies casts to each of its elements 
-    // count cannot change here and this doesn't do any checks
-    // to see if the cast is valid
-    void
-    cast_to(Type* t);
-
-    ArrayLiteral() : Expr(expr::literal_array) {}
-};
-
-template<> b32 inline Base::
-is<ArrayLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_array; }
-
-// NOTE(sushi) this represents just plain tuple literals and tuple literals being 
-//             used as struct initializers 
-struct TupleLiteral : public Expr {
-    Tuple* t;
-
-
-    // ~~~~ interface ~~~~
-
-
-    static TupleLiteral*
-    create();
-
-    void
-    destroy();
-
-    DString*
-    display();
-
-    DString*
-    dump();
-
-    TupleLiteral() : Expr(expr::literal_tuple) {}
-};
-
-template<> b32 inline Base::
-is<TupleLiteral>() { return is<Expr>() && as<Expr>()->kind == expr::literal_tuple; }
-
-// any definition of a function, so an expr of any of the forms: 
-// 	1. full:
-// 		(...) -> ... { ... }
-// 	2. reduced:
-// 		(...) [ -> ...] { ... }
-struct FunctionLiteral : public Expr {
-	Function* func;
-
-
-	// ~~~~ interface ~~~~
-	
-
-	static FunctionLiteral*
-	create();
-
-	void
-	destroy();
-
-	DString*
-	display();
-
-	DString*
-	dump();
-
-	FunctionLiteral() : Expr(expr::function) {}
-};
+IS_TEMPLATE_DEF(Expr, ScalarLiteral, Expr::Kind::LiteralScalar);
 
 struct Block : public Expr {
     LabelTable* table;
@@ -372,48 +225,16 @@ struct Block : public Expr {
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
-    Block() : Expr(expr::block) {}
+    Block() : Expr(Expr::Kind::Block) {}
 };
 
-template<> inline b32 Base::
-is<Block>() { return is<Expr>() && as<Expr>()->kind == expr::block; }
-
-// an expression that invokes 'callee' with 'arguments'
-// 'callee' may be any expression resulting in a function reference.
-// Originally I had this store a pointer to a Function, but this does not
-// work with function overloading and functions that may be stored in arrays
-// or pointed to.
-struct Call : public Expr {
-    Expr* callee;
-    Tuple* arguments;
-
-
-    // ~~~~~~ interface ~~~~~~~
-
-
-    static Call*
-    create();
-
-    void
-    destroy();
-
-    DString*
-    display();
-
-    DString*
-    dump();
-
-    Call() : Expr(expr::call) {}
-};
-
-template<> inline b32 Base::
-is<Call>() { return is<Expr>() && as<Expr>()->kind == expr::call; }
+IS_TEMPLATE_DEF(Expr, Block, Expr::Kind::Block);
 
 // for loops hold a table
 struct For : public Expr {
@@ -429,14 +250,16 @@ struct For : public Expr {
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
-    For() : Expr(expr::for_) {} 
+    For() : Expr(Expr::Kind::For) {} 
 };
+
+IS_TEMPLATE_DEF(Expr, For, Expr::Kind::For);
 
 struct IntegerRange : public Expr {
     s64 left;

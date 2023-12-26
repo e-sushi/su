@@ -352,6 +352,16 @@ process_message(DString* current, Message& m) {
 //
 //
 
+
+void Messenger::
+dispatch(Message message) {
+	outmtx.lock();
+	defer { outmtx.unlock(); };
+	
+	
+}
+
+
 MessageSender::MessageSender() {
 	type = Compiler;
 }

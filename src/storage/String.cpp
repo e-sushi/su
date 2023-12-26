@@ -380,16 +380,6 @@ is_alnum(u32 codepoint) {
 	return is_alpha(codepoint) || is_digit(codepoint);
 }
 
-consteval u64 String::
-static_hash(String s, u64 seed) {
-    while(s.count-- != 0){
-		seed ^= (u8)*s.__char_str;
-		seed *= 1099511628211; //64bit FNV_prime
-		s.__char_str++;
-	}
-	return seed;
-}
-
 DString String::
 replace(u32 find, u32 repl) {
 	DString out;

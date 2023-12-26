@@ -1,131 +1,58 @@
 
 #include "processors/Lexer.h"
 #include "systems/Messenger.h"
+#include "storage/Array.h"
+#include "storage/String.h"
+#include "Compiler.h"
+
 namespace amu {
-namespace compiler {
 
 // global compiler instance
-Compiler instance;
-Module* module;
+Compiler compiler;
 
-void
+void Compiler::
 init() {
-    /*
-        Initialize most components of the singleton Compiler instance.
-    */
-    instance.compiler_time = util::stopwatch::start();
-
-    instance.log_file = fopen("temp/log", "w");
-
-    /*
-
-        This is where all persistent memory lives. Anything that needs to exist and not move
-        is stored in a pool stored on the Compiler instance. The majority of things put
-        here will never be deleted. 
-
-		TODO(sushi) see Compiler.h on why this needs to be redone 
-
-    */
-
-    instance.global_symbols = Map<u8*, Var*>::create();
-
-    instance.storage.sources             = Pool<Source>::create(8);
-    instance.storage.source_code         = Pool<SourceCode>::create(8);
-    instance.storage.virtual_code        = Pool<VirtualCode>::create(8);
-    instance.storage.lexers              = Pool<Lexer>::create(8);
-	instance.storage.lexical_scopes      = Pool<LexicalScope>::create(8);
-    instance.storage.parsers             = Pool<Parser>::create(8);
-    instance.storage.semas               = Pool<Sema>::create(8);
-    instance.storage.tac_gens            = Pool<GenTAC>::create(8);
-    instance.storage.air_gens            = Pool<GenAIR>::create(8);
-    instance.storage.vm                  = Pool<VM>::create(8);
-    instance.storage.modules             = Pool<Module>::create(8);
-    instance.storage.labels              = Pool<Label>::create(8);
-	instance.storage.label_tables        = Pool<LabelTable>::create(8);
-    instance.storage.virtual_labels      = Pool<VirtualLabel>::create(8);
-    instance.storage.structures          = Pool<Structure>::create(8);
-    instance.storage.members             = Pool<Member>::create(8);
-    instance.storage.functions           = Pool<Function>::create(8);
-    instance.storage.statements          = Pool<Stmt>::create(8);
-    instance.storage.expressions         = Pool<Expr>::create(8);
-    instance.storage.comp_times          = Pool<CompileTime>::create(8);
-    instance.storage.scalar_literals     = Pool<ScalarLiteral>::create(8);
-    instance.storage.string_literals     = Pool<StringLiteral>::create(8);
-    instance.storage.array_literals      = Pool<ArrayLiteral>::create(8);
-    instance.storage.tuple_literals      = Pool<TupleLiteral>::create(8);
-    instance.storage.calls               = Pool<Call>::create(8);
-    instance.storage.blocks              = Pool<Block>::create(8);
-    instance.storage.fors                = Pool<For>::create(8);
-    instance.storage.vars                = Pool<Var>::create(8);
-    instance.storage.tuples              = Pool<Tuple>::create(8);
-    instance.storage.scalars             = Pool<Scalar>::create(8);
-    instance.storage.structured_types    = Pool<Structured>::create(8);
-    instance.storage.pointer_types       = Pool<Pointer>::create(8);
-    instance.storage.static_array_types  = Pool<StaticArray>::create(8);
-    instance.storage.view_array_types    = Pool<ViewArray>::create(8);
-    instance.storage.dynamic_array_types = Pool<DynamicArray>::create(8);
-    instance.storage.range_types         = Pool<Range>::create(8);
-    instance.storage.variant_types       = Pool<Variant>::create(8);
-    instance.storage.function_types      = Pool<FunctionType>::create(8);
-    instance.storage.tuple_types         = Pool<TupleType>::create(8);
-	instance.storage.module_types        = Pool<ModuleType>::create(8);
-    instance.storage.meta_types          = Pool<MetaType>::create(8);
-	instance.storage.debuggers           = Pool<Debugger>::create(8);
-
-    instance.options.deliver_debug_immediately = true;
-	//instance.options.deliver_all_immediately = true;
-	//instance.options.break_on_error = true;
-
-    messenger::init();  // TODO(sushi) compiler arguments to control this
-    messenger::instance.destinations.push(Destination(stdout, (isatty(1)? true : false))); // TODO(sushi) isatty throws a warning on win32, make this portable 
-    messenger::instance.destinations.push(Destination(fopen("temp/log", "w"), false));
-
-    module = Module::create();
 }
 
-global void
+void Compiler::
 deinit() {} // TODO(sushi)
 
-namespace internal {
-
-b32 
+b32 Compiler::
 parse_arguments(Array<String> args) {
+	TRACE("parsing arguments");
     for(s32 i = 1; i < args.count; i++) {
         String arg = args.read(i);
+		TRACE("argument: ", arg);
         u64 hash = arg.hash();
         switch(hash) {
 
-            case string::static_hash("-q"): {
-                instance.options.quiet = true;
+			case util::static_string_hash("-q"): {
+                options.quiet = true;
             } break;
 
-            case string::static_hash("--dump-tokens"): {
+            case util::static_string_hash("--dump-tokens"): {
                 while(i != args.count-1) {
                     arg = args.read(++i);
                     if(arg.equal("-human")) {
-                        instance.options.dump_tokens.human = true;
+                        options.dump_tokens.human = true;
                     }else if(arg.equal("-exit")) {
-                        instance.options.dump_tokens.exit = true;
+                        options.dump_tokens.exit = true;
                     } else break;
                 }
                 if(arg.str[0] == '-') {
-                    diagnostic::compiler::
-                        expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens");
-                    messenger::deliver();
+					push_diag(Diag::expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens"));
                     return false;
                 }
-                instance.options.dump_tokens.path = arg;
+                options.dump_tokens.path = arg;
             } break;
 
-            case string::static_hash("--dump-diagnostics"): {
+            case util::static_string_hash("--dump-diagnostics"): {
                 arg = args.read(++i);
                 if(arg.equal("-source")) {
-                    instance.options.dump_diagnostics.sources = Array<String>::create();
+                    compiler.options.dump_diagnostics.sources = Array<String>::create();
                     arg = args.read(++i);
                     if(arg.str[0] == '-') {
-                        diagnostic::compiler::
-                            expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source");
-                        messenger::deliver();
+						push_diag(Diag::expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source"));
                         return false;
                     }
                     String curt = arg;
@@ -133,7 +60,7 @@ parse_arguments(Array<String> args) {
                     forI(arg.count) {
                         curt.count++;
                         if(i == arg.count-1 || arg.str[i] == ' ' || arg.str[i+1] == ',') {
-                            instance.options.dump_diagnostics.sources.push(curt);
+                            options.dump_diagnostics.sources.push(curt);
                             curt.str = arg.str + i + 1;
                             if(arg.str[i+1] == ',') curt.str++;
                             curt.count = 0;
@@ -142,23 +69,19 @@ parse_arguments(Array<String> args) {
                     arg = args.read(++i);
                 }
                 if(arg.str[0] == '-') {
-                    diagnostic::compiler::
-                        expected_a_path_for_arg(MessageSender::Compiler, "--dump-diagnostics");
-                    messenger::deliver();
+					Diag::expected_a_path_for_arg(diags, MessageSender::Compiler, "--dump-diagnostics");
                     return false;
                 }
-                instance.options.dump_diagnostics.path = arg;
+                options.dump_diagnostics.path = arg;
             } break;
 
             default: {
                 if(arg.str[0] == '-') {
-                    diagnostic::compiler::
-                        unknown_option(MessageSender::Compiler, arg);
-                    messenger::deliver();
+					Diag::unknown_option(diags, MessageSender::Compiler, arg);
                     return false;
                 }
                 // otherwise this is (hopefully) a path
-                instance.options.entry_path = arg;
+                options.entry_path = arg;
             } break;
         }
     }
@@ -166,74 +89,74 @@ parse_arguments(Array<String> args) {
     return true;
 } 
 
-b32 
+b32 Compiler::
 dump_diagnostics(String path, Array<String> sources) {
-    FILE* out = fopen((char*)path.str, "w");
-    if(sources.count) {
-        NotImplemented; // TODO(sushi) selective diag dump
-        // forI(sources.count){
-        //     Source* s = lookup_source(sources.read(i));
-        //     if(!s) return false;
-            
-        // }
-    }
+	NotImplemented;
+	return false;
+   // FILE* out = fopen((char*)path.str, "w");
+   // if(sources.count) {
+   //     NotImplemented; // TODO(sushi) selective diag dump
+   //     // forI(sources.count){
+   //     //     Source* s = lookup_source(sources.read(i));
+   //     //     if(!s) return false;
+   //         
+   //     // }
+   // }
 
-    struct DiagnosticEntry {
-        u64 source_offset;
-        Diagnostic diag;
-    };
-    
-    auto source_table = Array<Source*>::create();
-    auto diagnostics = Array<DiagnosticEntry>::create();;
+   // struct DiagnosticEntry {
+   //     u64 source_offset;
+   //     Diagnostic diag;
+   // };
+   // 
+   // auto source_table = Array<Source*>::create();
+   // auto diagnostics = Array<DiagnosticEntry>::create();;
 
-    pool::Iterator<Source> iter = pool::iterator(instance.storage.sources);
-    
-    DString* source_strings = DString::create();
+   // pool::Iterator<Source> iter = pool::iterator(instance.storage.sources);
+   // 
+   // DString* source_strings = DString::create();
 
-    Source* current = 0;
-    while((current = pool::next(iter))) {
-        if(!current->diagnostics.count) continue;
-        source_table.push(current);
-        u64 source_offset = sizeof(u64)+source_strings->count;
-        forI(current->diagnostics.count) {
-            diagnostics.push(
-                {source_offset, current->diagnostics.read(i)});
-        }
-        source_strings->append('"', current->path, '"');
-    }
+   // Source* current = 0;
+   // while((current = pool::next(iter))) {
+   //     if(!current->diagnostics.count) continue;
+   //     source_table.push(current);
+   //     u64 source_offset = sizeof(u64)+source_strings->count;
+   //     forI(current->diagnostics.count) {
+   //         diagnostics.push(
+   //             {source_offset, current->diagnostics.read(i)});
+   //     }
+   //     source_strings->append('"', current->path, '"');
+   // }
 
-    if(!diagnostics.count){
-        int bleh = 0;
-        fwrite(&bleh, sizeof(s64), 1, out);
-        return true;
-    } 
+   // if(!diagnostics.count){
+   //     int bleh = 0;
+   //     fwrite(&bleh, sizeof(s64), 1, out);
+   //     return true;
+   // } 
 
-    fwrite(&source_strings->count, sizeof(s64), 1, out);
-    fwrite(source_strings->str, source_strings->count, 1, out);
-    fwrite(diagnostics.data, diagnostics.count*sizeof(DiagnosticEntry), 1, out);
+   // fwrite(&source_strings->count, sizeof(s64), 1, out);
+   // fwrite(source_strings->str, source_strings->count, 1, out);
+   // fwrite(diagnostics.data, diagnostics.count*sizeof(DiagnosticEntry), 1, out);
 
-    return true;
+   // return true;
 }
 
-} // namespace internal
-
-global b32
+b32 Compiler::
 begin(Array<String> args) {
-    internal::parse_arguments(args);
+	TRACE("compiler begin");
+	parse_arguments(args);
 
     // if we happen to exit early, we still want whatever is queued in the messenger
     // to be delivered
-    defer {messenger::deliver();};
+    defer {messenger.deliver();};
 
-    if(!instance.options.entry_path.str){
-        diagnostic::compiler::
-            no_path_given(MessageSender::Compiler);
+    if(!options.entry_path.str){
+		Diag::no_path_given(MessageSender::Compiler).emit();
         return false;
     }
 
-    instance.options.verbosity = message::verbosity::stages;
+    options.verbosity = Message::Kind::Debug;
 
-    Source* entry_source = source::load(instance.options.entry_path);
+    Source* entry_source = Source::load(options.entry_path);
     if(!entry_source) {
         diagnostic::path::
             not_found(MessageSender::Compiler, instance.options.entry_path);

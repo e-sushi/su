@@ -21,8 +21,37 @@
 		Messenger::dispatch(Message::create(Message::Kind::verbosity)) \
 	}         
 
+// macros for outputting information about the compiler's state
+// these should NEVER be used to report things about what the compiler is working
+// with because that information must be localized
+
+#define FATAL(sender, ...)                                                      \
+	if(compiler.options.verbosity >= Message::Kind::Fatal) {                    \
+		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
+	}
+
+#define ERROR(sender, ...)                                                      \
+	if(compiler.options.verbosity >= Message::Kind::Error) {                    \
+		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
+	}
+
+#define WARNING(sender, ...)                                                    \
+	if(compiler.options.verbosity >= Message::Kind::Warning) {                  \
+		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
+	}
+
+#define NOTICE(sender, ...)                                                     \
+	if(compiler.options.verbosity >= Message::Kind::Notice) {                   \
+		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
+	}
+
 #define INFO(sender, ...)                                                       \
 	if(compiler.options.verbosity >= Message::Kind::Info) {                     \
+		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
+	}
+
+#define DEBUG(sender, ...)                                                      \
+	if(compiler.options.verbosity >= Message::Kind::Debug) {                    \
 		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
 	}
 
@@ -251,13 +280,12 @@ struct Destination {
 };
 
 struct Messenger {
-    Array<Message> messages; 
+    Array<Message> messages;
     Array<Destination> destinations;
 
 	MessageFormatting formatting;
 	
-	// locked anytime data is being output 
-	Mutex outmtx;	
+	Mutex outmtx;
 
 	void dispatch(Message message);
 	void dispatch(String message, Source* source = 0);

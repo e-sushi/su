@@ -8,10 +8,13 @@ namespace amu {
 
 struct DString {
 	u8* ptr;
-	
+
 	DString(String x = ""); 
 	DString(const DString& x);
 	~DString();
+
+	template<typename... T>
+	DString(T... args);
 
 	// creates a copy of this dstring
 	DString
@@ -74,6 +77,12 @@ struct DString {
 
 	String
 	get_string();
+
+private:
+	// special constructor used by DString::null()
+	// to make a DString w/o allocating anything
+	DString(void* x) : ptr(0) {}
+
 };
 
 static DString
@@ -95,6 +104,10 @@ void to_string(DString& x, const s64 y);
 void to_string(DString& x, const f32 y);
 void to_string(DString& x, const f64 y);
 void to_string(DString& x, const void* y);
+
+template<typename... T> DString::DString(T... args) : DString() {
+	append(args...);
+}
 
 template<typename... T> void DString::
 append(T... args) {

@@ -1,27 +1,17 @@
 /*
+	
+	Representation of various parts of source that can be compiled independently.
 
-	Interface for interacting with code
-	This will provide methods for viewing, formatting, querying and manipulating plain text code using
-	information supplied by other stages. 
-
-	This may represent any level of code with any sort of information. It is a very abstract interface
-	for passing around any amount and form of code.
-
-	Code keeps track of the amount of information that is associated with the code it represents.
-
-	A Code object may be unbounded in that it doesn't know where it ends. This is necessary for Code 
-	objects that haven't finished parsing. The end token of an unbounded Code object will point at 
-	the last token of whatever token array it was created from.
-
-	Note that currently there is no real way to determine if a Code object is unbounded or not. I'm not
-	sure if it's necessary or not yet.
 */
 
 #ifndef AMU_CODE_H
 #define AMU_CODE_H
 
+#include "storage/Map.h"
 #include "systems/Diagnostics.h"
 #include "systems/Threading.h"
+#include "Token.h"
+
 
 namespace amu {
 
@@ -34,75 +24,29 @@ struct VM;
 struct SourceCode;
 struct VirtualCode;
 
-namespace token {
-enum kind : u32;
-} // namespace token
-
-
-namespace code {
-// @genstrings(data/code_strings.generated)
-enum kind {
-	unknown,
-	token,
-	range,
-	label, // a label declaration and its entire entity
-	structure,
-	function,
-	module,
-	statement,
-	expression,
-	tuple,
-	typedef_,
-	source, // represents an entire source file
-	func_def_head,
-	var_decl,
-};
-
-#include "data/code_strings.generated"
-
-// TODO(sushi) im not sure if the post states are really necessary
-// @genstrings(data/code_state_strings.generated)
-enum state  {
-	newborn, 
-	in_lex,
-	post_lex,
-	in_parse,
-	post_parse,
-	in_sema,
-	post_sema,
-	in_tacgen,
-	post_tacgen,
-	in_airgen,
-	post_airgen,	
-	in_vm,
-	post_vm,
-
-	failed, // set when this Code object cannot complete processing
-};
-
-#include "data/code_state_strings.generated"
-
-// the level of compilation a given Code object has been through
-// this is really just a helper for specifying the correct state to
-// bring a Code object to since writing process_to(code::post_lex)
-// looks somewhat weirder than process_to(code::lex);
-enum level {
-	none,
-	lex = post_lex,
-	parse = post_parse,
-	sema = post_sema,
-	tac = post_tacgen,
-	air = post_airgen,
-	vm = post_vm,
-};
-
-} // namespace code
-
-
-
 struct Code : public ASTNode {
-	code::kind kind;
-	code::level level;
+	enum class Kind {
+		Unknown,
+		Source, 
+		Structure,
+		Function,
+		Macro,
+	};
+
+	Kind kind;
+
+	enum class Stage {
+		Newborn,
+		Lex,
+		Parse,
+		Sema,
+		TAC,
+		AIR,
+		VM,
+	};
+	
+	Stage stage;
+
 	// raw view of this code
 	String raw;
 
@@ -126,10 +70,11 @@ struct Code : public ASTNode {
 	// a Code object this one depends on 
 	Code* dependency;
 	
+	TokenRange tokens;
+
 	// this Code object's state
 	// atmoic because we only do simple operations on it
 	// and don't need to keep an entire lock for it around 
-	std::atomic<code::state> state;
 	Mutex mtx;
 	ConditionVariable cv;
 
@@ -177,15 +122,15 @@ struct Code : public ASTNode {
 	// stage of processing
 	b32 
 	is_processing();
-
-	View<Token>
+	
+	TokenRange
 	get_tokens();
 
 	Array<Token>&
 	get_token_array();
 
 	void
-	add_diagnostic(Diagnostic d);
+	add_diagnostic(Diag d);
 	
 	// Attempts to send this Code object through each level of compilation
 	// up to and including 'level'. If something fails during this process
@@ -200,90 +145,41 @@ struct Code : public ASTNode {
 	// discretize_module() from the Parser instead of calling parse() like normal.
 	// Then each new Code object will be processed asyncronously.
 	b32
-	process_to(code::level level);
+	process_to(Code::Stage stage);
 	
 	// same as process_to, but spawns a different thread to run on
 	// and returns a future containing the result of processing
 	Future<b32>
-	process_to_async(code::level level);
+	process_to_async(Code::Stage stage);
 
 	Future<b32>
-	process_to_async_deferred(Future<void> f, code::level level);
+	process_to_async_deferred(Future<void> f, Code::Stage stage);
 
 	// same as process_to, but spawns a different thread and immediately
 	// waits for it to finish
 	b32
-	process_to_wait(code::level level);
+	process_to_wait(Code::Stage stage);
 	
 	// called by a different Code object (the dependent) that depends on this one having reached
 	// some level of processing. If this code object has not reached the given level
 	// then the caller will wait until it finishes that stage and is notified.
 	// If a dependecy cycle is detected, false is returned.
 	b32
-	wait_until_level(code::level level, Code* dependent);
+	wait_until_level(Code::Stage stage, Code* dependent);
 	
 	// helper function called only by this Code object
 	// just sets the state and optionally notifies the condition variable
 	void
-	change_state(code::state state, b32 notify = true);
+	change_state(Code::Stage stage, b32 notify = true);
 
-	DString*
+	DString
 	display() = 0;
 
-	DString*
+	DString
 	dump() = 0;
-
-	Code() : state(code::newborn), ASTNode(ast::code) {}
-	Code(code::kind k) : kind(k), state(code::newborn), ASTNode(ast::code) {}
-};
-
-template<> inline b32 Base::
-is<Code>() { return is<ASTNode>() && as<ASTNode>()->kind == ast::code; }
-
-template<> inline b32 Base::
-is(code::kind k) { return is<Code>() && as<Code>()->kind == k; }
-
-// Code whose Tokens belong to some Source
-struct SourceCode : public Code {
-	View<Token> tokens;
-
 	
-	// ~~~~~~ interface ~~~~~~~
-
-
-	DString*
-	display();
-
-	DString*
-	dump();
-
-	SourceCode() : Code(code::unknown) {}
+	Code() : ASTNode(ASTNode::Kind::Code) {};
 };
-
-// Code which is not represented by any given Source.
-// This may be code that has been formatted, or it may be code that is generated 
-// by the compiler. 
-// It stores its own set of Tokens and Diagnostics
-struct VirtualCode : public Code {
-	DString* str;
-	Array<Token> tokens;
-	Array<Diagnostic> diagnostics;
-
-
-	// ~~~~~~ interface ~~~~~~~
-
-
-	DString*
-	display();
-
-	DString*
-	dump();
-	
-
-	VirtualCode() : Code(code::unknown) {}
-};
-
-namespace code {
 
 
 struct TokenIterator {
@@ -303,7 +199,7 @@ struct TokenIterator {
 	current();
 
 	// returns the kind of the current token
-	FORCE_INLINE token::kind
+	FORCE_INLINE Token::Kind
 	current_kind();
 
 	// increments the iterator by one token and returns
@@ -324,7 +220,7 @@ struct TokenIterator {
 
 	// get the next token's kind
 	// returns token::null if at the end 
-	FORCE_INLINE token::kind
+	FORCE_INLINE Token::Kind
 	next_kind();
 
 	// get the previous token
@@ -333,7 +229,7 @@ struct TokenIterator {
 
 	// get the previous token's kind
 	// returns token::null if at the beginning
-	FORCE_INLINE token::kind
+	FORCE_INLINE Token::Kind
 	prev_kind();
 
 	// get the token 'n' steps ahead
@@ -377,84 +273,6 @@ struct TokenIterator {
 	DString*
 	display_line();
 };
-
-
-namespace virt {
-
-} // namespace virtual
-
-namespace util {
-
-void
-find_start_and_end(Code& code);
-
-} // namespace util
-
-namespace format {
-
-// removes leading whitespace up until the min amount of whitespace over all lines
-VirtualCode
-remove_leading_whitespace(Code& code);
-
-// changes the current indent width of the given Code to 'width'
-VirtualCode
-indent_width(Code& code, u32 width);
-
-namespace token {
-
-void 
-replace(Code& code, Token* a, Token* b);
-
-} // namespace token
-} // namespace format
-
-namespace lines {
-
-struct Options {
-	// remove leading tabs up until the min amount of tabs over all lines
-	// this doesn't take into account mixed spaces and tabs
-	b32 remove_leading_whitespace;
-	// display line numbers
-	b32 line_numbers; 
-	// when line numbers have different lengths, right align them
-	b32 right_align_line_numbers; 
-	// how many lines to gather before the given line
-	u32 before; 
-	 // how many lines to gather after the given line
-	u32 after; 
-};
-
-struct Lines {
-	DString* str;
-	String line; // the line that this was created with
-	Array<String> lines; // views into 'str', representing each gathered line
-	Options opt;
-	Token* token; // token originally used to retrieve these lines
-};
-
-// various methods for displaying multiple lines given some information
-Lines get(Token* t, Options opt = {});
-Lines get(TNode* n, Options opt = {});
-template<typename T> Lines get(T* a, Options opt = {}); 
-
-void  get(DString* start, Token* t, Options opt = {});
-void  get(DString* start, TNode* n, Options opt = {});
-
-void normalize_whitespace(Lines& lines);
-void remove_leading_whitespace(Lines& lines);
-
-} // namespace lines
-
-// Code which stores a cursor as well as extra information for how to navigate the code
-// struct TokenNavigator : public Code {
-
-// };
-
-// struct ASTNavigator : public Code {
-
-// }
-
-} // namespace code
 
 void
 to_string(DString* current, Code* c);

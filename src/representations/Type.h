@@ -10,6 +10,8 @@
 // #include "Token.h"
 
 #include "Entity.h"
+#include "Code.h"
+#include "Token.h"
 
 namespace amu {
 
@@ -18,28 +20,28 @@ struct Member;
 struct Expr;
 struct Tuple;
 
-namespace type {
-enum class kind {
-    null,
-    void_, // the type representing nothing 
-    whatever, // when we might need a type but we don't care what it would be 
-    scalar,
-    structured,
-    pointer,
-    function,
-	module,
-    range,
-    tuple,
-    meta,
-};
-} // namespace type
-
 // base structure of all types, though this is not meant to be created directly
 struct Type : public Entity {
-    type::kind kind;
+	enum class Kind {
+		Null,
+		Void,
+		Control,
+		Whatever,
+		Scalar,
+		Structured,
+		Pointer,
+		Function,
+		Module,
+		Range,
+		Tuple,
+		Meta,
+	};
+
+    Kind kind;
 
     // pointer to the expression that defines this type 
     Expr* def;
+
     // set of traits applied to this Type
     Array<Trait*> traits;
 
@@ -77,51 +79,50 @@ struct Type : public Entity {
     has_trait(Trait* trait);
 
     b32
-    is_scalar() { return this->kind == type::kind::scalar; }
+    is_scalar() { return this->kind == Kind::Scalar; }
 
     // attempts to find the size of a given Type in bytes
     virtual u64
     size() = 0;
     
-    DString*
+    DString
     display() = 0;
 
-    DString*
+    DString
     dump() = 0;
 
     // given an address, return a formatted DString displaying
     // the values this Type would represent
-    virtual DString*
+    virtual DString
     print_from_address(u8* addr) = 0;
 
-    Type(type::kind k) : kind(k), Entity(entity::type) {}
+    Type(Kind k) : kind(k), Entity(Entity::Kind::Type) {}
 };
 
 template<> inline b32 Base::
-is<Type>() { return is<Entity>() && as<Entity>()->kind == entity::type; }
+is<Type>() { return is<Entity>() && as<Entity>()->kind == Entity::Kind::Type; }
 
 template<> inline b32 Base::
-is(type::kind k) { return is<Type>() && as<Type>()->kind == k; }
+is(Type::Kind k) { return is<Type>() && as<Type>()->kind == k; }
 
 // type representing nothing 
 struct Void : public Type { 
-    Void() : Type(type::kind::void_) {} 
+    Void() : Type(Type::Kind::Void) {} 
 
-	b32      ensure_processed_to(code::level level) { return true; }
+	b32      ensure_processed_to(Code::Stage stage) { return true; }
     u64      size() { return 0; }
 	b32      cast_to(Type* to, Expr*& n) { return 0; } // this should never happen
     ASTNode* deep_copy() { return this; }
-    DString* display() { return DString::create("void"); }
-    DString* dump() { return DString::create("Void<>"); }
-    DString* print_from_address(u8* addr) { return 0; } // this should never happen
+    DString  display() { return DString("void"); }
+    DString  dump() { return DString("Void<>"); }
+    DString  print_from_address(u8* addr) { return {}; } // this should never happen
+	
+
+	static const Void instance;
 };
 
 template<> inline b32 Base::
-is<Void>() { return is<Type>() && as<Type>()->kind == type::kind::void_; }
-
-namespace type{
-global Void void_;
-} // namespace type
+is<Void>() { return is<Type>() && as<Type>()->kind == Type::Kind::Void; }
 
 // i dont know if this is particularly useful, I'm only using it to solve
 // a specific case:
@@ -131,55 +132,36 @@ global Void void_;
 // Any type may implicitly convert to this, so it's really just a wildcard
 // Though it is an error if you try to use this as a value in any way
 struct Whatever : public Type {
-    Whatever() : Type(type::kind::whatever) {}
+    Whatever() : Type(Type::Kind::Whatever) {}
 
-	b32      ensure_processed_to(code::level level) { return true; }
+	b32      ensure_processed_to(Code::Stage stage) { return true; }
     u64      size() { return 0; }
 	b32      cast_to(Type* to, Expr*& n) { return true; }
     ASTNode* deep_copy() { return this; }
-    DString* display() { return DString::create("whatever"); }
-    DString* dump() { return DString::create("Whatever<>"); }
-    DString* print_from_address(u8* addr) { return 0; } // this should never happen
+    DString  display() { return DString("whatever"); }
+    DString  dump() { return DString("Whatever<>"); }
+    DString  print_from_address(u8* addr) { return {}; } // this should never happen
 };
 
 template<> inline b32 Base::
-is<Whatever>() { return is<Type>() && as<Type>()->kind == type::kind::whatever; }
+is<Whatever>() { return is<Type>() && as<Type>()->kind == Type::Kind::Whatever; }
 
-namespace type{
-global Whatever whatever;
-} // namespace type
-
-namespace scalar {
-// @genstrings(data/scalar-strings.generated)
-enum kind {
-    unsigned8,
-    unsigned16,
-    unsigned32,
-    unsigned64,
-    signed8,
-    signed16,
-    signed32,
-    signed64,
-    float32,
-    float64,
-};
-
-#include "data/scalar-strings.generated"
-
-} // namespace scalar
-
-// a singular number. Underlies ScalarValue
+// A single number, supported by ScalarValue
 struct Scalar : public Type {
-    scalar::kind kind;
+	using Kind = ScalarValue::Kind;
+
+	Kind kind;
+
+	ScalarValue value;
 
 
     // ~~~~~~ interface ~~~~~~~
 
  
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
 	b32
@@ -188,53 +170,32 @@ struct Scalar : public Type {
     u64
     size();
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    // NOTE(sushi) this returns if the scalar is of signed INTEGER type
-    b32
-    is_signed();
-
-    b32
-    is_float();
-
-    Scalar(scalar::kind k) : kind(k), Type(type::kind::scalar) {}
+    Scalar(Kind k) : kind(k), Type(Type::Kind::Scalar) {}
 };
 
 template<> b32 inline Base::
-is<Scalar>() { return is<Type>() && as<Type>()->kind == type::kind::scalar; }
+is<Scalar>() { return is<Type>() && as<Type>()->kind == Type::Kind::Scalar; }
 
 template<> b32 inline Base::
-is(scalar::kind k) { return is<Scalar>() && as<Scalar>()->kind == k; };
+is(Scalar::Kind k) { return is<Scalar>() && as<Scalar>()->kind == k; };
 
-namespace scalar {
-global Scalar _u8  = scalar::unsigned8;
-global Scalar _u16 = scalar::unsigned16;
-global Scalar _u32 = scalar::unsigned32;
-global Scalar _u64 = scalar::unsigned64;
-global Scalar _s8  = scalar::signed8;
-global Scalar _s16 = scalar::signed16;
-global Scalar _s32 = scalar::signed32;
-global Scalar _s64 = scalar::signed64;
-global Scalar _f32 = scalar::float32;
-global Scalar _f64 = scalar::float64;
-} // namespace type::scalar
 
-namespace structured {
-enum kind {
-    user, // a user defined Structured Type
-    static_array,
-    view_array,
-    dynamic_array,
-};
-} // namespace structured
-
-// a Type which consists of 'members'. Members 
+// a Type which consists of members. Members 
 // are named offsets from the base pointer of 
 // a value with this Type.
 // see Structure.h for further info on how Structures work
 struct Structured : public Type {
-    structured::kind kind;
+	enum class Kind {
+		User,
+		StaticArray,
+		ViewArray,
+		DynamicArray,
+	};
+
+	Kind kind;
 
     Structure* structure;
 
@@ -248,10 +209,10 @@ struct Structured : public Type {
     Member*
     find_member(String id);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
 	b32
@@ -260,19 +221,19 @@ struct Structured : public Type {
     u64
     size();
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    Structured() : Type(type::kind::structured) {}
+    Structured() : Type(Type::Kind::Structured) {}
 
-    Structured(structured::kind k) : kind(k), Type(type::kind::structured) {}
+    Structured(Kind k) : kind(k), Type(Type::Kind::Structured) {}
 };
 
 template<> inline b32 Base::
-is<Structured>() { return is<Type>() && as<Type>()->kind == type::kind::structured; }
+is<Structured>() { return is<Type>() && as<Type>()->kind == Type::Kind::Structured; }
 
 template<> inline b32 Base::
-is(structured::kind k) { return is<Structured>() && as<Structured>()->kind == k; }
+is(Structured::Kind k) { return is<Structured>() && as<Structured>()->kind == k; }
 
 // a Type representing an address in memory where a value of 'type' can be found 
 struct Pointer : public Type {
@@ -287,10 +248,10 @@ struct Pointer : public Type {
     static Pointer*
     create(Type* type);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
 	b32
@@ -299,14 +260,14 @@ struct Pointer : public Type {
     u64
     size();
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    Pointer() : Type(type::kind::pointer) {}
+    Pointer() : Type(Type::Kind::Pointer) {}
 };
 
 template<> b32 inline Base::
-is<Pointer>() { return is<Type>() && as<Type>()->kind == type::kind::pointer; }
+is<Pointer>() { return is<Type>() && as<Type>()->kind == Type::Kind::Pointer; }
 
 // NOTE(sushi) the following array types inherit from Structured, because they have
 //             accessible members and thus need some Structure
@@ -329,10 +290,10 @@ struct StaticArray : public Structured {
     static StaticArray*
     create(Type* type, u64 size);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 	
 	b32
@@ -341,14 +302,14 @@ struct StaticArray : public Structured {
     u64
     size();
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    StaticArray() : Structured(structured::static_array) {}
+    StaticArray() : Structured(Structured::Kind::StaticArray) {}
 };
 
 template<> b32 inline Base::
-is<StaticArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array; }
+is<StaticArray>() { return is<Structured>() && as<Structured>()->kind == Structured::Kind::StaticArray; }
 
 // a DynamicArray is an array of the form
 //      T[..]
@@ -369,10 +330,10 @@ struct DynamicArray : public Structured {
     static DynamicArray*
     create(Type* type);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
 	b32
@@ -381,14 +342,14 @@ struct DynamicArray : public Structured {
     u64
     size();
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    DynamicArray() : Structured(structured::dynamic_array) {}
+    DynamicArray() : Structured(Structured::Kind::DynamicArray) {}
 };
 
 template<> b32 inline Base::
-is<DynamicArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
+is<DynamicArray>() { return is<Structured>() && as<Structured>()->kind == Structured::Kind::DynamicArray;  }
 
 // a ViewArray is the same as a StaticArray, except that it does not 
 // allocate anything onto the stack and its count and data pointer 
@@ -407,10 +368,10 @@ struct ViewArray : public Structured {
     static ViewArray*
     create(Type* type);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
 	b32
@@ -419,14 +380,14 @@ struct ViewArray : public Structured {
     u64
     size();
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    ViewArray() : Structured(structured::view_array) {}
+    ViewArray() : Structured(Structured::Kind::ViewArray) {}
 };
 
 template<> b32 inline Base::
-is<ViewArray>() { return is<Structured>() && as<Structured>()->kind == structured::static_array;  }
+is<ViewArray>() { return is<Structured>() && as<Structured>()->kind == Structured::Kind::ViewArray;  }
 
 
 struct Range : public Type {
@@ -443,10 +404,10 @@ struct Range : public Type {
     static Range*
     create(Type* type);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     u64
@@ -455,14 +416,14 @@ struct Range : public Type {
 	b32
 	cast_to(Type* t, Expr*& e);
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    Range() : Type(type::kind::range) {}
+    Range() : Type(Type::Kind::Range) {}
 };
 
 template<> b32 inline Base::
-is<Range>() { return is<Type>() && as<Type>()->kind == type::kind::range; }
+is<Range>() { return is<Type>() && as<Type>()->kind == Type::Kind::Range; }
 
 // a Type which may take on the form of some collection of Types
 // this is a tagged union
@@ -515,10 +476,10 @@ struct FunctionType : public Type {
     static FunctionType*
     create();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     u64
@@ -527,10 +488,10 @@ struct FunctionType : public Type {
 	b32
 	cast_to(Type* t, Expr*& e);
 
-    DString*
+    DString
     print_from_address(u8* addr);
 
-    FunctionType() : Type(type::kind::function) {}
+    FunctionType() : Type(Type::Kind::Function) {}
 };
 
 struct Element {
@@ -567,10 +528,10 @@ struct TupleType : public Type {
     static TupleType*
     create(Tuple* tuple);
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
     u64
@@ -579,17 +540,17 @@ struct TupleType : public Type {
 	b32
 	cast_to(Type* t, Expr*& e);
 
-    DString*
+    DString
     print_from_address(u8* addr);
 	
 	FORCE_INLINE u64
 	n_positional() { return elements.count - named_elements.keys.count; }
 
-    TupleType() : Type(type::kind::tuple) {}
+    TupleType() : Type(Type::Kind::Tuple) {}
 };
 
 template<> inline b32 Base::
-is<TupleType>() { return is<Type>() && as<Type>()->kind == type::kind::tuple; }
+is<TupleType>() { return is<Type>() && as<Type>()->kind == Type::Kind::Tuple; }
 
 namespace type::tuple {
 struct ExistantTupleType {
@@ -613,10 +574,10 @@ struct ModuleType : public Type {
 	void
 	destroy();
 
-	DString*
+	DString
 	display();
 
-	DString*
+	DString
 	dump();
 
 
@@ -624,9 +585,9 @@ struct ModuleType : public Type {
 	// if they are for some reason then there must be some internal bug
 	u64 size() { Assert(0); return 0; }
 	b32 cast_to(Type* t, Expr*& e) { Assert(0); return 0; }
-	DString* print_from_address(u8* addr) { Assert(0); return 0; } 
+	DString print_from_address(u8* addr) { Assert(0); return {}; } 
 
-	ModuleType() : Type(type::kind::module) {}
+	ModuleType() : Type(Type::Kind::Module) {}
 };
 
 namespace type::meta {

@@ -1,5 +1,8 @@
 #include <condition_variable>
 #include <functional>
+
+#include "Threading.h"
+
 namespace amu {
 
 Threader threader;

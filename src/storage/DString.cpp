@@ -178,7 +178,7 @@ get_string() {
 	if(n > available_space) {                           \
 		x.grow(n - available_space);                    \
 	}                                                   \
-	snprintf((char*)(x.ptr + x.count()-1), n+1, format, y); \
+	snprintf((char*)(x.ptr + x.count()), n+1, format, y); \
 	x.count() += n;
 
 void to_string(DString& x, const char* y)   { x.append(String::from(y)); }

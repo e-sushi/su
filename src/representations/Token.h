@@ -147,6 +147,10 @@ struct Token {
 	b32 is(Kind x)  { return kind == x; }
 };
 
+struct TokenRange {
+	Token* start,* end;
+};
+
 void to_string(DString* start, Token* t);
 
 } // namespace amu
