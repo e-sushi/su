@@ -17,14 +17,12 @@ struct Code;
 struct Source {
     FILE* file;
     
-    String path;
-    String name;
-    String front;
-    String ext;
+    DString path;
+    String  name;
+    String  front;
+    String  ext;
 
     String buffer; // the loaded file
-
-    Array<Diag> diagnostics; // messages associated with this file
 
     // the module representing this Source
     Module* module;
@@ -32,6 +30,7 @@ struct Source {
     // representation of the actual code in this source file
     Code* code;
 
+	// NOTE that the given path will be copied into a new DString so that we know we own it
 	static Source*
 	load(String path);
 

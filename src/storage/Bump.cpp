@@ -3,12 +3,10 @@
 
 namespace amu {
 
-Bump Bump::
+void Bump::
 init() {
-	Bump out = {};
-	out.allocated_slabs_list = (u8**)memory.allocate(slab_size + sizeof(u8**));
-	out.start = out.cursor = (u8*)(out.allocated_slabs_list + 1);
-	return out;
+	allocated_slabs_list = (u8**)memory.allocate(slab_size + sizeof(u8**));
+	start = cursor = (u8*)(allocated_slabs_list + 1);
 }
 
 void Bump::

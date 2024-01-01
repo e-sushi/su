@@ -85,6 +85,44 @@ private:
 
 };
 
+// something that could be a plain String or a DString
+// this kinda sucks so fix up later
+struct MaybeDString {
+	b32 is_dstr;
+
+	union {
+		String str;
+		DString dstr;
+	};
+
+	MaybeDString(const MaybeDString& x) {
+		if(x.is_dstr) {
+			is_dstr = true;
+			dstr = x.is_dstr;
+		} else {
+			is_dstr = false;
+			str = x.str;
+		}
+	}
+
+	MaybeDString(String s) : str(s), is_dstr(false) {}
+	MaybeDString(DString& s) : dstr(s), is_dstr(true) {}
+
+	~MaybeDString() {
+		if(is_dstr) dstr.~DString();
+	}
+
+	String
+	get_string() {
+		if(is_dstr) {
+			return dstr.get_string();
+		} else {
+			return str;
+		}
+	}
+
+};
+
 static DString
 to_string(const String& s) {
     return DString(s);

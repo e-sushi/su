@@ -225,7 +225,7 @@ def defines
 	if @defines.empty?
 		@defines = case buildmode
 		when "release" then %w()
-		when "debug"   then %w(-DAMU_DEBUG)
+		when "debug"   then %w(-DAMU_DEBUG -DAMU_ENABLE_TRACE)
 		else fatal "unhandled buildmode"
 		end |
 		case platform

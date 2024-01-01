@@ -9,6 +9,10 @@
 #ifndef AMU_COMPILER_H
 #define AMU_COMPILER_H
 
+#include "storage/Bump.h"
+#include "Messenger.h"
+#include "Diagnostics.h"
+
 namespace amu {
 
 struct Compiler {
@@ -37,6 +41,9 @@ struct Compiler {
             Array<String> sources;
         }dump_diagnostics; 
     } options;
+
+	// Central bump allocator. Primarily for Code and Source objects.
+	Bump bump;
 
 	// diagnostics emitted by the compiler itself
 	Array<Diag> diags;

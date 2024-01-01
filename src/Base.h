@@ -22,6 +22,8 @@
 #ifndef AMU_BASE_H
 #define AMU_BASE_H
 
+#include "Common.h"
+
 // for use on inheriting structures so that we can 
 // create overrides to perform direct checks 
 #define IS_TEMPLATE_DECLS                   \
@@ -35,6 +37,8 @@
 	is<base>() { return kind == kindval; }          
 
 namespace amu {
+
+struct DString;
 
 struct Base {
 	enum class Kind {

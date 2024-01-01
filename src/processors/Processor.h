@@ -13,21 +13,22 @@
 #include "storage/Array.h"
 #include "systems/Diagnostics.h"
 
+#include "utils/Time.h"
+
 namespace amu {
 
 struct Processor {
 	String name;
-	util::Stopwatch time_start;
-	util::Stopwatch time_end;
+	Time::Point start_time;
+	Time::Point end_time;
 
 	Array<Diag> diag_stack;
 	
-	Processor(String name) : name(name) {
-		diag_stack = Array<Diag>::create();
-	}
+	void 
+	init(String name);
 
 	void
-	destroy();
+	deinit();
 
 	void
 	start();
@@ -45,8 +46,7 @@ struct Processor {
 	pop_diag();
 };
 
-
-}
+} // namespace amu
 
 
 #endif

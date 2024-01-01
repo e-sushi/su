@@ -9,6 +9,7 @@
 #include "representations/Source.h"
 #include "storage/Array.h"
 #include "processors/Processor.h"
+#include "basic/Allocator.h"
 
 namespace amu {
 
@@ -47,7 +48,7 @@ struct Lexer : public Processor {
 
 
     static Lexer*
-    create(String buffer);
+    create(Allocator* allocator, Code* code);
 
     void
     destroy();

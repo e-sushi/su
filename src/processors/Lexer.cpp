@@ -1,164 +1,30 @@
 #include "Lexer.h"
+#include "systems/Compiler.h"
 #include "representations/Token.h"
+#include "representations/Code.h"
+
 namespace amu {
-namespace lexer::internal {
-
-#define strcase(s) case string::static_hash(s)
-
-local token::kind
-token_is_keyword_or_identifier(String raw) {
-	switch(raw.hash()) {
-		strcase("return"):	  return token::return_;
-		strcase("if"):		  return token::if_;
-		strcase("else"):	  return token::else_;
-		strcase("for"):		  return token::for_;
-		strcase("while"):	  return token::while_;
-		strcase("break"):	  return token::break_;
-		strcase("continue"):  return token::continue_;
-		strcase("defer"):	  return token::defer_;
-		strcase("switch"):	  return token::switch_;
-		strcase("loop"):	  return token::loop;
-		strcase("struct"):	  return token::structdecl;
-		strcase("module"):	  return token::moduledecl;
-		strcase("import"):    return token::import;
-		strcase("void"):	  return token::void_;
-		strcase("s8"):		  return token::signed8;
-		strcase("s16"):		  return token::signed16;
-		strcase("s32"):		  return token::signed32;
-		strcase("s64"):		  return token::signed64;
-		strcase("u8"):		  return token::unsigned8;
-		strcase("u16"):		  return token::unsigned16;
-		strcase("u32"):		  return token::unsigned32;
-		strcase("u64"):		  return token::unsigned64;
-		strcase("f32"):		  return token::float32;
-		strcase("f64"):		  return token::float64;
-		strcase("str"):		  return token::string;
-		strcase("any"):		  return token::any;
-		strcase("using"):	  return token::using_;
-		strcase("in"):		  return token::in;
-		strcase("and"):		  return token::double_ampersand;
-		strcase("or"):		  return token::logi_or;
-		strcase("then"):	  return token::then;
-	}
-	return token::identifier;
-}
-
-
-local token::kind
-token_is_directive_or_identifier(String raw) {
-	switch(raw.hash()) {
-		strcase("import"):				   return token::directive_import;
-		strcase("internal"):			   return token::directive_internal;
-		strcase("run"):					   return token::directive_run;
-		strcase("compiler_break"):		   return token::directive_compiler_break;
-		strcase("print_type"):			   return token::directive_print_type;
-		strcase("print_meta_type"):		   return token::directive_print_meta_type;
-		strcase("compiler_break_air_gen"): return token::directive_compiler_break_air_gen;
-		strcase("vm_break"):			   return token::directive_vm_break;
-		strcase("rand_int"):			   return token::directive_rand_int;
-	}
-
-	return token::identifier;
-}
-
-local token::kind
-token_is_sid_or_identifier(String raw) {
-	switch(raw.hash()) {
-		strcase("print"): return token::sid_print;
-	}
-
-	return token::identifier;
-}
-
-FORCE_INLINE b32 
-is_identifier_char(u32 codepoint) {
-	if(isalnum(codepoint) || codepoint == '_' || codepoint > 127) 
-		return true;
-	if(string::isspace(codepoint)) 
-		return false;
-	return false;
-}
-
-} // namespace internal
 
 Lexer* Lexer::
-create() {
-	Lexer* out = compiler::instance.storage.lexers.add();
-	out->code = code;
+create(Allocator* allocator, Code* code) {
+	auto out = new (allocator->allocate(sizeof(Lexer))) Lexer;
 	code->lexer = out;
-	return out;
-}
-
-void Lexer::
-destroy() {
-}
-
-void Lexer::
-output(b32 human, String path) {
-	FILE* out = fopen((char*)path.str, "w");
-	if(!out) {
-		diagnostic::internal::
-			valid_path_but_internal_err(code, path, "TODO(sushi) get error info for failing to open lexer::output");
-		return;
-	}
-
-	Array<Token>& tokens = code->get_token_array();
-
-	if(human) {
-		DString* buffer = DString::create();
-
-		forI(tokens.count) {
-			Token& t = tokens.readref(i);
-			buffer->append((u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
-		}
-		
-		fwrite(buffer->str, buffer->count, 1, out);
-		buffer->deref();
-	} else {
-		Array<u32> data = Array<u32>::create(4*tokens.count);
-
-		Token* curt = tokens.readptr(0);
-		forI(tokens.count) {
-			data.push((u32)curt->kind);
-			data.push((u32)curt->l0);
-			data.push((u32)curt->c0);
-			data.push((u32)curt->raw.count);
-		}
-
-		fwrite(data.data, data.count*sizeof(u32), 1, out);
-		data.destroy();
-	}
-
-	fclose(out);
-}
-
-Lexer* Lexer::
-create(String buffer) {
-	auto out = memory::allocate<Lexer>();
-	out->tokens = Array<Token>::create(16);
-	out->diag_stack = Array<Diag>::create();
-	out->buffer = buffer;
+	out->code = code;
+	out->Processor::init("Lexer");
 	return out;
 }
 
 void Lexer::
 destroy() {
 	tokens.destroy();
-	diag_stack.destroy();
+	Processor::deinit();
 }
 
 b32 Lexer::
 run() { 
-	Processor::start("lexer");
+	Processor::start();
 
 	using enum Token::Kind;
-	using enum Token::Group;
-
-	messenger.dispatch(MessageBuilder::start(code, Message::Kind::Debug)
-			.append("beginning lex")
-			.message);
-
-	auto start = util::stopwatch::start();
 
 	String stream = code->raw;
 
@@ -176,7 +42,7 @@ run() {
 			peeked_codepoint = 0;
 			return out;
 		}
-		auto codepoint = stream.advance();
+		auto codepoint = stream.advance().codepoint;
 		if(!stream) return 0;
 		if(codepoint == '\n') {
 			line += 1;
@@ -193,7 +59,7 @@ run() {
 	};
 
 	auto skip_whitespace = [&]() {
-		while(string::isspace(peek())) next();
+		while(String::is_space(peek())) next();
 	};
 
 	// writes final data to the current token
@@ -203,17 +69,17 @@ run() {
 		t.c0 = col;
 		t.hash = t.raw.hash();
 		if(t.kind >= FloatLiteral && t.kind <= StringLiteral) {
-			t.group = Literal;
+			t.group = Token::Group::Literal;
 		} else if(t.kind >= Semicolon && t.kind <= RightArrowThick) {
-			t.group = Control;
+			t.group = Token::Group::Control;
 		} else if(t.kind >= Plus && t.kind <= DollarDouble) {
-			t.group = Operator;
+			t.group = Token::Group::Operator;
 		} else if(t.kind >= Return && t.kind <= Deref) {
-			t.group = Keyword;
+			t.group = Token::Group::Keyword;
 		} else if(t.kind >= Unsigned8 && t.kind <= Float64) {
-			t.group = Type;
+			t.group = Token::Group::Type;
 		} else if(t.kind >= Directive_Include && t.kind <= Directive_CompilerBreak) {
-			t.group = Directive;
+			t.group = Token::Group::Directive;
 		} else {
 			Assert(0);
 		}
@@ -230,13 +96,14 @@ run() {
 	};
 
 	auto is_identifier_char = [&](u32 c) {
-		if(util::any(String::is_alnum(codepoint), codepoint == '_', codepoint > 127))
+		if(util::any(String::is_alnum(c), c == '_', c > 127))
 			return true;
 		return false;
 	};
 
 	auto keyword_or_identifier = [&](String s) {
 		switch(s.hash()) {
+#define strcase(s) case util::static_string_hash(s)
 			strcase("return"):	  return Return;
 			strcase("if"):		  return If;
 			strcase("else"):	  return Else;
@@ -270,11 +137,15 @@ run() {
 	};
 
 	auto directive_or_identifier = [&](String s) {
-		switch(raw.hash()) {
+		switch(s.hash()) {
 			strcase("include"):        return Directive_Include;
 			strcase("run"):		       return Directive_Run;
 			strcase("compiler_break"): return Directive_CompilerBreak;
 		}
+		return Identifier;
+	};
+
+	auto sid_or_identifier = [&](String s) {
 		return Identifier;
 	};
 
@@ -316,7 +187,7 @@ run() {
 			if(last_token.kind == Pound) {
 				auto kind = directive_or_identifier(t.raw);
 				if(kind == Identifier) {
-					diag_stack.push(Diag::unknown_directive(t, t.raw));
+					Diag::unknown_directive(diag_stack, &t, t.raw);
 					return false; // TODO(sushi) continuation
 				}
 				t.kind = kind;
@@ -324,7 +195,7 @@ run() {
 			} else if(last_token.kind == Dollar) {
 				auto kind = sid_or_identifier(t.raw);
 				if(kind == Identifier) {
-					diag_stack.push(Diag::unknown_sid(t, t.raw));
+					Diag::unknown_sid(diag_stack, &t, t.raw);
 					return false; // TODO(sushi) continuation
 				}
 				t.kind = kind;
@@ -345,7 +216,7 @@ run() {
 				if(c == c2) {         \
 					t.kind = t2;      \
 					c = next();       \
-				}                     \ 
+				}                     \
 			} break; 
 #define two_glyph_map_alt(c1, t1, c2, t2, c3, t3) \
 			case c1: {                            \
@@ -412,22 +283,54 @@ run() {
 			three_glyph_map('.', Dot, '.', DotDouble, '.', DotTriple);
 
 			two_or_three_glyph_map('<', LessThan, '=', LessThanEqual, '<', LessThanDouble, '=', LessThanDoubleEqual);
-			two_or_three_glyph_map('<', GreaterThan, '=', GreaterThanEqual, '<', GreaterThanDouble, '=', GreaterThanDoubleEqual);
+			two_or_three_glyph_map('>', GreaterThan, '=', GreaterThanEqual, '>', GreaterThanDouble, '=', GreaterThanDoubleEqual);
 
-			default: return Diag::invalid_token(t);
+			default: {
+				Diag::invalid_token(diag_stack, &t, &t);
+				return false;
+			}
 		}
 		finish_token();
 	}
 	
-	// TODO(sushi) this always computes the message which is useless if we're
-	//             not emitting debug 
-	auto time = util::stopwatch::peek(start);
-	messenger.dispatch(
-			MessageBuilder::start(code, Message::Kind::Debug)
-			.append("finished lex in ")
-			.append(util::format_time(time)));
-
+	Processor::end();
 	return true;
+}
+
+void Lexer::
+output(b32 human, String path) {
+	FixMe;
+//	FILE* out = fopen((char*)path.str, "w");
+//	Assert(out);
+//
+//	Array<Token>& tokens = code->get_token_array();
+//
+//	if(human) {
+//		DString* buffer = DString::create();
+//
+//		forI(tokens.count) {
+//			Token& t = tokens.readref(i);
+//			buffer->append((u64)t.kind, "\"", t.raw, "\"", t.l0, ",", t.c0, "\n");
+//		}
+//		
+//		fwrite(buffer->str, buffer->count, 1, out);
+//		buffer->deref();
+//	} else {
+//		Array<u32> data = Array<u32>::create(4*tokens.count);
+//
+//		Token* curt = tokens.readptr(0);
+//		forI(tokens.count) {
+//			data.push((u32)curt->kind);
+//			data.push((u32)curt->l0);
+//			data.push((u32)curt->c0);
+//			data.push((u32)curt->raw.count);
+//		}
+//
+//		fwrite(data.data, data.count*sizeof(u32), 1, out);
+//		data.destroy();
+//	}
+//
+//	fclose(out);
 }
 
 } // namespace amu

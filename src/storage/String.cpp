@@ -2,6 +2,7 @@
 #include "DString.h"
 #include "utils/Unicode.h"
 
+#include "stdio.h"
 #include "cstdlib"
 #include "string.h"
 
@@ -369,6 +370,15 @@ is_digit(u32 codepoint) {
 }
 
 b32 String::
+is_xdigit(u32 codepoint) {
+	if(is_digit(codepoint) || 
+		codepoint >= 'a' && codepoint <= 'f' ||
+		codepoint >= 'A' && codepoint <= 'F')
+	   return true;
+	return false;
+}
+
+b32 String::
 is_alpha(u32 codepoint) {
 	if(codepoint >= 'A' && codepoint <= 'Z' ||
 	   codepoint >= 'a' && codepoint <= 'z') return true;
@@ -428,6 +438,17 @@ namespace util {
 
 template<> u64 hash(const String& s) { return ((String&)s).hash(); }
 template<> u64 hash(String* s) { return (*s).hash(); }
+
+void
+print(String s) {
+	fwrite(s.str, s.count, 1, stdout);
+}
+
+void
+println(String s) {
+	print(s);
+	print("\n");
+}
 
 } // namespace util
 

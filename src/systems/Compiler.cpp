@@ -3,6 +3,7 @@
 #include "systems/Messenger.h"
 #include "storage/Array.h"
 #include "storage/String.h"
+#include "representations/Code.h"
 #include "Compiler.h"
 
 namespace amu {
@@ -12,6 +13,7 @@ Compiler compiler;
 
 void Compiler::
 init() {
+	bump.init();
 }
 
 void Compiler::
@@ -19,10 +21,10 @@ deinit() {} // TODO(sushi)
 
 b32 Compiler::
 parse_arguments(Array<String> args) {
-	TRACE("parsing arguments");
+	TRACE(MessageSender(), "parsing arguments");
     for(s32 i = 1; i < args.count; i++) {
         String arg = args.read(i);
-		TRACE("argument: ", arg);
+		TRACE(MessageSender(), "argument: ", arg);
         u64 hash = arg.hash();
         switch(hash) {
 
@@ -40,7 +42,7 @@ parse_arguments(Array<String> args) {
                     } else break;
                 }
                 if(arg.str[0] == '-') {
-					push_diag(Diag::expected_a_path_for_arg(MessageSender::Compiler, "--dump-tokens"));
+					Diag::expected_a_path_for_arg(diags, MessageSender(), "--dump-tokens");
                     return false;
                 }
                 options.dump_tokens.path = arg;
@@ -52,7 +54,7 @@ parse_arguments(Array<String> args) {
                     compiler.options.dump_diagnostics.sources = Array<String>::create();
                     arg = args.read(++i);
                     if(arg.str[0] == '-') {
-						push_diag(Diag::expected_path_or_paths_for_arg_option(MessageSender::Compiler, "--dump-diagnostics -source"));
+						Diag::expected_path_or_paths_for_arg_option(diags, MessageSender(), "--dump-diagnostics -source");
                         return false;
                     }
                     String curt = arg;
@@ -69,7 +71,7 @@ parse_arguments(Array<String> args) {
                     arg = args.read(++i);
                 }
                 if(arg.str[0] == '-') {
-					Diag::expected_a_path_for_arg(diags, MessageSender::Compiler, "--dump-diagnostics");
+					Diag::expected_a_path_for_arg(diags, MessageSender(), "--dump-diagnostics");
                     return false;
                 }
                 options.dump_diagnostics.path = arg;
@@ -77,7 +79,7 @@ parse_arguments(Array<String> args) {
 
             default: {
                 if(arg.str[0] == '-') {
-					Diag::unknown_option(diags, MessageSender::Compiler, arg);
+					Diag::unknown_option(diags, MessageSender(), arg);
                     return false;
                 }
                 // otherwise this is (hopefully) a path
@@ -142,7 +144,7 @@ dump_diagnostics(String path, Array<String> sources) {
 
 b32 Compiler::
 begin(Array<String> args) {
-	TRACE("compiler begin");
+	TRACE(MessageSender(), "compiler begin");
 	parse_arguments(args);
 
     // if we happen to exit early, we still want whatever is queued in the messenger
@@ -150,7 +152,7 @@ begin(Array<String> args) {
     defer {messenger.deliver();};
 
     if(!options.entry_path.str){
-		Diag::no_path_given(MessageSender::Compiler).emit();
+		Diag::no_path_given(MessageSender()).emit();
         return false;
     }
 
@@ -158,8 +160,7 @@ begin(Array<String> args) {
 
     Source* entry_source = Source::load(options.entry_path);
     if(!entry_source) {
-        diagnostic::path::
-            not_found(MessageSender::Compiler, instance.options.entry_path);
+		Diag::path_not_found(MessageSender(), options.entry_path).emit();
         return false;
     }
 	
@@ -168,38 +169,39 @@ begin(Array<String> args) {
 	// likely the filename isn't able to be used as an identifier
 	if(!entry_source->code) return false;
 
-	if(!entry_source->code->process_to(code::lex)) return false;
-    messenger::deliver();
+	if(!entry_source->code->process_to(Code::Stage::Lex)) return false;
+    messenger.deliver();
+
+	return true;
     
-	if(instance.options.dump_tokens.path.str) {
+	if(options.dump_tokens.path.str) {
         entry_source->code->lexer->
-			output(instance.options.dump_tokens.human, instance.options.dump_tokens.path);
-        if(instance.options.dump_tokens.exit) return true;
+			output(options.dump_tokens.human, options.dump_tokens.path);
+        if(options.dump_tokens.exit) return true;
     }
 
-	if(!entry_source->code->process_to(code::parse)) return false;
-    messenger::deliver();
-
-	if(!entry_source->code->process_to(code::sema)) return false;
-    messenger::deliver();
-
-	if(!entry_source->code->process_to(code::tac)) return false;
-	messenger::deliver();
-
-	if(!entry_source->code->process_to(code::air)) return false;
-	messenger::deliver();
+//	if(!entry_source->code->process_to(Code::Stage::Parse)) return false;
+//    messenger.deliver();
+//
+//	if(!entry_source->code->process_to(Code::Stage::Sema)) return false;
+//    messenger.deliver();
+//
+//	if(!entry_source->code->process_to(Code::Stage::TAC)) return false;
+//	messenger.deliver();
+//
+//	if(!entry_source->code->process_to(Code::Stage::AIR)) return false;
+//	messenger.deliver();
 
 	// Debugger::create(entry_source->code->last_child<Code>())->start();
 
     //VM::create(entry_source->code->last_child<Code>())
     //    ->run();
 
-    if(instance.options.dump_diagnostics.path.str) {
-        if(!internal::dump_diagnostics(instance.options.dump_diagnostics.path, instance.options.dump_diagnostics.sources)) return false;
+    if(options.dump_diagnostics.path.str) {
+        if(!dump_diagnostics(options.dump_diagnostics.path, options.dump_diagnostics.sources)) return false;
     }
 
 	return true;
 }
 
-} // namespace compiler
 } // namespace amu

@@ -50,8 +50,8 @@ struct Diag {
 		ExpectedPathOrPathsForArgOption,
 		UnknownOption,
 		NoPathGiven,
+		PathNotFound,
 	};
-
 
 	Kind kind;
 	Message::Kind severity;
@@ -74,141 +74,36 @@ struct Diag {
 	}
 
 	static Diag 
-	create(MessageSender sender, Kind kind, Message::Kind severity, s32 n_args) {
-		Diag out;
-		out.kind = kind;
-		out.severity = severity;
-		out.sender = sender;
-		if(n_args) {
-			out.args = Array<Arg>::create();
-			out.args.resize(n_args);
-		}
-		return out;
-	}
+	create(MessageSender sender, Kind kind, Message::Kind severity, s32 n_args);
 
 	void
-	destroy() {
-		args.destroy();
-	}
+	destroy();
 
-	static Diag
-	no_path_given(MessageSender m) {
-		auto out = Diag::create(m, Kind::NoPathGiven, Message::Kind::Fatal, 0);
-		out.emit_callback = [](Diag* diag) -> Message {
-			switch(language) {
-				default:
-				case Lang::English:
-					return MessageBuilder::
-						 start(diag->sender, diag->severity)
-						.append("no input files were given")
-						.message;
-			}
-		};
-		return out;
-	}
-	static void no_path_given(Array<Diag>& to, MessageSender m) { to.push(no_path_given(m)); }
+	static Diag no_path_given(MessageSender m);
+	static void no_path_given(Array<Diag>& to, MessageSender m);
 
-	static Diag
-	expected_a_path_for_arg(MessageSender m, String arg) {
-		auto out = Diag::create(m, Kind::ExpectedAPathForArg, Message::Kind::Fatal, 1);
-		out.args[0].string = arg;
-		out.emit_callback = [](Diag* diag) -> Message {
-			return MessageBuilder::
-				 start(diag->sender, diag->severity)
-				.append("expected a path for arg '")
-				.append(diag->args[0].string)
-				.append("'")
-				.message;
-		};
-		return out;
-	}
-	static void expected_a_path_for_arg(Array<Diag>& to, MessageSender m, String arg) { to.push(expected_a_path_for_arg(m, arg)); }
+	static Diag path_not_found(MessageSender m, String path);
+	static void path_not_found(Array<Diag>& to, MessageSender m, String path);
 
-	static Diag
-	expected_path_or_paths_for_arg_option(MessageSender m, String arg) {
-		auto out = Diag::create(m, Kind::ExpectedPathOrPathsForArgOption, Message::Kind::Fatal, 1);
-		out.args[0].string = arg;
-		out.emit_callback = [](Diag* diag) -> Message {
-			switch(language) {
-				default:
-				case Lang::English: 
-					return MessageBuilder::
-						 start(diag->sender, diag->severity)
-						.append("expected a path or paths for arg option '")
-						.append(diag->args[0].string)
-						.append("'")
-						.message;
-			}
-		};
-		return out;
-	}
+	static Diag	expected_a_path_for_arg(MessageSender m, String arg);
+	static void expected_a_path_for_arg(Array<Diag>& to, MessageSender m, String arg);
 
-	static Diag
-	unknown_option(MessageSender m, String arg) {
-		auto out = Diag::create(m, Kind::UnknownOption, Message::Kind::Fatal, 1);
-		out.args[0].string = arg;
-		out.emit_callback = [](Diag* diag) -> Message {
-			switch(language) {
-				default:
-				case Lang::English:
-					return MessageBuilder::
-						 start(diag->sender, diag->severity)
-						.append("unknown cli option '")
-						.append(diag->args[0].string)
-						.append("'")
-						.message;
-			}
-		};
-		return out;
-	}
-	static void unknown_option(Array<Diag>& to, MessageSender m, String arg) { to.push(unknown_option(m, arg)); }
+	static Diag	expected_path_or_paths_for_arg_option(MessageSender m, String arg);
+	static void expected_path_or_paths_for_arg_option(Array<Diag>& to, MessageSender sender, String arg);
 
-	static Diag
-	invalid_token(MessageSender m, Token* tok) {
-		auto out = Diag::create(m, Kind::InvalidToken, Message::Kind::Error, 1);
-		out.args[0].token = tok;
-		out.emit_callback = [](Diag* diag) -> Message {
-			return MessageBuilder::
-				 start(diag->sender, diag->severity)
-				.append("invalid token: ")
-				.append(diag->args[0].token)
-				.message;
-		};
-		return out;
-	}
+	static Diag	unknown_option(MessageSender m, String arg); 
+	static void unknown_option(Array<Diag>& to, MessageSender m, String arg);
 
-	static Diag
-	unknown_sid(MessageSender m, String s) {
-		auto out = Diag::create(m, Kind::UnknownSid, Message::Kind::Error, 1);
-		out.args[0].string = s;
-		out.emit_callback = [](Diag* diag) -> Message {
-			return MessageBuilder::
-				 start(diag->sender, diag->severity)
-				.append("unknown special id: ")
-				.append(diag->args[0].string)
-				.message;
-		};
-		return out;
-	}
+	static Diag	invalid_token(MessageSender m, Token* tok);
+	static void invalid_token(Array<Diag>& to, MessageSender m, Token* tok);
 
-	static Diag
-	unknown_directive(MessageSender m, String s) {
-		auto out = Diag::create(m, Kind::UnknownDirective, Message::Kind::Error, 1);
-		out.args[0].string = s;
-		out.emit_callback = [](Diag* diag) -> Message {
-			return MessageBuilder::
-				 start(diag->sender, diag->severity)
-				.append("unknown directive: ")
-				.append(diag->args[0].string)
-				.message;
-		};
-		return out;
-	}
+	static Diag unknown_sid(MessageSender m, String s);
+	static void unknown_sid(Array<Diag>& to, MessageSender m, String s);
 
+	static Diag	unknown_directive(MessageSender m, String s);
+	static void unknown_directive(Array<Diag>& to, MessageSender m, String s);
 };
 
 } // namespace amu
   
-#include "data/diagnostic-header.generated"
-
 #endif // AMU_DIAGNOSTICS_H

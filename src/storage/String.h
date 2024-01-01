@@ -158,6 +158,7 @@ struct String {
 
 	static b32 is_space(u32 codepoint);
 	static b32 is_digit(u32 codepoint);
+	static b32 is_xdigit(u32 codepoint);
 	static b32 is_alpha(u32 codepoint);
 	static b32 is_alnum(u32 codepoint);
 
@@ -176,16 +177,8 @@ template<> u64 hash(const String& s); // {return ((String&)s).hash();}
 template<> u64 hash(String* s); // {return (*s).hash();}
 
 // direct printing functions for debug use
-static void 
-print(String s) {
-	fwrite(s.str, s.count, 1, stdout);
-}
-
-static void
-println(String s) {
-	print(s);
-	print("\n");
-}
+void print(String s);
+void println(String s);
 
 consteval u64 
 static_string_hash(String s, u64 seed = 14695981039) {

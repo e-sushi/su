@@ -16,8 +16,10 @@
 namespace amu {
 
 struct Type;
+struct Token;
+struct String;
 
-struct ASTNode : public TNode, public Base {
+struct ASTNode : public Base {
 	enum class Kind {
 		Null,
 		Entity,
@@ -29,23 +31,57 @@ struct ASTNode : public TNode, public Base {
     Kind kind;
     Token* start,* end;
 
+	// accessing through the functions is preferred because
+	// casting through the template is easier to write/read 
+	struct {
+		ASTNode* next;
+		ASTNode* prev;
+		ASTNode* parent;
+		ASTNode* first_child;
+		ASTNode* last_child;
+	}link;
+
+	u32 child_count;
+
     struct {
         b32 break_air_gen : 1 = false;
     } flags;
 
     ASTNode(Kind k) : kind(k), Base(Base::Kind::AST) {
-        this->TNode::parent =
-        this->TNode::next =
-        this->TNode::prev = 
-        this->TNode::first_child = 
-        this->TNode::last_child = 0;
-        this->TNode::child_count = 0;
+        link.parent =
+        link.next =
+        link.prev = 
+        link.first_child = 
+        link.last_child = 0;
+        child_count = 0;
     }
 
-     // gets the next sibling of this ASTNode, 
+	// inserts x after this node in its sibling list
+	inline void insert_after(ASTNode* x);
+	// inserts x before this node in its sibling list
+	inline void insert_before(ASTNode* x);
+	// inserts x at the end of this nodes child list
+	inline void insert_last(ASTNode* x);
+	// inserts x at the front of this nodes child list
+	inline void insert_first(ASTNode* x);
+	// removes this node from the siblings list
+	inline void remove_horizontally();
+	// inserts this node above x
+	inline void insert_above(ASTNode* x);
+	// changes the parent of this node to x
+	// can be null
+	inline void change_parent(ASTNode* x);
+	// moves this node to be the first in its parents child list
+	inline void move_to_parent_first();
+	// moves this node to be the last in its parents child list
+	inline void move_to_parent_last();
+	// completely removes this node from the tree
+	inline void remove();
+
+ 	// gets the next sibling of this ASTNode, 
     // optionally passing a type to cast to 
-    template<typename T = ASTNode> inline T*
-    next() { return (T*)TNode::next; }
+    template<typename T = ASTNode> inline T*&
+    next() { return (T*&)link.next; }
 
     // similar to 'is' but for the next node
     template<typename T> inline b32
@@ -53,23 +89,23 @@ struct ASTNode : public TNode, public Base {
 
     // gets the previous sibling of this ASTNode, 
     // optionally passing a type to cast to 
-    template<typename T = ASTNode> inline T*
-    prev() { return (T*)TNode::prev; }
+    template<typename T = ASTNode> inline T*&
+    prev() { return (T*&)link.prev; }
 
     // gets the parent of this ASTNode, 
     // optionally passing a type to cast to 
-    template<typename T = ASTNode> inline T*
-    parent() { return (T*)TNode::parent; }
+    template<typename T = ASTNode> inline T*&
+    parent() { return (T*&)link.parent; }
 
     // gets the first_child of this ASTNode, 
     // optionally passing a type to cast to 
-    template<typename T = ASTNode> inline T*
-    first_child() { return (T*)TNode::first_child; }
+    template<typename T = ASTNode> inline T*&
+    first_child() { return (T*&)link.first_child; }
 
     // gets the last_child of this ASTNode, 
     // optionally passing a type to cast to 
-    template<typename T = ASTNode> inline T*
-    last_child() { return (T*)TNode::last_child; }
+    template<typename T = ASTNode> inline T*&
+    last_child() { return (T*&)link.last_child; }
 
     // Attempts to resolve the AST node into a Type 
     // by default this returns 0, but children that 
@@ -112,14 +148,6 @@ struct ASTNode : public TNode, public Base {
 
 template<> b32 inline Base::
 is<ASTNode>() { return kind == Base::Kind::AST; }
-
-struct ASTNodeRef {
-	ASTNode* ref;
-
-	ASTNode* operator->() {
-		return ref;
-	}
-};
 
 } // namespace amu
 

@@ -26,14 +26,13 @@ struct Bump : public Allocator {
 
 	u8** allocated_slabs_list;
 
-	static Bump
+	void
 	init();
 
 	void
 	deinit();
 
-	void* 
-	allocate(u32 size);
+	void* allocate(u32 size);
 
 	// bump allocators do no tracking of memory except their blocks
 	// so these operations are not supported

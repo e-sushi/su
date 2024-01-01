@@ -11,7 +11,8 @@
 #include "systems/Diagnostics.h"
 #include "systems/Threading.h"
 #include "Token.h"
-
+#include "representations/AST.h"
+#include "storage/Bump.h"
 
 namespace amu {
 
@@ -21,8 +22,6 @@ struct Sema;
 struct GenTAC;
 struct GenAIR;
 struct VM;
-struct SourceCode;
-struct VirtualCode;
 
 struct Code : public ASTNode {
 	enum class Kind {
@@ -48,7 +47,7 @@ struct Code : public ASTNode {
 	Stage stage;
 
 	// raw view of this code
-	String raw;
+	String raw; 
 
 	// identifier for this code, only used for debugging
 	String identifier;
@@ -72,11 +71,10 @@ struct Code : public ASTNode {
 	
 	TokenRange tokens;
 
-	// this Code object's state
-	// atmoic because we only do simple operations on it
-	// and don't need to keep an entire lock for it around 
 	Mutex mtx;
 	ConditionVariable cv;
+
+	Bump allocator;
 
 	
 	// ~~~~~~ interface ~~~~~~~
@@ -90,7 +88,7 @@ struct Code : public ASTNode {
 	from(Code* code, Token* start);
 	
 	static Code*
-	from(Code* code, Token* start, Token* end);
+	from(Code* code, TokenRange range);
 
 	// creates a Code object encompassing all tokens
 	// that the given ASTNode covers, so make sure 
@@ -101,22 +99,11 @@ struct Code : public ASTNode {
 	
 	// creates a new Code object encompassing the
 	// entire given Source
-	static SourceCode*
+	static Code*
 	from(Source* source);
-
-	// creates a new Code object. Note that it will
-	// not be lexed.
-	static VirtualCode*
-	from(String s);
 
 	void
 	destroy();
-
-	VirtualCode*
-	make_virtual();
-
-	b32
-	is_virtual();
 
 	// returns true if this Code object is currently going through some
 	// stage of processing
@@ -173,10 +160,10 @@ struct Code : public ASTNode {
 	change_state(Code::Stage stage, b32 notify = true);
 
 	DString
-	display() = 0;
+	display();
 
 	DString
-	dump() = 0;
+	dump();
 	
 	Code() : ASTNode(ASTNode::Kind::Code) {};
 };
@@ -252,7 +239,7 @@ struct TokenIterator {
 
 	// checks if the current token is of 'kind'
 	FORCE_INLINE b32
-	is(u32 kind);
+	is(Token::Kind kind);
 
 	// checks if the current token is of any of 'args'
 	template<typename... T> FORCE_INLINE b32
@@ -261,21 +248,24 @@ struct TokenIterator {
 	// checks if the next token is of 'kind'
 	// returns false if at the end
 	FORCE_INLINE b32
-	next_is(u32 kind);
+	next_is(Token::Kind kind);
 
 	// checks if the previous token is of 'kind'
 	// returns false if at the beginning
 	FORCE_INLINE b32
-	prev_is(u32 kind);
+	prev_is(Token::Kind kind);
 
 	// displays the current line as well as a caret 
 	// indicating where in the line we are 
-	DString*
+	DString
 	display_line();
 };
 
 void
-to_string(DString* current, Code* c);
+to_string(DString& current, Code::Stage stage);
+
+void
+to_string(DString& current, Code* c);
 
 } // namespace amu
 

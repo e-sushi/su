@@ -12,54 +12,39 @@
 #ifndef AMU_MESSENGER_H
 #define AMU_MESSENGER_H
 
-#include "storage/Array.h"
+#include "storage/Array.h" 
 #include "storage/DString.h"
 #include "systems/Threading.h"
-
-#define LOG(sender, verbosity, ...)                                    \
-	if(compiler.options.verbosity >= Message::Kind::verbosity) {       \
-		Messenger::dispatch(Message::create(Message::Kind::verbosity)) \
-	}         
+#include "utils/Time.h"
+#include "utils/Colorize.h"
+#include "util.h"
 
 // macros for outputting information about the compiler's state
 // these should NEVER be used to report things about what the compiler is working
 // with because that information must be localized
 
-#define FATAL(sender, ...)                                                      \
-	if(compiler.options.verbosity >= Message::Kind::Fatal) {                    \
-		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
-	}
+#define HELPER(x, y, ...)                                           \
+	do {                                                            \
+		if(compiler.options.verbosity >= x) {                       \
+			messenger.dispatch(Message::create(y, x, __VA_ARGS__)); \
+		}                                                           \
+	} while(0)
 
-#define ERROR(sender, ...)                                                      \
-	if(compiler.options.verbosity >= Message::Kind::Error) {                    \
-		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
-	}
+#define FATAL(sender, ...) HELPER(Message::Kind::Fatal, sender, __VA_ARGS__)
+#define ERROR(sender, ...) HELPER(Message::Kind::Error, sender, __VA_ARGS__)
+#define WARNING(sender, ...) HELPER(Message::Kind::Warning, sender, __VA_ARGS__)
+#define NOTICE(sender, ...) HELPER(Message::Kind::Notice, sender, __VA_ARGS__)
+#define INFO(sender, ...) HELPER(Message::Kind::Info, sender, __VA_ARGS__)
+#define DEBUG(sender, ...) HELPER(Message::Kind::Debug, sender, __VA_ARGS__)
 
-#define WARNING(sender, ...)                                                    \
-	if(compiler.options.verbosity >= Message::Kind::Warning) {                  \
-		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
-	}
-
-#define NOTICE(sender, ...)                                                     \
-	if(compiler.options.verbosity >= Message::Kind::Notice) {                   \
-		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
-	}
-
-#define INFO(sender, ...)                                                       \
-	if(compiler.options.verbosity >= Message::Kind::Info) {                     \
-		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
-	}
-
-#define DEBUG(sender, ...)                                                      \
-	if(compiler.options.verbosity >= Message::Kind::Debug) {                    \
-		Messender::dispatch(Message::create(Message::Kind::Info, __VA_ARGS__)); \
-	}
-
+// NOTE(sushi) this is set to deliver the message immediately
 #ifdef AMU_ENABLE_TRACE
-#define TRACE(sender, ...)                                                       \
-	if(compiler.options.verbosity >= Message::Kind::Trace) {                     \
-		Messenger::dispatch(Message::create(Message::Kind::Trace, __VA_ARGS__)); \
-	}
+#define TRACE(sender, ...)                                                                 \
+	do {                                                                                   \
+		if(compiler.options.verbosity >= Message::Kind::Trace) {                           \
+			messenger.deliver(Message::create(sender, Message::Kind::Trace, __VA_ARGS__)); \
+		}                                                                                  \
+	} while(0)
 #else
 #define TRACE(...)
 #endif
@@ -76,30 +61,8 @@ struct Structure;
 struct Label;
 struct Type;
 
-// standard terminal colors
-// FormattingColor indicates to use the color defined by a
-// message part's formatting. 
-enum class Color {
-	FormattingColor = 0, 
-	Black = 30,
-	Red = 31,
-	Green = 32,
-	Yellow = 33,
-	Blue = 34,
-	Magenta = 35,
-	Cyan = 36,
-	White = 37,
-	Extended = 38,
-	Default = 49,
-	BrightBlack = 90,
-	BrightRed = 91,
-	BrightGreen = 92,
-	BrightYellow = 93,
-	BrightBlue = 94,
-	BrightMagenta = 95,
-	BrightCyan = 96,
-	BrightWhite = 97,
-};
+template<typename T, int N>
+int arrsize(T(&)[N]) { return N; }
 
 struct MessagePart {
 	enum class Kind {
@@ -121,8 +84,8 @@ struct MessagePart {
 	Color color;
 
     union {
-        String plain; // a plain String, path, or identifier
-        Token* token; // a token, likely representing a source location
+        MaybeDString plain; 	
+		Token* token; // a token, likely representing a source location
         Var* place;
         Structure* structure;
         Function* function;
@@ -134,40 +97,60 @@ struct MessagePart {
 
     MessagePart() {}
 	
-    MessagePart(String s)     : plain(s),     kind(Kind::Plain) {}
-    MessagePart(Token* t)     : token(t),     kind(Kind::Token) {}
-    MessagePart(Var* p)       : place(p),     kind(Kind::Var) {}
-    MessagePart(Structure* s) : structure(s), kind(Kind::Structure) {}
-    MessagePart(Function* f)  : function(f),  kind(Kind::Function) {}
-    MessagePart(Module* m)    : module(m),    kind(Kind::Module) {}
-    MessagePart(Label* l)     : label(l),     kind(Kind::Label) {}
-    MessagePart(Source* s)    : source(s),    kind(Kind::Source) {}
-    MessagePart(Type* t)      : type(t),      kind(Kind::Type) {}
+    MessagePart(MaybeDString s) : plain(s),     kind(Kind::Plain) {}
+    MessagePart(Token* t)       : token(t),     kind(Kind::Token) {}
+    MessagePart(Var* p)         : place(p),     kind(Kind::Var) {}
+    MessagePart(Structure* s)   : structure(s), kind(Kind::Structure) {}
+    MessagePart(Function* f)    : function(f),  kind(Kind::Function) {}
+    MessagePart(Module* m)      : module(m),    kind(Kind::Module) {}
+    MessagePart(Label* l)       : label(l),     kind(Kind::Label) {}
+    MessagePart(Source* s)      : source(s),    kind(Kind::Source) {}
+    MessagePart(Type* t)        : type(t),      kind(Kind::Type) {}
 
-	// IDK WHY but for some reason I cannot get a variadic templated function to take in 
-	// JUST a string literal and have it know that it is a MessagePart at compile time
-	// for example: messenger::qdebug(MessageSender::Compiler, "hello!") will not work
-	// and I have no idea how to get it to
-	consteval MessagePart(const char* s) : plain(s), kind(Kind::Plain), color(Color::White) {} 
+	MessagePart(const char* s) : kind(Kind::Plain) {plain = String::from(s);}
+
+	// generic to turn arbitrary things into plain Strings
+	template<typename T>
+	MessagePart(T x);
+
+	~MessagePart() {
+		if(util::any_match(kind, Kind::Plain, Kind::Path, Kind::Identifier)) 
+			plain.~MaybeDString();
+	}
+
+	// TODO(sushi) get str len at compile time here somehow
+
+	//template<int N>
+	//MessagePart(const char s[N]) : plain(s, N), kind(Kind::Plain), color(Color::White) {} 
 
 	MessagePart& colored(Color color) { this->color = color; return *this; }
+
+	void
+	append_to(DString& dstr, b32 allow_color);
 };
+
+template<typename T>
+MessagePart::MessagePart(T x) {
+	kind = Kind::Plain;
+	plain = MaybeDString(DString());
+	to_string(plain.dstr, x);
+}
 
 // indicates who sent a message
 struct MessageSender {
-    enum Type {
+    enum class Type {
         Compiler,
         Code,  
-		CodeLoc, 
+		Token, 
     };
 
     Type type;
-    amu::Code* code;
+    Code* code;
     Token* token;
 
     MessageSender();
     MessageSender(Type type);
-    MessageSender(amu::Code* c);
+    MessageSender(Code* c);
     MessageSender(Token* t);
 };
 
@@ -178,13 +161,15 @@ struct Message {
 		Fatal,   // the compiler cannot continue
 		Error,   // a specific operation cannot continue
 		Warning, // odd situation that may cause problems
+		// the following are used primarily for reporting stuff about 
+		// the compiler's state
 		Notice,  // normal but significant conditions
 		Info,    // generally useful information
 		Debug,   // used for general diagnosing of compiler problems
 		Trace,   // used for tracing code 
 	};
 
-    u64 time;
+	Time::Point time;
     Kind kind;
 
     MessageSender sender;
@@ -196,6 +181,9 @@ struct Message {
 
 	template<typename... T> static Message
 	create(MessageSender sender, Kind kind, T... args);
+
+	DString
+	build(b32 allow_color);
 };
 
 struct MessageBuilder {
@@ -283,9 +271,23 @@ struct Messenger {
     Array<Message> messages;
     Array<Destination> destinations;
 
+	Array<MessageSender> sender_stack;
+	MessageSender current_sender;
+
 	MessageFormatting formatting;
 	
 	Mutex outmtx;
+
+	void init();
+	void deinit();
+
+	void push_sender(MessageSender sender);
+	void pop_sender();
+
+	struct ScopedSender {
+		ScopedSender(MessageSender sender);
+		~ScopedSender();
+	};
 
 	void dispatch(Message message);
 	void dispatch(String message, Source* source = 0);
@@ -294,11 +296,20 @@ struct Messenger {
 	void deliver(Destination dest, b32 clear_messages = false);
 	void deliver(Destination dest, Array<Message> messages);
 	void deliver(Destination dest, Message message);
+	// deliver a single message to all destinations immediately
+	void deliver(Message message);
 
 	template<typename... T> void qdebug(MessageSender sender, T... args);
 }; 
 
 extern Messenger messenger;
+
+template<typename... T> Message Message::
+create(MessageSender sender, Message::Kind kind, T... args) {
+	Message out = create(sender, kind);
+	(out.parts.push(args), ...);
+	return out;
+}
 
 } // namespace amu
 

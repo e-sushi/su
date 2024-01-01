@@ -12,6 +12,8 @@
 #define AMU_MAP_H
 
 #include "Array.h"
+#include "util.h"
+
 namespace amu {
 
 struct FindResult {

@@ -146,7 +146,6 @@
 /////////////////////////
 /// TODO(sushi) move these to the cpp files in which they are used 
 ///             so they don't need to be included everywhere
-#include <stdio.h>
 #include <stddef.h> //size_t, ptrdiff_t
 // #include <stdarg.h> //va_start, va_list, va_arg, va_end
 // #include <math.h>   //log2

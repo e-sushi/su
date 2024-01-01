@@ -19,6 +19,7 @@ DecodedCodepoint::DecodedCodepoint(u8* str){
 	switch(byte_class){
 		case 1:{
 			codepoint = byte;
+			advance = 1;
 		}break;
 		case 2:{
 			u8 next_byte = str[1];
@@ -50,6 +51,7 @@ DecodedCodepoint::DecodedCodepoint(u8* str){
 				advance = 4;
 			}
 		}break;
+		default: Assert(0);
 	}
 }
 

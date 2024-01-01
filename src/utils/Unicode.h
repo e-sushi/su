@@ -17,7 +17,7 @@ struct DecodedCodepoint{
 	u32 codepoint;
 	u32 advance;
 	
-	DecodedCodepoint() {*this = {};}
+	DecodedCodepoint() {codepoint = advance = 0;}
 	DecodedCodepoint(u8* str);
 };
 

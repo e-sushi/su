@@ -1,15 +1,18 @@
 #include "Messenger.h"
 #include "representations/Token.h"
+#include "stdio.h"
 
 namespace amu {
 
 Messenger messenger;
 
-void 
+void Messenger::
 init() {
-    messenger.messages = Array<Message>::create();
-    messenger.destinations = Array<Destination>::create();
-	messenger.formatting = MessageFormatting();
+    messages = Array<Message>::create();
+    destinations = Array<Destination>::create();
+	formatting = MessageFormatting();
+	sender_stack = Array<MessageSender>::create(16);
+	current_sender = MessageSender::Type::Compiler;
 }
 
 namespace internal {
@@ -352,51 +355,128 @@ process_message(DString* current, Message& m) {
 //
 //
 
+void MessagePart::
+append_to(DString& dstr, b32 allow_color) {
+	using enum Kind;
+	
+	auto do_color = [&](DString& s, Color formatting_color, Color message_color) {
+		if(!allow_color) return;
+		colorize(s, (message_color == Color::Null? formatting_color : message_color));
+	};
+
+	switch(kind) {
+		case Plain: {
+			auto temp = DString(messenger.formatting.plain.prefix, plain.get_string(), messenger.formatting.plain.suffix);
+			do_color(temp, messenger.formatting.plain.col, color);
+			dstr.append(temp);
+		} break;
+		case Identifier: {
+			auto temp = DString(messenger.formatting.identifier.prefix, plain.get_string(), messenger.formatting.identifier.suffix);
+			do_color(temp, messenger.formatting.identifier.col, color);
+			dstr.append(temp);
+		} break;
+		default: {
+			NotImplemented;
+		} break;
+	}
+}
+
 
 void Messenger::
 dispatch(Message message) {
 	outmtx.lock();
 	defer { outmtx.unlock(); };
 	
-	
+	messages.push(message);
+}
+
+void Messenger::
+deliver(Message message) {
+	outmtx.lock();
+	defer { outmtx.unlock(); };
+
+	forX(destidx, destinations.count) {
+		b32 allow_color = destinations[destidx].allow_color;
+		FILE* file = destinations[destidx].file;
+		DString out;
+		forI(message.parts.count) {
+			message.parts[i].append_to(out, allow_color);
+		}
+		fwrite(out.ptr, out.count(), 1, file);
+	}
+}
+
+void Messenger::
+deliver(b32 clear_messages) {
+	forI(messages.count) {
+		deliver(messages[i]);
+	}
+	if(clear_messages)
+		messages.clear();
+}
+
+void Messenger::
+deliver(Destination dest, Message message) {
+	DString built = message.build(dest.allow_color);
+	String s = built.get_string();
+	fwrite(s.str, s.count, 1, dest.file);
+}
+
+void Messenger::
+push_sender(MessageSender m) {
+	sender_stack.push(current_sender);
+	current_sender = m;
+}
+
+void Messenger::
+pop_sender() {
+	current_sender = sender_stack.pop();
+}
+
+Messenger::ScopedSender::
+ScopedSender(MessageSender sender) {
+	messenger.push_sender(sender);
+}
+
+Messenger::ScopedSender::
+~ScopedSender() {
+	messenger.pop_sender();
 }
 
 
 MessageSender::MessageSender() {
-	type = Compiler;
+	type = Type::Compiler;
 }
 
 MessageSender::MessageSender(Type type) {
 	type = type;
 }
 
-MessageSender::MessageSender(amu::Code* c) {
-	type = Code;
+MessageSender::MessageSender(Code* c) {
+	type = Type::Code;
 	code = c;
 }
 
 MessageSender::MessageSender(Token* t) {
-	type = CodeLoc;
-	code = t->code;
+	type = Type::Token;
 	token = t;
 }
 
 Message Message::
 create(MessageSender sender, Message::Kind kind) {
 	Message out = {};
+	out.time = Time::Point::now();
 	out.kind = kind;
 	out.sender = sender;
 	out.parts = Array<MessagePart>::create();
 	return out;
 }
 
-template<typename... T> Message Message::
-create(MessageSender sender, Message::Kind kind, T... args) {
-	Message out = create(sender, kind);
-	const u32 part_count = sizeof...(T);
-	MessagePart parts[part_count] = { args... };
-	forI(part_count) {
-		out.parts.push(parts[i]);
+DString Message::
+build(b32 allow_color) {
+	DString out;
+	forI(parts.count) {
+		parts[i].append_to(out, allow_color);
 	}
 	return out;
 }
@@ -417,8 +497,21 @@ from(Message message) {
 
 MessageBuilder& MessageBuilder::
 plain(String s) {
-	MessagePart part = s;
-	NotImplemented;
+	message.parts.push(s);
+	return *this;
+}
+
+MessageBuilder& MessageBuilder::
+path(String s) {
+	auto p = MessagePart(s);
+	p.kind = MessagePart::Kind::Path;
+	message.parts.push(p);
+	return *this;
+}
+
+MessageBuilder& MessageBuilder::
+append(MessagePart part) {
+	message.parts.push(part);
 	return *this;
 }
 
