@@ -41,18 +41,7 @@ run() {
 
 	u32 current_codepoint = *stream.str;
 
-	// TODO(sushi) there's tons of places where we calc the codepoint several times 
-	//             primarily in the disconnection between peek() and next()
-
-	u32 peeked_codepoint = 0;
-	u32 peeked_advance = 0;
-
 	auto next = [&]() -> u32 {
-		if(peeked_codepoint) {
-			auto save = peeked_codepoint;
-			peeked_codepoint = 0;
-			return save;
-		}
 		current_codepoint = stream.advance().codepoint;
 		if(!stream) return 0;
 		if(current_codepoint == '\n') {
@@ -65,14 +54,14 @@ run() {
 	};
 
 	auto current = [&]() -> u32 {
-		return current_codepoint;
+		return stream.codepoint();
 	};
 
 	auto skip_whitespace = [&]() {
 		while(1) {
 			if(String::is_space(current())) {
 				next();
-			}
+			} else break;
 		}
 	};
 
@@ -82,6 +71,7 @@ run() {
 		t.l1 = line;
 		t.c0 = col;
 		t.hash = t.raw.hash();
+		t.raw.count = stream.str - t.raw.str;
 		if(t.kind >= FloatLiteral && t.kind <= StringLiteral) {
 			t.group = Token::Group::Literal;
 		} else if(t.kind >= Semicolon && t.kind <= RightArrowThick) {
@@ -119,6 +109,8 @@ run() {
 			return true;
 		return false;
 	};
+
+
 
 	auto is_integer_char = [&](u32 c) {
 		if(String::is_digit(c) || c == '_')
@@ -174,8 +166,9 @@ run() {
 		return Identifier;
 	};
 
-	while(stream) { using namespace util;
+	while(1) { using namespace util;
 		skip_whitespace();
+		if(!stream) break;
 		reset_token();
 		switch(current()) {
 			case '0': case '1': case '2': case '3': case '4':
@@ -261,7 +254,11 @@ run() {
 					}                                          \
 				}                                              \
 			} break;
-
+			
+			one_glyph_map('{', LBrace);
+			one_glyph_map('}', RBrace);
+			one_glyph_map('(', LParen);
+			one_glyph_map(')', RParen);
 			one_glyph_map('[', LSquare);
 			one_glyph_map(']', RSquare);
 			one_glyph_map(',', Comma);
@@ -270,6 +267,7 @@ run() {
 			one_glyph_map('#', Pound);
 			one_glyph_map('`', Backtick);
 			one_glyph_map(':', Colon);
+			one_glyph_map(';', Semicolon);
 
 			two_glyph_map('$', Dollar,          '$', DollarDouble);
 			two_glyph_map('+', Plus,            '=', PlusEqual);
@@ -289,7 +287,13 @@ run() {
 			two_or_three_glyph_map('>', GreaterThan, '=', GreaterThanEqual, '>', GreaterThanDouble, '=', GreaterThanDoubleEqual);
 
 			default: {
-				while(is_identifier_char(next()));
+				if(!is_identifier_char(current())) {
+					finish_token();
+					Diag::invalid_token(diag_stack, &tokens[-1], &tokens[-1]);
+					return false;
+				}
+
+				while(is_identifier_char(current()) && next());
 				t.raw.count = stream.str - t.raw.str;
 				
 				if(last_token.kind == Pound) {
@@ -311,11 +315,6 @@ run() {
 				} else {
 					t.kind = keyword_or_identifier(t.raw);
 				}
-
-
-				finish_token();
-				Diag::invalid_token(diag_stack, &tokens[-1], &tokens[-1]);
-				return false;
 			}
 		}
 		finish_token();

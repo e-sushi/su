@@ -1,8 +1,17 @@
 #include "Common.h"
 #include "Memory.h"
 
-#include "stdlib.h"
-#include "string.h"
+#if AMU_TRACK_MEMORY
+
+#include "storage/DString.h"
+#include "utils/Units.h"
+#include <cstdio>
+
+#endif
+
+
+#include <cstdlib>
+#include <cstring>
 
 namespace amu {
 
@@ -63,5 +72,23 @@ void Memory::
 zero(void* ptr, upt bytes) {
     memset(ptr, 0, bytes);
 } 
+
+void Memory::
+print_memory_usage() {
+#if AMU_TRACK_MEMORY
+	u64 actual_allocated = n_allocations * sizeof(Header) + bytes_allocated;
+	printf(
+R"amu(
+MEMORY USAGE:
+     n_allocations: %lli
+   bytes_allocated: %lli%sb
+  actual_allocated: %lli%sb
+)amu",
+	n_allocations,
+	si_divide(bytes_allocated), si_prefix_symbol(bytes_allocated).str,
+	si_divide(actual_allocated), si_prefix_symbol(actual_allocated).str
+);
+#endif
+}
 
 } // namespace amu

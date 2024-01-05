@@ -178,6 +178,8 @@ begin(Array<String> args) {
 	if(!entry_source->code->process_to(Code::Stage::Lex)) return false;
     messenger.deliver();
 
+	memory.print_memory_usage();
+
 	return true;
     
 	if(options.dump_tokens.path.str) {

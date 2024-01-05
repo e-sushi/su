@@ -41,6 +41,12 @@ struct Memory {
 
 	template<typename T, typename... Args> T
 	construct(Args... args);
+
+	// prints the current amount of memory amu is using
+	// note that this will do nothing if AMU_TRACK_MEMORY
+	// is not defined.
+	// note that this uses printf and not messenger
+	void print_memory_usage();
 };
 
 extern Memory memory;
