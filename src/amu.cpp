@@ -7,7 +7,7 @@
 #include "util.h"
 
 // #ifdef AMU_USE_NOTCURSES
-#include "notcurses/notcurses.h"
+//#include "notcurses/notcurses.h"
 // #endif
 
 #include "utils/Time.h"

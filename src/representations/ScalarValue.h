@@ -31,6 +31,7 @@
 #define AMU_SCALARVALUE_H
 
 #include "Base.h"
+#include "storage/String.h"
 
 namespace amu {
 
@@ -46,6 +47,19 @@ struct ScalarValue : public Base {
 		Signed64,
 		Float32,
 		Float64,
+	};
+
+	constexpr static String kind_strings[] = {
+		"Unsigned8",
+		"Unsigned16",
+		"Unsigned32",
+		"Unsigned64",
+		"Signed8",
+		"Signed16",
+		"Signed32",
+		"Signed64",
+		"Float32",
+		"Float64",
 	};
 
 	Kind kind;

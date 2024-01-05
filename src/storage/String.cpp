@@ -2,9 +2,9 @@
 #include "DString.h"
 #include "utils/Unicode.h"
 
-#include "stdio.h"
-#include "cstdlib"
-#include "string.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace amu {
 

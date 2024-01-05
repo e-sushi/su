@@ -10,6 +10,8 @@
 #ifndef AMU_GENAIR_H
 #define AMU_GENAIR_H
 
+#include "representations/TAC.h"
+
 namespace amu {
 
 // something that'll be put on the stack that is not a

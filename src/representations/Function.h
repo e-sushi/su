@@ -27,17 +27,17 @@ struct Function : public Entity {
     void
     destroy();
 
-    DString*
+    DString
     display();
 
-    DString*
+    DString
     dump();
 
-    Function() : Entity(entity::func) {}
+    Function() : Entity(Entity::Kind::Func) {}
 };
 
 template<> inline b32 Base::
-is<Function>() { return is<Expr>() && as<Expr>()->kind == expr::function; }
+is<Function>() { return is<Expr>() && as<Expr>()->kind == Expr::Kind::Function; }
 
 // when a label is assigned to a second function entity, this is created
 // and the label points at it instead of any of the Functions

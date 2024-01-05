@@ -1,5 +1,5 @@
 #include "Time.h"
-#include "time.h" // TODO(sushi) this'll break on windows
+#include <ctime>
 #include "storage/String.h"
 #include "storage/DString.h"
 #include "math.h"

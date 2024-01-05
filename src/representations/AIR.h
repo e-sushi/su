@@ -194,8 +194,8 @@ struct BC {
         struct {
             s64 dst;
             s64 src;
-            scalar::kind to;
-            scalar::kind from;
+            ScalarValue::Kind to;
+            ScalarValue::Kind from;
         } resz;
 
         struct { // this sucks, setup a way to store functions in 4 bytes instead of 8
@@ -211,7 +211,7 @@ struct BC {
     TAC* tac; // the TAC used to generate this
 
     BC() {}
-    BC(const BC& bc) {memory::copy(this, (void*)&bc, sizeof(BC));}
+    BC(const BC& bc) {memory.copy(this, (void*)&bc, sizeof(BC));}
 };
 
 void
@@ -219,7 +219,7 @@ to_string(DString* current, BC bc) {
 
     auto loffset = [&]() {
         if(bc.flags.left_is_const) {
-            current->append(ScopedDeref(bc.lhs.display()).x, " ");
+            current->append(bc.lhs.display(), " ");
         } else if(bc.flags.left_is_ptr) { 
             if(bc.flags.deref_left) {
                 current->append("[", (void*)bc.lhs._u64, "] ");
@@ -228,16 +228,16 @@ to_string(DString* current, BC bc) {
             }
         } else {
             if(bc.flags.deref_left) {
-                current->append("[", ScopedDeref(bc.lhs.display()).x, "sp] ");
+                current->append("[", bc.lhs.display(), "sp] ");
             } else {
-                current->append(ScopedDeref(bc.lhs.display()).x, "sp ");
+                current->append(bc.lhs.display(), "sp ");
             }
         }
     };
 
     auto roffset = [&]() {
         if(bc.flags.right_is_const) {
-            current->append(ScopedDeref(bc.rhs.display()).x, " ");
+            current->append(bc.rhs.display(), " ");
         } else if(bc.flags.right_is_ptr) { 
             if(bc.flags.deref_right) {
                 current->append("[", (void*)bc.rhs._u64, "] ");
@@ -246,9 +246,9 @@ to_string(DString* current, BC bc) {
             }
         } else {
             if(bc.flags.deref_right) {
-                current->append("[", ScopedDeref(bc.rhs.display()).x, "sp] ");
+                current->append("[", bc.rhs.display(), "sp] ");
             } else {
-                current->append(ScopedDeref(bc.rhs.display()).x, "sp ");
+                current->append(bc.rhs.display(), "sp ");
             }
         }
     };
@@ -290,7 +290,7 @@ to_string(DString* current, BC bc) {
                     current->append((void*)bc.copy.src, " ");   
                 }
             } else if(bc.flags.right_is_const) {
-                current->append(ScopedDeref(bc.copy.literal.display()).x, " ");
+                current->append(bc.copy.literal.display(), " ");
             } else {
                 if(bc.flags.deref_right) {
                     current->append("[", bc.copy.src, "sp] ");
@@ -380,7 +380,7 @@ to_string(DString* current, BC bc) {
             roffset();
         }break;
         case air::resz: {
-            current->append("resz ", bc.resz.src, "sp(", scalar::kind_strings[bc.resz.from], ") -> ", bc.resz.dst, "sp(", scalar::kind_strings[bc.resz.to], ")");
+            current->append("resz ", bc.resz.src, "sp(", ScalarValue::kind_strings[(int)bc.resz.from], ") -> ", bc.resz.dst, "sp(", ScalarValue::kind_strings[(int)bc.resz.to], ")");
         } break;
         case air::ref: {
             current->append("ref ");

@@ -25,7 +25,14 @@
 #ifndef AMU_TAC_H
 #define AMU_TAC_H
 
+#include "representations/Function.h" // Function::display()
+#include "representations/ScalarValue.h"
+#include "representations/Variable.h" // Var::display()
+
 namespace amu {
+
+struct TAC;
+struct ASTNode;
 
 enum width {
     byte = 0, // 1 byte
@@ -180,7 +187,7 @@ struct Arg {
         ScalarValue literal;
         u64 stack_offset;
         width w;
-        scalar::kind scalar_kind;
+        ScalarValue::Kind scalar_kind;
 
         // a Variable with an offset and the Type of that offset
         // the reason we don't just store a Member here is because
@@ -192,21 +199,21 @@ struct Arg {
         } offset_var;
         
         struct {
-            scalar::kind to;
-            scalar::kind from;
+            ScalarValue::Kind to;
+            ScalarValue::Kind from;
         } cast;
     };
 
     b32 deref = 0;
 
-    Arg() {memory::zero(this, sizeof(Arg));}
+    Arg() {memory.zero(this, sizeof(Arg));}
     Arg(Var* p) : kind(arg::var), var(p) {}
     Arg(Function* f) : kind(arg::func), func(f) {}
     Arg(TAC* t) : kind(arg::temporary), temporary(t) {}
     Arg(ScalarValue l) : kind(arg::literal), literal(l) {}
     Arg(width x) : kind(arg::width), w(x) {}
-    Arg(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg));}
-    Arg operator=(const Arg& a) {memory::copy(this, (void*)&a, sizeof(Arg)); return *this;} 
+    Arg(const Arg& a) {memory.copy(this, (void*)&a, sizeof(Arg));}
+    Arg operator=(const Arg& a) {memory.copy(this, (void*)&a, sizeof(Arg)); return *this;} 
 };
 
 struct TAC {
@@ -287,7 +294,7 @@ to_string(DString* current, Arg* arg) {
             }
         } break;
         case arg::cast: {
-            current->append(scalar::kind_strings[arg->cast.from], "->", scalar::kind_strings[arg->cast.to]);
+            current->append(ScalarValue::kind_strings[(int)arg->cast.from], "->", ScalarValue::kind_strings[(int)arg->cast.to]);
         } break;
         case arg::stack_offset: {
             current->append(arg->literal.display());
