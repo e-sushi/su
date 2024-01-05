@@ -15,6 +15,9 @@
 #include "Array.h"
 #include "basic/Allocator.h"
 
+template<typename T>
+struct FAIL_DUMMY { static const b32 value = false; };
+
 namespace amu {
 
 struct Bump : public Allocator {
@@ -26,18 +29,18 @@ struct Bump : public Allocator {
 
 	u8** allocated_slabs_list;
 
-	void
-	init();
+	void init();
+	void deinit();
 
-	void
-	deinit();
+	void* allocate(u32 size) override;
 
-	void* allocate(u32 size);
+	void* reallocate(void* ptr, u32 old_size, u32 new_size);
 
-	// bump allocators do no tracking of memory except their blocks
-	// so these operations are not supported
-	void* reallocate(void* ptr, u32 size) {Assert(0); return 0;}
-	void  free(void* ptr) {Assert(0);}
+	[[deprecated("normal reallocate is not implemented for Bump! use the version that takes previous size instead.")]]
+	void* reallocate(void* ptr, u32 size) override { Assert(0); return 0; } 
+	
+	[[deprecated("Bump does not implement free!")]]
+	void  free(void* ptr) override { Assert(0); }
 };
 
 }

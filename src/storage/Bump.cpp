@@ -22,7 +22,7 @@ deinit() {
 
 void* Bump::
 allocate(u32 size) {
-	Assert(size <= slab_size);
+	Assert(size <= slab_size); // if this happens we have to handle it in a sorta special way so do that when it's needed
 
 	if(cursor - start + size > slab_size) {
 		u8* newslab = (u8*)memory.allocate(slab_size + sizeof(u8**));
@@ -35,4 +35,14 @@ allocate(u32 size) {
 	return out;
 }
 
+void* Bump::
+reallocate(void* ptr, u32 old_size, u32 new_size) {
+	if(new_size > old_size) {
+		void* dst = allocate(new_size);
+		memory.copy(dst, ptr, old_size);
+		return dst;
+	}
+	return ptr;
 }
+
+} // namespace amu
