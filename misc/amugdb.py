@@ -19,7 +19,6 @@ def is_tnode(val):
     n = str(val.type)
     return n == "amu::TNode" or n == "amu::TNode *"
 
-
 class print_lnode_chain(gdb.Command):
     def __init__(self):
         super(print_lnode_chain, self).__init__("plnode", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
@@ -28,7 +27,7 @@ class print_lnode_chain(gdb.Command):
         try:
             val = gdb.parse_and_eval(arg)
             if val is None:
-                print(f"invalid expression")
+                print("invalid expression")
                 return
             out = f"{val} -> "
             iter = val['next'].dereference()
@@ -54,6 +53,7 @@ class String_printer:
                 return "empty"
             buf = gdb.selected_inferior().read_memory(ptr, val['count']).tobytes().decode()
             buf = buf.replace('\n', '\\n')
+            buf = f"\"{buf}\""
             return buf
         except Exception as e:
             print(f"{self.__class__.__name__} error: {e}")
