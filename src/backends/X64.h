@@ -3,7 +3,6 @@
 
 #include "Common.h"
 #include "processors/Assembler.h"
-#include "storage/Array.h"
 #include "storage/String.h"
 
 namespace amu{
@@ -11,6 +10,12 @@ namespace amu{
 struct Code;
 
 struct X64 : Assembler{
+	struct StackValue{
+		u32 type;
+		u32 reg; // register + flags
+		u64 value;
+	};
+	
 	static Assembler* create(Code* code);
 	
 	void run();
@@ -19,7 +24,11 @@ struct X64 : Assembler{
 	
 	// ~~~~ data ~~~~
 	
-	Array<u8> binary;
+	StackValue stack[256];
+	u32 stack_count;
+	u8* binary;
+	u32 binary_count;
+	u32 binary_space;
 };
 
 } // namespace amu
