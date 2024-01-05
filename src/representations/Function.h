@@ -21,17 +21,11 @@ struct Function : public Entity {
     FunctionType* type;
     Frame frame;
 
-    static Function*
-    create(FunctionType* type = 0);
+    static Function* create(FunctionType* type = 0);
+    void destroy();
 
-    void
-    destroy();
-
-    DString
-    display();
-
-    DString
-    dump();
+    DString display();
+    DString dump();
 
     Function() : Entity(Entity::Kind::Func) {}
 };
@@ -45,15 +39,7 @@ struct OverloadedFunction : public Entity {
     Array<Function*> overloads;
 };
 
-void
-to_string(DString* start, Function* p);
-
-DString*
-to_string(Function* f) {
-    DString* out = DString::create();
-    to_string(out, f);
-    return out;
-}
+void to_string(DString* start, Function* p);
 
 } // namespace amu 
 

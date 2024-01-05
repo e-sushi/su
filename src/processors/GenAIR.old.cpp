@@ -790,4 +790,198 @@ clean_temps() {
     temp_count = 0;
 }
 
+void
+to_string(DString* current, BC bc) {
+    auto loffset = [&]() {
+        if(bc.flags.left_is_const) {
+            current->append(bc.lhs.display(), " ");
+        } else if(bc.flags.left_is_ptr) { 
+            if(bc.flags.deref_left) {
+                current->append("[", (void*)bc.lhs._u64, "] ");
+            } else {
+                current->append((void*)bc.lhs._u64, " ");
+            }
+        } else {
+            if(bc.flags.deref_left) {
+                current->append("[", bc.lhs.display(), "sp] ");
+            } else {
+                current->append(bc.lhs.display(), "sp ");
+            }
+        }
+    };
+
+    auto roffset = [&]() {
+        if(bc.flags.right_is_const) {
+            current->append(bc.rhs.display(), " ");
+        } else if(bc.flags.right_is_ptr) { 
+            if(bc.flags.deref_right) {
+                current->append("[", (void*)bc.rhs._u64, "] ");
+            } else {
+                current->append((void*)bc.rhs._u64);
+            }
+        } else {
+            if(bc.flags.deref_right) {
+                current->append("[", bc.rhs.display(), "sp] ");
+            } else {
+                current->append(bc.rhs.display(), "sp ");
+            }
+        }
+    };
+
+    switch(bc.instr) {
+        case air::push:{
+            current->append("push ");
+            loffset();
+            roffset();
+        }break;
+        case air::popn:{
+            current->append("popn ");
+            loffset();
+        }break;
+        case air::pushn:{
+            current->append("pushn ");
+            loffset();
+        }break;
+        case air::copy:{
+            current->append("copy ");
+            if(bc.flags.left_is_ptr) {
+                if(bc.flags.deref_left) {
+                    current->append("[", (void*)bc.copy.dst, "] ");   
+                } else {
+                    current->append((void*)bc.copy.dst, " ");   
+                }
+            } else {
+                if(bc.flags.deref_left) {
+                    current->append("[", bc.copy.dst, "sp] ");
+                } else {
+                    current->append(bc.copy.dst, "sp ");
+                }
+            }
+
+            if(bc.flags.right_is_ptr) {
+                if(bc.flags.deref_right) {
+                    current->append("[", (void*)bc.copy.src, "] ");   
+                } else {
+                    current->append((void*)bc.copy.src, " ");   
+                }
+            } else if(bc.flags.right_is_const) {
+                current->append(bc.copy.literal.display(), " ");
+            } else {
+                if(bc.flags.deref_right) {
+                    current->append("[", bc.copy.src, "sp] ");
+                } else {
+                    current->append(bc.copy.src, "sp ");
+                }
+            }
+
+            current->append(bc.copy.size, " bytes");
+        }break;
+        case air::add:{
+            current->append("add ");
+            loffset();
+            roffset();
+        }break;
+        case air::sub:{
+            current->append("sub ");
+            loffset();
+            roffset();
+        }break;
+        case air::mul:{
+            current->append("mul ");
+            loffset();
+            roffset();
+        }break;
+        case air::div:{
+            current->append("div ");
+            loffset();
+            roffset();
+        }break;
+        case air::mod: {
+            current->append("mod ");
+            loffset();
+            roffset();
+        } break;
+        case air::eq:{
+            current->append("eq ");
+            loffset();
+            roffset();
+        }break;
+        case air::neq:{
+            current->append("neq ");
+            loffset();
+            roffset();
+        }break;
+        case air::lt:{
+            current->append("lt ");
+            loffset();
+            roffset();
+        }break;
+        case air::gt:{
+            current->append("gt ");
+            loffset();
+            roffset();
+        }break;
+        case air::le:{
+            current->append("le ");
+            loffset();
+            roffset();
+        }break;
+        case air::ge:{
+            current->append("ge ");
+            loffset();
+            roffset();
+        }break;
+        case air::call:{
+            current->append("call ");
+            current->append(bc.f->display(), " ");
+            current->append(bc.n_params);
+        }break;
+        case air::ret:{
+            current->append("ret ");
+            loffset();
+        }break;
+        case air::jump:{
+            current->append("jmp ");
+            loffset();
+        }break;
+        case air::jump_zero:{
+            current->append("jz ");
+            loffset();
+            roffset();
+        }break;
+        case air::jump_not_zero:{
+            current->append("jnz ");
+            loffset();
+            roffset();
+        }break;
+        case air::resz: {
+            current->append("resz ", bc.resz.src, "sp(", ScalarValue::kind_strings[(int)bc.resz.from], ") -> ", bc.resz.dst, "sp(", ScalarValue::kind_strings[(int)bc.resz.to], ")");
+        } break;
+        case air::ref: {
+            current->append("ref ");
+            loffset();
+            roffset();
+        } break;
+        case air::deref: {
+            current->append("deref ");
+            loffset();
+            roffset();
+        } break;
+        case air::vm_break: {
+            current->append("BREAK");
+        } break;
+		case air::intrinsic_rand_int: {
+			current->append("rand_int ");
+			loffset();
+		} break;
+        default: {
+            Assert(0);
+        } break;
+    }
+
+    if(bc.comment.str) {
+        current->append("  --# ", bc.comment);
+    }
+}
+
 } // namespace amu 

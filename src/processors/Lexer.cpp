@@ -69,9 +69,11 @@ run() {
 	};
 
 	auto skip_whitespace = [&]() {
-		while(
-				String::is_space(current()) && 
-				next());
+		while(1) {
+			if(String::is_space(current())) {
+				next();
+			}
+		}
 	};
 
 	// writes final data to the current token

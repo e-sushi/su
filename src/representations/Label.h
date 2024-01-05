@@ -101,13 +101,6 @@ struct VirtualLabel : public Label {
 void
 to_string(DString* start, Label* l);
 
-DString
-to_string(Label* l) {
-    DString out;
-	to_string(out, l);
-    return out;
-}
-
 } //namespace amu
 
 #endif // AMU_LABEL_H
