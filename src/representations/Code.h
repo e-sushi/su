@@ -22,6 +22,8 @@ struct Sema;
 struct GenTAC;
 struct GenAIR;
 struct VM;
+struct Assembler;
+struct Linker;
 
 struct Code : public ASTNode {
 	enum class Kind {
@@ -42,6 +44,8 @@ struct Code : public ASTNode {
 		TAC,
 		AIR,
 		VM,
+		Assemble,
+		Link,
 	};
 	
 	Stage stage;
@@ -65,6 +69,8 @@ struct Code : public ASTNode {
 	GenTAC* tac_gen = 0;
 	GenAIR* air_gen = 0;
 	VM* machine = 0;
+	Assembler* assembler = 0;
+	Linker* linker = 0;
 
 	// a Code object this one depends on 
 	Code* dependency;
