@@ -1,6 +1,11 @@
 #include "Messenger.h"
 #include "representations/Token.h"
 #include "stdio.h"
+#include "representations/Source.h"
+#include "representations/Code.h"
+
+#define inline 
+
 
 namespace amu {
 
@@ -366,13 +371,19 @@ append_to(DString& dstr, b32 allow_color) {
 
 	switch(kind) {
 		case Plain: {
-			auto temp = DString(messenger.formatting.plain.prefix, plain.get_string(), messenger.formatting.plain.suffix);
+			auto temp = DString(messenger.formatting.plain.prefix, plain, messenger.formatting.plain.suffix);
 			do_color(temp, messenger.formatting.plain.col, color);
 			dstr.append(temp);
 		} break;
 		case Identifier: {
-			auto temp = DString(messenger.formatting.identifier.prefix, plain.get_string(), messenger.formatting.identifier.suffix);
+			auto temp = DString(messenger.formatting.identifier.prefix, plain, messenger.formatting.identifier.suffix);
 			do_color(temp, messenger.formatting.identifier.col, color);
+			dstr.append(temp);
+		} break;
+		case Token: {
+			if(messenger.formatting.token.show_code_loc) NotImplemented;
+			auto temp = DString(messenger.formatting.token.prefix, token->raw, messenger.formatting.token.suffix);
+			do_color(temp, messenger.formatting.token.col, color);
 			dstr.append(temp);
 		} break;
 		default: {
@@ -398,11 +409,8 @@ deliver(Message message) {
 	forX(destidx, destinations.count) {
 		b32 allow_color = destinations[destidx].allow_color;
 		FILE* file = destinations[destidx].file;
-		DString out;
-		forI(message.parts.count) {
-			message.parts[i].append_to(out, allow_color);
-		}
-		fwrite(out.ptr, out.count(), 1, file);
+		DString out = message.build(allow_color);
+		fwrite(out.str, out.count, 1, file);
 	}
 }
 
@@ -418,7 +426,7 @@ deliver(b32 clear_messages) {
 void Messenger::
 deliver(Destination dest, Message message) {
 	DString built = message.build(dest.allow_color);
-	String s = built.get_string();
+	String s = built;
 	fwrite(s.str, s.count, 1, dest.file);
 }
 
@@ -475,9 +483,109 @@ create(MessageSender sender, Message::Kind kind) {
 DString Message::
 build(b32 allow_color) {
 	DString out;
+	switch(sender.type) {
+		case MessageSender::Type::Compiler: {
+			if(allow_color) {
+				out.append("amu");
+				colorize(out, Color::Cyan);
+				out.append(": ");
+			} else {
+				out.append("amu: ");
+			}
+		} break;
+		case MessageSender::Type::Code: {
+			if(allow_color) {
+				out.append(sender.code->source->name);
+				colorize(out, Color::Cyan);
+				out.append(": ");
+			} else {
+				out.append(sender.code->source->name);
+			}
+		} break;
+		case MessageSender::Type::Token: {
+			if(allow_color) {
+				out.append(sender.token->code->source->name);
+				colorize(out, Color::Cyan);
+				out.append(":", sender.token->l0, ":", sender.token->c0, ": ");
+			} else {
+				out.append(sender.token->code->source->name, ":", sender.token->l0, ":", sender.token->c0, ": ");
+			}
+		} break;
+		default: {
+			NotImplemented;
+		} break;
+	}
+
+	switch(kind) {
+		case Kind::Fatal: {
+			if(allow_color) {
+				auto temp = DString("FATAL");
+				colorize(temp, Color::BrightRed);
+				out.append(temp, ": ");
+			} else {
+				out.append("FATAL: ");
+			}
+		} break;
+		case Kind::Error: {
+			if(allow_color) {
+				auto temp = DString("error");
+				colorize(temp, Color::Red);
+				out.append(temp, ": ");
+			} else {
+				out.append("error: ");
+			}
+		} break;
+		case Kind::Warning: {
+			if(allow_color) {
+				auto temp = DString("warning");
+				colorize(temp, Color::Yellow);
+				out.append(temp, ": ");
+			} else {
+				out.append("warning: ");
+			}
+		} break;
+		case Kind::Notice: {
+			if(allow_color) {
+ 				auto temp = DString("notice");
+				colorize(temp, Color::Magenta);
+				out.append(temp, ": ");
+			} else {
+				out.append("warning: ");
+			}
+		} break;
+		case Kind::Info: {
+			if(allow_color) {
+				auto temp = DString("info");
+				colorize(temp, Color::Blue);
+				out.append(temp, ": ");
+			} else {
+				out.append("info: ");
+			}
+		} break;
+		case Kind::Debug: {
+			if(allow_color) {
+				auto temp = DString("debug");
+				colorize(temp, Color::Green);
+				out.append(temp, ": ");
+			} else {
+				out.append("debug: ");
+			}
+		} break;
+		case Kind::Trace: {
+			if(allow_color) {
+				auto temp = DString("trace");
+				colorize(temp, Color::BrightBlue);
+				out.append(temp, ": ");
+			} else {
+				out.append("trace: ");
+			}
+		} break;
+	}
+
 	forI(parts.count) {
 		parts[i].append_to(out, allow_color);
 	}
+	out.append("\n");
 	return out;
 }
 

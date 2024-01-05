@@ -1,3 +1,10 @@
+# index
+# @ 
+#
+#
+#
+#
+#
 
 
 start_time = Time.monotonic 
@@ -220,7 +227,7 @@ end
 
 @defines = [] of String
 
-# build an array of defines
+# --defines
 def defines
 	if @defines.empty?
 		@defines = case buildmode
@@ -245,6 +252,7 @@ end
 
 @includes = [] of String
 
+# --includes
 def includes
 	if @includes.empty?
 		@includes = case compiler
@@ -261,6 +269,7 @@ end
 
 # TODO(sushi) add libs generator when needed
 
+# --pch
 def pch
 	case compiler
 	when "clang++"
@@ -272,6 +281,7 @@ end
 
 @compiler_flags = [] of String
 
+# --compiler_flags
 def compiler_flags
 	if @compiler_flags.empty?
 		@compiler_flags = case compiler
@@ -302,8 +312,9 @@ def compiler_flags
 end
 
 # cache the dependencies to the file 'outfilename'
-# the file starts with the defines and includes hashes separated by a space
-# followed by a newline delimited list of the headers the file depends on
+# the file is a newline separated list of headers 
+# included by each cpp file
+# --cache_dependencies
 def cache_dependencies(filename, outfilename)
 	vprint "caching dependencies for #{filename} to #{outfilename}"
 	case preprocessor
@@ -329,6 +340,7 @@ def cache_dependencies(filename, outfilename)
 	end
 end
 
+# --get_dependencies
 def get_dependencies(filename, outfilename) : Array(String)
 	lines = [] of String
 
@@ -351,6 +363,8 @@ end
 # its object file we still need to add it to this list
 @obj_files = [] of String
 
+# appropriately retrieve the object file from the output path
+# --get_object_file_path
 def get_object_file_path(source_file : Path)
 	case compiler
 	when "clang++"
@@ -359,6 +373,9 @@ def get_object_file_path(source_file : Path)
 	end
 end
 
+# find source files to pass to the compiler and filter out ones
+# that are not necessary to compile
+# --source_files
 def source_files
 	if @source_files.empty?
 		files = Dir.glob("src/**/*.cpp") # find all cpp files
@@ -410,6 +427,7 @@ end
 # is started and stopped), but it's how it works for clang
 # and as far as I've seen vcperf also works like this,
 # though I'm not totally sure
+# --start_build_analyzer
 def start_build_analyzer
 	case compiler
 	when "clang++"
@@ -422,6 +440,7 @@ def start_build_analyzer
 	end
 end
 
+# --stop_build_analyzer
 def stop_build_analyzer
 	output = output_path / "buildanalysis"
 	case compiler 
@@ -442,6 +461,7 @@ end
 
 @commands = [] of Command
 
+# --generate_compiler_commands
 def generate_compiler_commands
 	case @compiler
 	when "clang++"
@@ -518,6 +538,7 @@ def execute_compiler_commands
 end
 
 # currently linking only happens via one command
+# --do_linking
 def	do_linking
 	stdout, stderr = IO::Memory.new, IO::Memory.new
 	case linker

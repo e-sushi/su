@@ -47,17 +47,13 @@ struct Lexer : public Processor {
 	// ~~~~ interface ~~~~
 
 
-    static Lexer*
-    create(Allocator* allocator, Code* code);
+    static Lexer* create(Allocator* allocator, Code* code);
 
-    void
-    destroy();
+    void destroy();
 
-    b32
-    run();
+    b32 run();
 
-    void
-    output(b32 human, String path);
+    void output(b32 human, String path);
 };
 
 } // namespace amu

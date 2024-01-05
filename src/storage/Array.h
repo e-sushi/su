@@ -145,7 +145,7 @@ destroy() {
 template<typename T> T*  Array<T>::
 push() {
     grow_if_needed(*this);
-    T* out = new (this->data + this->count) T();
+    auto out = new (this->data + this->count) T;
     this->count += 1;
 
     return out;

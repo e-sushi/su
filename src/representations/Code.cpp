@@ -19,6 +19,7 @@ from(Source* source) {
 	out->raw = source->buffer;
 	out->identifier = source->name;
 	out->source = source;
+	out->allocator.init();
 	return out;
 }
 
@@ -425,13 +426,14 @@ process_to(Stage target) {
 	DEBUG(this, "requested to process to stage ", target);
 	using enum Stage;
 	while(1) {
-		if(stage > target) return true;
+		if(stage >= target) return true;
 		switch(stage) {
 			case Newborn: {
 				TRACE(this, "Newborn processing to stage Lex");
 				Assert(!lexer);
 				lexer = Lexer::create(&allocator, this);
-				lexer->start();
+				if(!lexer->run()) return false;
+				stage = Lex;
 			} break;
 		}
 	}

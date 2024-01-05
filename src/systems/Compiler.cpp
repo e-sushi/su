@@ -14,10 +14,18 @@ Compiler compiler;
 void Compiler::
 init() {
 	bump.init();
+	DString::init_allocator();
+	messenger.init();
+	options.verbosity = Message::Kind::Trace;
+	messenger.destinations.push(Destination(stdout));
+
 }
 
 void Compiler::
-deinit() {} // TODO(sushi)
+deinit() {
+	bump.deinit();
+	DString::deinit_allocator();
+} 
 
 b32 Compiler::
 parse_arguments(Array<String> args) {
@@ -155,8 +163,6 @@ begin(Array<String> args) {
 		Diag::no_path_given(MessageSender()).emit();
         return false;
     }
-
-    options.verbosity = Message::Kind::Debug;
 
     Source* entry_source = Source::load(options.entry_path);
     if(!entry_source) {

@@ -7,120 +7,64 @@
 namespace amu {
 
 struct DString {
-	u8* ptr;
+	u8* str;
+	u32 count;
+	u32 space;
+
+	// DStrings internally use a bump allocator for now.
+	// deinit will deallocate all DStrings!
+	static void init_allocator();
+	static void deinit_allocator();
 
 	DString(String x = ""); 
-	DString(const DString& x);
-	~DString();
 
 	template<typename... T>
 	DString(T... args);
 
 	// creates a copy of this dstring
-	DString
-	copy();
+	DString copy();
 
 	// appends the String s to this DString
 	// if String s comes from a DString, remember that this is a weak ref!
-	void
-	append(String s);
+	void append(String s);
 
 	// appends a variadic amount of things
-	template<typename... T> void
-	append(T... args);
+	template<typename... T> 
+	void append(T... args);
 
 	// inserts 's' at the given 'byte_offset'
 	// NO checks are done to see if 'byte_offset' is within a codepoint
-	void
-	insert(u64 byte_offset, String s);
+	void insert(u64 byte_offset, String s);
 	
-	void
-	prepend(String s);
+	// prepends the given string to the beginning
+	void prepend(String s);
 
 	// removes a codepoint at 'byte_offset'
 	// if the given offset is within a codepoint or the offset is greater 
 	// than this DString's length, we return 0
 	// otherwise return how many bytes were removed 
-	u64 
-	remove(u64 byte_offset);
+	u64 remove(u64 byte_offset);
 
 	// removes 'count' bytes start from 'byte_offset'
 	// if the given offset is within a codepoint, or the offset is greater than this DString's length we return 0
 	// if 'byte_offset' plus 'count' is greater than the length of this DString, we remove until the end
 	// returns the number of bytes removed
-	u64 
-	remove(u64 byte_offset, u64 count);
+	u64 remove(u64 byte_offset, u64 count);
 
-	void 
-	grow(u64 bytes);
+	// grows allocated space by at least 'bytes'
+	void grow(u64 bytes);
 
 	// if needed, grows to fit 'bytes'
-	void
-	fit(u64 bytes);
+	void fit(u64 bytes);
 
 	// indents each line by n spaces
 	// if n is negative, outdents instead
-	void
-	indent(s64 n);
+	void indent(s64 n);
 
-	s64&
-	space();
+	String get_string();
 
-	s64& 
-	count();
-
-	s64
-	available_space();
-
-	s64
-	refs();
-
-	String
-	get_string();
-
-private:
-	// special constructor used by DString::null()
-	// to make a DString w/o allocating anything
-	DString(void* x) : ptr(0) {}
-
-};
-
-// something that could be a plain String or a DString
-// this kinda sucks so fix up later
-struct MaybeDString {
-	b32 is_dstr;
-
-	union {
-		String str;
-		DString dstr;
-	};
-
-	MaybeDString(const MaybeDString& x) {
-		if(x.is_dstr) {
-			is_dstr = true;
-			dstr = x.is_dstr;
-		} else {
-			is_dstr = false;
-			str = x.str;
-		}
-	}
-
-	MaybeDString(String s) : str(s), is_dstr(false) {}
-	MaybeDString(DString& s) : dstr(s), is_dstr(true) {}
-
-	~MaybeDString() {
-		if(is_dstr) dstr.~DString();
-	}
-
-	String
-	get_string() {
-		if(is_dstr) {
-			return dstr.get_string();
-		} else {
-			return str;
-		}
-	}
-
+	s64 available_space();
+	s64 refs();
 };
 
 static DString

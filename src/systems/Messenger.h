@@ -61,9 +61,6 @@ struct Structure;
 struct Label;
 struct Type;
 
-template<typename T, int N>
-int arrsize(T(&)[N]) { return N; }
-
 struct MessagePart {
 	enum class Kind {
 		Plain,
@@ -81,10 +78,10 @@ struct MessagePart {
 	};
 
     Kind kind;
-	Color color;
+	Color color = Color::Null;
 
     union {
-        MaybeDString plain; 	
+        String plain; 	
 		Token* token; // a token, likely representing a source location
         Var* place;
         Structure* structure;
@@ -97,15 +94,16 @@ struct MessagePart {
 
     MessagePart() {}
 	
-    MessagePart(MaybeDString s) : plain(s),     kind(Kind::Plain) {}
-    MessagePart(Token* t)       : token(t),     kind(Kind::Token) {}
-    MessagePart(Var* p)         : place(p),     kind(Kind::Var) {}
-    MessagePart(Structure* s)   : structure(s), kind(Kind::Structure) {}
-    MessagePart(Function* f)    : function(f),  kind(Kind::Function) {}
-    MessagePart(Module* m)      : module(m),    kind(Kind::Module) {}
-    MessagePart(Label* l)       : label(l),     kind(Kind::Label) {}
-    MessagePart(Source* s)      : source(s),    kind(Kind::Source) {}
-    MessagePart(Type* t)        : type(t),      kind(Kind::Type) {}
+    MessagePart(String s)     : plain(s),     kind(Kind::Plain) {}
+	MessagePart(DString& s)   : plain(s),     kind(Kind::Plain) {}
+    MessagePart(Token* t)     : token(t),     kind(Kind::Token) {}
+    MessagePart(Var* p)       : place(p),     kind(Kind::Var) {}
+    MessagePart(Structure* s) : structure(s), kind(Kind::Structure) {}
+    MessagePart(Function* f)  : function(f),  kind(Kind::Function) {}
+    MessagePart(Module* m)    : module(m),    kind(Kind::Module) {}
+    MessagePart(Label* l)     : label(l),     kind(Kind::Label) {}
+    MessagePart(Source* s)    : source(s),    kind(Kind::Source) {}
+    MessagePart(Type* t)      : type(t),      kind(Kind::Type) {}
 
 	MessagePart(const char* s) : kind(Kind::Plain) {plain = String::from(s);}
 
@@ -113,13 +111,7 @@ struct MessagePart {
 	template<typename T>
 	MessagePart(T x);
 
-	~MessagePart() {
-		if(util::any_match(kind, Kind::Plain, Kind::Path, Kind::Identifier)) 
-			plain.~MaybeDString();
-	}
-
 	// TODO(sushi) get str len at compile time here somehow
-
 	//template<int N>
 	//MessagePart(const char s[N]) : plain(s, N), kind(Kind::Plain), color(Color::White) {} 
 
@@ -132,8 +124,9 @@ struct MessagePart {
 template<typename T>
 MessagePart::MessagePart(T x) {
 	kind = Kind::Plain;
-	plain = MaybeDString(DString());
-	to_string(plain.dstr, x);
+	DString temp;
+	to_string(temp, x);
+	plain = temp;
 }
 
 // indicates who sent a message

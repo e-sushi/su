@@ -10,7 +10,8 @@ create(Allocator* allocator, Code* code) {
 	auto out = new (allocator->allocate(sizeof(Lexer))) Lexer;
 	code->lexer = out;
 	out->code = code;
-	out->Processor::init("Lexer");
+	out->Processor::init("Lexer", code);
+	out->tokens = Array<Token>::create(16);
 	return out;
 }
 
@@ -23,6 +24,10 @@ destroy() {
 b32 Lexer::
 run() { 
 	Processor::start();
+	defer { 
+		Processor::end(); 
+		emit_diagnostics();
+	};
 
 	using enum Token::Kind;
 
@@ -34,32 +39,39 @@ run() {
 	Token t = {};
 	Token last_token = {};
 
+	u32 current_codepoint = *stream.str;
+
+	// TODO(sushi) there's tons of places where we calc the codepoint several times 
+	//             primarily in the disconnection between peek() and next()
+
 	u32 peeked_codepoint = 0;
+	u32 peeked_advance = 0;
 
 	auto next = [&]() -> u32 {
 		if(peeked_codepoint) {
-			auto out = peeked_codepoint;
+			auto save = peeked_codepoint;
 			peeked_codepoint = 0;
-			return out;
+			return save;
 		}
-		auto codepoint = stream.advance().codepoint;
+		current_codepoint = stream.advance().codepoint;
 		if(!stream) return 0;
-		if(codepoint == '\n') {
+		if(current_codepoint == '\n') {
 			line += 1;
 			col = 1;
 		} else {
 			col += 1;
 		}
-		return codepoint;
+		return current_codepoint;
 	};
 
-	auto peek = [&]() -> u32 {
-		if(!peeked_codepoint) peeked_codepoint = next();
-		return peeked_codepoint;
+	auto current = [&]() -> u32 {
+		return current_codepoint;
 	};
 
 	auto skip_whitespace = [&]() {
-		while(String::is_space(peek())) next();
+		while(
+				String::is_space(current()) && 
+				next());
 	};
 
 	// writes final data to the current token
@@ -84,19 +96,30 @@ run() {
 			Assert(0);
 		}
 		tokens.push(t);
+		TRACE(code, "Lexed token ", t);
 		last_token = t;
 	};
 
 	auto reset_token = [&]() {
 		t = {
 			.raw = {stream.str, 0},
+			.code = code,
 			.l0 = line,
 			.c0 = col,
 		};
 	};
 
 	auto is_identifier_char = [&](u32 c) {
-		if(util::any(String::is_alnum(c), c == '_', c > 127))
+		if(util::any(
+				String::is_alnum(c), 
+				c == '_', 
+				c > 127))
+			return true;
+		return false;
+	};
+
+	auto is_integer_char = [&](u32 c) {
+		if(String::is_digit(c) || c == '_')
 			return true;
 		return false;
 	};
@@ -150,112 +173,89 @@ run() {
 	};
 
 	while(stream) { using namespace util;
-		reset_token();
 		skip_whitespace();
-		auto c = next();
-		// TODO(sushi) test perf difference when is_digit and is_alpha are moved to be 
-		//             a bunch of cases
-		if(String::is_digit(c)) {
-			while(String::is_digit(c) || c == '_') c = next();
+		reset_token();
+		switch(current()) {
+			case '0': case '1': case '2': case '3': case '4':
+			case '5': case '6': case '7': case '8': case '9': {
+				while(is_integer_char(next()));
 
-			if(all_match('.', stream.str[0], stream.str[1])) {
-				// we treat this as a DotDouble
-				t.raw.count = stream.str - t.raw.str;
-				t.kind = IntegerLiteral;
-				t.scalar_value = t.raw.to_s64();
-			} else if(any_match(c, '.', 'e', 'E')) {
-				c = next();
-				while(String::is_digit(c)) c = next();
-				t.raw.count = stream.str - t.raw.str;
-				t.kind = FloatLiteral;
-				t.scalar_value = t.raw.to_f64();
-			} else if(any_match(c, 'x', 'X')) {
-				c = next();
-				while(String::is_xdigit(c)) c = next();
-				t.raw.count = stream.str - t.raw.str;
-				t.kind = IntegerLiteral;
-				t.scalar_value = t.raw.to_s64();
-			} else {
-				t.raw.count = stream.str - t.raw.str;
-				t.kind = IntegerLiteral;
-				t.scalar_value = t.raw.to_s64();
-			}
-		} else if(String::is_alpha(c)) {
-			while(is_identifier_char(c)) c = next();
-			t.raw.count = stream.str - t.raw.str;
-			
-			if(last_token.kind == Pound) {
-				auto kind = directive_or_identifier(t.raw);
-				if(kind == Identifier) {
-					Diag::unknown_directive(diag_stack, &t, t.raw);
-					return false; // TODO(sushi) continuation
+				if(all_match('.', stream.str[0], stream.str[1])) {
+					// we treat this as a DotDouble
+					t.raw.count = stream.str - t.raw.str;
+					t.kind = IntegerLiteral;
+					t.scalar_value = t.raw.to_s64();
+				} else if(any_match(current(), '.', 'e', 'E')) {
+					next();
+					while(is_integer_char(current()) && next());
+					t.raw.count = stream.str - t.raw.str;
+					t.kind = FloatLiteral;
+					t.scalar_value = t.raw.to_f64();
+				} else if(any_match(current(), 'x', 'X')) {
+					next();
+					while(is_integer_char(current()) && next());
+					t.raw.count = stream.str - t.raw.str;
+					t.kind = IntegerLiteral;
+					t.scalar_value = t.raw.to_s64();
+				} else {
+					t.raw.count = stream.str - t.raw.str;
+					t.kind = IntegerLiteral;
+					t.scalar_value = t.raw.to_s64();
 				}
-				t.kind = kind;
-				tokens.pop();
-			} else if(last_token.kind == Dollar) {
-				auto kind = sid_or_identifier(t.raw);
-				if(kind == Identifier) {
-					Diag::unknown_sid(diag_stack, &t, t.raw);
-					return false; // TODO(sushi) continuation
-				}
-				t.kind = kind;
-				tokens.pop();
-			} else {
-				t.kind = keyword_or_identifier(t.raw);
-			}
-		} else switch(c) {
+			} break;
+
 #define one_glyph_map(c1, t1) \
 			case c1: {        \
 				t.kind = t1;  \
-				c = next();   \
+				next();       \
 			} break;
 #define two_glyph_map(c1, t1, c2, t2) \
 			case c1: {                \
 				t.kind = t1;          \
-				c = next();           \
-				if(c == c2) {         \
+				next();               \
+				if(current() == c2) { \
 					t.kind = t2;      \
-					c = next();       \
+					next();           \
 				}                     \
 			} break; 
 #define two_glyph_map_alt(c1, t1, c2, t2, c3, t3) \
 			case c1: {                            \
 				t.kind = t1;                      \
-				c = next();                       \
-				if(c == c2) {                     \
+				next();                           \
+				if(current() == c2) {             \
 					t.kind = t2;                  \
-					c = next();                   \
-				} else if(c == c3) {              \
+					next();                       \
+				} else if(current() == c3) {      \
 					t.kind = t3;                  \
-					c = next();                   \
+					next();                       \
 				}                                 \
 			} break;
 #define three_glyph_map(c1, t1, c2, t2, c3, t3) \
 			case c1: {                          \
 				t.kind = t1;                    \
-				c = next();                     \
-				if(c == c2) {                   \
+				next();                         \
+				if(current() == c2) {           \
 					t.kind = t2;                \
-					c = next();                 \
-					if(c == c3) {               \
+					next();                     \
+					if(current() == c3) {       \
 						t.kind = t3;            \
-						c = next();             \
+						next();                 \
 					}                           \
 				}                               \
 			} break;
 #define two_or_three_glyph_map(c1, t1, c2, t2, c3, t3, c4, t4) \
 			case c1: {                                         \
 				t.kind = t1;                                   \
-				c = next();                                    \
-				if(c == c2) {                                  \
+				next();                                        \
+				if(current() == c2) {                          \
 					t.kind = t2;                               \
-					c = next();                                \
-				} else if(c == c3) {                           \
+					next();                                    \
+				} else if(current() == c3) {                   \
 					t.kind = t3;                               \
-					c = next();                                \
-					if(c == c4) {                              \
+					next();                                    \
+					if(current() == c4) {                      \
 						t.kind = t4;                           \
-						c = next();                            \
+						next();                                \
 					}                                          \
 				}                                              \
 			} break;
@@ -267,6 +267,7 @@ run() {
 			one_glyph_map('@', At);
 			one_glyph_map('#', Pound);
 			one_glyph_map('`', Backtick);
+			one_glyph_map(':', Colon);
 
 			two_glyph_map('$', Dollar,          '$', DollarDouble);
 			two_glyph_map('+', Plus,            '=', PlusEqual);
@@ -286,14 +287,38 @@ run() {
 			two_or_three_glyph_map('>', GreaterThan, '=', GreaterThanEqual, '>', GreaterThanDouble, '=', GreaterThanDoubleEqual);
 
 			default: {
-				Diag::invalid_token(diag_stack, &t, &t);
+				while(is_identifier_char(next()));
+				t.raw.count = stream.str - t.raw.str;
+				
+				if(last_token.kind == Pound) {
+					auto kind = directive_or_identifier(t.raw);
+					if(kind == Identifier) {
+						Diag::unknown_directive(diag_stack, &t, t.raw);
+						return false; // TODO(sushi) continuation
+					}
+					t.kind = kind;
+					tokens.pop();
+				} else if(last_token.kind == Dollar) {
+					auto kind = sid_or_identifier(t.raw);
+					if(kind == Identifier) {
+						Diag::unknown_sid(diag_stack, &t, t.raw);
+						return false; // TODO(sushi) continuation
+					}
+					t.kind = kind;
+					tokens.pop();
+				} else {
+					t.kind = keyword_or_identifier(t.raw);
+				}
+
+
+				finish_token();
+				Diag::invalid_token(diag_stack, &tokens[-1], &tokens[-1]);
 				return false;
 			}
 		}
 		finish_token();
 	}
 	
-	Processor::end();
 	return true;
 }
 

@@ -7,24 +7,22 @@ namespace amu {
 
 enum class Color {
 	Null = 0, 
-	Black = 30,
-	Red = 31,
-	Green = 32,
-	Yellow = 33,
-	Blue = 34,
-	Magenta = 35,
-	Cyan = 36,
-	White = 37,
-	Extended = 38,
-	Default = 49,
-	BrightBlack = 90,
-	BrightRed = 91,
-	BrightGreen = 92,
-	BrightYellow = 93,
-	BrightBlue = 94,
-	BrightMagenta = 95,
-	BrightCyan = 96,
-	BrightWhite = 97,
+	Black,
+	Red,
+	Green,
+	Yellow,
+	Blue,
+	Magenta,
+	Cyan,
+	White,
+	BrightBlack,
+	BrightRed,
+	BrightGreen,
+	BrightYellow,
+	BrightBlue,
+	BrightMagenta,
+	BrightCyan,
+	BrightWhite,
 };
 
 
@@ -41,9 +39,7 @@ colorize(DString& s, Color color) {
 		colorcase(Blue, 34);
 		colorcase(Magenta, 35);
 		colorcase(Cyan, 36);
-		colorcase(White, 37);
-		colorcase(Extended, 38);
-		colorcase(Default, 49);
+		colorcase(White, 0);
 		colorcase(BrightBlack, 90);
 		colorcase(BrightRed, 91);
 		colorcase(BrightGreen, 92);
@@ -53,11 +49,10 @@ colorize(DString& s, Color color) {
 		colorcase(BrightCyan, 96);
 		colorcase(BrightWhite, 97);
 		default: {
-			s.append("INTERNAL ERROR: unknown color: ", (u32)color);
-			return;
+			s.append("\e[31mINTERNAL ERROR: unknown color: ", (u32)color);
 		} break;
 	}
-	s.append("\e[49m");
+	s.append("\e[0m");
 }
 
 } // namespace amu

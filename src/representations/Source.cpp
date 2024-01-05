@@ -15,8 +15,7 @@ load(String path) {
     std::filesystem::path ab = std::filesystem::absolute(p);
     out->path = String::from(ab.c_str()).replace('\\', '/');
 
-	String view = out->path.get_string();
-
+	String view = out->path;
 		
 	u8* scan = view.str + view.count;
 
@@ -37,11 +36,15 @@ load(String path) {
 				extlen++;
 			}
 		}
+
+		scan--;
 	}
 
-	out->name = {view.str + view.count - namelen, namelen};
-	out->front = {out->name.str + namelen - extlen, extlen};
-	out->file = fopen((char*)out->path.get_string().str, "r");
+	out->name  = {view.str + view.count - namelen + 1, namelen - 1};
+	out->ext   = {out->name.str + namelen - extlen,    extlen};
+	out->front = {out->name.str,                       out->name.count - extlen};
+
+	out->file = fopen((char*)out->path.str, "r");
 
 	if(!out->file) {
 		FATAL(MessageSender(), "Failed to open file '", out->path, "'");

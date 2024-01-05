@@ -25,6 +25,8 @@ struct Token {
 		Directive,
 	};
 
+    Group group;
+
 	enum class Kind {
 		Null,
 
@@ -129,11 +131,10 @@ struct Token {
 		Directive_CompilerBreak,
 	};
 
+    Kind kind; 
+
     String raw;
     u64 hash;
-
-    Kind kind; 
-    Group group;
 
 	LexicalScope* scope;
 
@@ -151,7 +152,8 @@ struct TokenRange {
 	Token* start,* end;
 };
 
-void to_string(DString* start, Token* t);
+void to_string(DString& start, Token* t);
+void to_string(DString& start, Token& t);
 
 } // namespace amu
 

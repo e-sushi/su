@@ -23,27 +23,22 @@ struct Processor {
 	Time::Point end_time;
 
 	Array<Diag> diag_stack;
+
+	MessageSender sender;
 	
-	void 
-	init(String name);
+	void emit_diagnostics();
 
-	void
-	deinit();
+// prevent pollution of things using stuff that inherits this
+protected:
+	void init(String name, MessageSender sender);
+	void deinit();
 
-	void
-	start();
+	void start();
+	void end();
 
-	void
-	end();
-
-	void
-	push_diag(Diag diag);
-
-	Diag&
-	last_diag();
-
-	Diag
-	pop_diag();
+	void push_diag(Diag diag);
+	Diag& last_diag();
+	Diag pop_diag();
 };
 
 } // namespace amu
