@@ -18,7 +18,7 @@ struct Assembler : Processor{
 	
 	virtual void run() = 0;
 	
-	virtual void output(String path) = 0;
+	virtual void output(String path, b32 human_readable) = 0;
 	
 	// ~~~~ data ~~~~
 	
