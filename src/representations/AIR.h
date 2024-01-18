@@ -43,6 +43,7 @@
 
 #include "Common.h"
 #include "ScalarValue.h"
+#include "TAC.h"
 
 namespace amu {
 
@@ -146,8 +147,6 @@ struct BC {
 
     // the width of the data we're about to operate on 
     width w : 2;
-
-    u64 hi = 123;
 
     union{
         struct {

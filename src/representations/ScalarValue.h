@@ -36,7 +36,7 @@
 namespace amu {
 
 struct ScalarValue : public Base {
-    enum class Kind {
+    enum class Kind : u8 {
 		Unsigned8,
 		Unsigned16,
 		Unsigned32,
@@ -101,20 +101,20 @@ struct ScalarValue : public Base {
     void
     cast_to(Kind k);
 
-    ScalarValue() : _u64(0), kind(Kind::Unsigned64), Base(Base::Kind::ScalarValue) {}
+    ScalarValue() : _u64(0), kind(Kind::Unsigned64){}
 
-	ScalarValue(Kind k) : _u64(0), kind(k), Base(Base::Kind::ScalarValue) {}
+	ScalarValue(Kind k) : _u64(0), kind(k){}
 
-    ScalarValue(u64 x) : _u64(x), kind(Kind::Unsigned64), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(u32 x) : _u32(x), kind(Kind::Unsigned32), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(u16 x) : _u16(x), kind(Kind::Unsigned16), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(u8  x) : _u8 (x), kind(Kind::Unsigned8), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(s64 x) : _s64(x), kind(Kind::Signed64), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(s32 x) : _s32(x), kind(Kind::Signed32), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(s16 x) : _s16(x), kind(Kind::Signed16), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(s8  x) : _s8 (x), kind(Kind::Signed8), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(f64 x) : _f64(x), kind(Kind::Float64), Base(Base::Kind::ScalarValue) {}
-    ScalarValue(f32 x) : _f32(x), kind(Kind::Float32), Base(Base::Kind::ScalarValue) {}
+    ScalarValue(u64 x) : _u64(x), kind(Kind::Unsigned64){}
+    ScalarValue(u32 x) : _u32(x), kind(Kind::Unsigned32){}
+    ScalarValue(u16 x) : _u16(x), kind(Kind::Unsigned16){}
+    ScalarValue(u8  x) : _u8 (x), kind(Kind::Unsigned8){}
+    ScalarValue(s64 x) : _s64(x), kind(Kind::Signed64){}
+    ScalarValue(s32 x) : _s32(x), kind(Kind::Signed32){}
+    ScalarValue(s16 x) : _s16(x), kind(Kind::Signed16){}
+    ScalarValue(s8  x) : _s8 (x), kind(Kind::Signed8){}
+    ScalarValue(f64 x) : _f64(x), kind(Kind::Float64){}
+    ScalarValue(f32 x) : _f32(x), kind(Kind::Float32){}
 };
 
 

@@ -12,7 +12,6 @@
 #include "Label.h"
 #include "Entity.h"
 #include "Frame.h"
-#include "basic/Allocator.h"
 
 namespace amu {
 
@@ -21,6 +20,7 @@ struct Entity;
 struct Type;
 struct Function;
 struct Tuple;
+struct Allocator;
 
 struct Expr : public Entity {
 	enum class Kind {
@@ -110,26 +110,17 @@ struct Expr : public Entity {
 
     // ~~~~~~ interface ~~~~~~~
 
-	static Expr*
-	create(Allocator allocator);
+	static Expr* create(Allocator* allocator);
+    static Expr* create(Allocator* allocator, Kind kind, Type* type = 0);
 
-    static Expr*
-    create(Allocator allocator, Kind kind, Type* type = 0);
+    void destroy();
 
-    void
-    destroy();
+    DString display();
+    DString dump();
 
-    DString
-    display();
-
-    DString
-    dump();
-
-    Type*
-    resolve_type();
+    Type* resolve_type();
 
     Expr() : kind(Kind::Null), Entity(Entity::Kind::Expr) {}
-
     Expr(Kind k) : kind(k), Entity(Entity::Kind::Expr) {def = this;}
 
 	IS_TEMPLATE_DECLS;

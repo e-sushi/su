@@ -62,6 +62,7 @@ struct Diag {
 		String string;
 		Token* token;
 		Type* type;
+		s64 num;
 	};
 
 	Array<Arg> args;

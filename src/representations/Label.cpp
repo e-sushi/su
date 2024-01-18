@@ -52,9 +52,8 @@ search(u64 hash) {
 	auto table = this;
 	while(table) {
         auto [idx, found] = table->map.find(hash);
-        if(found) {
+        if(found)
 			return table->map.values.read(idx);
-		}
         table = table->last;
     }
     return 0;

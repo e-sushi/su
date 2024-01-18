@@ -13,8 +13,6 @@
 
 namespace amu {
 
-struct Lexer;
-
 // a 'scope' determined completely by the lexical structure of the program
 // that stores a list of indexes into the tokens array where the label 
 // pattern was found as well as a pointer to the last LexicalScope.

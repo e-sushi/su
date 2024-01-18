@@ -40,18 +40,16 @@ namespace amu {
 
 struct DString;
 
+template<class T, class R>
+T base_of(R T::*);
+
+#define AMU_OBJECT(name) \
+	const static u64 static_type_id = util::static_string_hash(STRINGIZE(name)); \
+	virtual u64 __get_runtime_type_id() { return __runtime_type_id; }
+
+#define BASE_OF(T) decltype(base_of(&T::base_dummy))
+
 struct Base {
-	enum class Kind {
-		Entity,
-		Expr,
-		Stmt,
-		TAC,
-		ScalarValue,
-		AST,
-	};
-
-    Kind kind;
-
     // return a generated name for this object 
     virtual DString
     display() = 0;
@@ -82,9 +80,11 @@ struct Base {
     template<typename T> inline b32
     is_not(T x) { return !is(x); }
 
-    Base(Kind k) : kind(k) {}
+private:
+	//u64 runtime_type_id = get_runtime_type_id();
+	//virtual u64 get_runtime_type_id() = 0;
+	//void base_dummy(){}
 };
-
 
 } // namespace amu 
 

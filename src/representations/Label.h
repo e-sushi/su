@@ -8,14 +8,18 @@
 #ifndef AMU_LABEL_H
 #define AMU_LABEL_H
 
-#include "basic/Node.h"
-#include "storage/String.h"
+#include "AST.h"
+#include "storage/Map.h"
 
 namespace amu {
 
 struct Token;
 struct LabelTable;
+struct Code;
+struct Entity;
+struct Allocator;
 
+// @amuobject(Label, ASTNode)
 struct Label : public ASTNode {
 	Code* code;
     Entity* entity;
@@ -23,8 +27,6 @@ struct Label : public ASTNode {
     // if this label is an alias of another label, this is the original
     Label* aliased; 
 
-    b32 is_virtual;
-	
 	// points to the LabelTable this Label belongs to
 	LabelTable* table;
 
@@ -32,28 +34,20 @@ struct Label : public ASTNode {
     // ~~~~~~ interface ~~~~~~~
 
 
-    static Label*
-    create();
+    static Label* create(Allocator* allocator);
 
-    Label*
-    base();
+    Label* base();
 
-    DString
-    display();
+    DString display();
 
-    DString
-    dump();
+    DString dump();
 
     // returns the type of the Label's expression
-    Type*
-    resolve_type();
+    Type* resolve_type();
 
-    Label() : ASTNode(ASTNode::Kind::Label), is_virtual(false) {}
-    Label(b32 is_virt) : ASTNode(ASTNode::Kind::Label), is_virtual(is_virt) {}
+    Label() : ASTNode(ASTNode::Kind::Label) {}
+    Label(b32 is_virt) : ASTNode(ASTNode::Kind::Label) {}
 };
-
-template<> b32 inline Base::
-is<Label>() { return is<ASTNode>() && as<ASTNode>()->kind == ASTNode::Kind::Label; }
 
 struct LabelTable {
     LabelTable* last;
@@ -63,43 +57,14 @@ struct LabelTable {
 	// ~~~~ interface ~~~~
 	
 	
-	static LabelTable*
-	create();
+	static LabelTable* create(Allocator* allocator);
 
-	void
-	add(String s, Label* l);
+	void add(String s, Label* l);
 
-	Label*
-	search(u64 hashed_id);
+	Label* search(u64 hashed_id);
 };
 
-// a Label created internally 
-struct VirtualLabel : public Label {
-    DString* id;
-	Token virtual_token;
-
-
-    // ~~~~ interface ~~~~~
-
-
-    // NOTE(sushi) this takes ownership of 'display', so it does not increment its ref count
-    static VirtualLabel*
-    create(DString* display);
-
-    void
-    destroy();
-
-    DString
-    display();
-
-    DString
-    dump();
-
-    VirtualLabel() : Label(true) {} 
-};
-
-void
-to_string(DString* start, Label* l);
+void to_string(DString& start, Label& l);
 
 } //namespace amu
 

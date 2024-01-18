@@ -4,12 +4,18 @@
 
 */
 
+#ifndef AMU_STACKS_H
+#define AMU_STACKS_H
+
+#include "Array.h"
+
 namespace amu {
 
 struct ASTNode;
 struct LabelTable;
 struct Label;
 struct Code;
+struct String;
 
 struct NodeStack {
 	Array<ASTNode*> stack;
@@ -32,3 +38,5 @@ struct TableStack {
 };
 
 } // namespace amu
+
+#endif

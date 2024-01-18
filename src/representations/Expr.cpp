@@ -1,16 +1,17 @@
 #include "Expr.h"
 #include "Variable.h"
+#include "basic/Allocator.h"
 
 namespace amu {
 
 Expr* Expr::
-create(Allocator allocator) {
-	return new (allocator.allocate(sizeof(Expr))) Expr(Expr::Kind::Null);
+create(Allocator* allocator) {
+	return new (allocator->allocate(sizeof(Expr))) Expr(Expr::Kind::Null);
 }
 
 Expr* Expr::
-create(Allocator allocator, Kind kind, Type* type) {
-	auto e = new (allocator.allocate(sizeof(Expr))) Expr(kind);
+create(Allocator* allocator, Kind kind, Type* type) {
+	auto e = new (allocator->allocate(sizeof(Expr))) Expr(kind);
 	e->type = type;
 	return e;
 }

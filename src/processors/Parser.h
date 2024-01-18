@@ -22,58 +22,52 @@
 #ifndef AMU_PARSER_H
 #define AMU_PARSER_H
 
+#include "Processor.h"
 #include "storage/Map.h"
 #include "storage/Array.h"
-#include "storage/String.h"
-#include "storage/Bump.h"
-#include "representations/Label.h"
-#include "representations/Code.h"
-
+#include "storage/Stacks.h"
+#include "utils/TokenIterator.h"
 
 namespace amu {
 
-struct Parser {
+struct Code;
+struct Allocator;
+
+struct Parser : public Processor {
 	Code* code;
 
 	ASTNode* root;
 
 	TableStack table;
-	NodeStack node;
+	NodeStack  node;
 
 	TokenIterator token;
 	
-	Bump allocator;
 
 	// ~~~~~~ interface ~~~~~~~
 
 
 	// creates a Parser for the given Code and returns it 
-	static Parser*
-	create(Code* code);
+	static Parser* create(Allocator* allocator, Code* code);
 
-	void
-	destroy();
+	void destroy();
 
 	// begins parsing and returns true if successful
 	// if the Code object represents Source or a Module then discretize_module()
 	// is called and parsing ends. 
 	// See notes above for why parsing a module/source file does not automatically parse 
 	// its parts.
-	b32
-	parse();
+	b32 parse();
 	
 	// discretizes a given module (or source file) into discrete
 	// code objects based on the LexicalScope's marked labels. The new Code objects 
 	// are attached to the current as children. This assumes a Module has already been created
 	// to represent the Code object. The token is also assumed to be at the first token 
 	// of the LexicalScope representing the module (or source file).
-	b32
-	discretize_module();
+	b32 discretize_module();
 
 	// displays the current NodeStack 
-	DString*
-	display_stack();
-
+	DString display_stack();
 
 	// actual stages of the Parser as methods so that we don't have to keep manually 
 	// passing a Code object and TokenIterator around. These aren't meant to be 

@@ -1,4 +1,6 @@
+#include "Stacks.h"
 #include "representations/Label.h"
+
 namespace amu {
 
 void NodeStack::

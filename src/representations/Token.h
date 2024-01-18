@@ -6,7 +6,6 @@
 #define AMU_TOKEN_H
 
 #include "storage/String.h"
-#include "storage/DString.h"
 #include "representations/ScalarValue.h"
 
 namespace amu{

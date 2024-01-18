@@ -12,6 +12,7 @@
 #define AMU_AST_H
 
 #include "Base.h"
+#include "storage/String.h"
 
 namespace amu {
 
@@ -47,7 +48,7 @@ struct ASTNode : public Base {
         b32 break_air_gen : 1 = false;
     } flags;
 
-    ASTNode(Kind k) : kind(k), Base(Base::Kind::AST) {
+    ASTNode(Kind k) : kind(k) {
         link.parent =
         link.next =
         link.prev = 
@@ -146,8 +147,7 @@ struct ASTNode : public Base {
     underline();
 };
 
-template<> b32 inline Base::
-is<ASTNode>() { return kind == Base::Kind::AST; }
+
 
 } // namespace amu
 
