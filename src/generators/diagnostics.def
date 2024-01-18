@@ -1,7 +1,7 @@
-// This file defines all diagnostics that amu may emit while compiling code
+// This file defines all that amu may emit while compiling code
 // The format is
 // group <id> {
-//   diagnostic <id> {
+//   <id> {
 //      type: [ error | warning ];
 //        message: {
 //            <language-code> : <string>
@@ -9,15 +9,15 @@
 //   }
 // }
 //
-// The string may request arguments from the creator of the diagnostic, which will be 
-// interpolated into the message emitted by the diagnostic. Most of these will have internal
+// The string may request arguments from the creator of the , which will be 
+// interpolated into the message emitted by the . Most of these will have internal
 // formatting options associated with them, such as prefix/suffix, coloring, and other misc options
 // The logic for formatting is found in Messenger.h/cpp
 //
 //
-//      %String% - a plain String must be passed
+//      %str% - a plain String must be passed
 //      %path$ - a String representing a path
-//      %identifier% - a String representing an identifier must be passed 
+//      %id% - a String representing an identifier must be passed 
 //      %token% - a Token must be passed
 //      %type% - a Type must be passed
 //      %num% - a number of type s64 must be passed
@@ -26,846 +26,829 @@
 // A message may backreference any argument it requested using the syntax $<id>$
 //
 //
-// To parse this and generate 'data/diagnostics-impl.generated' and 'data/diagnostics-data.generated'
-// run 'raku diagnostics.raku' while inside the 'src/generators' directory
+// To parse this and generate 'data/-impl.generated' and 'data/-data.generated'
+// run 'raku .raku' while inside the 'src/generators' directory
 //
 // TODO(sushi) line number and column aren't tracked correctly
 
-group path {
-    diagnostic not_found {
-        type: error;
-        message: {
-            en: "the path %path% could not be found";
-            eo: "la vojo %path% maltroveblis";
-        }
-    }
-}
-
-group compiler {
-    diagnostic expected_a_path_for_arg {
-		type: error;
-        message: {
-            en: "expected a path for arg '%String%'";
-            eo: "atendis vojopor argumento '%String%'";
-        }
-    }
-
-    diagnostic unknown_option {
-        type: error;
-        message: {
-            en: "unknown option '%String%'";
-            eo: "nekonata opcio '%String%'";
-        }
-    }
-
-    diagnostic no_path_given {
-        type: error;
-        message: {
-            en: "no input file";
-        }
-    }
-
-    diagnostic expected_path_or_paths_for_arg_option {
-        type: error;
-        message: {
-            en: "expected a path or paths for argument option '%String%'";
-        }
-    }
-}
-
-group lexer {
-    diagnostic unexpected_eof_single_quotes {
-        type: error;
-        message: {
-            en: "unexpected EOF encountered while parsing single quotes";
-            jp: "一重引用符は解析すながら予期せぬファイルの終わり見つかり";
-        }
-    }
-
-    diagnostic unexpected_eof_double_quotes {
-        type: error;
-        message: {
-            en: "unexpected EOF encountered while parsing double quotes";
-            jp: "二重引用符は解析すながら予期せぬファイルの終わり見つかり";
-        }
-    }
-
-    diagnostic multiline_comment_missing_end {
-        type: error;
-        message: {
-            en: "multiline comment missing '*/'";
-            jp: "複数行コメントの'*/'がぬけています";
-        }
-    }
-
-    diagnostic unknown_directive {
-        type: error;
-        message: {
-            en: "unknown directive %identifier%";
-            jp: "不明の命令%identifier%";
-        }
-    }
-
-	diagnostic unknown_svar {
-		type: error;
-		message: {
-			en: "unknown special id %identifier%";
-		}
-	}
-
-    diagnostic invalid_token {
-        type: error;
-        message: {
-            en: "invalid token";
-            jp: "無効のトークン";
-        }
-    }
-
-	diagnostic filename_cant_be_identifier {
-		type: error; 
-		message: {
-			en: "the name of this source file cannot be used as an identifier";
-		}
+path_not_found {
+	type: error;
+	message: {
+		en: "the path %path% could not be found";
+		eo: "la vojo %path% maltroveblis";
 	}
 }
 
-group parser {
-    diagnostic expected_type {
-        type: error;
-        message: {
-            en: "expected a type";
-            jp: "タイプが期待した";
-        }
-    }
 
-    diagnostic expected_label_or_import {
-        type: error;
-        message: {
-            en: "expected a label or import";
-            jp: "名札か輸入が期待した";
-        }
-    }
-
-    diagnostic expected_identifier {
-        type: error;
-        message: {
-            en: "expected an identifier";
-            jp: "識別名が期待した";
-        }
-    }
-
-    diagnostic expected_import_directive {
-        type: error;
-        message: {
-            en: "expected an import directive";
-            jp: "輸入命令が期待した";
-        }
-    }
-
-    diagnostic expected_colon_for_label {
-        type: error;
-        message: {
-            en: "expected a ':' after label(s)";
-            jp: "ラベルの後にコロンが必要";
-        }
-    }
-
-    diagnostic unknown_identifier {
-        type: error;
-        message: {
-            en: "reference to unknown identifier: %token%";
-        }
-    }
-
-    diagnostic label_already_defined {
-        type: error;
-        message: {
-            en: "the label %token% has already been defined in this scope";
-        }
-    }
-
-    diagnostic missing_close_brace {
-        type: error;
-        message: {
-            en: "missing a close brace for this opening brace (I think)";
-        }
-    }
-
-    diagnostic expected_comma_or_closing_paren_tuple {
-        type: error;
-        message: {
-            en: "expected a ',' or ')' for tuple";
-        }
-    }
-
-    diagnostic unexpected_token {
-        type: error;
-        message: {
-            en: "unexpected token %token%";
-        }
-    }
-
-    diagnostic expected_open_paren {
-        type: error;
-        message: {
-            en: "expected a '('";
-        }
-    }
-
-    diagnostic expected_close_paren {
-        type: error;
-        message: {
-            en: "expected a ')'";
-        }
-    }
-
-    diagnostic expected_open_brace {
-        type: error;
-        message: {
-            en: "expected a '{'";
-        }
-    }
-
-    diagnostic expected_close_brace {
-        type: error;
-        message: {
-            en: "expected a '}'";
-        }
-    }
-
-    diagnostic label_group_missing_id {
-        type: error;
-        message: {
-            en: "trailing comma not allowed in multi-label declaration";
-        }
-    }
-
-    diagnostic label_missing_colon {
-        type: error;
-        message: {
-            en: "missing a ':' after label identifier(s)";
-        }
-    }
-
-    diagnostic switch_missing_open_paren {
-        type: error;
-        message: {
-            en: "missing a '(' after 'switch'";
-        }
-    }
-
-    diagnostic switch_missing_close_paren {
-        type: error;
-        message: {
-            en: "missing a ')' after switch's expression";
-        }
-    }
-
-    diagnostic switch_missing_open_brace {
-        type: error;
-        message: {
-            en: "missing a '{' to start switch expression";
-        }
-    }
-
-    diagnostic switch_empty_body {
-        type: warn;
-        message: {
-            en: "empty switch body";
-        }
-    }
-
-    diagnostic switch_missing_match_arrow_after_expr {
-        type: error;
-        message: {
-            en: "expected a '=>' after expression in switch expression";
-        }
-    }
-
-    diagnostic switch_missing_comma_after_match_arm {
-        type: error;
-        message: {
-            en: "expected a ',' after switch arm that does not end with a '}'";
-        }
-    }
-
-    diagnostic for_missing_open_paren {
-        type: error;
-        message: {
-            en: "missing a '(' after 'for'";
-        }
-    }
-
-    diagnostic for_missing_close_paren {
-        type: error;
-        message: {
-            en: "missing a ')' after for's expression";
-        }
-    }
-
-    diagnostic for_expected_some_identfier {
-        type: error;
-        message: {
-            en: "expected some identifier to begin 'for' clause";
-        }
-    }
-
-    diagnostic for_label_group_not_allowed {
-        type: error;
-        message: {
-            en: "multi label definition is not allowed in C style for loops.";
-        }
-    }
-
-    diagnostic for_expected_in {
-        type: error;
-        message: {
-            en: "expected 'in' for 'for' clause";
-        }
-    }
-
-	diagnostic for_cannot_declare_variables {
-		type: error;
-		message: {
-			en: "cannot declare variables in for clause TODO(sushi) this may be confusing, we just don't allow ':' or '=' after labels in for clauses"; 
-		}
-	}
-
-    diagnostic tuple_expected_comma_or_close_paren {
-        type: error;
-        message: {
-            en: "expected a ',' or ')' for tuple";
-        }
-    }
-
-    diagnostic array_expected_comma_or_close_square {
-        type: error;
-        message: {
-            en: "expected a ',' or ']' for array";
-        }
-    }
-
-    diagnostic tuple_positional_arg_but_found_label {
-        type: error;
-        message: {
-            en: "all elements after a named tuple element must also be named";
-        }
-    }
-
-    diagnostic if_missing_open_paren {
-        type: error;
-        message: {
-            en: "missing '(' after 'if'";
-        }
-    }
-
-    diagnostic if_missing_close_paren {
-        type: error;
-        message: {
-            en: "missing ')' after if expression's condition";
-        }
-    }
-
-    diagnostic missing_semicolon {
-        type: error;
-        message: {
-            en: "missing ';'";
-        }
-    }
-
-    diagnostic missing_function_return_type {
-        type: error;
-        message: {
-            en: "missing return type(s) for function";
-        }
-    }
-
-    diagnostic missing_open_brace_for_struct {
-        type: error;
-        message: {
-            en: "missing '{' after 'struct'";
-        }
-    }
-
-    diagnostic struct_only_labels_allowed {
-        type: error;
-        message: {
-            en: "only labels are allowed in structures";
-        }
-    }
-
-    diagnostic struct_member_functions_not_allowed {
-        type: error;
-        message: {
-            en: "member functions are not allowed";
-        }
-    }
-
-    diagnostic extraneous_close_brace {
-        type: error;
-        message: {
-            en: "extraneous closing blace '}'";
-        }
-    }
-
-    diagnostic unexpected_token_in_module {
-        type: error;
-        message: {
-            en: "unexpected token in module, only labels and directives are allowed";
-        }
-    }
-
-    diagnostic array_missing_close_square {
-        type: error;
-        message: {
-            en: "missing ']' to close array type";
-        }
-    }
-
-    diagnostic runtime_structures_not_allowed {
-        type: error;
-        message: {
-            en: "structure types cannot be defined in runtime memory (did you forget a ':'? or did you use '=' instead of ':'?)";
-        }
-    }
-
-    diagnostic struct_duplicate_member_name {
-        type:error;
-        message: {
-            en: "member %token% already defined.";
-        }
-    }
-
-    diagnostic static_array_count_must_eval_to_integer {
-        type: error;
-        message: {
-            en: "static array count must evaluate to a compile time integer, but found %type% instead";
-        }
-    }
-
-    diagnostic static_array_size_cannot_be_negative {
-        type: error;
-        message: {
-            en: "static array count cannot be negative";
-        }
-    }
-
-    diagnostic subscript_missing_close_square {
-        type: error;
-        message: {
-            en: "subscript operator missing closing square ']'";
-        }
-    }
-
-    diagnostic runtime_variable_cannot_be_used_as_static_array_count {
-        type: error;
-        message: {
-            en: "a runtime variable cannot be used to size a static array";
-        }
-    }
-
-	diagnostic intrinsic_print_missing_parenthesis {
-		type: error;
-		message: {
-			en: "special id $print is a function but is not followed by an argument tuple";
-		}
-	}
-
-	diagnostic intrinsic_print_empty {
-		type: error;
-		message: {
-			en: "empty intrinsic print";
-		}
-	}
-
-	diagnostic tuple_type_plain_expression {
-		type: error;
-		message: {
-			en: "elements of a type tuple cannot be plain expressions";
-		}
-	}
-
-	diagnostic tuple_type_expression_must_be_explicitly_typed {
-		type: error;
-		message: {
-			en: "a type tuple element declared without a label must be explicitly typed (via a cast, binary assignment with a type on the lhs, etc.)";
-		}
-	}
-
-	diagnostic missing_open_brace_for_module {
-		type: error;
-		message: {
-			en: "missing '{' after 'module'";
-		}
+expected_a_path_for_arg {
+	type: error;
+	message: {
+		en: "expected a path for arg '%str%'";
+		eo: "atendis vojopor argumento '%str%'";
 	}
 }
 
-group sema {
-    diagnostic func_ret_expected_typeref {
-        type: error;
-        message: {
-            en: "expected a type reference for function return type";
-        }
-    }
-
-    diagnostic cannot_implict_coerce {
-        type: error;
-        message: {
-            en: "the type %type:from_type% does not define trait ImplicitCast to type %type:to_type%";
-            eo: "la tipo %type% ne difinas la trajton ImplicitCast al tipo %type%";
-        }
-    }
-
-    diagnostic cant_find_binop_trait {
-        type: error;
-        message: {
-            en: "the trait %String:trait_name% is not defined between %type% and %type%";
-        }
-    }
-
-    diagnostic mismatch_argument_type {
-        type: error;
-        message: {
-            en: "cannot convert type %type:arg_type% to %type:param_type% for argument %String:arg_str% in call to %String:func_name%";
-        }
-    }
-
-    diagnostic too_many_arguments {
-        type: error;
-        message: {
-            en: "too many arguments provided in call to %String%";
-        }
-    }
-    
-
-    diagnostic not_enough_arguments {
-        type: error;
-        message: {
-            en: "not enough arguments provided in call to %String%";
-        }
-    }
-
-    diagnostic invalid_type_lhs_access {
-        type: error;
-        message: {
-            en: "unable to resolve the type of the lhs of access operator";
-        }
-    }
-
-    diagnostic cannot_access_members_scalar_type {
-        type: error;
-        message: {
-            en: "scalar types have no members";
-        }
-    }
-
-    diagnostic array_types_dont_have_member {
-        type: error;
-        message: {
-            en: "array types dont have a member %String%";
-        }
-    }
-
-    diagnostic cannot_access_members_of_function_type {
-        type: error;
-        message: {
-            en: "cannot access members of a function type";
-        }
-    }
-
-    diagnostic too_many_levels_of_indirection_for_access {
-        type: error;
-        message: {
-            en: "too many levels of indirection for access operator. The access operator will only dereference once.";
-        }
-    }
-    
-    diagnostic unknown_member {
-        type: error;
-        message: {
-            en: "type %type:type% has no member named %String:member_name%";
-        }
-    }
-
-	diagnostic module_unknown_member {
-		type: error;
-		message: {
-			en: "module %identifier:module_name% has no member %String:member_name%";
-		}
-	}
-
-    diagnostic cannot_have_a_variable_of_void_type {
-        type: error;
-        message: {
-            en: "cannot create a variable of type 'void'";
-        }
-    }
-
-    diagnostic if_mismatched_types_cannot_coerce {
-        type: error;
-        message: {
-            en: "conditional branches have mismatched types and the ladder type %type:first_type% cannot be converted to the former %type:later_type%";
-        }
-    }
-
-    diagnostic return_value_of_func_block_cannot_be_coerced_to_func_return_type {
-        type: error;
-        message: {
-            en: "function return type declared as %type:func_type% but block returns %type:block_type% and $1$ does not define ImplicitCast to $0$";
-        }
-    }
-
-    diagnostic break_outside_of_loop {
-        type: error;
-        message: {
-            en: "break expressions must be used in loops";
-        }
-    }
-
-    diagnostic cant_use_whatever_as_value {
-        type: error;
-        message: {
-            en: "type Whatever cannot be used as a value";
-        }
-    }
-
-    diagnostic cant_use_whatever_as_variable_type {
-        type: error;
-        message: {
-            en: "cannot have a variable of type Whatever";
-        }
-    }
-
-    diagnostic control_expressions_can_only_be_used_at_the_end_of_logical_operators {
-        type: error;
-        message: {
-            en: "control expressions can only be used at the very right of logical operators";
-        }
-    }
-
-    diagnostic compile_time_code_cannot_reference_runtime_memory {
-        type: error;
-        message: {
-            en: "compile time code cannot reference runtime memory";
-        }
-    }
-
-    diagnostic array_literal_type_mismatch {
-        type: error;
-        message: {
-            en: "array element %num:elem_index% is of type %type:bad_type% which does not define ImplicitCast to the first element's type %type:first_type%";
-        }
-    }
-
-	diagnostic static_array_count_expr_not_compile_time {
-		type: error;
-		message: {
-			en: "an expression used to set the size of a static array must be computable at compile time";
-		}
-	}
-
-	diagnostic static_array_expr_must_resolve_to_integer {
-		type: error;
-		message: {
-			en: "the expression of a static array must result in an integer, but this expression results in a %type%";
-		}
-	}
-
-	diagnostic static_array_size_cannot_be_negative {
-		type: error;
-		message: {
-			en: "static array size cannot be negative, but this expression results in: %num%";
-		}
-	}
-
-    diagnostic type_is_not_subscriptable {
-        type: error;
-        message: {
-            en: "the type %type% cannot be subscripted";
-        }
-    }
-
-    diagnostic subscript_must_evaluate_to_integer {
-        type: error;
-        message: {
-            en: "a subscript must evaluate to an integer (or, eventually, a range of integers), but this evaluates to %type%";
-        }
-    }
-
-    diagnostic subscript_out_of_bounds {
-        type: warn;
-        message: {
-            en: "the subscript %num:bad_guy% is out of bounds of static array of size %num:array_size%";
-        } 
-    }
-
-    diagnostic subscript_negative_not_allowed_on_pointer {
-        type: error;
-        message: {
-            en: "negative subscripts on pointers aren't defined";
-        }
-    }
-
-    diagnostic comparison_between_pointer_and_scalar {
-        type: error;
-        message: {
-            en: "relational operators between pointers and integers are not defined";
-        }
-    }
-
-    diagnostic float_in_pointer_arithmetic {
-        type: error;
-        message: {
-            en: "floats cannot be used in pointer arithmetic";
-        }
-    }
-
-    diagnostic pointer_equality_non_zero_integer {
-        type: error;
-        message: {
-            en: "equality operators between a pointer and a non-zero integer are not defined";
-        }
-    }
-
-    diagnostic pointer_integer_not_additive {
-        type: error;
-        message: {
-            en: "only addition and subtraction are defined between a pointer and an integer";
-        }
-    }
-
-    diagnostic pointer_arithmetic_not_additive {
-        type: error;
-        message: {
-            en: "only addition and subtraction are defined between pointers and integers";
-        }
-    }
-
-    diagnostic pointer_on_rhs_of_arithmetic {
-        type: error;
-        message: {
-            en: "arithmetic with a pointer in the rhs is not defined";
-        }
-    }
-
-    diagnostic static_array_invalid_member {
-        type: error;
-        message: {
-            en: "unknown member %identifier%. the only members of a static array are 'data' and 'count'";
-        }
-    }
-
-    diagnostic modulo_not_defined_on_floats {
-        type: error;
-        message: {
-            en: "modulo is not defined to act on floats (for now)";
-        }
-    }
-
-    diagnostic cant_take_reference_of_value {
-        type: error;
-        message: {
-            en: "cannot reference a value (something that is not in memory). NOTE if this seems wrong let me know! Currently you can only take references of variables";
-        }
-    }
-
-	diagnostic reference_operator_can_only_be_used_on_types_or_lvalues {
-		type: error;
-		message: {
-			en: "the reference operator '&' can only be used before typerefs (to denote a pointer) or before lvalues (to take the address of something)";
-		}
-	}
-
-    diagnostic dereference_operator_only_works_on_pointers {
-        type: error;
-        message: {
-            en: "dereference operator '*' may only be used on pointers";
-        }
-    }
-
-    diagnostic range_mismatched_types {
-        type: error;
-        message: {
-            en: "boths sides of a Range must have the same type or types castable to each other";
-        }
-    }
-
-    diagnostic range_non_scalar_not_supported {
-        type: error;
-        message: {
-            en: "non-scalar ranges are not supported yet";
-        }
-    }
-
-    diagnostic casting_between_non_scalar_types_not_supported {
-        type: error;
-        message: {
-            en: "casting between non-scalar types is not supported yet";
-        }
-    }
-
-	diagnostic intrinsic_print_named_arg {
-		type: error;
-		message: {
-			en: "naming an argument to intrinsic print is not defined yet";
-		}
-	}
-
-	diagnostic unary_comptime_expr_not_comptime {
-		type: error;
-		message: {
-			en: "the expression following this ':' is not able to be computed at compile time";
-		}
-	}
-
-	diagnostic static_array_unusally_large {
-		type: warn;
-		message: {
-			en: "static array defined with an unusually large size: %String%. possible unsigned underflow";
-		}
-	}
-
-	diagnostic tuple_struct_initializer_unknown_member {
-		type: error;
-		message: {
-			en: "the id %identifier% used in tuple initializer does not match any member of type %type%";
-		}
-	}
-
-	diagnostic tuple_struct_initializer_cannot_cast_expr_to_member {
-		type: error;
-		message: {
-			en: "expression of type %type% cannot be casted to the matching structure member %identifier% of type %type%";
-		}
-	}
-
-	diagnostic tuple_struct_initializer_named_member_already_satisfied {
-		type: error;
-		message: {
-			en: "member %identifier% was previously set by an element of this tuple literal";
-		}
-	}
-
-	diagnostic tuple_struct_initializer_too_many_elements {
-		type: error;
-		message: {
-			en: "too many elements provided in struct initializer";
-		}
-	}
-
-	diagnostic tuple_cast_to_structured_not_yet_supported {
-		type: error;
-		message : {
-			en: "casting a non literal Tuple to a Structured type is not supported yet";
-		}
+unknown_option {
+	type: error;
+	message: {
+		en: "unknown option '%str%'";
+		eo: "nekonata opcio '%str%'";
 	}
 }
 
-group internal {
-    diagnostic valid_path_but_internal_err {
-        type: error;
-        message: {
-            en: "valid path, %path%, was given, but couldn't be opened due to an internal error: %String%";
-        }
-    }
+no_path_given {
+	type: error;
+	message: {
+		en: "no input file";
+	}
 }
+
+expected_path_or_paths_for_arg_option {
+	type: error;
+	message: {
+		en: "expected a path or paths for argument option '%str%'";
+	}
+}
+
+unexpected_eof_single_quotes {
+	type: error;
+	message: {
+		en: "unexpected EOF encountered while parsing single quotes";
+		jp: "一重引用符は解析すながら予期せぬファイルの終わり見つかり";
+	}
+}
+
+unexpected_eof_double_quotes {
+	type: error;
+	message: {
+		en: "unexpected EOF encountered while parsing double quotes";
+		jp: "二重引用符は解析すながら予期せぬファイルの終わり見つかり";
+	}
+}
+
+multiline_comment_missing_end {
+	type: error;
+	message: {
+		en: "multiline comment missing '*/'";
+		jp: "複数行コメントの'*/'がぬけています";
+	}
+}
+
+unknown_directive {
+	type: error;
+	message: {
+		en: "unknown directive %id%";
+		jp: "不明の命令%id%";
+	}
+}
+
+unknown_svar {
+	type: error;
+	message: {
+		en: "unknown special id %id%";
+	}
+}
+
+invalid_token {
+	type: error;
+	message: {
+		en: "invalid token";
+		jp: "無効のトークン";
+	}
+}
+
+filename_cant_be_identifier {
+	type: error; 
+	message: {
+		en: "the name of this source file cannot be used as an identifier";
+	}
+}
+
+expected_type {
+	type: error;
+	message: {
+		en: "expected a type";
+		jp: "タイプが期待した";
+	}
+}
+
+expected_label_or_import {
+	type: error;
+	message: {
+		en: "expected a label or import";
+		jp: "名札か輸入が期待した";
+	}
+}
+
+expected_identifier {
+	type: error;
+	message: {
+		en: "expected an identifier";
+		jp: "識別名が期待した";
+	}
+}
+
+expected_import_directive {
+	type: error;
+	message: {
+		en: "expected an import directive";
+		jp: "輸入命令が期待した";
+	}
+}
+
+expected_colon_for_label {
+	type: error;
+	message: {
+		en: "expected a ':' after label(s)";
+		jp: "ラベルの後にコロンが必要";
+	}
+}
+
+unknown_identifier {
+	type: error;
+	message: {
+		en: "reference to unknown identifier: %token%";
+	}
+}
+
+label_already_defined {
+	type: error;
+	message: {
+		en: "the label %token% has already been defined in this scope";
+	}
+}
+
+missing_close_brace {
+	type: error;
+	message: {
+		en: "missing a close brace for this opening brace (I think)";
+	}
+}
+
+expected_comma_or_closing_paren_tuple {
+	type: error;
+	message: {
+		en: "expected a ',' or ')' for tuple";
+	}
+}
+
+unexpected_token {
+	type: error;
+	message: {
+		en: "unexpected token %token%";
+	}
+}
+
+expected_open_paren {
+	type: error;
+	message: {
+		en: "expected a '('";
+	}
+}
+
+expected_close_paren {
+	type: error;
+	message: {
+		en: "expected a ')'";
+	}
+}
+
+expected_open_brace {
+	type: error;
+	message: {
+		en: "expected a '{'";
+	}
+}
+
+expected_close_brace {
+	type: error;
+	message: {
+		en: "expected a '}'";
+	}
+}
+
+label_group_missing_id {
+	type: error;
+	message: {
+		en: "trailing comma not allowed in multi-label declaration";
+	}
+}
+
+label_missing_colon {
+	type: error;
+	message: {
+		en: "missing a ':' after label identifier(s)";
+	}
+}
+
+switch_missing_open_paren {
+	type: error;
+	message: {
+		en: "missing a '(' after 'switch'";
+	}
+}
+
+switch_missing_close_paren {
+	type: error;
+	message: {
+		en: "missing a ')' after switch's expression";
+	}
+}
+
+switch_missing_open_brace {
+	type: error;
+	message: {
+		en: "missing a '{' to start switch expression";
+	}
+}
+
+switch_empty_body {
+	type: warn;
+	message: {
+		en: "empty switch body";
+	}
+}
+
+switch_missing_match_arrow_after_expr {
+	type: error;
+	message: {
+		en: "expected a '=>' after expression in switch expression";
+	}
+}
+
+switch_missing_comma_after_match_arm {
+	type: error;
+	message: {
+		en: "expected a ',' after switch arm that does not end with a '}'";
+	}
+}
+
+for_missing_open_paren {
+	type: error;
+	message: {
+		en: "missing a '(' after 'for'";
+	}
+}
+
+for_missing_close_paren {
+	type: error;
+	message: {
+		en: "missing a ')' after for's expression";
+	}
+}
+
+for_expected_some_identfier {
+	type: error;
+	message: {
+		en: "expected some identifier to begin 'for' clause";
+	}
+}
+
+for_label_group_not_allowed {
+	type: error;
+	message: {
+		en: "multi label definition is not allowed in C style for loops.";
+	}
+}
+
+for_expected_in {
+	type: error;
+	message: {
+		en: "expected 'in' for 'for' clause";
+	}
+}
+
+for_cannot_declare_variables {
+	type: error;
+	message: {
+		en: "cannot declare variables in for clause TODO(sushi) this may be confusing, we just don't allow ':' or '=' after labels in for clauses"; 
+	}
+}
+
+tuple_expected_comma_or_close_paren {
+	type: error;
+	message: {
+		en: "expected a ',' or ')' for tuple";
+	}
+}
+
+array_expected_comma_or_close_square {
+	type: error;
+	message: {
+		en: "expected a ',' or ']' for array";
+	}
+}
+
+tuple_positional_arg_but_found_label {
+	type: error;
+	message: {
+		en: "all elements after a named tuple element must also be named";
+	}
+}
+
+if_missing_open_paren {
+	type: error;
+	message: {
+		en: "missing '(' after 'if'";
+	}
+}
+
+if_missing_close_paren {
+	type: error;
+	message: {
+		en: "missing ')' after if expression's condition";
+	}
+}
+
+missing_semicolon {
+	type: error;
+	message: {
+		en: "missing ';'";
+	}
+}
+
+missing_function_return_type {
+	type: error;
+	message: {
+		en: "missing return type(s) for function";
+	}
+}
+
+missing_open_brace_for_struct {
+	type: error;
+	message: {
+		en: "missing '{' after 'struct'";
+	}
+}
+
+struct_only_labels_allowed {
+	type: error;
+	message: {
+		en: "only labels are allowed in structures";
+	}
+}
+
+struct_member_functions_not_allowed {
+	type: error;
+	message: {
+		en: "member functions are not allowed";
+	}
+}
+
+extraneous_close_brace {
+	type: error;
+	message: {
+		en: "extraneous closing blace '}'";
+	}
+}
+
+unexpected_token_in_module {
+	type: error;
+	message: {
+		en: "unexpected token in module, only labels and directives are allowed";
+	}
+}
+
+array_missing_close_square {
+	type: error;
+	message: {
+		en: "missing ']' to close array type";
+	}
+}
+
+runtime_structures_not_allowed {
+	type: error;
+	message: {
+		en: "structure types cannot be defined in runtime memory (did you forget a ':'? or did you use '=' instead of ':'?)";
+	}
+}
+
+struct_duplicate_member_name {
+	type:error;
+	message: {
+		en: "member %token% already defined.";
+	}
+}
+
+static_array_count_must_eval_to_integer {
+	type: error;
+	message: {
+		en: "static array count must evaluate to a compile time integer, but found %type% instead";
+	}
+}
+
+static_array_size_cannot_be_negative {
+	type: error;
+	message: {
+		en: "static array count cannot be negative";
+	}
+}
+
+subscript_missing_close_square {
+	type: error;
+	message: {
+		en: "subscript operator missing closing square ']'";
+	}
+}
+
+runtime_variable_cannot_be_used_as_static_array_count {
+	type: error;
+	message: {
+		en: "a runtime variable cannot be used to size a static array";
+	}
+}
+
+intrinsic_print_missing_parenthesis {
+	type: error;
+	message: {
+		en: "special id $print is a function but is not followed by an argument tuple";
+	}
+}
+
+intrinsic_print_empty {
+	type: error;
+	message: {
+		en: "empty intrinsic print";
+	}
+}
+
+tuple_type_plain_expression {
+	type: error;
+	message: {
+		en: "elements of a type tuple cannot be plain expressions";
+	}
+}
+
+tuple_type_expression_must_be_explicitly_typed {
+	type: error;
+	message: {
+		en: "a type tuple element declared without a label must be explicitly typed (via a cast, binary assignment with a type on the lhs, etc.)";
+	}
+}
+
+missing_open_brace_for_module {
+	type: error;
+	message: {
+		en: "missing '{' after 'module'";
+	}
+}
+
+func_ret_expected_typeref {
+	type: error;
+	message: {
+		en: "expected a type reference for function return type";
+	}
+}
+
+cannot_implict_coerce {
+	type: error;
+	message: {
+		en: "the type %type:from_type% does not define trait ImplicitCast to type %type:to_type%";
+		eo: "la tipo %type% ne difinas la trajton ImplicitCast al tipo %type%";
+	}
+}
+
+cant_find_binop_trait {
+	type: error;
+	message: {
+		en: "the trait %str:trait_name% is not defined between %type% and %type%";
+	}
+}
+
+mismatch_argument_type {
+	type: error;
+	message: {
+		en: "cannot convert type %type:arg_type% to %type:param_type% for argument %str:arg_str% in call to %str:func_name%";
+	}
+}
+
+too_many_arguments {
+	type: error;
+	message: {
+		en: "too many arguments provided in call to %str%";
+	}
+}
+
+
+not_enough_arguments {
+	type: error;
+	message: {
+		en: "not enough arguments provided in call to %str%";
+	}
+}
+
+invalid_type_lhs_access {
+	type: error;
+	message: {
+		en: "unable to resolve the type of the lhs of access operator";
+	}
+}
+
+cannot_access_members_scalar_type {
+	type: error;
+	message: {
+		en: "scalar types have no members";
+	}
+}
+
+array_types_dont_have_member {
+	type: error;
+	message: {
+		en: "array types dont have a member %str%";
+	}
+}
+
+cannot_access_members_of_function_type {
+	type: error;
+	message: {
+		en: "cannot access members of a function type";
+	}
+}
+
+too_many_levels_of_indirection_for_access {
+	type: error;
+	message: {
+		en: "too many levels of indirection for access operator. The access operator will only dereference once.";
+	}
+}
+
+unknown_member {
+	type: error;
+	message: {
+		en: "type %type:type% has no member named %str:member_name%";
+	}
+}
+
+module_unknown_member {
+	type: error;
+	message: {
+		en: "module %id:module_name% has no member %str:member_name%";
+	}
+}
+
+cannot_have_a_variable_of_void_type {
+	type: error;
+	message: {
+		en: "cannot create a variable of type 'void'";
+	}
+}
+
+if_mismatched_types_cannot_coerce {
+	type: error;
+	message: {
+		en: "conditional branches have mismatched types and the ladder type %type:first_type% cannot be converted to the former %type:later_type%";
+	}
+}
+
+return_value_of_func_block_cannot_be_coerced_to_func_return_type {
+	type: error;
+	message: {
+		en: "function return type declared as %type:func_type% but block returns %type:block_type% and $1$ does not define ImplicitCast to $0$";
+	}
+}
+
+break_outside_of_loop {
+	type: error;
+	message: {
+		en: "break expressions must be used in loops";
+	}
+}
+
+cant_use_whatever_as_value {
+	type: error;
+	message: {
+		en: "type Whatever cannot be used as a value";
+	}
+}
+
+cant_use_whatever_as_variable_type {
+	type: error;
+	message: {
+		en: "cannot have a variable of type Whatever";
+	}
+}
+
+control_expressions_can_only_be_used_at_the_end_of_logical_operators {
+	type: error;
+	message: {
+		en: "control expressions can only be used at the very right of logical operators";
+	}
+}
+
+compile_time_code_cannot_reference_runtime_memory {
+	type: error;
+	message: {
+		en: "compile time code cannot reference runtime memory";
+	}
+}
+
+array_literal_type_mismatch {
+	type: error;
+	message: {
+		en: "array element %num:elem_index% is of type %type:bad_type% which does not define ImplicitCast to the first element's type %type:first_type%";
+	}
+}
+
+static_array_count_expr_not_compile_time {
+	type: error;
+	message: {
+		en: "an expression used to set the size of a static array must be computable at compile time";
+	}
+}
+
+static_array_expr_must_resolve_to_integer {
+	type: error;
+	message: {
+		en: "the expression of a static array must result in an integer, but this expression results in a %type%";
+	}
+}
+
+static_array_size_cannot_be_negative {
+	type: error;
+	message: {
+		en: "static array size cannot be negative, but this expression results in: %num%";
+	}
+}
+
+type_is_not_subscriptable {
+	type: error;
+	message: {
+		en: "the type %type% cannot be subscripted";
+	}
+}
+
+subscript_must_evaluate_to_integer {
+	type: error;
+	message: {
+		en: "a subscript must evaluate to an integer (or, eventually, a range of integers), but this evaluates to %type%";
+	}
+}
+
+subscript_out_of_bounds {
+	type: warn;
+	message: {
+		en: "the subscript %num:bad_guy% is out of bounds of static array of size %num:array_size%";
+	} 
+}
+
+subscript_negative_not_allowed_on_pointer {
+	type: error;
+	message: {
+		en: "negative subscripts on pointers aren't defined";
+	}
+}
+
+comparison_between_pointer_and_scalar {
+	type: error;
+	message: {
+		en: "relational operators between pointers and integers are not defined";
+	}
+}
+
+float_in_pointer_arithmetic {
+	type: error;
+	message: {
+		en: "floats cannot be used in pointer arithmetic";
+	}
+}
+
+pointer_equality_non_zero_integer {
+	type: error;
+	message: {
+		en: "equality operators between a pointer and a non-zero integer are not defined";
+	}
+}
+
+pointer_integer_not_additive {
+	type: error;
+	message: {
+		en: "only addition and subtraction are defined between a pointer and an integer";
+	}
+}
+
+pointer_arithmetic_not_additive {
+	type: error;
+	message: {
+		en: "only addition and subtraction are defined between pointers and integers";
+	}
+}
+
+pointer_on_rhs_of_arithmetic {
+	type: error;
+	message: {
+		en: "arithmetic with a pointer in the rhs is not defined";
+	}
+}
+
+static_array_invalid_member {
+	type: error;
+	message: {
+		en: "unknown member %id%. the only members of a static array are 'data' and 'count'";
+	}
+}
+
+modulo_not_defined_on_floats {
+	type: error;
+	message: {
+		en: "modulo is not defined to act on floats (for now)";
+	}
+}
+
+cant_take_reference_of_value {
+	type: error;
+	message: {
+		en: "cannot reference a value (something that is not in memory). NOTE if this seems wrong let me know! Currently you can only take references of variables";
+	}
+}
+
+reference_operator_can_only_be_used_on_types_or_lvalues {
+	type: error;
+	message: {
+		en: "the reference operator '&' can only be used before typerefs (to denote a pointer) or before lvalues (to take the address of something)";
+	}
+}
+
+dereference_operator_only_works_on_pointers {
+	type: error;
+	message: {
+		en: "dereference operator '*' may only be used on pointers";
+	}
+}
+
+range_mismatched_types {
+	type: error;
+	message: {
+		en: "boths sides of a Range must have the same type or types castable to each other";
+	}
+}
+
+range_non_scalar_not_supported {
+	type: error;
+	message: {
+		en: "non-scalar ranges are not supported yet";
+	}
+}
+
+casting_between_non_scalar_types_not_supported {
+	type: error;
+	message: {
+		en: "casting between non-scalar types is not supported yet";
+	}
+}
+
+intrinsic_print_named_arg {
+	type: error;
+	message: {
+		en: "naming an argument to intrinsic print is not defined yet";
+	}
+}
+
+unary_comptime_expr_not_comptime {
+	type: error;
+	message: {
+		en: "the expression following this ':' is not able to be computed at compile time";
+	}
+}
+
+static_array_unusally_large {
+	type: warn;
+	message: {
+		en: "static array defined with an unusually large size: %str%. possible unsigned underflow";
+	}
+}
+
+tuple_struct_initializer_unknown_member {
+	type: error;
+	message: {
+		en: "the id %id% used in tuple initializer does not match any member of type %type%";
+	}
+}
+
+tuple_struct_initializer_cannot_cast_expr_to_member {
+	type: error;
+	message: {
+		en: "expression of type %type% cannot be casted to the matching structure member %id% of type %type%";
+	}
+}
+
+tuple_struct_initializer_named_member_already_satisfied {
+	type: error;
+	message: {
+		en: "member %id% was previously set by an element of this tuple literal";
+	}
+}
+
+tuple_struct_initializer_too_many_elements {
+	type: error;
+	message: {
+		en: "too many elements provided in struct initializer";
+	}
+}
+
+tuple_cast_to_structured_not_yet_supported {
+	type: error;
+	message : {
+		en: "casting a non literal Tuple to a Structured type is not supported yet";
+	}
+}
+

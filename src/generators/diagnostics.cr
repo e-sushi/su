@@ -97,6 +97,9 @@ class Token
 	end
 end
 
+
+alias DoubleInt = Tuple(Int32, Int32)
+
 macro errs(*data)
 	class Err
 		enum Kind 
@@ -107,7 +110,7 @@ macro errs(*data)
 
 		property token : Token
 		property kind  : Kind
-		property data  : String | Nil
+		property data  : String | DoubleInt | Nil
 
 		def initialize(@token, @kind, @data)
 		end
@@ -117,7 +120,7 @@ macro errs(*data)
 				raise "the second argument of an error tuple must be nil or a typename"
 			{% end %}
 												# this is just trying to form (token [, name]) when the second argument is not nil
-			def self.{{ v[0].id }}( {{ *(["token", v[1]].reject(&.nil?).map {|x| x.id.downcase }) }} ) : Err
+			def self.{{ v[0].id }}( {{ (["token", v[1]].reject(&.nil?).map {|x| x.id.downcase }).splat }} ) : Err
 				e = Err.new token, Kind::{{ v[0].id.camelcase }}, nil
 				{% if v[1] %}
 					e.data = {{ v[1].id.downcase }}
@@ -137,6 +140,7 @@ macro errs(*data)
 	end
 end
 
+
 errs(
 	{invalid_token, String, "invalid token: #{data.as(String)}"},
 	{unexpected_token, String, "expected #{data.as(String)}"},
@@ -146,6 +150,10 @@ errs(
 	{message_already_declared, nil, "the message of this diagnostic was already declared"},
 	{missing_message, nil, "diagnostics need to declare a message"},
 	{missing_type, nil, "diagnostics need to declare a type"},
+	{unknown_formatting, String, "unknown formatting specifier '#{data.as(String)}'"},
+	{formatting_name_empty, nil, "formatting has an empty name (eg. something like %String:% exists when it should be %String:my_name%)"},
+	{dollar_not_num, nil, "$$ was used but what's inside is not a number"},
+	{dollar_oob, DoubleInt, "$$ was used but the number given (#{data.as(DoubleInt)[0]}) is larger than the amount of formats given at this point #{data.as(DoubleInt)[1]}"}
 )
 
 class Lexer 
@@ -219,8 +227,6 @@ class Lexer
 				self.next
 			end
 			mapping = {
-				"group" => Token::Kind::Group,
-				"diagnostic" => Token::Kind::Diagnostic,
 				"type" => Token::Kind::Type,
 				"error" => Token::Kind::Error,
 				"warn" => Token::Kind::Warn,
@@ -275,13 +281,23 @@ end
 
 class Diagnostic
 	enum Type
+		Fatal
 		Error
 		Warning
+		Notice
+		Info
+		Debug
+		Trace
 
 		def to_s
 			case self
 			when Error then "error".colorize.red
 			when Warning then "warn".colorize.yellow
+			when Fatal then "fatal".colorize.red
+			when Notice then "notice".colorize.blue
+			when Info then "info".colorize.blue
+			when Debug then "debug".colorize.green
+			when Trace then "trace".colorize.cyan
 			end
 		end
 	end
@@ -313,9 +329,10 @@ class Diagnostic
 	property \
 	name : String,
 	type : Type,
-	message : Message
+	message : Message,
+	start : Token
 
-	def initialize(@name, @type, @message)
+	def initialize(@name, @type, @message, @start)
 	end
 
 	def to_s
@@ -332,29 +349,212 @@ class Diagnostic
 	def to_s(io : IO)
 		io << to_s
 	end
-end
 
-class Group 
-	property \
-	name : String,
-	diags = [] of Diagnostic
-	
-	def initialize(@name)
-	end
+	struct Arg 
+		enum Kind
+			Str
+			Path
+			Id
+			Token
+			Type
+			Num
+		end
 
-	def to_s
-		String.build do |s|
-			s << <<-END
-				#{"group".colorize.green} #{name.colorize.cyan}:\n
-				END
-			diags.each do |d|
-				s << d.to_s.indent << "\n"
+		property name : String | Nil
+		property kind : Kind
+
+		def initialize(@name, @kind)
+		end
+
+		def to_s
+			String.build do |s|
+				s << 
+				case kind
+				when Kind::Str   then "Arg(Str"
+				when Kind::Path  then "Arg(Path"
+				when Kind::Id    then "Arg(Id"
+				when Kind::Token then "Arg(Token"
+				when Kind::Type  then "Arg(Type"
+				when Kind::Num   then "Arg(Num"
+				end << 
+				if name 
+					",#{name})"
+				else
+					")"
+		   		end
 			end
+		end
+
+		def to_s(io : IO)
+			io << to_s
 		end
 	end
 
-	def to_s(io : IO)
-		io << to_s
+	def parse_message_string(s) : Array(String | Arg | Int32) | Err
+		arr = [] of String | Arg | Int32
+		loop do
+			case c = s.index /\$|%/ 
+			when nil then arr.push(s) && break
+			else
+				post = s[c+1..]
+				case s[c]
+				when '%'
+					case c2 = post.index '%'
+					when nil then arr.push s[..c] 
+					else
+						format = post[..c2-1]
+						parts = format.partition ':'
+						name = nil
+						if parts[1] == ":"
+							if parts[2].empty?
+								return Err.formatting_name_empty start
+							end
+							name = parts[2]
+						end
+
+						format_map = {
+							"str" => Arg::Kind::Str,
+							"path" => Arg::Kind::Path,
+							"id" => Arg::Kind::Id,
+							"token" => Arg::Kind::Token,
+							"type" => Arg::Kind::Type,
+							"num" => Arg::Kind::Num
+						}
+
+						unless type = format_map[parts[0]]?
+							return Err.unknown_formatting start, parts[0]
+						end
+
+						arr.push s[..c-1], Arg.new(name, type)
+						post = post[c2+1..]
+					end
+				when '$'
+					case c2 = post.index '$'
+					when nil then arr.push s[..c]
+					else
+						unless n = post[..c2-1].to_i?
+							return Err.dollar_not_num start
+						end
+						
+						if n >= arr.size
+							return Err.dollar_oob start, {n, arr.size}
+						end
+
+						arr.push s[..c-1], n
+						post = post[c2+1..]
+					end
+				end
+				s = post 
+			end
+		end
+		return arr
+	end
+
+	macro place_arg(arg)
+		case {{arg}}.kind
+		when Arg::Kind::Str   then ".append(diag->args[#{n_args}].string)"
+		when Arg::Kind::Path  then ".path(diag->args[#{n_args}].string)"
+		when Arg::Kind::Id    then ".identifier(diag->args[#{n_args}].string)"
+		when Arg::Kind::Token then ".append(diag->args[#{n_args}].token)"
+		when Arg::Kind::Type  then ".append(diag->args[#{n_args}].type)"
+		when Arg::Kind::Num   then ".append(diag->args[#{n_args}].num)"
+		else abort("unhandled arg kind")
+		end + "\n"
+	end
+
+	def to_c : Tuple(String, String)
+		decl = String::Builder.new
+		impl = String::Builder.new
+		message.entries.each do |_,m|
+			if (result = parse_message_string(m)).is_a? Err 
+				puts result
+				return {"",""}
+			end
+
+			args = result.each.select(Arg).to_a
+			argnames = [] of String
+
+			argstr = String.build do |s|
+				s << "MessageSender m"
+				args.each.with_index do |arg,i|
+					s << ", " << 
+					case arg.kind
+					when Arg::Kind::Str, Arg::Kind::Path, Arg::Kind::Id  then "String "
+					when Arg::Kind::Token then "Token* "
+					when Arg::Kind::Type  then "Type* "
+					when Arg::Kind::Num   then "s64 "
+					end 
+					name = 
+					case arg.name 
+					when nil then "arg#{i}"
+					else arg.name
+					end
+					argnames.push name.as(String)
+					s << name
+				end
+			end
+
+			decl << <<-END
+			static Diag #{name}(#{argstr});
+			static void #{name}(Array<Diag>& to, #{argstr});\n
+			END
+			
+			impl << <<-END
+			Diag Diag::
+			#{name}(#{argstr}) {
+				auto out = Diag::create(m, Kind::#{name.camelcase}, Message::Kind::#{Type.names[type.value]}, #{result.size});\n
+			END
+
+			args.zip(argnames).each.with_index do |arg,i|
+				impl << "\tout.args[#{i}]." << 
+				case arg[0].kind
+				when Arg::Kind::Str, Arg::Kind::Path, Arg::Kind::Id then "string"
+				when Arg::Kind::Token then "token"
+				when Arg::Kind::Type then "type"
+				when Arg::Kind::Num then "num"
+				end << 
+				" = #{arg[1]};\n"
+			end
+
+			impl << <<-END
+				out.emit_callback = [](Diag* diag) -> Message {
+					switch(language) {
+						default:
+						case Lang::English:
+							return MessageBuilder::
+								 start(diag->sender, diag->severity)\n
+			END
+	
+			n_args = 0
+
+			result.each do |r|
+				impl << "\t" * 5 << case r
+				when Arg
+					s = place_arg(args[n_args])
+					n_args += 1
+					s
+				when Int32
+					place_arg(args[r])
+				when String then ".append(\"#{r}\")\n"
+				else
+				end
+			end
+
+			impl << <<-END
+								.message;
+				};
+				return out;
+			}
+			END
+		end
+
+		puts decl.to_s
+		puts impl.to_s
+		return {"", ""}
+	end
+
+	def to_c(io : IO)
+		io << to_c
 	end
 end
 
@@ -362,7 +562,7 @@ class Parser
 	@lexer : Lexer
 	@curt : Token | Err
 
-	property groups = [] of Group
+	getter diagnostics = [] of Diagnostic
 
 	def initialize(path : String)
 		@lexer = Lexer.new path
@@ -379,61 +579,24 @@ class Parser
 			curt = @curt
 			return curt if curt.is_a? Err
 			case curt.kind
-			when Token::Kind::Group
-				result = group
+			when Token::Kind::Word
+				result = diagnostic
 				return result if result.is_a? Err
-				@groups.push result
+				@diagnostics.push result
 			when Token::Kind::EOF
 				return nil
 			else
-				return Err.unexpected_token curt, "group at top level"
+				return Err.unexpected_token curt, "diagnostic name"
 			end
 		end
-	end
-
-	def group : Group | Err
-		t = next_token
-		return t if t.is_a? Err
-		unless t.kind == Token::Kind::Word
-			return Err.unexpected_token t, "name for group"
-		end
-	
-		g = Group.new t.data.as(String)
-
-		t = next_token
-		return t if t.is_a? Err
-		unless t.kind == Token::Kind::LBrace
-			return Err.unexpected_token t, "left brace '{' to start group body"
-		end
-
-		loop do
-			t = next_token
-			return t if t.is_a? Err
-			case t.kind 
-			when Token::Kind::Diagnostic
-				result = diagnostic
-				return result if result.is_a? Err
-				g.diags.push result
-				puts result
-			when Token::Kind::RBrace then break
-			else return Err.unexpected_token t, "'diagnostic' keyword"
-			end
-		end
-		next_token
-		return g
 	end
 
 	def diagnostic : Diagnostic | Err
-		t = next_token
-		return t if t.is_a? Err
-		unless t.kind == Token::Kind::Word
-			return Err.unexpected_token t, "name for diagnositc"
-		end
-
-		start_token = t
-
-		name = t.data.as(String)
+		start_token = @curt
+		return start_token if start_token.is_a? Err
 	
+		name = start_token.data.as(String)
+
 		t = next_token
 		return t if t.is_a? Err
 		unless t.kind == Token::Kind::LBrace
@@ -447,7 +610,7 @@ class Parser
 			t = next_token
 			return t if t.is_a? Err
 			case t.kind 
-			when Token::Kind::RBrace then break
+			when Token::Kind::RBrace then next_token && break
 			when Token::Kind::Type
 				if type
 					return Err.type_already_declared t
@@ -503,7 +666,6 @@ class Parser
 				loop do
 					t = next_token
 					return t if t.is_a? Err
-
 					break if t.kind == Token::Kind::RBrace 
 					if lang_map.empty? 
 						unless t.kind == Token::Kind::RBrace
@@ -550,7 +712,7 @@ class Parser
 			return Err.missing_type start_token
 		end
 
-		return Diagnostic.new name, type, message
+		return Diagnostic.new name, type, message, start_token
 	end
 end
 
@@ -558,7 +720,7 @@ p = Parser.new "src/generators/diagnostics.def"
 case result = p.start
 when Err then puts result
 else
-	p.groups.each do |g|
-		puts g
+	p.diagnostics.each do |d|
+		d.to_c
 	end
 end
