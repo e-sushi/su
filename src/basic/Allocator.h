@@ -3,10 +3,14 @@
 
 #include "Common.h"
 
+namespace amu {
+
 struct Allocator {
 	virtual void* allocate(u32 size) = 0;
 	virtual void* reallocate(void* ptr, u32 size) = 0;
 	virtual void free(void* ptr) = 0;
 };
+
+} // namespace amu
 
 #endif
