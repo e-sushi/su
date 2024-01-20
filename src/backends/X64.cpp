@@ -16,6 +16,7 @@ References:
 - Tiny C Compiler by Fabrice Bellard (https://bellard.org/tcc)
 - Intel64 and IA-32 Architectures Reference Manual by Intel (https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)
 - Intel 8086 Family User's Manual (no official link)
+- X86-64 Instruction Decoding by wiki.osdev.org (https://wiki.osdev.org/X86-64_Instruction_Encoding)
 
 TODO:
 - X64_64bit
@@ -134,6 +135,9 @@ enum{
 	X64_REG_FLAG_JMP_FALSE = 0x35,
 };
 
+// Evaluates to 1 if the input register is a new 64bit register (X64_REG_R8 to X64_REG_R15)
+#define X64_REX_BASE(reg) (((reg) >> 3) & 1)
+
 // Extract the 3 register bits from the register variable
 // !ref: Intel 8086 Family User's Manual (Table 4-9. REG (Register Field Encoding))
 #define X64_REG_VALUE(reg) ((reg) & 7)
@@ -169,6 +173,7 @@ X64_save_register(X64* assembler, u32 r){
 }
 
 // Find a free register matching the `register_class`; if none, save a matching register to the stack to free it up
+// !ref: tccgen.c get_reg()
 static u32
 X64_get_register(X64* assembler, u32 register_class){
 	int reg;
@@ -201,11 +206,20 @@ X64_get_register(X64* assembler, u32 register_class){
 	return -1;
 }
 
-// Load the top stack value into a register matching `register_class` if it is not already, and return the register
+// Load the top stack value into a register matching `rc` register class if it is not already, and return the register
+// !ref: tccgen.c gv()
 static u32
-X64_load_top_to_register(X64* assembler, u32 register_class){
+X64_load_top_to_register(X64* assembler, u32 rc){
 	
 	return 0;
+}
+
+// Load the top two stack values into registers matching the `rc1` and `rc2` register classes respectively if they are not already
+// stack_top[-1] using rc1, stack_top[0] using rc2
+// !ref: tccgen.c gv2()
+static void
+X64_load_top2_to_register(X64* assembler, u32 rc1, u32 rc2){
+	
 }
 
 
@@ -247,6 +261,20 @@ X64_write(X64* assembler, u8 value){
 	if(value){
 		u8* cursor = X64_push_binary(assembler, 1);
 		cursor[0] = value;
+	}
+}
+
+// Write the REX opcode prefix byte
+static void
+X64_write_rex(X64* assembler, b32 wide, u32 reg0, u32 reg1){
+	X64_write(assembler, 0x40 | (wide << 3) | (X64_REX_BASE(reg1) << 2) | X64_REX_BASE(reg0));
+}
+
+// Write the REX opcode prefix byte if the stack value is a 64bit type
+static void
+X64_write_rex_if_stack_value_is_64it(X64* assembler, X64::StackValue* sv, u32 reg0, u32 reg1){
+	if(X64_stack_value_is_64bit(sv)){
+		X64_write_rex(assembler, 1, reg0, reg1);
 	}
 }
 
@@ -346,8 +374,10 @@ run(){
 			case air::op::add:{
 				StackValue* dst = &assembler->stack_top[-1];
 				StackValue* src = &assembler->stack_top[ 0];
+				
 				if(bc->flags.right_is_const){
 					switch(bc->rhs.kind){
+						case ScalarValue::Kind::Unsigned8:
 						case ScalarValue::Kind::Signed8:
 						{
 							// Load the destination's stack value to an integer register
@@ -355,33 +385,38 @@ run(){
 							u32 r = X64_load_top_to_register(assembler, X64_RC_INT);
 							X64_swap_top(assembler);
 							
-							if(X64_stack_value_is_64bit(dst)){
-								// TODO: X64_64bit
-							}else{
-								// Add sign-extended imm8 to r/m
-								X64_write(assembler, 0x83); // ADD b
-								X64_write(assembler, 0xc0 | X64_REG_VALUE(r));
-								X64_write(assembler, src->_u8);
-							}
-						}break;
-						case ScalarValue::Kind::Unsigned8:
-						{
-							
+							// Add sign-extended imm8 to r/m
+							X64_write_rex_if_stack_value_is_64it(assembler, dst, r, 0);
+							X64_write(assembler, 0x83);
+							X64_write(assembler, 0xc0 | (0 << 3) | X64_REG_VALUE(r));
+							X64_write(assembler, src->_u8);
 						}break;
 						case ScalarValue::Kind::Signed16:
 						case ScalarValue::Kind::Unsigned16:
-						{
-							
-						}break;
 						case ScalarValue::Kind::Signed32:
 						case ScalarValue::Kind::Unsigned32:
 						{
+							// Load the destination's stack value to an integer register
+							X64_swap_top(assembler);
+							u32 r = X64_load_top_to_register(assembler, X64_RC_INT);
+							X64_swap_top(assembler);
 							
+							// Add sign-extended imm32 to r/m
+							X64_write_rex_if_stack_value_is_64it(assembler, dst, r, 0);
+							X64_write(assembler, 0x81);
+							X64_write(assembler, 0xc0 | (0 << 3) | X64_REG_VALUE(r));
+							X64_write_le32(assembler, src->_u32);
 						}break;
 						case ScalarValue::Kind::Signed64:
 						case ScalarValue::Kind::Unsigned64:
 						{
-							// TODO: X64_64bit
+							// Load the stack values to integer registers
+							X64_load_top2_to_register(assembler, X64_RC_INT, X64_RC_INT);
+							
+							// Add r64 to r/m64
+							X64_write_rex(assembler, 1, src->reg, dst->reg);
+							X64_write(assembler, 0x01 | (0 << 3));
+							X64_write(assembler, 0xc0 | (X64_REG_VALUE(src->reg) << 3) | X64_REG_VALUE(dst->reg));
 						}break;
 						case ScalarValue::Kind::Float32:
 						{
@@ -393,8 +428,16 @@ run(){
 						}break;
 					}
 				}else{
+					// Load the stack values to integer registers
+					X64_load_top2_to_register(assembler, X64_RC_INT, X64_RC_INT);
 					
+					// Add r to r/m
+					X64_write_rex_if_stack_value_is_64it(assembler, dst, src->reg, dst->reg);
+					X64_write(assembler, 0x01 | (0 << 3));
+					X64_write(assembler, 0xc0 | (X64_REG_VALUE(src->reg) << 3) | X64_REG_VALUE(dst->reg));
 				}
+				
+				assembler->stack_top--;
 			}break;
 			
 			case air::op::sub:{
