@@ -30,8 +30,8 @@ struct MessagePart;
 
 struct String {
     union {
-        u8* str;
         char* __char_str; // need to cheat cpp a bit to get compile time Strings from literals
+        u8* str;
     };
     s64 count;
 

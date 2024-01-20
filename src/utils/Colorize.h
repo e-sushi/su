@@ -31,7 +31,7 @@ colorize(DString& s, Color color) {
 	using enum Color;
 	switch(color) {
 		case Null: Assert(0); return;
-#define colorcase(a, b) case a: s.prepend("\e[" STRINGIZE(b) "m"); break;
+#define colorcase(a, b) case a: s.prepend("\x1b[" STRINGIZE(b) "m"); break;
 		colorcase(Black, 30);
 		colorcase(Red, 31);
 		colorcase(Green, 32);
@@ -49,10 +49,10 @@ colorize(DString& s, Color color) {
 		colorcase(BrightCyan, 96);
 		colorcase(BrightWhite, 97);
 		default: {
-			s.append("\e[31mINTERNAL ERROR: unknown color: ", (u32)color);
+			s.append("\x1b[31mINTERNAL ERROR: unknown color: ", (u32)color);
 		} break;
 	}
-	s.append("\e[0m");
+	s.append("\x1b[0m");
 }
 
 } // namespace amu

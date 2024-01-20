@@ -30,7 +30,7 @@ utc_date() {
 	out.second = s;
 	
 	tm t;
-#if AMU_WIN32
+#if AMU_WINDOWS
 	gmtime_s(&t, (time_t*)&s);
 #else
 	gmtime_r((time_t*)&s, &t);

@@ -75,8 +75,8 @@ property \
 property \
 	known_platforms = {"linux","win32"},
 known_preprocessors = {"cpp"},
-	known_compilers = {"clang++"},
-	  known_linkers = {"clang++"}
+	known_compilers = {"clang++","cl"},
+	  known_linkers = {"clang++","link"}
 
 macro vprint(x)
 	if verbose
@@ -112,8 +112,8 @@ def set_defaults_from_platform
 	self.platform = "linux"
 {% elsif flag? :win32 %}
 	self.preprocessor = "cpp"
-	self.compiler = "clang++"
-	self.linker = "clang++"
+	self.compiler = "cl"
+	self.linker = "link"
 	self.platform = "win32"
 {% else %}
 {%   raise "'defaults_from_platform' needs to be implemented for this platform " %}
@@ -240,7 +240,7 @@ def defines
 		end |
 		case platform
 		when "linux" then %w(-DAMU_LINUX=1)
-		when "win32" then %w(-DAMU_WIN32=1)
+		when "win32" then %w(-DAMU_WINDOWS=1)
 		else fatal "unhandled platform"
 		end | 
 		case profiling
@@ -260,7 +260,7 @@ end
 def includes
 	if @includes.empty?
 		@includes = case compiler
-		when "clang++"
+		when "clang++", "cl"
 			%w(
 				-Isrc
 			)
@@ -305,6 +305,26 @@ def compiler_flags
 				-fdebug-macro
 				-ggdb3
 				-O0
+				)
+			else fatal "unhandled buildmode"
+			end
+		when "cl"
+			%w(
+			-diagnostics:column
+			-EHsc
+			-nologo
+			-MP
+			-Oi
+			-GR
+			-std:c++20
+			-utf-8
+			) | 
+		   case buildmode
+			when "release" then %w(-O2)
+			when "debug" 
+				%w(
+				-Z7
+				-Od
 				)
 			else fatal "unhandled buildmode"
 			end
@@ -373,6 +393,8 @@ def get_object_file_path(source_file : Path)
 	case compiler
 	when "clang++"
 		return output_path / "#{source_file.stem}.o"
+	when "cl"
+		return output_path / "#{source_file.stem}.obj"
 	else fatal "unhandled compiler #{compiler}"
 	end
 end
@@ -477,6 +499,15 @@ def generate_compiler_commands
 			c.args = ["-c", c.from, "-o", c.to, *@includes, *@defines, *@compiler_flags]
 			@commands.push c
 		end
+	when "cl"
+		source_files.each do |sf|
+			c = Command.new
+			c.command = "cl"
+			c.from = sf.to_s
+			c.to = get_object_file_path(sf).to_s
+			c.args = ["-c", c.from, "-Fo" + c.to, *@includes, *@defines, *@compiler_flags]
+			@commands.push c
+		end
 	else fatal "unhandled compiler '#{@compiler}'"
 	end
 end
@@ -519,7 +550,15 @@ def execute_compiler_commands
 					success = false
 					print <<-END
 					#{c.from.colorize.yellow} #{"failed".colorize.red}:
-					#{stderr}
+					#{
+						case @compiler
+						when "clang++"
+							stderr
+						when "cl"
+							stdout
+						else fatal "unhandled compiler '@compiler'"
+						end
+					}
 					END
 				end
 				# signal the main fiber that we've finished a job
@@ -563,6 +602,28 @@ def	do_linking
 			stderr.to_s.each_line do |l|
 				puts l
 				m = l.match /(\w+\.o)/
+				next unless m
+				File.delete? output_path / m[1]
+			end
+		end
+	when "link"
+		output_exe = output_path / "amu.exe"
+		output_pdb = output_path / "amu.pdb"
+		args = [*@obj_files, "-DEBUG:FULL", "-OUT:" + output_exe.to_s, "-PDB:" + output_pdb.to_s]
+		vprint "link #{args.join " "}"
+		time_start = Time.monotonic
+		proc = Process.new("link", args, output: stdout, error: stderr)
+		result = proc.wait
+		elapsed_time = Time.monotonic - time_start
+		if result.success?
+			puts "#{"amu".colorize.green} #{elapsed_time.pretty}"
+		else 
+			puts "#{"linking failed".colorize.red}:"
+			# we wanna delete the object files that failed so that we dont 
+			# try and reuse them in future build attempts
+			stderr.to_s.each_line do |l|
+				puts l
+				m = l.match /(\w+\.obj)/
 				next unless m
 				File.delete? output_path / m[1]
 			end
