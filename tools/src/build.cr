@@ -12,9 +12,7 @@ start_time = Time.monotonic
 require "colorize"
 
 # platform check at compile time
-{% if flag? :win32 %}
-{% 	raise("building on win32 is not setup yet (I don't have a windows environment to test in rn)") %}
-{% elsif !flag?(:linux) %}
+{% if !(flag?(:linux) || flag?(:win32)) %}
 {%	raise("building is currently only supported on linux and win32") %}
 {% end %}
 
@@ -69,13 +67,13 @@ property \
     preprocessor = "unknown",
         compiler = "unknown",
           linker = "unknown",
-		max_jobs = System.cpu_count.as(Int64),
+		max_jobs = System.cpu_count.as(UInt32),
        build_dir = "build",
    hide_greeting = false
 
 # other stuff
 property \
-	known_platforms = {"linux"},
+	known_platforms = {"linux","win32"},
 known_preprocessors = {"cpp"},
 	known_compilers = {"clang++"},
 	  known_linkers = {"clang++"}
@@ -112,6 +110,11 @@ def set_defaults_from_platform
 	self.compiler = "clang++"
 	self.linker = "clang++"
 	self.platform = "linux"
+{% elsif flag? :win32 %}
+	self.preprocessor = "cpp"
+	self.compiler = "clang++"
+	self.linker = "clang++"
+	self.platform = "win32"
 {% else %}
 {%   raise "'defaults_from_platform' needs to be implemented for this platform " %}
 {% end %}
@@ -184,7 +187,7 @@ def process_argv
 			if ns.is_a? Iterator::Stop
 				fatal "expected some number of jobs after '-jobs'"
 			end
-			if n = ns.to_i?
+			if n = ns.to_u32?
 				unless n < System.cpu_count
 					warn "the given number of jobs (#{n}) is greater than the number of logical cores on this system (#{System.cpu_count})"
 				end
@@ -237,6 +240,7 @@ def defines
 		end |
 		case platform
 		when "linux" then %w(-DAMU_LINUX=1)
+		when "win32" then %w(-DAMU_WIN32=1)
 		else fatal "unhandled platform"
 		end | 
 		case profiling

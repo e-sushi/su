@@ -13,7 +13,6 @@ data/textures/*
 *.obj
 *.idb
 *.o
-*.exe
 *.cppcheck
 *.4coder
 *.spv
