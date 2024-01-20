@@ -12,7 +12,7 @@ load(String path) {
     if(!std::filesystem::exists(p)) return 0;
 
     Source* out = new (compiler.bump.allocate(sizeof(Source))) Source;
-    std::filesystem::path ab = std::filesystem::absolute(p);
+    std::string ab = std::filesystem::absolute(p).string();
     out->path = String::from(ab.c_str()).replace('\\', '/');
 
 	String view = out->path;

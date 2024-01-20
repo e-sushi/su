@@ -72,7 +72,9 @@
 
 #  if defined(__gnu_linux__)
 #    define OS_LINUX 1
-#  else //__gnu_linux__
+#  elif defined(_WIN32) //__gnu_linux__
+#    define OS_WINDOWS 1
+#  else //_WIN32
 #    error "unhandled compiler/platform combo"
 #  endif
 
